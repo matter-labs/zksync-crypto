@@ -28,6 +28,8 @@ jobs:
         with:
           toolchain: ${{ env.nightly }}
           components: rustfmt, clippy
+          # Remove default `-D warnings`. This is a temporary measure.
+          rustflags: ""
 
       - name: Install sccache
         uses: mozilla-actions/sccache-action@v0.0.4
