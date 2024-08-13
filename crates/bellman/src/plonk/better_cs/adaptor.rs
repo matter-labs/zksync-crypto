@@ -1,18 +1,18 @@
 use crate::pairing::ff::{Field, PrimeField};
-use crate::pairing::{Engine};
+use crate::pairing::Engine;
 
 use crate::SynthesisError;
 
 use super::cs::{PlonkConstraintSystemParams, StateVariablesSet, TraceStepCoefficients};
-use crate::plonk::cs::gates::Variable as PlonkVariable;
 use crate::plonk::cs::gates::Index as PlonkIndex;
+use crate::plonk::cs::gates::Variable as PlonkVariable;
 
 use super::cs::Circuit as PlonkCircuit;
 use super::cs::ConstraintSystem as PlonkConstraintSystem;
 
 use std::marker::PhantomData;
 
-use std::collections::{HashSet, HashMap};
+use std::collections::{HashMap, HashSet};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MergeLcVariant {
@@ -47,7 +47,7 @@ impl MergeLcVariant {
             _ => {
                 use std::io::{Error, ErrorKind};
                 let custom_error = Error::new(ErrorKind::Other, "unknown LC merging variant");
-        
+
                 return Err(custom_error);
             }
         };
@@ -83,7 +83,7 @@ impl LcTransformationVariant {
             _ => {
                 use std::io::{Error, ErrorKind};
                 let custom_error = Error::new(ErrorKind::Other, "unknown LC transformation variant");
-        
+
                 return Err(custom_error);
             }
         };
@@ -120,13 +120,13 @@ pub enum TranspilationVariant {
     IntoQuadraticGate,
     IntoAdditionGate(LcTransformationVariant),
     MergeLinearCombinations(MergeLcVariant, LcTransformationVariant),
-    IntoMultiplicationGate((LcTransformationVariant, LcTransformationVariant, LcTransformationVariant))
+    IntoMultiplicationGate((LcTransformationVariant, LcTransformationVariant, LcTransformationVariant)),
 }
 
-use std::io::{Read, Write};
+use crate::byteorder::BigEndian;
 use crate::byteorder::ReadBytesExt;
 use crate::byteorder::WriteBytesExt;
-use crate::byteorder::BigEndian;
+use std::io::{Read, Write};
 
 impl TranspilationVariant {
     pub fn into_u8(&self) -> u8 {
@@ -138,11 +138,7 @@ impl TranspilationVariant {
         }
     }
 
-    pub fn write<W: Write>(
-        &self,
-        mut writer: W
-    ) -> std::io::Result<()>
-    {
+    pub fn write<W: Write>(&self, mut writer: W) -> std::io::Result<()> {
         let prefix = self.into_u8();
         writer.write_u8(prefix)?;
         match self {
@@ -156,46 +152,44 @@ impl TranspilationVariant {
 
                 let subhint = subhint.into_u8();
                 writer.write_u8(subhint)?;
-            },
+            }
             TranspilationVariant::IntoMultiplicationGate(hints) => {
                 let (h_a, h_b, h_c) = hints;
                 writer.write_u8(h_a.into_u8())?;
                 writer.write_u8(h_b.into_u8())?;
                 writer.write_u8(h_c.into_u8())?;
-            },
-            _ => {
             }
+            _ => {}
         }
 
         Ok(())
     }
 
-    pub fn read<R: Read>(
-        mut reader: R
-    ) -> std::io::Result<Self>
-    {
+    pub fn read<R: Read>(mut reader: R) -> std::io::Result<Self> {
         let prefix = reader.read_u8()?;
 
         match prefix {
-            1u8 => {return Ok(TranspilationVariant::IntoQuadraticGate); },
+            1u8 => {
+                return Ok(TranspilationVariant::IntoQuadraticGate);
+            }
             2u8 => {
                 let subhint = LcTransformationVariant::from_u8(reader.read_u8()?)?;
-                
+
                 return Ok(TranspilationVariant::IntoAdditionGate(subhint));
-            },
+            }
             3u8 => {
                 let variant = MergeLcVariant::from_u8(reader.read_u8()?)?;
                 let subhint = LcTransformationVariant::from_u8(reader.read_u8()?)?;
-                
+
                 return Ok(TranspilationVariant::MergeLinearCombinations(variant, subhint));
-            },
+            }
             4u8 => {
                 let subhint_a = LcTransformationVariant::from_u8(reader.read_u8()?)?;
                 let subhint_b = LcTransformationVariant::from_u8(reader.read_u8()?)?;
                 let subhint_c = LcTransformationVariant::from_u8(reader.read_u8()?)?;
-                
+
                 return Ok(TranspilationVariant::IntoMultiplicationGate((subhint_a, subhint_b, subhint_c)));
-            },
+            }
             _ => {}
         }
 
@@ -203,12 +197,10 @@ impl TranspilationVariant {
         let custom_error = Error::new(ErrorKind::Other, "unknown transpilation variant");
 
         Err(custom_error)
-    }  
+    }
 }
 
-pub fn read_transpilation_hints<R: Read>(
-    mut reader: R
-) -> std::io::Result<Vec<(usize, TranspilationVariant)>> {
+pub fn read_transpilation_hints<R: Read>(mut reader: R) -> std::io::Result<Vec<(usize, TranspilationVariant)>> {
     let num_hints = reader.read_u64::<BigEndian>()?;
     let mut hints = Vec::with_capacity(num_hints as usize);
 
@@ -221,10 +213,7 @@ pub fn read_transpilation_hints<R: Read>(
     Ok(hints)
 }
 
-pub fn write_transpilation_hints<W: Write>(
-    hints: &Vec<(usize, TranspilationVariant)>,
-    mut writer: W
-) -> std::io::Result<()> {
+pub fn write_transpilation_hints<W: Write>(hints: &Vec<(usize, TranspilationVariant)>, mut writer: W) -> std::io::Result<()> {
     writer.write_u64::<BigEndian>(hints.len() as u64)?;
     for (idx, h) in hints.iter() {
         writer.write_u64::<BigEndian>(*idx as u64)?;
@@ -239,19 +228,19 @@ impl std::fmt::Debug for TranspilationVariant {
         match self {
             TranspilationVariant::IntoQuadraticGate => {
                 writeln!(f, "Variant: into quadratic gate")?;
-            },
+            }
             TranspilationVariant::IntoAdditionGate(_) => {
                 writeln!(f, "Variant: make an addition gate")?;
-            },
+            }
             TranspilationVariant::MergeLinearCombinations(merge_type, _) => {
                 writeln!(f, "Variant: merge linear combinations as {:?}", merge_type)?;
-            },
+            }
             TranspilationVariant::IntoMultiplicationGate(b) => {
                 writeln!(f, "Variant: into combinatoric multiplication gate")?;
                 writeln!(f, "A: {:?}", b.0)?;
                 writeln!(f, "B: {:?}", b.1)?;
                 writeln!(f, "C: {:?}", b.2)?;
-            },
+            }
         }
 
         Ok(())
@@ -269,33 +258,33 @@ pub struct Transpiler<E: Engine, P: PlonkConstraintSystemParams<E>> {
     hints: Vec<(usize, TranspilationVariant)>,
     n: usize,
     _marker_e: std::marker::PhantomData<E>,
-    _marker_p: std::marker::PhantomData<P>
+    _marker_p: std::marker::PhantomData<P>,
 }
 
 // by convention last coefficient is a coefficient for a jump to the next step
-fn allocate_into_cs<E: Engine, P: PlonkConstraintSystemParams<E>, CS: PlonkConstraintSystem<E, P>> (
+fn allocate_into_cs<E: Engine, P: PlonkConstraintSystemParams<E>, CS: PlonkConstraintSystem<E, P>>(
     cs: &mut CS,
     needs_next_step: bool,
     variables: &[PlonkVariable],
-    coefficients: &[E::Fr]
+    coefficients: &[E::Fr],
 ) -> Result<(), SynthesisError> {
     if needs_next_step {
         debug_assert!(coefficients.len() == P::STATE_WIDTH + 1 + 1 + 1);
         debug_assert!(P::CAN_ACCESS_NEXT_TRACE_STEP);
 
         cs.new_gate(
-            P::StateVariables::from_variables(variables), 
-            P::ThisTraceStepCoefficients::from_coeffs(&coefficients[0..(P::STATE_WIDTH+2)]), 
-            P::NextTraceStepCoefficients::from_coeffs(&coefficients[(P::STATE_WIDTH+2)..])
+            P::StateVariables::from_variables(variables),
+            P::ThisTraceStepCoefficients::from_coeffs(&coefficients[0..(P::STATE_WIDTH + 2)]),
+            P::NextTraceStepCoefficients::from_coeffs(&coefficients[(P::STATE_WIDTH + 2)..]),
         )?;
     } else {
         debug_assert!(coefficients.len() >= P::STATE_WIDTH + 1 + 1);
         debug_assert!(coefficients.last().unwrap().is_zero());
 
         cs.new_gate(
-            P::StateVariables::from_variables(variables), 
-            P::ThisTraceStepCoefficients::from_coeffs(&coefficients[0..(P::STATE_WIDTH+2)]), 
-            P::NextTraceStepCoefficients::from_coeffs(&coefficients[(P::STATE_WIDTH+2)..])
+            P::StateVariables::from_variables(variables),
+            P::ThisTraceStepCoefficients::from_coeffs(&coefficients[0..(P::STATE_WIDTH + 2)]),
+            P::NextTraceStepCoefficients::from_coeffs(&coefficients[(P::STATE_WIDTH + 2)..]),
         )?;
     }
 
@@ -304,9 +293,9 @@ fn allocate_into_cs<E: Engine, P: PlonkConstraintSystemParams<E>, CS: PlonkConst
 
 fn evaluate_lc<E: Engine, P: PlonkConstraintSystemParams<E>, CS: PlonkConstraintSystem<E, P>>(
     cs: &CS,
-    lc: &LinearCombination<E>,  
-    // multiplier: E::Fr, 
-    free_term_constant: E::Fr
+    lc: &LinearCombination<E>,
+    // multiplier: E::Fr,
+    free_term_constant: E::Fr,
 ) -> Result<E::Fr, SynthesisError> {
     let mut final_value = E::Fr::zero();
     for (var, coeff) in lc.as_ref().iter() {
@@ -323,7 +312,7 @@ fn evaluate_lc<E: Engine, P: PlonkConstraintSystemParams<E>, CS: PlonkConstraint
 fn evaluate_over_variables<E: Engine, P: PlonkConstraintSystemParams<E>, CS: PlonkConstraintSystem<E, P>>(
     cs: &CS,
     variables: &[(Variable, E::Fr)],
-    free_term_constant: E::Fr
+    free_term_constant: E::Fr,
 ) -> Result<E::Fr, SynthesisError> {
     let mut final_value = E::Fr::zero();
     for (var, coeff) in variables.iter() {
@@ -340,7 +329,7 @@ fn evaluate_over_variables<E: Engine, P: PlonkConstraintSystemParams<E>, CS: Plo
 fn evaluate_over_plonk_variables<E: Engine, P: PlonkConstraintSystemParams<E>, CS: PlonkConstraintSystem<E, P>>(
     cs: &CS,
     variables: &[(PlonkVariable, E::Fr)],
-    free_term_constant: E::Fr
+    free_term_constant: E::Fr,
 ) -> Result<E::Fr, SynthesisError> {
     let mut final_value = E::Fr::zero();
     for (var, coeff) in variables.iter() {
@@ -358,7 +347,7 @@ fn evaluate_over_plonk_variables_and_coeffs<E: Engine, P: PlonkConstraintSystemP
     cs: &CS,
     variables: &[PlonkVariable],
     coeffs: &[E::Fr],
-    free_term_constant: E::Fr
+    free_term_constant: E::Fr,
 ) -> Result<E::Fr, SynthesisError> {
     debug_assert_eq!(variables.len(), coeffs.len());
     let mut final_value = E::Fr::zero();
@@ -374,9 +363,9 @@ fn evaluate_over_plonk_variables_and_coeffs<E: Engine, P: PlonkConstraintSystemP
 }
 
 fn enforce_lc_as_gates<E: Engine, P: PlonkConstraintSystemParams<E>, CS: PlonkConstraintSystem<E, P>>(
-    cs: &mut CS, 
-    mut lc: LinearCombination<E>,  
-    multiplier: E::Fr, 
+    cs: &mut CS,
+    mut lc: LinearCombination<E>,
+    multiplier: E::Fr,
     free_term_constant: E::Fr,
     collapse_into_single_variable: bool,
     scratch_space: &mut TranspilationScratchSpace<E>,
@@ -399,14 +388,14 @@ fn enforce_lc_as_gates<E: Engine, P: PlonkConstraintSystemParams<E>, CS: PlonkCo
     if lc.0.len() == 1 {
         if free_term_constant.is_zero() {
             // this linear combination contains only one variable and no constant
-            // term, so we just leave it as is, 
+            // term, so we just leave it as is,
             // but ONLY if we just need to collapse LC into a variable
             if collapse_into_single_variable {
                 let (var, coeff) = lc.0[0];
 
                 return Ok((Some(convert_variable(var)), coeff, LcTransformationVariant::IsSingleVariable));
             }
-        } 
+        }
     }
 
     // everything else should be handled here by making a new variable
@@ -424,15 +413,13 @@ fn enforce_lc_as_gates<E: Engine, P: PlonkConstraintSystemParams<E>, CS: PlonkCo
         }
     }
 
-    // if we need to collaplse an LC into a single variable for 
+    // if we need to collaplse an LC into a single variable for
     // future use we allocate it and then subtract it from linear combination
     // to have an enforcement LC == 0 in all the cases
 
     let final_variable = if collapse_into_single_variable {
         let may_be_new_value = evaluate_lc::<E, P, CS>(&*cs, &lc, free_term_constant);
-        let new_var = cs.alloc(|| {
-            may_be_new_value
-        })?;
+        let new_var = cs.alloc(|| may_be_new_value)?;
 
         Some(new_var)
     } else {
@@ -445,11 +432,11 @@ fn enforce_lc_as_gates<E: Engine, P: PlonkConstraintSystemParams<E>, CS: PlonkCo
 
     let num_terms = lc.0.len();
 
-    // we have two options: 
+    // we have two options:
     // - fit everything into a single gate (in case of number terms in the linear combination
     // smaller than a width of the state)
     // - make a required number of extra variables and chain it
-    
+
     if num_terms <= P::STATE_WIDTH {
         // we can just make a single gate
 
@@ -477,12 +464,7 @@ fn enforce_lc_as_gates<E: Engine, P: PlonkConstraintSystemParams<E>, CS: PlonkCo
         scratch_space.scratch_space_for_coeffs.push(free_term_constant);
         scratch_space.scratch_space_for_coeffs.push(zero_fr);
 
-        allocate_into_cs(
-            cs, 
-            false, 
-            &*scratch_space.scratch_space_for_vars, 
-            &*scratch_space.scratch_space_for_coeffs
-        )?;
+        allocate_into_cs(cs, false, &*scratch_space.scratch_space_for_vars, &*scratch_space.scratch_space_for_coeffs)?;
 
         scratch_space.clear();
 
@@ -495,18 +477,18 @@ fn enforce_lc_as_gates<E: Engine, P: PlonkConstraintSystemParams<E>, CS: PlonkCo
         // - every time take STATE_WIDTH-1 variables and place their sum + last wire into the next gate last wire
 
         // we have also made a final variable already, so there is NO difference
-        let cycles = ((lc.0.len() - P::STATE_WIDTH) + (P::STATE_WIDTH - 2)) / (P::STATE_WIDTH - 1); // ceil 
+        let cycles = ((lc.0.len() - P::STATE_WIDTH) + (P::STATE_WIDTH - 2)) / (P::STATE_WIDTH - 1); // ceil
         let mut it = lc.0.into_iter();
 
-        // this is a placeholder variable that must go into the 
-        // corresponding trace polynomial at the NEXT time step 
+        // this is a placeholder variable that must go into the
+        // corresponding trace polynomial at the NEXT time step
         let mut next_step_var_in_chain = {
             scratch_space.scratch_space_for_vars.resize(P::STATE_WIDTH, cs.get_dummy_variable());
             scratch_space.scratch_space_for_booleans.resize(P::STATE_WIDTH, false);
             scratch_space.scratch_space_for_coeffs.resize(P::STATE_WIDTH, zero_fr);
-    
+
             // we can consume and never have leftovers
-    
+
             let mut idx = 0;
             for (var, coeff) in &mut it {
                 if scratch_space.scratch_space_for_booleans[idx] == false {
@@ -522,17 +504,11 @@ fn enforce_lc_as_gates<E: Engine, P: PlonkConstraintSystemParams<E>, CS: PlonkCo
 
             // for a P::STATE_WIDTH variables we make a corresponding LC
             // ~ a + b + c + d + constant. That will be equal to d_next
-            let may_be_new_intermediate_value = evaluate_over_plonk_variables_and_coeffs::<E, P, CS>(
-                &*cs,
-                &*scratch_space.scratch_space_for_vars,
-                &*scratch_space.scratch_space_for_coeffs, 
-                free_term_constant
-            );
+            let may_be_new_intermediate_value =
+                evaluate_over_plonk_variables_and_coeffs::<E, P, CS>(&*cs, &*scratch_space.scratch_space_for_vars, &*scratch_space.scratch_space_for_coeffs, free_term_constant);
 
             // we manually allocate the new variable
-            let new_intermediate_var = cs.alloc(|| {
-                may_be_new_intermediate_value
-            })?;
+            let new_intermediate_var = cs.alloc(|| may_be_new_intermediate_value)?;
 
             // no multiplication coefficient,
             // but -1 to link to the next trace step (we enforce == 0)
@@ -540,12 +516,7 @@ fn enforce_lc_as_gates<E: Engine, P: PlonkConstraintSystemParams<E>, CS: PlonkCo
             scratch_space.scratch_space_for_coeffs.push(free_term_constant); // add constant
             scratch_space.scratch_space_for_coeffs.push(minus_one_fr); // -1 for a d_next
 
-            allocate_into_cs(
-                cs, 
-                true, 
-                &*scratch_space.scratch_space_for_vars, 
-                &*scratch_space.scratch_space_for_coeffs
-            )?;
+            allocate_into_cs(cs, true, &*scratch_space.scratch_space_for_vars, &*scratch_space.scratch_space_for_coeffs)?;
 
             scratch_space.clear();
 
@@ -554,16 +525,16 @@ fn enforce_lc_as_gates<E: Engine, P: PlonkConstraintSystemParams<E>, CS: PlonkCo
 
         // run over the rest
 
-        // we can only take one less cause 
+        // we can only take one less cause
         // we've already used one of the variable
-        let consume_from_lc = P::STATE_WIDTH - 1; 
-        for _ in 0..(cycles-1) {
+        let consume_from_lc = P::STATE_WIDTH - 1;
+        for _ in 0..(cycles - 1) {
             scratch_space.scratch_space_for_vars.resize(consume_from_lc, cs.get_dummy_variable());
             scratch_space.scratch_space_for_booleans.resize(consume_from_lc, false);
             scratch_space.scratch_space_for_coeffs.resize(consume_from_lc, zero_fr);
-    
+
             // we can consume and never have leftovers
-    
+
             let mut idx = 0;
             for (var, coeff) in &mut it {
                 if scratch_space.scratch_space_for_booleans[idx] == false {
@@ -582,16 +553,9 @@ fn enforce_lc_as_gates<E: Engine, P: PlonkConstraintSystemParams<E>, CS: PlonkCo
             scratch_space.scratch_space_for_coeffs.push(one_fr);
             scratch_space.scratch_space_for_vars.push(next_step_var_in_chain);
 
-            let may_be_new_intermediate_value = evaluate_over_plonk_variables_and_coeffs::<E, P, CS>(
-                &*cs,
-                &*scratch_space.scratch_space_for_vars,
-                &*scratch_space.scratch_space_for_coeffs, 
-                zero_fr
-            );
+            let may_be_new_intermediate_value = evaluate_over_plonk_variables_and_coeffs::<E, P, CS>(&*cs, &*scratch_space.scratch_space_for_vars, &*scratch_space.scratch_space_for_coeffs, zero_fr);
 
-            let new_intermediate_var = cs.alloc(|| {
-                may_be_new_intermediate_value
-            })?;
+            let new_intermediate_var = cs.alloc(|| may_be_new_intermediate_value)?;
 
             // no multiplication coefficient and no constant now,
             // but -1 to link to the next trace step
@@ -599,12 +563,7 @@ fn enforce_lc_as_gates<E: Engine, P: PlonkConstraintSystemParams<E>, CS: PlonkCo
             scratch_space.scratch_space_for_coeffs.push(zero_fr);
             scratch_space.scratch_space_for_coeffs.push(minus_one_fr);
 
-            allocate_into_cs(
-                cs, 
-                true, 
-                &*scratch_space.scratch_space_for_vars, 
-                &*scratch_space.scratch_space_for_coeffs
-            )?;
+            allocate_into_cs(cs, true, &*scratch_space.scratch_space_for_vars, &*scratch_space.scratch_space_for_coeffs)?;
 
             scratch_space.clear();
 
@@ -613,12 +572,12 @@ fn enforce_lc_as_gates<E: Engine, P: PlonkConstraintSystemParams<E>, CS: PlonkCo
 
         // final step - we just make a single gate, last one
         {
-            scratch_space.scratch_space_for_vars.resize(P::STATE_WIDTH-1, cs.get_dummy_variable());
-            scratch_space.scratch_space_for_booleans.resize(P::STATE_WIDTH-1, false);
-            scratch_space.scratch_space_for_coeffs.resize(P::STATE_WIDTH-1, zero_fr);
-    
+            scratch_space.scratch_space_for_vars.resize(P::STATE_WIDTH - 1, cs.get_dummy_variable());
+            scratch_space.scratch_space_for_booleans.resize(P::STATE_WIDTH - 1, false);
+            scratch_space.scratch_space_for_coeffs.resize(P::STATE_WIDTH - 1, zero_fr);
+
             // we can consume and never have leftovers
-    
+
             let mut idx = 0;
             for (var, coeff) in &mut it {
                 if scratch_space.scratch_space_for_booleans[idx] == false {
@@ -639,12 +598,7 @@ fn enforce_lc_as_gates<E: Engine, P: PlonkConstraintSystemParams<E>, CS: PlonkCo
             scratch_space.scratch_space_for_coeffs.push(zero_fr);
             scratch_space.scratch_space_for_coeffs.push(zero_fr);
 
-            allocate_into_cs(
-                cs, 
-                false, 
-                &*scratch_space.scratch_space_for_vars, 
-                &*scratch_space.scratch_space_for_coeffs
-            )?;
+            allocate_into_cs(cs, false, &*scratch_space.scratch_space_for_vars, &*scratch_space.scratch_space_for_coeffs)?;
 
             scratch_space.clear();
         }
@@ -653,7 +607,7 @@ fn enforce_lc_as_gates<E: Engine, P: PlonkConstraintSystemParams<E>, CS: PlonkCo
 
         let hint = LcTransformationVariant::IntoMultipleGates;
 
-        return Ok((final_variable, one_fr, hint));   
+        return Ok((final_variable, one_fr, hint));
     }
 }
 
@@ -669,7 +623,7 @@ impl<E: Engine, P: PlonkConstraintSystemParams<E>> Transpiler<E, P> {
             hints: vec![],
             n: 0usize,
             _marker_e: std::marker::PhantomData,
-            _marker_p: std::marker::PhantomData
+            _marker_p: std::marker::PhantomData,
         }
     }
 
@@ -696,12 +650,9 @@ impl<E: Engine, P: PlonkConstraintSystemParams<E>> Transpiler<E, P> {
 impl<E: Engine, P: PlonkConstraintSystemParams<E>> PlonkConstraintSystem<E, P> for Transpiler<E, P> {
     fn alloc<F>(&mut self, value: F) -> Result<PlonkVariable, SynthesisError>
     where
-        F: FnOnce() -> Result<E::Fr, SynthesisError> 
+        F: FnOnce() -> Result<E::Fr, SynthesisError>,
     {
-        let var = crate::ConstraintSystem::<E>::alloc(
-            self,
-            || "alloc aux var", 
-        value)?;
+        let var = crate::ConstraintSystem::<E>::alloc(self, || "alloc aux var", value)?;
 
         Ok(convert_variable(var))
     }
@@ -709,23 +660,16 @@ impl<E: Engine, P: PlonkConstraintSystemParams<E>> PlonkConstraintSystem<E, P> f
     // allocate an input variable
     fn alloc_input<F>(&mut self, value: F) -> Result<PlonkVariable, SynthesisError>
     where
-        F: FnOnce() -> Result<E::Fr, SynthesisError> 
+        F: FnOnce() -> Result<E::Fr, SynthesisError>,
     {
-        let var = crate::ConstraintSystem::<E>::alloc_input(
-            self,
-            || "alloc input var", 
-        value)?;
+        let var = crate::ConstraintSystem::<E>::alloc_input(self, || "alloc input var", value)?;
 
         self.n += 1;
 
         Ok(convert_variable(var))
     }
 
-    fn new_gate(&mut self, 
-        _variables: P::StateVariables, 
-        _this_step_coeffs: P::ThisTraceStepCoefficients,
-        _next_step_coeffs: P::NextTraceStepCoefficients
-    ) -> Result<(), SynthesisError> {
+    fn new_gate(&mut self, _variables: P::StateVariables, _this_step_coeffs: P::ThisTraceStepCoefficients, _next_step_coeffs: P::NextTraceStepCoefficients) -> Result<(), SynthesisError> {
         // Transpiler does NOT allocate any gates himself
         self.n += 1;
 
@@ -740,12 +684,9 @@ impl<E: Engine, P: PlonkConstraintSystemParams<E>> PlonkConstraintSystem<E, P> f
 impl<'a, E: Engine, P: PlonkConstraintSystemParams<E>> PlonkConstraintSystem<E, P> for &'a mut Transpiler<E, P> {
     fn alloc<F>(&mut self, value: F) -> Result<PlonkVariable, SynthesisError>
     where
-        F: FnOnce() -> Result<E::Fr, SynthesisError> 
+        F: FnOnce() -> Result<E::Fr, SynthesisError>,
     {
-        let var = crate::ConstraintSystem::<E>::alloc(
-            self,
-            || "alloc aux var", 
-        value)?;
+        let var = crate::ConstraintSystem::<E>::alloc(self, || "alloc aux var", value)?;
 
         Ok(convert_variable(var))
     }
@@ -753,23 +694,16 @@ impl<'a, E: Engine, P: PlonkConstraintSystemParams<E>> PlonkConstraintSystem<E, 
     // allocate an input variable
     fn alloc_input<F>(&mut self, value: F) -> Result<PlonkVariable, SynthesisError>
     where
-        F: FnOnce() -> Result<E::Fr, SynthesisError> 
+        F: FnOnce() -> Result<E::Fr, SynthesisError>,
     {
-        let var = crate::ConstraintSystem::<E>::alloc_input(
-            self,
-            || "alloc input var", 
-        value)?;
+        let var = crate::ConstraintSystem::<E>::alloc_input(self, || "alloc input var", value)?;
 
         self.n += 1;
 
         Ok(convert_variable(var))
     }
 
-    fn new_gate(&mut self, 
-        _variables: P::StateVariables, 
-        _this_step_coeffs: P::ThisTraceStepCoefficients,
-        _next_step_coeffs: P::NextTraceStepCoefficients
-    ) -> Result<(), SynthesisError> {
+    fn new_gate(&mut self, _variables: P::StateVariables, _this_step_coeffs: P::ThisTraceStepCoefficients, _next_step_coeffs: P::NextTraceStepCoefficients) -> Result<(), SynthesisError> {
         // Transpiler does NOT allocate any gates himself
         self.n += 1;
 
@@ -781,8 +715,7 @@ impl<'a, E: Engine, P: PlonkConstraintSystemParams<E>> PlonkConstraintSystem<E, 
     }
 }
 
-impl<E: Engine, P: PlonkConstraintSystemParams<E>> crate::ConstraintSystem<E> for Transpiler<E, P>
-{
+impl<E: Engine, P: PlonkConstraintSystemParams<E>> crate::ConstraintSystem<E> for Transpiler<E, P> {
     type Root = Self;
 
     fn one() -> crate::Variable {
@@ -800,11 +733,7 @@ impl<E: Engine, P: PlonkConstraintSystemParams<E>> crate::ConstraintSystem<E> fo
         Ok(crate::Variable::new_unchecked(crate::Index::Aux(self.current_plonk_aux_idx)))
     }
 
-    fn alloc_input<F, A, AR>(
-        &mut self,
-        _: A,
-        _f: F,
-    ) -> Result<crate::Variable, crate::SynthesisError>
+    fn alloc_input<F, A, AR>(&mut self, _: A, _f: F) -> Result<crate::Variable, crate::SynthesisError>
     where
         F: FnOnce() -> Result<E::Fr, crate::SynthesisError>,
         A: FnOnce() -> AR,
@@ -850,7 +779,7 @@ impl<E: Engine, P: PlonkConstraintSystemParams<E>> crate::ConstraintSystem<E> fo
         match (a_is_constant, b_is_constant, c_is_constant) {
             (true, true, true) => {
                 unreachable!("R1CS has a gate 1 * 1 = 1");
-            },
+            }
             (true, false, true) | (false, true, true) => {
                 // println!("C * LC = C");
                 // we have something like c0 * LC = c1
@@ -885,14 +814,7 @@ impl<E: Engine, P: PlonkConstraintSystemParams<E>> crate::ConstraintSystem<E> fo
 
                 let mut space = self.transpilation_scratch_space.take().unwrap();
 
-                let (_, _, hint) = enforce_lc_as_gates(
-                    self,
-                    lc,
-                    multiplier,
-                    free_constant_term,
-                    false,
-                    &mut space
-                ).expect("must allocate LCs as gates for constraint like c0 * LC = c1");
+                let (_, _, hint) = enforce_lc_as_gates(self, lc, multiplier, free_constant_term, false, &mut space).expect("must allocate LCs as gates for constraint like c0 * LC = c1");
 
                 self.transpilation_scratch_space = Some(space);
 
@@ -903,19 +825,12 @@ impl<E: Engine, P: PlonkConstraintSystemParams<E>> crate::ConstraintSystem<E> fo
                 self.hints.push((current_lc_number, TranspilationVariant::IntoAdditionGate(hint)));
 
                 return;
-            },
+            }
             (false, false, true) => {
-                // println!("LC * LC = C");    
+                // println!("LC * LC = C");
                 // potential quadatic gate, but ig general
                 // it's a full multiplication gate
-                let (is_quadratic_gate, _coeffs) = check_for_quadratic_gate::<E>(
-                    &a_lc, 
-                    &b_lc, 
-                    &c_lc,
-                    a_constant_term,
-                    b_constant_term,
-                    c_constant_term
-                );
+                let (is_quadratic_gate, _coeffs) = check_for_quadratic_gate::<E>(&a_lc, &b_lc, &c_lc, a_constant_term, b_constant_term, c_constant_term);
                 if is_quadratic_gate {
                     let current_lc_number = self.increment_lc_number();
                     // we don't pass a call to any function that allocates a gate,
@@ -933,23 +848,9 @@ impl<E: Engine, P: PlonkConstraintSystemParams<E>> crate::ConstraintSystem<E> fo
 
                 let mut space = self.transpilation_scratch_space.take().unwrap();
 
-                let (_new_a_var, _, hint_a) = enforce_lc_as_gates(
-                    self,
-                    a_lc,
-                    one_fr,
-                    a_constant_term,
-                    true,
-                    &mut space
-                ).expect("must allocate A LC as gates for constraint like LC * LC = c1");
+                let (_new_a_var, _, hint_a) = enforce_lc_as_gates(self, a_lc, one_fr, a_constant_term, true, &mut space).expect("must allocate A LC as gates for constraint like LC * LC = c1");
 
-                let (_new_b_var, _, hint_b) = enforce_lc_as_gates(
-                    self,
-                    b_lc,
-                    one_fr,
-                    b_constant_term,
-                    true,
-                    &mut space
-                ).expect("must allocate B LC as gates for constraint like LC * LC = c1");
+                let (_new_b_var, _, hint_b) = enforce_lc_as_gates(self, b_lc, one_fr, b_constant_term, true, &mut space).expect("must allocate B LC as gates for constraint like LC * LC = c1");
 
                 self.transpilation_scratch_space = Some(space);
 
@@ -965,8 +866,7 @@ impl<E: Engine, P: PlonkConstraintSystemParams<E>> crate::ConstraintSystem<E> fo
                 // println!("Hint = {:?}", hint);
 
                 self.hints.push((current_lc_number, hint));
-
-            },
+            }
             (true, false, false) | (false, true, false) => {
                 // sometihng like LC * const = LC
                 // so we can merge them into one long linear combination
@@ -991,14 +891,7 @@ impl<E: Engine, P: PlonkConstraintSystemParams<E>> crate::ConstraintSystem<E> fo
 
                     let mut space = self.transpilation_scratch_space.take().unwrap();
 
-                    let (_, _, hint_c) = enforce_lc_as_gates(
-                        self,
-                        c_lc,
-                        one_fr,
-                        c_constant_term,
-                        false,
-                        &mut space
-                    ).expect("must allocate LCs as gates for constraint like 0 = LC_C");
+                    let (_, _, hint_c) = enforce_lc_as_gates(self, c_lc, one_fr, c_constant_term, false, &mut space).expect("must allocate LCs as gates for constraint like 0 = LC_C");
 
                     self.transpilation_scratch_space = Some(space);
 
@@ -1042,14 +935,7 @@ impl<E: Engine, P: PlonkConstraintSystemParams<E>> crate::ConstraintSystem<E> fo
 
                 let mut space = self.transpilation_scratch_space.take().unwrap();
 
-                let (_, _, hint_lc) = enforce_lc_as_gates(
-                    self,
-                    final_lc,
-                    one_fr,
-                    free_constant_term,
-                    false,
-                    &mut space
-                ).expect("must allocate LCs as gates for constraint like c0 * LC = LC");
+                let (_, _, hint_lc) = enforce_lc_as_gates(self, final_lc, one_fr, free_constant_term, false, &mut space).expect("must allocate LCs as gates for constraint like c0 * LC = LC");
 
                 self.transpilation_scratch_space = Some(space);
 
@@ -1062,8 +948,7 @@ impl<E: Engine, P: PlonkConstraintSystemParams<E>> crate::ConstraintSystem<E> fo
                 self.hints.push((current_lc_number, hint));
 
                 return;
-
-            },
+            }
             (true, true, false) => {
                 // const * const = LC
                 // A and B are some constants
@@ -1076,14 +961,7 @@ impl<E: Engine, P: PlonkConstraintSystemParams<E>> crate::ConstraintSystem<E> fo
 
                 let mut space = self.transpilation_scratch_space.take().unwrap();
 
-                let (_, _, hint_lc) = enforce_lc_as_gates(
-                    self,
-                    c_lc,
-                    one_fr,
-                    free_constant_term,
-                    false,
-                    &mut space
-                ).expect("must allocate LCs as gates for constraint like c0 * c1 = LC");
+                let (_, _, hint_lc) = enforce_lc_as_gates(self, c_lc, one_fr, free_constant_term, false, &mut space).expect("must allocate LCs as gates for constraint like c0 * c1 = LC");
 
                 self.transpilation_scratch_space = Some(space);
 
@@ -1094,15 +972,11 @@ impl<E: Engine, P: PlonkConstraintSystemParams<E>> crate::ConstraintSystem<E> fo
                 // println!("Hint = {:?}", hint);
 
                 self.hints.push((current_lc_number, hint));
-
-            },
+            }
             (false, false, false) => {
                 // LC * LC = LC
                 // potentially it can still be quadratic
-                let (is_quadratic_gate, _coeffs) = is_quadratic_gate::<E, Self>(
-                    &a_lc, 
-                    &b_lc, 
-                    &c_lc, &mut self.scratch);
+                let (is_quadratic_gate, _coeffs) = is_quadratic_gate::<E, Self>(&a_lc, &b_lc, &c_lc, &mut self.scratch);
                 if is_quadratic_gate {
                     let current_lc_number = self.increment_lc_number();
 
@@ -1121,31 +995,10 @@ impl<E: Engine, P: PlonkConstraintSystemParams<E>> crate::ConstraintSystem<E> fo
                 // rewrite into addition gates and multiplication gates
 
                 let mut space = self.transpilation_scratch_space.take().unwrap();
-                
-                let (_new_a_var, _, hint_a) = enforce_lc_as_gates(
-                    self,
-                    a_lc,
-                    one_fr,
-                    a_constant_term,
-                    true,
-                    &mut space
-                ).expect("must allocate A LC as gates for constraint like LC * LC = LC");
-                let (_new_b_var, _, hint_b) = enforce_lc_as_gates(
-                    self,
-                    b_lc,
-                    one_fr,
-                    b_constant_term,
-                    true,
-                    &mut space
-                ).expect("must allocate B LC as gates for constraint like LC * LC = LC");
-                let (_new_c_var, _, hint_c) = enforce_lc_as_gates(
-                    self,
-                    c_lc,
-                    one_fr,
-                    c_constant_term,
-                    true,
-                    &mut space
-                ).expect("must allocate C LC as gates for constraint like LC * LC = LC");
+
+                let (_new_a_var, _, hint_a) = enforce_lc_as_gates(self, a_lc, one_fr, a_constant_term, true, &mut space).expect("must allocate A LC as gates for constraint like LC * LC = LC");
+                let (_new_b_var, _, hint_b) = enforce_lc_as_gates(self, b_lc, one_fr, b_constant_term, true, &mut space).expect("must allocate B LC as gates for constraint like LC * LC = LC");
+                let (_new_c_var, _, hint_c) = enforce_lc_as_gates(self, c_lc, one_fr, c_constant_term, true, &mut space).expect("must allocate C LC as gates for constraint like LC * LC = LC");
 
                 self.transpilation_scratch_space = Some(space);
 
@@ -1160,7 +1013,7 @@ impl<E: Engine, P: PlonkConstraintSystemParams<E>> crate::ConstraintSystem<E> fo
 
                 self.hints.push((current_lc_number, hint));
             }
-        }  
+        }
     }
 
     fn push_namespace<NR, N>(&mut self, _: N)
@@ -1182,16 +1035,16 @@ impl<E: Engine, P: PlonkConstraintSystemParams<E>> crate::ConstraintSystem<E> fo
 
 // List of heuristics
 
-use crate::{LinearCombination, ConstraintSystem, Variable};
+use crate::{ConstraintSystem, LinearCombination, Variable};
 
 fn is_quadratic_gate<E: Engine, CS: ConstraintSystem<E>>(
-    a: &LinearCombination<E>, 
-    b: &LinearCombination<E>, 
+    a: &LinearCombination<E>,
+    b: &LinearCombination<E>,
     c: &LinearCombination<E>,
-    scratch: &mut HashSet::<crate::cs::Variable>
+    scratch: &mut HashSet<crate::cs::Variable>,
 ) -> (bool, (E::Fr, E::Fr, E::Fr)) {
     let zero = E::Fr::zero();
-    
+
     let (_a_containts_constant, a_constant_coeff) = get_constant_term::<E, CS>(&a);
     let (_b_containts_constant, b_constant_coeff) = get_constant_term::<E, CS>(&b);
     let (_c_containts_constant, c_constant_coeff) = get_constant_term::<E, CS>(&c);
@@ -1240,14 +1093,14 @@ fn is_quadratic_gate<E: Engine, CS: ConstraintSystem<E>>(
         }
 
         return (true, (constant_term, linear_term, quadratic_term));
-    } 
+    }
 
     (false, (zero, zero, zero))
 }
 
 fn check_for_quadratic_gate<E: Engine>(
-    a: &LinearCombination<E>, 
-    b: &LinearCombination<E>, 
+    a: &LinearCombination<E>,
+    b: &LinearCombination<E>,
     c: &LinearCombination<E>,
     a_constant_term: E::Fr,
     b_constant_term: E::Fr,
@@ -1316,7 +1169,7 @@ fn check_for_quadratic_gate<E: Engine>(
         }
 
         return (true, (constant_term, linear_term, quadratic_term));
-    } 
+    }
 
     (false, (zero, zero, zero))
 }
@@ -1326,7 +1179,7 @@ fn is_constant<E: Engine, CS: ConstraintSystem<E>>(lc: &LinearCombination<E>) ->
     if lc.as_ref().len() == 0 {
         return (true, E::Fr::zero());
     }
-    
+
     let result = get_constant_term::<E, CS>(&lc);
 
     if result.0 && lc.as_ref().len() == 1 {
@@ -1338,7 +1191,7 @@ fn is_constant<E: Engine, CS: ConstraintSystem<E>>(lc: &LinearCombination<E>) ->
 
 fn get_constant_term<E: Engine, CS: ConstraintSystem<E>>(lc: &LinearCombination<E>) -> (bool, E::Fr) {
     let cs_one = CS::one();
-    
+
     for (var, coeff) in lc.as_ref().iter() {
         if var == &cs_one {
             return (true, *coeff);
@@ -1350,7 +1203,7 @@ fn get_constant_term<E: Engine, CS: ConstraintSystem<E>>(lc: &LinearCombination<
 
 fn get_first_variable<E: Engine, CS: ConstraintSystem<E>>(lc: &LinearCombination<E>) -> (bool, Variable) {
     let cs_one = CS::one();
-    
+
     for (var, _) in lc.as_ref().iter() {
         if var != &cs_one {
             return (true, *var);
@@ -1362,7 +1215,7 @@ fn get_first_variable<E: Engine, CS: ConstraintSystem<E>>(lc: &LinearCombination
 
 fn get_first_variable_with_coeff<E: Engine, CS: ConstraintSystem<E>>(lc: &LinearCombination<E>) -> (bool, Variable, E::Fr) {
     let cs_one = CS::one();
-    
+
     for (var, coeff) in lc.as_ref().iter() {
         if var != &cs_one {
             return (true, *var, *coeff);
@@ -1372,11 +1225,11 @@ fn get_first_variable_with_coeff<E: Engine, CS: ConstraintSystem<E>>(lc: &Linear
     (false, cs_one, E::Fr::zero())
 }
 
-fn num_unique_values<E: Engine, CS: ConstraintSystem<E>>(lc: &LinearCombination<E>, scratch: &mut HashSet::<crate::cs::Variable>) -> (bool, usize) {
+fn num_unique_values<E: Engine, CS: ConstraintSystem<E>>(lc: &LinearCombination<E>, scratch: &mut HashSet<crate::cs::Variable>) -> (bool, usize) {
     let cs_one = CS::one();
 
     debug_assert!(scratch.is_empty());
-    
+
     let mut contains_constant = false;
 
     for (var, _) in lc.as_ref().iter() {
@@ -1394,11 +1247,11 @@ fn num_unique_values<E: Engine, CS: ConstraintSystem<E>>(lc: &LinearCombination<
     (contains_constant, num_unique_without_constant)
 }
 
-fn is_linear_term<E: Engine, CS: ConstraintSystem<E>>(lc: &LinearCombination<E>, scratch: &mut HashSet::<crate::cs::Variable>) -> (bool, Variable, E::Fr) {
+fn is_linear_term<E: Engine, CS: ConstraintSystem<E>>(lc: &LinearCombination<E>, scratch: &mut HashSet<crate::cs::Variable>) -> (bool, Variable, E::Fr) {
     let cs_one = CS::one();
 
     debug_assert!(scratch.is_empty());
-    
+
     let mut linear_coeff = E::Fr::zero();
 
     for (var, coeff) in lc.as_ref().iter() {
@@ -1414,18 +1267,15 @@ fn is_linear_term<E: Engine, CS: ConstraintSystem<E>>(lc: &LinearCombination<E>,
         let terms: Vec<_> = scratch.drain().collect();
         let term = terms[0];
 
-        return (true, term, linear_coeff)
+        return (true, term, linear_coeff);
     } else {
         scratch.clear();
 
-        return (false, cs_one, E::Fr::zero())
-    }    
+        return (false, cs_one, E::Fr::zero());
+    }
 }
 
-fn deduplicate_stable<E: Engine, CS: ConstraintSystem<E>>(
-    lc: LinearCombination<E>,
-    scratch: &mut HashMap<crate::cs::Variable, usize>
-) -> LinearCombination<E> {
+fn deduplicate_stable<E: Engine, CS: ConstraintSystem<E>>(lc: LinearCombination<E>, scratch: &mut HashMap<crate::cs::Variable, usize>) -> LinearCombination<E> {
     assert!(scratch.is_empty());
 
     if lc.as_ref().len() == 0 {
@@ -1462,10 +1312,7 @@ fn deduplicate_stable<E: Engine, CS: ConstraintSystem<E>>(
     LinearCombination(deduped_vec)
 }
 
-fn deduplicate_and_split_linear_term<E: Engine, CS: ConstraintSystem<E>>(
-    lc: LinearCombination<E>,
-    scratch: &mut HashMap<crate::cs::Variable, usize>
-) -> (bool, E::Fr, bool, LinearCombination<E>) {
+fn deduplicate_and_split_linear_term<E: Engine, CS: ConstraintSystem<E>>(lc: LinearCombination<E>, scratch: &mut HashMap<crate::cs::Variable, usize>) -> (bool, E::Fr, bool, LinearCombination<E>) {
     assert!(scratch.is_empty());
 
     if lc.as_ref().len() == 0 {
@@ -1505,11 +1352,11 @@ fn deduplicate_and_split_linear_term<E: Engine, CS: ConstraintSystem<E>>(
 fn subtract_lcs_with_dedup_stable<E: Engine, CS: ConstraintSystem<E>>(
     lc_0: LinearCombination<E>,
     lc_1: LinearCombination<E>,
-    scratch: &mut HashMap<crate::cs::Variable, usize>
+    scratch: &mut HashMap<crate::cs::Variable, usize>,
 ) -> LinearCombination<E> {
     assert!(scratch.is_empty());
 
-    if lc_0.as_ref().len() == 0 && lc_1.as_ref().len() == 0{
+    if lc_0.as_ref().len() == 0 && lc_1.as_ref().len() == 0 {
         return lc_0;
     }
 
@@ -1546,19 +1393,14 @@ fn subtract_lcs_with_dedup_stable<E: Engine, CS: ConstraintSystem<E>>(
     LinearCombination(deduped_vec)
 }
 
-fn subtract_variable_unchecked<E: Engine>(
-    lc: &mut LinearCombination<E>,
-    variable: Variable
-) {
+fn subtract_variable_unchecked<E: Engine>(lc: &mut LinearCombination<E>, variable: Variable) {
     let mut minus_one = E::Fr::one();
     minus_one.negate();
 
     lc.0.push((variable, minus_one));
 }
 
-fn split_constant_term<E: Engine, CS: ConstraintSystem<E>>(
-    mut lc: LinearCombination<E>,
-) -> (LinearCombination<E>, E::Fr) {
+fn split_constant_term<E: Engine, CS: ConstraintSystem<E>>(mut lc: LinearCombination<E>) -> (LinearCombination<E>, E::Fr) {
     if lc.as_ref().len() == 0 {
         return (lc, E::Fr::zero());
     }
@@ -1582,7 +1424,6 @@ fn split_constant_term<E: Engine, CS: ConstraintSystem<E>>(
         return (lc, constant_coeff);
     }
 }
-
 
 pub struct Adaptor<'a, E: Engine, P: PlonkConstraintSystemParams<E>, CS: PlonkConstraintSystem<E, P> + 'a> {
     cs: &'a mut CS,
@@ -1613,9 +1454,7 @@ impl<'a, E: Engine, P: PlonkConstraintSystemParams<E>, CS: PlonkConstraintSystem
     }
 }
 
-impl<'a, E: Engine, P: PlonkConstraintSystemParams<E>, CS: PlonkConstraintSystem<E, P> + 'a> crate::ConstraintSystem<E>
-    for Adaptor<'a, E, P, CS>
-{
+impl<'a, E: Engine, P: PlonkConstraintSystemParams<E>, CS: PlonkConstraintSystem<E, P> + 'a> crate::ConstraintSystem<E> for Adaptor<'a, E, P, CS> {
     type Root = Self;
 
     fn one() -> crate::Variable {
@@ -1628,9 +1467,7 @@ impl<'a, E: Engine, P: PlonkConstraintSystemParams<E>, CS: PlonkConstraintSystem
         A: FnOnce() -> AR,
         AR: Into<String>,
     {
-        let var = self.cs.alloc(|| {
-            f().map_err(|_| crate::SynthesisError::AssignmentMissing)
-        })?;
+        let var = self.cs.alloc(|| f().map_err(|_| crate::SynthesisError::AssignmentMissing))?;
 
         Ok(match var {
             PlonkVariable(PlonkIndex::Aux(index)) => crate::Variable::new_unchecked(crate::Index::Aux(index)),
@@ -1638,19 +1475,13 @@ impl<'a, E: Engine, P: PlonkConstraintSystemParams<E>, CS: PlonkConstraintSystem
         })
     }
 
-    fn alloc_input<F, A, AR>(
-        &mut self,
-        _: A,
-        f: F,
-    ) -> Result<crate::Variable, crate::SynthesisError>
+    fn alloc_input<F, A, AR>(&mut self, _: A, f: F) -> Result<crate::Variable, crate::SynthesisError>
     where
         F: FnOnce() -> Result<E::Fr, crate::SynthesisError>,
         A: FnOnce() -> AR,
         AR: Into<String>,
     {
-        let var = self.cs.alloc_input(|| {
-            f().map_err(|_| crate::SynthesisError::AssignmentMissing)
-        })?;
+        let var = self.cs.alloc_input(|| f().map_err(|_| crate::SynthesisError::AssignmentMissing))?;
 
         Ok(match var {
             PlonkVariable(PlonkIndex::Input(index)) => crate::Variable::new_unchecked(crate::Index::Input(index)),
@@ -1671,9 +1502,7 @@ impl<'a, E: Engine, P: PlonkConstraintSystemParams<E>, CS: PlonkConstraintSystem
         let mut minus_one_fr = E::Fr::one();
         minus_one_fr.negate();
 
-        let (_, hint) = { 
-            self.get_next_hint() 
-        };
+        let (_, hint) = { self.get_next_hint() };
 
         let _hint = hint.clone();
 
@@ -1710,14 +1539,7 @@ impl<'a, E: Engine, P: PlonkConstraintSystemParams<E>, CS: PlonkConstraintSystem
                     unreachable!();
                 };
 
-                let (is_quadratic, coeffs) = check_for_quadratic_gate(
-                    &a_lc, 
-                    &b_lc, 
-                    &c_lc, 
-                    a_constant_term, 
-                    b_constant_term,
-                    c_constant_term
-                );
+                let (is_quadratic, coeffs) = check_for_quadratic_gate(&a_lc, &b_lc, &c_lc, a_constant_term, b_constant_term, c_constant_term);
 
                 debug_assert!(is_quadratic);
 
@@ -1735,105 +1557,82 @@ impl<'a, E: Engine, P: PlonkConstraintSystemParams<E>, CS: PlonkConstraintSystem
                 space.scratch_space_for_vars[0] = var;
                 space.scratch_space_for_vars[1] = var;
 
-                allocate_into_cs(
-                    self.cs,
-                    false, 
-                    &*space.scratch_space_for_vars,
-                    &*space.scratch_space_for_coeffs
-                ).expect("must make a quadratic gate");
-            },
+                allocate_into_cs(self.cs, false, &*space.scratch_space_for_vars, &*space.scratch_space_for_coeffs).expect("must make a quadratic gate");
+            }
             TranspilationVariant::IntoMultiplicationGate(hints) => {
-
                 let (t_a, t_b, t_c) = hints;
                 let mut q_m = one_fr;
                 let mut q_c = one_fr;
                 let a_var = match t_a {
-                    hint @ LcTransformationVariant::IntoSingleGate |
-                    hint @ LcTransformationVariant::IntoMultipleGates => {
-                        let (new_a_var, a_coeff, _variant) = enforce_lc_as_gates(
-                            self.cs,
-                            a_lc,
-                            one_fr,
-                            a_constant_term,
-                            true,
-                            &mut space
-                        ).expect("must allocate A variable to transpile A LC for multiplication gate");
+                    hint @ LcTransformationVariant::IntoSingleGate | hint @ LcTransformationVariant::IntoMultipleGates => {
+                        let (new_a_var, a_coeff, _variant) =
+                            enforce_lc_as_gates(self.cs, a_lc, one_fr, a_constant_term, true, &mut space).expect("must allocate A variable to transpile A LC for multiplication gate");
 
                         assert!(a_coeff == one_fr);
 
                         assert!(_variant == hint);
 
                         new_a_var.expect("transpiler must create a new variable for LC A")
-                    },
+                    }
                     LcTransformationVariant::IsSingleVariable => {
                         assert!(!a_lc_is_empty);
                         let (var, coeff) = a_lc.0[0];
                         q_m.mul_assign(&coeff); // collapse coeff before A*B
 
                         convert_variable(var)
-                    },
-                    _ => {unreachable!("{:?}", t_a)}
+                    }
+                    _ => {
+                        unreachable!("{:?}", t_a)
+                    }
                 };
 
                 let b_var = match t_b {
-                    hint @ LcTransformationVariant::IntoSingleGate |
-                    hint @ LcTransformationVariant::IntoMultipleGates => {
-                        let (new_b_var, b_coeff, _variant) = enforce_lc_as_gates(
-                            self.cs,
-                            b_lc,
-                            one_fr,
-                            b_constant_term,
-                            true,
-                            &mut space
-                        ).expect("must allocate B variable to transpile B LC for multiplication gate");
+                    hint @ LcTransformationVariant::IntoSingleGate | hint @ LcTransformationVariant::IntoMultipleGates => {
+                        let (new_b_var, b_coeff, _variant) =
+                            enforce_lc_as_gates(self.cs, b_lc, one_fr, b_constant_term, true, &mut space).expect("must allocate B variable to transpile B LC for multiplication gate");
 
                         assert!(b_coeff == one_fr);
 
                         assert!(_variant == hint);
 
                         new_b_var.expect("transpiler must create a new variable for LC B")
-                    },
+                    }
                     LcTransformationVariant::IsSingleVariable => {
                         assert!(!b_lc_is_empty);
                         let (var, coeff) = b_lc.0[0];
                         q_m.mul_assign(&coeff); // collapse coeffs before A*B
 
                         convert_variable(var)
-                    },
-                    _ => {unreachable!("{:?}", t_b)}
+                    }
+                    _ => {
+                        unreachable!("{:?}", t_b)
+                    }
                 };
 
                 let (c_is_just_a_constant, c_var) = match t_c {
-                    hint @ LcTransformationVariant::IntoSingleGate |
-                    hint @ LcTransformationVariant::IntoMultipleGates => {
-                        let (new_c_var, c_coeff, _variant) = enforce_lc_as_gates(
-                            self.cs,
-                            c_lc,
-                            one_fr,
-                            c_constant_term,
-                            true,
-                            &mut space
-                        ).expect("must allocate C variable to transpile C LC for multiplication gate");
+                    hint @ LcTransformationVariant::IntoSingleGate | hint @ LcTransformationVariant::IntoMultipleGates => {
+                        let (new_c_var, c_coeff, _variant) =
+                            enforce_lc_as_gates(self.cs, c_lc, one_fr, c_constant_term, true, &mut space).expect("must allocate C variable to transpile C LC for multiplication gate");
 
                         assert!(c_coeff == one_fr);
 
                         assert!(_variant == hint);
 
                         (false, Some(new_c_var.expect("transpiler must create a new variable for LC C")))
-                    },
+                    }
                     LcTransformationVariant::IsSingleVariable => {
                         assert!(!c_lc_is_empty);
                         let (var, coeff) = c_lc.0[0];
                         q_c = coeff;
 
                         (false, Some(convert_variable(var)))
-                    },
+                    }
                     LcTransformationVariant::IsConstant => {
                         assert!(c_lc_is_empty);
                         assert!(c_has_constant);
 
                         (true, None)
-                    },
+                    }
                 };
 
                 if c_is_just_a_constant {
@@ -1851,12 +1650,7 @@ impl<'a, E: Engine, P: PlonkConstraintSystemParams<E>, CS: PlonkConstraintSystem
                     space.scratch_space_for_vars[0] = a_var;
                     space.scratch_space_for_vars[1] = b_var;
 
-                    allocate_into_cs(
-                        self.cs,
-                        false, 
-                        &*space.scratch_space_for_vars,
-                        &*space.scratch_space_for_coeffs
-                    ).expect("must make a multiplication gate with C being constant");
+                    allocate_into_cs(self.cs, false, &*space.scratch_space_for_vars, &*space.scratch_space_for_coeffs).expect("must make a multiplication gate with C being constant");
                 } else {
                     // Plain multiplication gate
 
@@ -1877,14 +1671,9 @@ impl<'a, E: Engine, P: PlonkConstraintSystemParams<E>, CS: PlonkConstraintSystem
                     space.scratch_space_for_vars[1] = b_var;
                     space.scratch_space_for_vars[2] = c_var;
 
-                    allocate_into_cs(
-                        self.cs,
-                        false, 
-                        &*space.scratch_space_for_vars,
-                        &*space.scratch_space_for_coeffs
-                    ).expect("must make a plain multiplication gate");
+                    allocate_into_cs(self.cs, false, &*space.scratch_space_for_vars, &*space.scratch_space_for_coeffs).expect("must make a plain multiplication gate");
                 }
-            },
+            }
             // make an addition gate
             TranspilationVariant::IntoAdditionGate(hint) => {
                 // these are simple enforcements that are not a part of multiplication gate
@@ -1898,7 +1687,7 @@ impl<'a, E: Engine, P: PlonkConstraintSystemParams<E>, CS: PlonkConstraintSystem
                     } else {
                         unreachable!("Either A or B LCs are constant");
                     };
-    
+
                     let multiplier = if a_is_constant {
                         a_constant_term
                     } else if b_is_constant {
@@ -1906,7 +1695,7 @@ impl<'a, E: Engine, P: PlonkConstraintSystemParams<E>, CS: PlonkConstraintSystem
                     } else {
                         unreachable!("Must take multiplier from A or B");
                     };
-    
+
                     let mut free_constant_term = if a_is_constant {
                         b_constant_term
                     } else if b_is_constant {
@@ -1914,25 +1703,18 @@ impl<'a, E: Engine, P: PlonkConstraintSystemParams<E>, CS: PlonkConstraintSystem
                     } else {
                         unreachable!("Either A or B LCs are constant");
                     };
-    
+
                     free_constant_term.mul_assign(&multiplier);
                     free_constant_term.sub_assign(&c_constant_term);
-    
-                    let (_, _, _variant) = enforce_lc_as_gates(
-                        self.cs,
-                        lc,
-                        multiplier,
-                        free_constant_term,
-                        false,
-                        &mut space
-                    ).expect("must allocate variable to transpile LC == 0 gate");
+
+                    let (_, _, _variant) = enforce_lc_as_gates(self.cs, lc, multiplier, free_constant_term, false, &mut space).expect("must allocate variable to transpile LC == 0 gate");
 
                     assert!(hint == _variant);
                 } else {
                     // c is not a constant and it's handled by MergeLCs
                     unreachable!();
                 }
-            },
+            }
             TranspilationVariant::MergeLinearCombinations(merge_variant, merge_hint) => {
                 let multiplier = if a_is_constant {
                     a_constant_term
@@ -1960,7 +1742,7 @@ impl<'a, E: Engine, P: PlonkConstraintSystemParams<E>, CS: PlonkConstraintSystem
 
                         subtract_lcs_with_dedup_stable::<E, Self>(final_lc, c_lc, &mut self.deduplication_scratch)
                         // final_lc - &c
-                    },
+                    }
                     MergeLcVariant::MergeBCThroughConstantA => {
                         assert!(a_is_constant);
                         let mut final_lc = b_lc;
@@ -1976,7 +1758,7 @@ impl<'a, E: Engine, P: PlonkConstraintSystemParams<E>, CS: PlonkConstraintSystem
 
                         subtract_lcs_with_dedup_stable::<E, Self>(final_lc, c_lc, &mut self.deduplication_scratch)
                         // final_lc - &c
-                    },  
+                    }
                     MergeLcVariant::CIsTheOnlyMeaningful => {
                         free_constant_term = a_constant_term;
                         free_constant_term.mul_assign(&b_constant_term);
@@ -1984,7 +1766,7 @@ impl<'a, E: Engine, P: PlonkConstraintSystemParams<E>, CS: PlonkConstraintSystem
                         free_constant_term.add_assign(&c_constant_term);
 
                         c_lc
-                    },
+                    }
                     _ => {
                         unreachable!()
                     }
@@ -1993,29 +1775,22 @@ impl<'a, E: Engine, P: PlonkConstraintSystemParams<E>, CS: PlonkConstraintSystem
                 let h = merge_hint;
 
                 match h {
-                    hint @ LcTransformationVariant::IntoSingleGate |
-                    hint @ LcTransformationVariant::IntoMultipleGates => {
-                        let (new_c_var, _coeff, _variant) = enforce_lc_as_gates(
-                            self.cs,
-                            lc_into_rewriting,
-                            one_fr,
-                            free_constant_term,
-                            false,
-                            &mut space
-                        ).expect("must allocate gates to transpile merging of LCs");
+                    hint @ LcTransformationVariant::IntoSingleGate | hint @ LcTransformationVariant::IntoMultipleGates => {
+                        let (new_c_var, _coeff, _variant) =
+                            enforce_lc_as_gates(self.cs, lc_into_rewriting, one_fr, free_constant_term, false, &mut space).expect("must allocate gates to transpile merging of LCs");
 
                         assert!(_coeff == one_fr);
 
                         assert!(new_c_var.is_none());
                         assert!(_variant == hint);
-                    },
+                    }
                     _ => {
                         unreachable!("{:?}", h);
                     }
                 };
             }
         }
-        
+
         space.clear();
         self.transpilation_scratch_space = Some(space);
     }
@@ -2039,8 +1814,12 @@ impl<'a, E: Engine, P: PlonkConstraintSystemParams<E>, CS: PlonkConstraintSystem
 
 fn convert_variable(r1cs_variable: crate::Variable) -> PlonkVariable {
     let var = match r1cs_variable.get_unchecked() {
-        crate::Index::Input(0) => {unreachable!("can not convert input variable number 0 (CS::one)")},
-        crate::Index::Aux(0) => {unreachable!("can not convert aux variable labeled as 0 (taken by Plonk CS)")},
+        crate::Index::Input(0) => {
+            unreachable!("can not convert input variable number 0 (CS::one)")
+        }
+        crate::Index::Aux(0) => {
+            unreachable!("can not convert aux variable labeled as 0 (taken by Plonk CS)")
+        }
         crate::Index::Input(i) => PlonkVariable(PlonkIndex::Input(i)),
         crate::Index::Aux(i) => PlonkVariable(PlonkIndex::Aux(i)),
     };
@@ -2050,8 +1829,12 @@ fn convert_variable(r1cs_variable: crate::Variable) -> PlonkVariable {
 
 fn convert_variable_back(plonk_variable: PlonkVariable) -> crate::Variable {
     let var = match plonk_variable.get_unchecked() {
-        crate::plonk::cs::variable::Index::Input(0) => {unreachable!("can not convert input variable number 0 (does not exist in plonk)")},
-        crate::plonk::cs::variable::Index::Aux(0) => {unreachable!("can not convert aux variable labeled as 0 (does not exist in plonk, dummy gate)")},
+        crate::plonk::cs::variable::Index::Input(0) => {
+            unreachable!("can not convert input variable number 0 (does not exist in plonk)")
+        }
+        crate::plonk::cs::variable::Index::Aux(0) => {
+            unreachable!("can not convert aux variable labeled as 0 (does not exist in plonk, dummy gate)")
+        }
         crate::plonk::cs::variable::Index::Input(i) => crate::Variable(crate::Index::Input(i)),
         crate::plonk::cs::variable::Index::Aux(i) => crate::Variable(crate::Index::Aux(i)),
     };
@@ -2061,22 +1844,23 @@ fn convert_variable_back(plonk_variable: PlonkVariable) -> crate::Variable {
 
 use std::cell::Cell;
 
-pub struct AdaptorCircuit<'a, E:Engine, P: PlonkConstraintSystemParams<E>, C: crate::Circuit<E>>{
+pub struct AdaptorCircuit<'a, E: Engine, P: PlonkConstraintSystemParams<E>, C: crate::Circuit<E>> {
     circuit: Cell<Option<C>>,
     hints: &'a Vec<(usize, TranspilationVariant)>,
     _marker_e: std::marker::PhantomData<E>,
     _marker_p: std::marker::PhantomData<P>,
 }
 
-impl<'a, E:Engine, P: PlonkConstraintSystemParams<E>, C: crate::Circuit<E>> AdaptorCircuit<'a, E, P, C> {
-    pub fn new<'b>(circuit: C, hints: &'b Vec<(usize, TranspilationVariant)>) -> Self 
-        where 'b: 'a 
+impl<'a, E: Engine, P: PlonkConstraintSystemParams<E>, C: crate::Circuit<E>> AdaptorCircuit<'a, E, P, C> {
+    pub fn new<'b>(circuit: C, hints: &'b Vec<(usize, TranspilationVariant)>) -> Self
+    where
+        'b: 'a,
     {
         Self {
             circuit: Cell::new(Some(circuit)),
             hints: hints,
             _marker_e: std::marker::PhantomData,
-            _marker_p: std::marker::PhantomData
+            _marker_p: std::marker::PhantomData,
         }
     }
 }
@@ -2092,7 +1876,7 @@ impl<'a, E: Engine, P: PlonkConstraintSystemParams<E>, C: crate::Circuit<E>> Plo
             deduplication_scratch: HashMap::with_capacity((E::Fr::NUM_BITS * 2) as usize),
             transpilation_scratch_space: Some(TranspilationScratchSpace::new(P::STATE_WIDTH * 2)),
             _marker_e: std::marker::PhantomData,
-            _marker_p: std::marker::PhantomData
+            _marker_p: std::marker::PhantomData,
         };
 
         let c = self.circuit.replace(None).expect("Must replace a circuit out from cell");
@@ -2103,27 +1887,27 @@ impl<'a, E: Engine, P: PlonkConstraintSystemParams<E>, C: crate::Circuit<E>> Plo
 
 #[test]
 fn transpile_xor_using_new_adaptor() {
-    use crate::tests::XORDemo;
-    use crate::cs::Circuit;
-    use crate::pairing::bn256::{Bn256, Fr};
-    use super::test_assembly::*;
     use super::cs::PlonkCsWidth4WithNextStepParams;
     use super::generator::*;
-    use super::prover::*;
-    use crate::worker::Worker;
-    use super::verifier::*;
-    use crate::kate_commitment::*;
-    use crate::plonk::commitments::transcript::*;
-    use crate::plonk::commitments::transcript::keccak_transcript::*;
-    use crate::plonk::fft::cooley_tukey_ntt::*;
     use super::keys::*;
-    use crate::plonk::domains::Domain;
+    use super::prover::*;
+    use super::test_assembly::*;
     use super::utils::make_non_residues;
+    use super::verifier::*;
+    use crate::cs::Circuit;
+    use crate::kate_commitment::*;
+    use crate::pairing::bn256::{Bn256, Fr};
+    use crate::plonk::commitments::transcript::keccak_transcript::*;
+    use crate::plonk::commitments::transcript::*;
+    use crate::plonk::domains::Domain;
+    use crate::plonk::fft::cooley_tukey_ntt::*;
+    use crate::tests::XORDemo;
+    use crate::worker::Worker;
 
     let c = XORDemo::<Bn256> {
         a: None,
         b: None,
-        _marker: PhantomData
+        _marker: PhantomData,
     };
 
     let mut transpiler = Transpiler::<Bn256, PlonkCsWidth4WithNextStepParams>::new();
@@ -2145,7 +1929,7 @@ fn transpile_xor_using_new_adaptor() {
     let c = XORDemo::<Bn256> {
         a: Some(true),
         b: Some(false),
-        _marker: PhantomData
+        _marker: PhantomData,
     };
 
     let adapted_curcuit = AdaptorCircuit::<Bn256, PlonkCsWidth4WithNextStepParams, _>::new(c.clone(), &hints);
@@ -2167,16 +1951,9 @@ fn transpile_xor_using_new_adaptor() {
     let crs_mons = Crs::<Bn256, CrsForMonomialForm>::crs_42(setup.permutation_polynomials[0].size(), &worker);
     let crs_vals = Crs::<Bn256, CrsForLagrangeForm>::crs_42(setup.permutation_polynomials[0].size(), &worker);
 
-    let verification_key = VerificationKey::from_setup(
-        &setup, 
-        &worker, 
-        &crs_mons
-    ).unwrap();
+    let verification_key = VerificationKey::from_setup(&setup, &worker, &crs_mons).unwrap();
 
-    let precomputations = SetupPolynomialsPrecomputations::from_setup(
-        &setup, 
-        &worker
-    ).unwrap();
+    let precomputations = SetupPolynomialsPrecomputations::from_setup(&setup, &worker).unwrap();
 
     let mut assembly = ProverAssembly4WithNextStep::<Bn256>::new();
 
@@ -2195,18 +1972,11 @@ fn transpile_xor_using_new_adaptor() {
     type Transcr = RollingKeccakTranscript<Fr>;
 
     let omegas_bitreversed = BitReversedOmegas::<Fr>::new_for_domain_size(size.next_power_of_two());
-    let omegas_inv_bitreversed = <OmegasInvBitreversed::<Fr> as CTPrecomputations::<Fr>>::new_for_domain_size(size.next_power_of_two());
+    let omegas_inv_bitreversed = <OmegasInvBitreversed<Fr> as CTPrecomputations<Fr>>::new_for_domain_size(size.next_power_of_two());
 
-    let proof = assembly.prove::<Transcr, _, _>(
-        &worker,
-        &setup,
-        &precomputations,
-        &crs_vals,
-        &crs_mons,
-        &omegas_bitreversed,
-        &omegas_inv_bitreversed,
-        None
-    ).unwrap();
+    let proof = assembly
+        .prove::<Transcr, _, _>(&worker, &setup, &precomputations, &crs_vals, &crs_mons, &omegas_bitreversed, &omegas_inv_bitreversed, None)
+        .unwrap();
 
     let is_valid = verify::<Bn256, PlonkCsWidth4WithNextStepParams, Transcr>(&proof, &verification_key, None).unwrap();
 
@@ -2215,42 +1985,36 @@ fn transpile_xor_using_new_adaptor() {
     // println!("Verification key = {:?}", verification_key);
     // println!("Proof = {:?}", proof);
 
-    let mut key_writer = std::io::BufWriter::with_capacity(
-        1<<24, 
-        std::fs::File::create("./xor_vk.key").unwrap()
-    );
+    let mut key_writer = std::io::BufWriter::with_capacity(1 << 24, std::fs::File::create("./xor_vk.key").unwrap());
     verification_key.write(&mut key_writer).unwrap();
 
-    let mut proof_writer = std::io::BufWriter::with_capacity(
-        1<<24, 
-        std::fs::File::create("./xor_proof.proof").unwrap()
-    );
+    let mut proof_writer = std::io::BufWriter::with_capacity(1 << 24, std::fs::File::create("./xor_proof.proof").unwrap());
     proof.write(&mut proof_writer).unwrap();
 }
 
 #[test]
 fn transpile_xor_and_prove_with_no_precomputations() {
-    use crate::tests::XORDemo;
-    use crate::cs::Circuit;
-    use crate::pairing::bn256::{Bn256, Fr};
-    use super::test_assembly::*;
     use super::cs::PlonkCsWidth4WithNextStepParams;
     use super::generator::*;
-    use super::prover::*;
-    use crate::worker::Worker;
-    use super::verifier::*;
-    use crate::kate_commitment::*;
-    use crate::plonk::commitments::transcript::*;
-    use crate::plonk::commitments::transcript::keccak_transcript::*;
-    use crate::plonk::fft::cooley_tukey_ntt::*;
     use super::keys::*;
-    use crate::plonk::domains::Domain;
+    use super::prover::*;
+    use super::test_assembly::*;
     use super::utils::make_non_residues;
+    use super::verifier::*;
+    use crate::cs::Circuit;
+    use crate::kate_commitment::*;
+    use crate::pairing::bn256::{Bn256, Fr};
+    use crate::plonk::commitments::transcript::keccak_transcript::*;
+    use crate::plonk::commitments::transcript::*;
+    use crate::plonk::domains::Domain;
+    use crate::plonk::fft::cooley_tukey_ntt::*;
+    use crate::tests::XORDemo;
+    use crate::worker::Worker;
 
     let c = XORDemo::<Bn256> {
         a: None,
         b: None,
-        _marker: PhantomData
+        _marker: PhantomData,
     };
 
     let mut transpiler = Transpiler::<Bn256, PlonkCsWidth4WithNextStepParams>::new();
@@ -2272,7 +2036,7 @@ fn transpile_xor_and_prove_with_no_precomputations() {
     let c = XORDemo::<Bn256> {
         a: Some(true),
         b: Some(false),
-        _marker: PhantomData
+        _marker: PhantomData,
     };
 
     let adapted_curcuit = AdaptorCircuit::<Bn256, PlonkCsWidth4WithNextStepParams, _>::new(c.clone(), &hints);
@@ -2293,11 +2057,7 @@ fn transpile_xor_and_prove_with_no_precomputations() {
 
     let crs_mons = Crs::<Bn256, CrsForMonomialForm>::crs_42(setup.permutation_polynomials[0].size(), &worker);
 
-    let verification_key = VerificationKey::from_setup(
-        &setup, 
-        &worker, 
-        &crs_mons
-    ).unwrap();
+    let verification_key = VerificationKey::from_setup(&setup, &worker, &crs_mons).unwrap();
 
     let size = setup.permutation_polynomials[0].size();
 
@@ -2307,14 +2067,7 @@ fn transpile_xor_and_prove_with_no_precomputations() {
 
     type Transcr = RollingKeccakTranscript<Fr>;
 
-    let proof = super::super::prove_by_steps::<_, _, Transcr>(
-        c,
-        &hints,
-        &setup,
-        None,
-        &crs_mons,
-        None
-    ).unwrap();
+    let proof = super::super::prove_by_steps::<_, _, Transcr>(c, &hints, &setup, None, &crs_mons, None).unwrap();
 
     let is_valid = verify::<Bn256, PlonkCsWidth4WithNextStepParams, Transcr>(&proof, &verification_key, None).unwrap();
 
@@ -2323,15 +2076,9 @@ fn transpile_xor_and_prove_with_no_precomputations() {
     // println!("Verification key = {:?}", verification_key);
     // println!("Proof = {:?}", proof);
 
-    let mut key_writer = std::io::BufWriter::with_capacity(
-        1<<24, 
-        std::fs::File::create("./xor_vk.key").unwrap()
-    );
+    let mut key_writer = std::io::BufWriter::with_capacity(1 << 24, std::fs::File::create("./xor_vk.key").unwrap());
     verification_key.write(&mut key_writer).unwrap();
 
-    let mut proof_writer = std::io::BufWriter::with_capacity(
-        1<<24, 
-        std::fs::File::create("./xor_proof.proof").unwrap()
-    );
+    let mut proof_writer = std::io::BufWriter::with_capacity(1 << 24, std::fs::File::create("./xor_proof.proof").unwrap());
     proof.write(&mut proof_writer).unwrap();
 }

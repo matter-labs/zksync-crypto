@@ -39,12 +39,9 @@ pub(crate) fn compute_optimized_matrixes<E: Engine, const DIM: usize, const SUBD
     }
 
     sparse_matrixes.reverse();
-    sparse_matrixes
-        .iter()
-        .chain(&[m_prime.clone()])
-        .for_each(|matrix| {
-            let _ = try_inverse::<E, DIM>(matrix).expect("should have inverse");
-        });
+    sparse_matrixes.iter().chain(&[m_prime.clone()]).for_each(|matrix| {
+        let _ = try_inverse::<E, DIM>(matrix).expect("should have inverse");
+    });
 
     (transpose::<E, DIM>(&m_prime), sparse_matrixes)
 }
@@ -61,8 +58,7 @@ pub(crate) fn sub_matrix<E: Engine, const DIM: usize, const SUBDIM: usize>(
     // w  => 1..DIM   0..1
     // v  => 0..1     1..DIM
     assert!(
-        (row_range.len() == SUBDIM || row_range.len() == 1)
-            && (col_range.len() == SUBDIM || col_range.len() == 1),
+        (row_range.len() == SUBDIM || row_range.len() == 1) && (col_range.len() == SUBDIM || col_range.len() == 1),
         "row/col length should be in range"
     );
     let mut sub_matrix = [[E::Fr::zero(); SUBDIM]; SUBDIM];
@@ -91,10 +87,7 @@ pub(crate) fn set_sub_matrix<E: Engine, const DIM: usize, const SUBDIM: usize>(
 }
 
 // Multiplies matrix with a vector  and assigns result into same vector.
-pub(crate) fn mmul_assign<E: Engine, const DIM: usize>(
-    matrix: &[[E::Fr; DIM]; DIM],
-    vector: &mut [E::Fr; DIM],
-) {
+pub(crate) fn mmul_assign<E: Engine, const DIM: usize>(matrix: &[[E::Fr; DIM]; DIM], vector: &mut [E::Fr; DIM]) {
     // [M]xv
     let mut result = [E::Fr::zero(); DIM];
     for col in 0..DIM {
@@ -104,10 +97,7 @@ pub(crate) fn mmul_assign<E: Engine, const DIM: usize>(
 }
 
 // Multiplies two same dimension matrixes.
-pub(crate) fn multiply<E: Engine, const DIM: usize>(
-    m1: &[[E::Fr; DIM]; DIM],
-    m2: &[[E::Fr; DIM]; DIM],
-) -> [[E::Fr; DIM]; DIM] {
+pub(crate) fn multiply<E: Engine, const DIM: usize>(m1: &[[E::Fr; DIM]; DIM], m2: &[[E::Fr; DIM]; DIM]) -> [[E::Fr; DIM]; DIM] {
     let transposed_m2 = transpose::<E, DIM>(m2);
 
     let mut result = [[E::Fr::zero(); DIM]; DIM];
@@ -121,9 +111,7 @@ pub(crate) fn multiply<E: Engine, const DIM: usize>(
     result
 }
 // Transpose of a matrix.
-pub(crate) fn transpose<E: Engine, const DIM: usize>(
-    matrix: &[[E::Fr; DIM]; DIM],
-) -> [[E::Fr; DIM]; DIM] {
+pub(crate) fn transpose<E: Engine, const DIM: usize>(matrix: &[[E::Fr; DIM]; DIM]) -> [[E::Fr; DIM]; DIM] {
     let mut values = [[E::Fr::zero(); DIM]; DIM];
     for i in 0..DIM {
         for j in 0..DIM {
@@ -135,10 +123,8 @@ pub(crate) fn transpose<E: Engine, const DIM: usize>(
 }
 
 // Computes inverse of 2-d or 3-d matrixes.
-// We need inverse of matrix for optimized poseidon 
-pub(crate) fn try_inverse<E: Engine, const DIM: usize>(
-    m: &[[E::Fr; DIM]; DIM],
-) -> Option<[[E::Fr; DIM]; DIM]> {
+// We need inverse of matrix for optimized poseidon
+pub(crate) fn try_inverse<E: Engine, const DIM: usize>(m: &[[E::Fr; DIM]; DIM]) -> Option<[[E::Fr; DIM]; DIM]> {
     match DIM {
         2 => try_inverse_dim_2::<E, DIM>(m),
         3 => try_inverse_dim_3::<E, DIM>(m),
@@ -147,9 +133,7 @@ pub(crate) fn try_inverse<E: Engine, const DIM: usize>(
 }
 
 // Computes inverse of 2x2 matrix.
-fn try_inverse_dim_2<E: Engine, const DIM: usize>(
-    m: &[[E::Fr; DIM]; DIM],
-) -> Option<[[E::Fr; DIM]; DIM]> {
+fn try_inverse_dim_2<E: Engine, const DIM: usize>(m: &[[E::Fr; DIM]; DIM]) -> Option<[[E::Fr; DIM]; DIM]> {
     assert_eq!(DIM, 2);
     let determinant = {
         let mut a = m[0][0];
@@ -201,9 +185,7 @@ fn try_inverse_dim_2<E: Engine, const DIM: usize>(
 }
 
 // Computes inverse of 3x3 matrix.
-fn try_inverse_dim_3<E: Engine, const DIM: usize>(
-    m: &[[E::Fr; DIM]; DIM],
-) -> Option<[[E::Fr; DIM]; DIM]> {
+fn try_inverse_dim_3<E: Engine, const DIM: usize>(m: &[[E::Fr; DIM]; DIM]) -> Option<[[E::Fr; DIM]; DIM]> {
     assert_eq!(DIM, 3);
     // m22 * m33 - m32 * m23;
     let minor_m12_m23 = {
@@ -417,13 +399,7 @@ mod test {
 
         let _ = try_inverse::<Bn256, DIM>(&values);
 
-        assert_eq!(
-            identity::<Bn256, DIM>(),
-            multiply::<Bn256, DIM>(
-                &try_inverse::<Bn256, DIM>(&values).expect("inverse"),
-                &values
-            )
-        );
+        assert_eq!(identity::<Bn256, DIM>(), multiply::<Bn256, DIM>(&try_inverse::<Bn256, DIM>(&values).expect("inverse"), &values));
     }
 
     #[test]
@@ -479,10 +455,7 @@ mod test {
                     matrix[i][j] = Fr::rand(rng);
                 }
             }
-            assert_eq!(
-                transpose::<Bn256, DIM>(&transpose::<Bn256, DIM>(&matrix)),
-                matrix
-            );
+            assert_eq!(transpose::<Bn256, DIM>(&transpose::<Bn256, DIM>(&matrix)), matrix);
         }
     }
 

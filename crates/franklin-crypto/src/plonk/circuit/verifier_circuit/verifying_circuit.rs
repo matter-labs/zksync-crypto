@@ -1,40 +1,27 @@
-use crate::bellman::pairing::{
-    Engine,
-    GenericCurveAffine,
-};
+use crate::bellman::pairing::{Engine, GenericCurveAffine};
 
-use crate::bellman::pairing::ff::{
-    Field,
-    PrimeField,
-    PrimeFieldRepr,
-    BitIterator
-};
+use crate::bellman::pairing::ff::{BitIterator, Field, PrimeField, PrimeFieldRepr};
 
-use crate::bellman::{
-    SynthesisError,
-};
+use crate::bellman::SynthesisError;
 
-use crate::bellman::plonk::better_better_cs::cs::{
-    Variable, 
-    ConstraintSystem,
-};
+use crate::bellman::plonk::better_better_cs::cs::{ConstraintSystem, Variable};
 
 use crate::bellman::plonk::better_better_cs::cs::*;
-use crate::bellman::plonk::better_cs::keys::{Proof, VerificationKey};
 use crate::bellman::plonk::better_cs::cs::PlonkConstraintSystemParams as OldCSParams;
+use crate::bellman::plonk::better_cs::keys::{Proof, VerificationKey};
 use crate::bellman::plonk::domains::*;
 
-use crate::plonk::circuit::bigint::field::*;
-use crate::plonk::circuit::curve::*;
-use crate::plonk::circuit::boolean::*;
 use crate::plonk::circuit::allocated_num::*;
+use crate::plonk::circuit::bigint::field::*;
+use crate::plonk::circuit::boolean::*;
+use crate::plonk::circuit::curve::*;
 use crate::plonk::circuit::simple_term::*;
 
+use super::affine_point_wrapper::aux_data::AuxData;
+use super::affine_point_wrapper::WrappedAffinePoint;
 use super::channel::*;
 use super::data_structs::*;
 use super::helper_functions::*;
-use super::affine_point_wrapper::aux_data::AuxData;
-use super::affine_point_wrapper::WrappedAffinePoint;
 
 use std::cell::Cell;
 
@@ -48,9 +35,14 @@ pub fn aggregate_proof<'a, E, CS, T, P, OldP, AD, WP>(
     aux_data: &AD,
     params: &'a RnsParameters<E, <E::G1Affine as GenericCurveAffine>::Base>,
 ) -> Result<[WP; 2], SynthesisError>
-    where 
-    E: Engine, CS: ConstraintSystem<E>, T: ChannelGadget<E>, AD: AuxData<E>, OldP: OldCSParams<E>, 
-    P: PlonkConstraintSystemParams<E>, WP: WrappedAffinePoint<'a, E>
+where
+    E: Engine,
+    CS: ConstraintSystem<E>,
+    T: ChannelGadget<E>,
+    AD: AuxData<E>,
+    OldP: OldCSParams<E>,
+    P: PlonkConstraintSystemParams<E>,
+    WP: WrappedAffinePoint<'a, E>,
 {
     assert!(P::CAN_ACCESS_NEXT_TRACE_STEP);
 
@@ -173,16 +165,9 @@ pub fn aggregate_proof<'a, E, CS, T, P, OldP, AD, WP>(
         None
     };
 
-    let l_0_at_z = if let Some(required_domain_size) = required_domain_size { 
+    let l_0_at_z = if let Some(required_domain_size) = required_domain_size {
         let omega_inv = omega_inv_const.unwrap();
-        let l_0_at_z = evaluate_lagrange_poly(
-            cs, 
-            required_domain_size, 
-            0, 
-            &omega_inv, 
-            z.clone(), 
-            z_in_pow_domain_size.clone()
-        )?;
+        let l_0_at_z = evaluate_lagrange_poly(cs, required_domain_size, 0, &omega_inv, z.clone(), z_in_pow_domain_size.clone())?;
 
         l_0_at_z
     } else {
@@ -191,8 +176,8 @@ pub fn aggregate_proof<'a, E, CS, T, P, OldP, AD, WP>(
             0,
             vk.domain_size_as_allocated_num.as_ref().unwrap().clone(),
             omega_inv_variable.as_ref().unwrap(),
-            z.clone(), 
-            z_in_pow_domain_size.clone()
+            z.clone(),
+            z_in_pow_domain_size.clone(),
         )?;
 
         l_0_at_z
@@ -212,7 +197,7 @@ pub fn aggregate_proof<'a, E, CS, T, P, OldP, AD, WP>(
                 let tmp = if idx == 0 {
                     l_0_at_z.mul(cs, &input)?
                 } else {
-                    let tmp = if let Some(required_domain_size) = required_domain_size { 
+                    let tmp = if let Some(required_domain_size) = required_domain_size {
                         let omega_inv = omega_inv_const.unwrap();
                         let tmp = evaluate_lagrange_poly(cs, required_domain_size, idx, &omega_inv, z.clone(), z_in_pow_domain_size.clone())?;
 
@@ -223,15 +208,15 @@ pub fn aggregate_proof<'a, E, CS, T, P, OldP, AD, WP>(
                             idx,
                             vk.domain_size_as_allocated_num.as_ref().unwrap().clone(),
                             omega_inv_variable.as_ref().unwrap(),
-                            z.clone(), 
-                            z_in_pow_domain_size.clone()
+                            z.clone(),
+                            z_in_pow_domain_size.clone(),
                         )?;
 
                         tmp
                     };
 
                     tmp.mul(cs, &input)?
-                }; 
+                };
                 rhs = rhs.add(cs, &tmp)?;
             }
         }
@@ -247,7 +232,7 @@ pub fn aggregate_proof<'a, E, CS, T, P, OldP, AD, WP>(
             tmp = tmp.add(cs, &w)?;
 
             z_part = z_part.mul(cs, &tmp)?;
-        }   
+        }
 
         // last poly value and gamma
         let mut tmp = gamma.clone();
@@ -255,10 +240,10 @@ pub fn aggregate_proof<'a, E, CS, T, P, OldP, AD, WP>(
 
         z_part = z_part.mul(cs, &tmp)?;
         z_part = z_part.mul(cs, &alpha)?;
-        rhs = rhs.sub(cs, &z_part)?; 
+        rhs = rhs.sub(cs, &z_part)?;
 
         let quotient_linearization_challenge = alpha.mul(cs, &alpha)?;
-        
+
         // - L_0(z) * \alpha^2
         let tmp = l_0_at_z.mul(cs, &quotient_linearization_challenge)?;
         rhs = rhs.sub(cs, &tmp)?;
@@ -279,10 +264,9 @@ pub fn aggregate_proof<'a, E, CS, T, P, OldP, AD, WP>(
 
     // calculate the power to add z(X) commitment that is opened at x*omega
     // it's r(X) + witness + all permutations + 1
-    let v_power_for_standalone_z_x_opening = 1 + 1 + P::STATE_WIDTH + (P::STATE_WIDTH-1);
+    let v_power_for_standalone_z_x_opening = 1 + 1 + P::STATE_WIDTH + (P::STATE_WIDTH - 1);
 
     let mut virtual_commitment_for_linearization_poly = {
-
         let mut r = vk.selector_commitments[selector_q_const_index].clone();
         let mut points: Vec<WP> = vec![];
         let mut scalars: Vec<AllocatedNum<E>> = vec![];
@@ -310,7 +294,7 @@ pub fn aggregate_proof<'a, E, CS, T, P, OldP, AD, WP>(
 
         // v * [alpha * (a + beta*z + gamma)(b + beta*k_1*z + gamma)()() * z(X) -
         // - \alpha * (a*perm_a(z)*beta + gamma)()()*beta*z(z*omega) * perm_d(X) +
-        // + alpha^2 * L_0(z) * z(X) ] + 
+        // + alpha^2 * L_0(z) * z(X) ] +
         // + v^{P} * u * z(X)
         // and join alpha^2 * L_0(z) and v^{P} * u into the first term containing z(X)
 
@@ -319,26 +303,21 @@ pub fn aggregate_proof<'a, E, CS, T, P, OldP, AD, WP>(
             let mut scalar: Option<AllocatedNum<E>> = None;
 
             // permutation part
-            for (_i, (wire, non_res)) in proof.wire_values_at_z.iter()
-                            .zip(Some(E::Fr::one()).iter().chain(&vk.non_residues)).enumerate() 
-            {
+            for (_i, (wire, non_res)) in proof.wire_values_at_z.iter().zip(Some(E::Fr::one()).iter().chain(&vk.non_residues)).enumerate() {
                 // tmp = non_res * z * beta + wire
                 use crate::plonk::circuit::Assignment;
 
-                let mut tmp = AllocatedNum::alloc(
-                    cs,
-                    || {
-                        // non_res * z * beta + wire
+                let mut tmp = AllocatedNum::alloc(cs, || {
+                    // non_res * z * beta + wire
 
-                        let mut result = *z.get_value().get()?;
-                        result.mul_assign(beta.get_value().get()?);
-                        result.mul_assign(&non_res);
+                    let mut result = *z.get_value().get()?;
+                    result.mul_assign(beta.get_value().get()?);
+                    result.mul_assign(&non_res);
 
-                        result.add_assign(wire.get_value().get()?);
+                    result.add_assign(wire.get_value().get()?);
 
-                        Ok(result)
-                    }
-                )?;
+                    Ok(result)
+                })?;
 
                 // create arithmetic terms
 
@@ -368,7 +347,7 @@ pub fn aggregate_proof<'a, E, CS, T, P, OldP, AD, WP>(
                     let s = tmp.add(cs, &gamma)?;
 
                     scalar = Some(s);
-                } 
+                }
 
                 assert!(scalar.is_some());
             }
@@ -395,25 +374,20 @@ pub fn aggregate_proof<'a, E, CS, T, P, OldP, AD, WP>(
             let mut scalar: Option<AllocatedNum<E>> = None;
 
             // permutation part
-            for (_i, (wire, perm_at_z)) in proof.wire_values_at_z.iter()
-                            .zip(&proof.permutation_polynomials_at_z).enumerate() 
-            {
+            for (_i, (wire, perm_at_z)) in proof.wire_values_at_z.iter().zip(&proof.permutation_polynomials_at_z).enumerate() {
                 // tmp = perm_at_z * beta + wire
                 use crate::plonk::circuit::Assignment;
 
-                let mut tmp = AllocatedNum::alloc(
-                    cs,
-                    || {
-                        // perm(z) * beta + wire
+                let mut tmp = AllocatedNum::alloc(cs, || {
+                    // perm(z) * beta + wire
 
-                        let mut result = *beta.get_value().get()?;
-                        result.mul_assign(perm_at_z.get_value().get()?);
+                    let mut result = *beta.get_value().get()?;
+                    result.mul_assign(perm_at_z.get_value().get()?);
 
-                        result.add_assign(wire.get_value().get()?);
+                    result.add_assign(wire.get_value().get()?);
 
-                        Ok(result)
-                    }
-                )?;
+                    Ok(result)
+                })?;
 
                 // create arithmetic terms
 
@@ -439,7 +413,7 @@ pub fn aggregate_proof<'a, E, CS, T, P, OldP, AD, WP>(
                     scalar = Some(s);
                 } else {
                     let s = tmp.add(cs, &gamma)?;
-                    
+
                     scalar = Some(s);
                 }
 
@@ -457,7 +431,7 @@ pub fn aggregate_proof<'a, E, CS, T, P, OldP, AD, WP>(
             // also add to multiexp
             points.push(proof.grand_product_commitment.clone());
             scalars.push(grand_product_part_at_z);
-            
+
             let mut last_permutation = vk.permutation_commitments.last().unwrap().clone();
             points.push(last_permutation.negate(cs, params)?);
             scalars.push(last_permutation_part_at_z);
@@ -479,7 +453,7 @@ pub fn aggregate_proof<'a, E, CS, T, P, OldP, AD, WP>(
 
     let mut commitments_aggregation = proof.quotient_poly_commitments[0].clone();
 
-    let mut scalars : Vec<AllocatedNum<E>> = vec![];
+    let mut scalars: Vec<AllocatedNum<E>> = vec![];
     let mut points: Vec<WP> = vec![];
 
     let mut current = z_in_pow_domain_size.clone();
@@ -497,29 +471,29 @@ pub fn aggregate_proof<'a, E, CS, T, P, OldP, AD, WP>(
     // do the same for wires
     for com in proof.wire_commitments.iter() {
         // add to second multiexp as well
-        multiopening_challenge = multiopening_challenge.mul(cs, &v)?; 
+        multiopening_challenge = multiopening_challenge.mul(cs, &v)?;
         points.push(com.clone());
         scalars.push(multiopening_challenge.clone());
     }
 
     // and for all permutation polynomials except the last one
     assert_eq!(vk.permutation_commitments.len(), proof.permutation_polynomials_at_z.len() + 1);
-    
+
     let arr_len = vk.permutation_commitments.len();
     for com in vk.permutation_commitments[0..(arr_len - 1)].iter() {
         // v^{1+STATE_WIDTH + STATE_WIDTH - 1}
         // second multiexp
-        multiopening_challenge = multiopening_challenge.mul(cs, &v)?; 
+        multiopening_challenge = multiopening_challenge.mul(cs, &v)?;
         points.push(com.clone());
         scalars.push(multiopening_challenge.clone());
     }
-    
+
     // we skip z(X) at z
-    multiopening_challenge = multiopening_challenge.mul(cs, &v)?; 
+    multiopening_challenge = multiopening_challenge.mul(cs, &v)?;
 
     // aggregate last wire commitment (that is opened at z*omega)
     // using multiopening challenge and u
-    multiopening_challenge = multiopening_challenge.mul(cs, &v)?; 
+    multiopening_challenge = multiopening_challenge.mul(cs, &v)?;
     let scalar = multiopening_challenge.mul(cs, &u)?;
     // add to second multiexp
     points.push(proof.wire_commitments.last().unwrap().clone());
@@ -529,29 +503,30 @@ pub fn aggregate_proof<'a, E, CS, T, P, OldP, AD, WP>(
 
     let mut multiopening_challenge_for_values = v.clone();
     let mut aggregated_value = proof.quotient_polynomial_at_z.clone();
-    for (i, value_at_z) in Some(proof.linearization_polynomial_at_z.clone()).iter()
-            .chain(&proof.wire_values_at_z)
-            .chain(&proof.permutation_polynomials_at_z)
-            .enumerate() 
+    for (i, value_at_z) in Some(proof.linearization_polynomial_at_z.clone())
+        .iter()
+        .chain(&proof.wire_values_at_z)
+        .chain(&proof.permutation_polynomials_at_z)
+        .enumerate()
     {
-        if i != 0 { 
+        if i != 0 {
             multiopening_challenge_for_values = multiopening_challenge_for_values.mul(cs, &v)?;
         };
-        
+
         let tmp = value_at_z.mul(cs, &multiopening_challenge_for_values)?;
         aggregated_value = aggregated_value.add(cs, &tmp)?;
     }
 
     // add parts that are opened at z*omega using `u`
     {
-        multiopening_challenge_for_values = multiopening_challenge_for_values.mul(cs, &v)?;  
+        multiopening_challenge_for_values = multiopening_challenge_for_values.mul(cs, &v)?;
         let scalar = multiopening_challenge_for_values.mul(cs, &u)?;
         let tmp = proof.grand_product_at_z_omega.mul(cs, &scalar)?;
         aggregated_value = aggregated_value.add(cs, &tmp)?;
     }
 
     {
-        multiopening_challenge_for_values = multiopening_challenge_for_values.mul(cs, &v)?; 
+        multiopening_challenge_for_values = multiopening_challenge_for_values.mul(cs, &v)?;
         let scalar = multiopening_challenge_for_values.mul(cs, &u)?;
         let tmp = proof.wire_values_at_z_omega[0].mul(cs, &scalar)?;
         aggregated_value = aggregated_value.add(cs, &tmp)?;
@@ -565,8 +540,8 @@ pub fn aggregate_proof<'a, E, CS, T, P, OldP, AD, WP>(
     scalars.push(aggregated_value);
 
     // next, we need to check that
-    // e(proof_for_z + u*proof_for_z_omega, g2^x) = 
-    // e(z*proof_for_z + z*omega*u*proof_for_z_omega + (aggregated_commitment - aggregated_opening), g2^1) 
+    // e(proof_for_z + u*proof_for_z_omega, g2^x) =
+    // e(z*proof_for_z + z*omega*u*proof_for_z_omega + (aggregated_commitment - aggregated_opening), g2^1)
     // however, we are going to compute the pairing itself outside the circuit
     // here we only go to prepare the pairing argumets:
     // arg1 = proof_for_z + u*proof_for_z_omega
@@ -576,16 +551,16 @@ pub fn aggregate_proof<'a, E, CS, T, P, OldP, AD, WP>(
     let mut opening_at_z_omega_proof = proof.opening_at_z_omega_proof.clone();
     let mut pair_with_x_negated = opening_at_z_omega_proof.mul(cs, &u, None, params, aux_data)?;
     pair_with_x_negated = pair_with_x_negated.add(cs, &mut opening_at_z_proof, params)?;
-    
+
     let pair_with_x = pair_with_x_negated.negate(cs, params)?;
 
     // to second multiexp
     points.push(proof.opening_at_z_proof.clone());
     scalars.push(z.clone());
 
-    let z_omega_term = if let Some(_required_domain_size) = required_domain_size { 
+    let z_omega_term = if let Some(_required_domain_size) = required_domain_size {
         let omega = omega_const.unwrap();
-        
+
         let mut z_omega_term = Term::<E>::from_allocated_num(z.clone());
         z_omega_term.scale(&omega);
 
@@ -615,20 +590,23 @@ pub fn aggregate_proof<'a, E, CS, T, P, OldP, AD, WP>(
     Ok([pair_with_generator, pair_with_x])
 }
 
-
-pub struct PlonkVerifierCircuit<'a, E, T, P, OldP, AD, WP> 
-where 
-E: Engine, T: ChannelGadget<E>, AD: AuxData<E>, OldP: OldCSParams<E>, 
-P: PlonkConstraintSystemParams<E>, WP: WrappedAffinePoint<'a, E>,
+pub struct PlonkVerifierCircuit<'a, E, T, P, OldP, AD, WP>
+where
+    E: Engine,
+    T: ChannelGadget<E>,
+    AD: AuxData<E>,
+    OldP: OldCSParams<E>,
+    P: PlonkConstraintSystemParams<E>,
+    WP: WrappedAffinePoint<'a, E>,
 {
-    _engine_marker : std::marker::PhantomData<E>,
-    _channel_marker : std::marker::PhantomData<T>,
+    _engine_marker: std::marker::PhantomData<E>,
+    _channel_marker: std::marker::PhantomData<T>,
     _cs_params_marker: std::marker::PhantomData<P>,
     _point_wrapper_marker: std::marker::PhantomData<WP>,
 
     channel_params: &'a T::Params,
 
-    public_inputs : Vec<E::Fr>,
+    public_inputs: Vec<E::Fr>,
     supposed_outputs: Vec<E::G1Affine>,
     proof: Cell<Option<Proof<E, OldP>>>,
     vk: Cell<Option<VerificationKey<E, OldP>>>,
@@ -636,27 +614,27 @@ P: PlonkConstraintSystemParams<E>, WP: WrappedAffinePoint<'a, E>,
     params: &'a RnsParameters<E, <E::G1Affine as GenericCurveAffine>::Base>,
 }
 
-
-impl<'a, E, T, P, OldP, AD, WP> PlonkVerifierCircuit<'a, E, T, P, OldP, AD, WP> 
-where 
-E: Engine, T: ChannelGadget<E>, AD: AuxData<E>, P: PlonkConstraintSystemParams<E>, 
-OldP: OldCSParams<E>, WP: WrappedAffinePoint<'a, E>,
+impl<'a, E, T, P, OldP, AD, WP> PlonkVerifierCircuit<'a, E, T, P, OldP, AD, WP>
+where
+    E: Engine,
+    T: ChannelGadget<E>,
+    AD: AuxData<E>,
+    P: PlonkConstraintSystemParams<E>,
+    OldP: OldCSParams<E>,
+    WP: WrappedAffinePoint<'a, E>,
 {
     pub fn new(
-        channel_params: &'a T::Params, 
-        public_inputs: Vec<E::Fr>, 
+        channel_params: &'a T::Params,
+        public_inputs: Vec<E::Fr>,
         supposed_outputs: Vec<E::G1Affine>,
         proof: Proof<E, OldP>,
         vk: VerificationKey<E, OldP>,
         aux_data: AD,
         params: &'a RnsParameters<E, <E::G1Affine as GenericCurveAffine>::Base>,
-    ) -> Self 
-    {
-
+    ) -> Self {
         PlonkVerifierCircuit {
-            
-            _engine_marker : std::marker::PhantomData::<E>,
-            _channel_marker : std::marker::PhantomData::<T>,
+            _engine_marker: std::marker::PhantomData::<E>,
+            _channel_marker: std::marker::PhantomData::<T>,
             _cs_params_marker: std::marker::PhantomData::<P>,
             _point_wrapper_marker: std::marker::PhantomData::<WP>,
 
@@ -672,30 +650,24 @@ OldP: OldCSParams<E>, WP: WrappedAffinePoint<'a, E>,
     }
 }
 
-impl<'a, E, T, P, OldP, AD, WP> Circuit<E> for PlonkVerifierCircuit<'a, E, T, P, OldP, AD, WP> 
-    where 
-    E: Engine, T: ChannelGadget<E>, AD: AuxData<E>, P: PlonkConstraintSystemParams<E>, 
-    OldP: OldCSParams<E>, WP: WrappedAffinePoint<'a, E>
+impl<'a, E, T, P, OldP, AD, WP> Circuit<E> for PlonkVerifierCircuit<'a, E, T, P, OldP, AD, WP>
+where
+    E: Engine,
+    T: ChannelGadget<E>,
+    AD: AuxData<E>,
+    P: PlonkConstraintSystemParams<E>,
+    OldP: OldCSParams<E>,
+    WP: WrappedAffinePoint<'a, E>,
 {
     type MainGate = Width4MainGateWithDNext;
 
     fn declare_used_gates() -> Result<Vec<Box<dyn GateInternal<E>>>, SynthesisError> {
         use crate::plonk::circuit::bigint::range_constraint_gate::TwoBitDecompositionRangecheckCustomGate;
 
-        Ok(
-            vec![
-                Self::MainGate::default().into_internal(),
-                TwoBitDecompositionRangecheckCustomGate::default().into_internal(),
-                
-            ]
-        )
+        Ok(vec![Self::MainGate::default().into_internal(), TwoBitDecompositionRangecheckCustomGate::default().into_internal()])
     }
 
-    fn synthesize<CS: ConstraintSystem<E>>(
-        &self,
-        cs: &mut CS,
-    ) -> Result<(), SynthesisError> {
-
+    fn synthesize<CS: ConstraintSystem<E>>(&self, cs: &mut CS) -> Result<(), SynthesisError> {
         assert!(P::CAN_ACCESS_NEXT_TRACE_STEP);
 
         let actual_proof = self.proof.replace(None);
@@ -704,15 +676,7 @@ impl<'a, E, T, P, OldP, AD, WP> Circuit<E> for PlonkVerifierCircuit<'a, E, T, P,
         let proof = ProofGadget::<E, WP>::alloc(cs, actual_proof.unwrap(), self.params, &self.aux_data)?;
         let vk = VerificationKeyGagdet::<E, WP>::alloc(cs, actual_vk.unwrap(), self.params, &self.aux_data)?;
 
-        let _ = aggregate_proof::<E, _, T, P, OldP, AD, WP>(
-            cs,
-            self.channel_params,
-            &proof.input_values,
-            &vk,
-            &proof,
-            &self.aux_data,
-            &self.params
-        )?;
+        let _ = aggregate_proof::<E, _, T, P, OldP, AD, WP>(cs, self.channel_params, &proof.input_values, &vk, &proof, &self.aux_data, &self.params)?;
 
         Ok(())
     }

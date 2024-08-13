@@ -1,0 +1,47 @@
+name: "Rust CI"
+on:
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: "always"
+  CARGO_INCREMENTAL: "0"
+  RUSTC_WRAPPER: "sccache"
+  SCCACHE_GHA_ENABLED: "true"
+  # Rust version to use.
+  nightly: nightly-2024-08-01
+
+jobs:
+  build:
+    name: CI
+    strategy:
+      matrix:
+        # Needs big runners to run tests
+        # Only macos-13-xlarge is Apple Silicon, as per:
+        # https://docs.github.com/en/actions/using-github-hosted-runners/about-larger-runners/about-larger-runners#about-macos-larger-runners
+        os: [ubuntu-22.04-github-hosted-16core, macos-13-xlarge]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: ${{ env.nightly }}
+          components: rustfmt, clippy
+          # Remove default `-D warnings`. This is a temporary measure.
+          rustflags: ""
+
+      - name: Install sccache
+        uses: mozilla-actions/sccache-action@v0.0.4
+
+      - name: Format
+        run: cargo fmt --all -- --check
+
+      # Note: `bellman`, `blake2s_const`, `franklin-crypto`, `codegen` currently have failing tests, so they're temporarily
+      # excluded from the CI.
+
+      - name: Run tests (boojum)
+        run: cargo test -p boojum
+
+      - name: Run tests (rescue-poseidon)
+        run: cargo test -p rescue_poseidon

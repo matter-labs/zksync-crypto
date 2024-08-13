@@ -1,29 +1,18 @@
-use crate::bellman::pairing::{
-    Engine,
-};
+use crate::bellman::pairing::Engine;
 
-use crate::bellman::pairing::ff::{
-    Field,
-    PrimeField,
-    PrimeFieldRepr,
-    BitIterator
-};
+use crate::bellman::pairing::ff::{BitIterator, Field, PrimeField, PrimeFieldRepr};
 
-use crate::bellman::SynthesisError;
-use crate::bellman::worker::Worker;
 use crate::bellman::plonk::better_better_cs::cs::*;
-use crate::bellman::plonk::polynomials::*;
 use crate::bellman::plonk::fft::cooley_tukey_ntt::*;
+use crate::bellman::plonk::polynomials::*;
+use crate::bellman::worker::Worker;
+use crate::bellman::SynthesisError;
 
 use crate::plonk::circuit::Assignment;
 
-use super::allocated_num::{
-    AllocatedNum
-};
+use super::allocated_num::AllocatedNum;
 
-use super::linear_combination::{
-    LinearCombination
-};
+use super::linear_combination::LinearCombination;
 
 use crate::rescue::*;
 
@@ -60,11 +49,7 @@ impl<E: Engine> GateInternal<E> for Nonlinearity5CustomGate {
     }
 
     fn variable_polynomials(&self) -> &'static [PolyIdentifier] {
-        const POLYS: [PolyIdentifier; 3] = [
-            PolyIdentifier::VariablesPolynomial(0),
-            PolyIdentifier::VariablesPolynomial(1),
-            PolyIdentifier::VariablesPolynomial(2),
-        ];
+        const POLYS: [PolyIdentifier; 3] = [PolyIdentifier::VariablesPolynomial(0), PolyIdentifier::VariablesPolynomial(1), PolyIdentifier::VariablesPolynomial(2)];
 
         &POLYS
     }
@@ -105,7 +90,7 @@ impl<E: Engine> GateInternal<E> for Nonlinearity5CustomGate {
         tmp.square();
         tmp.mul_assign(&b_value);
         tmp.sub_assign(&c_value);
-        
+
         tmp
     }
 
@@ -114,14 +99,14 @@ impl<E: Engine> GateInternal<E> for Nonlinearity5CustomGate {
     }
 
     fn contribute_into_quotient(
-        &self, 
+        &self,
         domain_size: usize,
         poly_storage: &mut AssembledPolynomialStorage<E>,
-        monomials_storage: & AssembledPolynomialStorageForMonomialForms<E>,
+        monomials_storage: &AssembledPolynomialStorageForMonomialForms<E>,
         challenges: &[E::Fr],
         omegas_bitreversed: &BitReversedOmegas<E::Fr>,
         _omegas_inv_bitreversed: &OmegasInvBitreversed<E::Fr>,
-        worker: &Worker
+        worker: &Worker,
     ) -> Result<Polynomial<E::Fr, Values>, SynthesisError> {
         assert!(domain_size.is_power_of_two());
         assert_eq!(challenges.len(), <Self as GateInternal<E>>::num_quotient_terms(&self));
@@ -132,100 +117,81 @@ impl<E: Engine> GateInternal<E> for Nonlinearity5CustomGate {
         assert!(poly_storage.is_bitreversed);
 
         let coset_factor = E::Fr::multiplicative_generator();
-       
+
         for &p in <Self as GateInternal<E>>::all_queried_polynomials(&self).into_iter() {
-            ensure_in_map_or_create(&worker, 
-                p, 
-                domain_size, 
-                omegas_bitreversed, 
-                lde_factor, 
-                coset_factor, 
-                monomials_storage, 
-                poly_storage
-            )?;
+            ensure_in_map_or_create(&worker, p, domain_size, omegas_bitreversed, lde_factor, coset_factor, monomials_storage, poly_storage)?;
         }
 
         let ldes_storage = &*poly_storage;
 
-        let a_ref = get_from_map_unchecked(
-            PolynomialInConstraint::from_id(PolyIdentifier::VariablesPolynomial(0)),
-            ldes_storage
-        );
+        let a_ref = get_from_map_unchecked(PolynomialInConstraint::from_id(PolyIdentifier::VariablesPolynomial(0)), ldes_storage);
 
         let mut tmp = a_ref.clone(); // just allocate, we don't actually use it
         drop(a_ref);
 
-        let a_raw_ref = get_from_map_unchecked(
-            PolynomialInConstraint::from_id(PolyIdentifier::VariablesPolynomial(0)),
-            ldes_storage
-        ).as_ref();
+        let a_raw_ref = get_from_map_unchecked(PolynomialInConstraint::from_id(PolyIdentifier::VariablesPolynomial(0)), ldes_storage).as_ref();
 
-        let b_raw_ref = get_from_map_unchecked(
-            PolynomialInConstraint::from_id(PolyIdentifier::VariablesPolynomial(1)),
-            ldes_storage
-        ).as_ref();
+        let b_raw_ref = get_from_map_unchecked(PolynomialInConstraint::from_id(PolyIdentifier::VariablesPolynomial(1)), ldes_storage).as_ref();
 
-        let c_raw_ref = get_from_map_unchecked(
-            PolynomialInConstraint::from_id(PolyIdentifier::VariablesPolynomial(2)),
-            ldes_storage
-        ).as_ref();
+        let c_raw_ref = get_from_map_unchecked(PolynomialInConstraint::from_id(PolyIdentifier::VariablesPolynomial(2)), ldes_storage).as_ref();
 
-        tmp.map_indexed(&worker,
-            |i, el| {
-                let a_value = a_raw_ref[i];
-                let b_value = b_raw_ref[i];
-                let c_value = c_raw_ref[i];
+        tmp.map_indexed(&worker, |i, el| {
+            let a_value = a_raw_ref[i];
+            let b_value = b_raw_ref[i];
+            let c_value = c_raw_ref[i];
 
-                // a^3 - b = 0
-                let mut result = a_value;
-                result.square();
-                result.mul_assign(&a_value);
-                result.sub_assign(&b_value);
+            // a^3 - b = 0
+            let mut result = a_value;
+            result.square();
+            result.mul_assign(&a_value);
+            result.sub_assign(&b_value);
 
-                result.mul_assign(&challenges[0]);
+            result.mul_assign(&challenges[0]);
 
-                // a^2 * b - c = 0
-                let mut tmp = a_value;
-                tmp.square();
-                tmp.mul_assign(&b_value);
-                tmp.sub_assign(&c_value);
+            // a^2 * b - c = 0
+            let mut tmp = a_value;
+            tmp.square();
+            tmp.mul_assign(&b_value);
+            tmp.sub_assign(&c_value);
 
-                tmp.mul_assign(&challenges[1]);
+            tmp.mul_assign(&challenges[1]);
 
-                result.add_assign(&tmp);
+            result.add_assign(&tmp);
 
-                *el = result;
-            }, 
-        );
+            *el = result;
+        });
 
         Ok(tmp)
     }
 
     fn contribute_into_linearization(
-        &self, 
+        &self,
         _domain_size: usize,
         _at: E::Fr,
         _queried_values: &std::collections::HashMap<PolynomialInConstraint, E::Fr>,
-        _monomials_storage: & AssembledPolynomialStorageForMonomialForms<E>,
+        _monomials_storage: &AssembledPolynomialStorageForMonomialForms<E>,
         _challenges: &[E::Fr],
-        _worker: &Worker
+        _worker: &Worker,
     ) -> Result<Polynomial<E::Fr, Coefficients>, SynthesisError> {
         unreachable!("this gate does not contribute into linearization");
     }
     fn contribute_into_verification_equation(
-        &self, 
+        &self,
         _domain_size: usize,
         _at: E::Fr,
         queried_values: &std::collections::HashMap<PolynomialInConstraint, E::Fr>,
         challenges: &[E::Fr],
     ) -> Result<E::Fr, SynthesisError> {
         assert_eq!(challenges.len(), <Self as GateInternal<E>>::num_quotient_terms(&self));
-        
-        let a_value = *queried_values.get(&PolynomialInConstraint::from_id(PolyIdentifier::VariablesPolynomial(0)))
+
+        let a_value = *queried_values
+            .get(&PolynomialInConstraint::from_id(PolyIdentifier::VariablesPolynomial(0)))
             .ok_or(SynthesisError::AssignmentMissing)?;
-        let b_value = *queried_values.get(&PolynomialInConstraint::from_id(PolyIdentifier::VariablesPolynomial(1)))
+        let b_value = *queried_values
+            .get(&PolynomialInConstraint::from_id(PolyIdentifier::VariablesPolynomial(1)))
             .ok_or(SynthesisError::AssignmentMissing)?;
-        let c_value = *queried_values.get(&PolynomialInConstraint::from_id(PolyIdentifier::VariablesPolynomial(2)))
+        let c_value = *queried_values
+            .get(&PolynomialInConstraint::from_id(PolyIdentifier::VariablesPolynomial(2)))
             .ok_or(SynthesisError::AssignmentMissing)?;
 
         // a^3 - b = 0
@@ -254,7 +220,7 @@ impl<E: Engine> GateInternal<E> for Nonlinearity5CustomGate {
     }
 
     fn contribute_into_linearization_commitment(
-        &self, 
+        &self,
         _domain_size: usize,
         _at: E::Fr,
         _queried_values: &std::collections::HashMap<PolynomialInConstraint, E::Fr>,
@@ -267,48 +233,32 @@ impl<E: Engine> GateInternal<E> for Nonlinearity5CustomGate {
 
 impl<E: Engine> Gate<E> for Nonlinearity5CustomGate {}
 
-pub fn apply_5th_power<E: Engine, CS: ConstraintSystem<E>>(
-    cs: &mut CS,
-    el: &AllocatedNum<E>,
-    existing_5th: Option<AllocatedNum<E>>,
-) -> Result<AllocatedNum<E>, SynthesisError> {
-    let third = AllocatedNum::alloc(
-        cs, 
-        || {
-            let val = *el.get_value().get()?;
-            let mut tmp = val;
-            tmp.square();
-            tmp.mul_assign(&val);
+pub fn apply_5th_power<E: Engine, CS: ConstraintSystem<E>>(cs: &mut CS, el: &AllocatedNum<E>, existing_5th: Option<AllocatedNum<E>>) -> Result<AllocatedNum<E>, SynthesisError> {
+    let third = AllocatedNum::alloc(cs, || {
+        let val = *el.get_value().get()?;
+        let mut tmp = val;
+        tmp.square();
+        tmp.mul_assign(&val);
 
-            Ok(tmp)
-        }
-    )?;
+        Ok(tmp)
+    })?;
 
     let fifth = if let Some(f) = existing_5th {
         f
     } else {
-        AllocatedNum::alloc(
-            cs, 
-            || {
-                let third = *third.get_value().get()?;
-                let val = *el.get_value().get()?;
-                let mut tmp = val;
-                tmp.square();
-                tmp.mul_assign(&third);
+        AllocatedNum::alloc(cs, || {
+            let third = *third.get_value().get()?;
+            let val = *el.get_value().get()?;
+            let mut tmp = val;
+            tmp.square();
+            tmp.mul_assign(&third);
 
-                Ok(tmp)
-            }
-        )?
+            Ok(tmp)
+        })?
     };
 
     // we take a value and make 5th power from it
-    cs.new_single_gate_for_trace_step(
-        &Nonlinearity5CustomGate::default(), 
-        &[], 
-        &[el.get_variable(), third.get_variable(), fifth.get_variable()], 
-        &[]
-    )?;
+    cs.new_single_gate_for_trace_step(&Nonlinearity5CustomGate::default(), &[], &[el.get_variable(), third.get_variable(), fifth.get_variable()], &[])?;
 
     Ok(fifth)
 }
-

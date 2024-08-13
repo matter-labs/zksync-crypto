@@ -3,18 +3,14 @@ use super::*;
 pub(crate) enum PrecomputationsForPolynomial<'a, F: PrimeField> {
     Borrowed(&'a Polynomial<F, Values>),
     Owned(Polynomial<F, Values>),
-    None
+    None,
 }
 
 impl<'a, F: PrimeField> AsRef<Polynomial<F, Values>> for PrecomputationsForPolynomial<'a, F> {
     fn as_ref(&self) -> &Polynomial<F, Values> {
         match self {
-            PrecomputationsForPolynomial::Borrowed(b) => {
-                b
-            },
-            PrecomputationsForPolynomial::Owned(o) => {
-                &o
-            }
+            PrecomputationsForPolynomial::Borrowed(b) => b,
+            PrecomputationsForPolynomial::Owned(o) => &o,
             PrecomputationsForPolynomial::None => {
                 unreachable!("precomputations must have been made");
             }
@@ -25,12 +21,8 @@ impl<'a, F: PrimeField> AsRef<Polynomial<F, Values>> for PrecomputationsForPolyn
 impl<'a, F: PrimeField> PrecomputationsForPolynomial<'a, F> {
     pub(crate) fn into_poly(self) -> Polynomial<F, Values> {
         match self {
-            PrecomputationsForPolynomial::Borrowed(b) => {
-                b.clone()
-            },
-            PrecomputationsForPolynomial::Owned(o) => {
-                o
-            }
+            PrecomputationsForPolynomial::Borrowed(b) => b.clone(),
+            PrecomputationsForPolynomial::Owned(o) => o,
             PrecomputationsForPolynomial::None => {
                 unreachable!("precomputations must have been made");
             }
@@ -40,11 +32,11 @@ impl<'a, F: PrimeField> PrecomputationsForPolynomial<'a, F> {
 
 pub(crate) fn get_precomputed_permutation_poly_lde_for_index<'a, E: Engine, CP: CTPrecomputations<E::Fr>>(
     index: usize,
-    domain_size: usize, 
+    domain_size: usize,
     setup: &SetupPolynomials<E, PlonkCsWidth4WithNextStepParams>,
-    setup_precomputations: &Option< &'a SetupPolynomialsPrecomputations<E, PlonkCsWidth4WithNextStepParams> >,
+    setup_precomputations: &Option<&'a SetupPolynomialsPrecomputations<E, PlonkCsWidth4WithNextStepParams>>,
     precomputed_omegas: &mut PrecomputedOmegas<E::Fr, CP>,
-    worker: &Worker
+    worker: &Worker,
 ) -> Result<PrecomputationsForPolynomial<'a, E::Fr>, SynthesisError> {
     let coset_factor = E::Fr::multiplicative_generator();
 
@@ -62,12 +54,7 @@ pub(crate) fn get_precomputed_permutation_poly_lde_for_index<'a, E: Engine, CP: 
 
         let p = setup.permutation_polynomials[index]
             .clone()
-            .bitreversed_lde_using_bitreversed_ntt(
-                &worker, 
-                LDE_FACTOR, 
-                precomputed_omegas.as_ref(), 
-                &coset_factor
-            )?;
+            .bitreversed_lde_using_bitreversed_ntt(&worker, LDE_FACTOR, precomputed_omegas.as_ref(), &coset_factor)?;
 
         return Ok(PrecomputationsForPolynomial::Owned(p));
     }
@@ -75,11 +62,11 @@ pub(crate) fn get_precomputed_permutation_poly_lde_for_index<'a, E: Engine, CP: 
 
 pub(crate) fn get_precomputed_selector_lde_for_index<'a, E: Engine, CP: CTPrecomputations<E::Fr>>(
     index: usize,
-    domain_size: usize, 
+    domain_size: usize,
     setup: &SetupPolynomials<E, PlonkCsWidth4WithNextStepParams>,
-    setup_precomputations: &Option< &'a SetupPolynomialsPrecomputations<E, PlonkCsWidth4WithNextStepParams> >,
+    setup_precomputations: &Option<&'a SetupPolynomialsPrecomputations<E, PlonkCsWidth4WithNextStepParams>>,
     precomputed_omegas: &mut PrecomputedOmegas<E::Fr, CP>,
-    worker: &Worker
+    worker: &Worker,
 ) -> Result<PrecomputationsForPolynomial<'a, E::Fr>, SynthesisError> {
     let coset_factor = E::Fr::multiplicative_generator();
 
@@ -97,12 +84,7 @@ pub(crate) fn get_precomputed_selector_lde_for_index<'a, E: Engine, CP: CTPrecom
 
         let p = setup.selector_polynomials[index]
             .clone()
-            .bitreversed_lde_using_bitreversed_ntt(
-                &worker, 
-                LDE_FACTOR, 
-                precomputed_omegas.as_ref(), 
-                &coset_factor
-            )?;
+            .bitreversed_lde_using_bitreversed_ntt(&worker, LDE_FACTOR, precomputed_omegas.as_ref(), &coset_factor)?;
 
         return Ok(PrecomputationsForPolynomial::Owned(p));
     }
@@ -110,11 +92,11 @@ pub(crate) fn get_precomputed_selector_lde_for_index<'a, E: Engine, CP: CTPrecom
 
 pub(crate) fn get_precomputed_next_step_selector_lde_for_index<'a, E: Engine, CP: CTPrecomputations<E::Fr>>(
     index: usize,
-    domain_size: usize, 
+    domain_size: usize,
     setup: &SetupPolynomials<E, PlonkCsWidth4WithNextStepParams>,
-    setup_precomputations: &Option< &'a SetupPolynomialsPrecomputations<E, PlonkCsWidth4WithNextStepParams> >,
+    setup_precomputations: &Option<&'a SetupPolynomialsPrecomputations<E, PlonkCsWidth4WithNextStepParams>>,
     precomputed_omegas: &mut PrecomputedOmegas<E::Fr, CP>,
-    worker: &Worker
+    worker: &Worker,
 ) -> Result<PrecomputationsForPolynomial<'a, E::Fr>, SynthesisError> {
     let coset_factor = E::Fr::multiplicative_generator();
 
@@ -132,21 +114,16 @@ pub(crate) fn get_precomputed_next_step_selector_lde_for_index<'a, E: Engine, CP
 
         let p = setup.next_step_selector_polynomials[index]
             .clone()
-            .bitreversed_lde_using_bitreversed_ntt(
-                &worker, 
-                LDE_FACTOR, 
-                precomputed_omegas.as_ref(), 
-                &coset_factor
-            )?;
+            .bitreversed_lde_using_bitreversed_ntt(&worker, LDE_FACTOR, precomputed_omegas.as_ref(), &coset_factor)?;
 
         return Ok(PrecomputationsForPolynomial::Owned(p));
     }
 }
 
 pub(crate) fn get_precomputed_x_lde<'a, E: Engine>(
-    domain_size: usize, 
-    setup_precomputations: &Option< &'a SetupPolynomialsPrecomputations<E, PlonkCsWidth4WithNextStepParams> >,
-    worker: &Worker
+    domain_size: usize,
+    setup_precomputations: &Option<&'a SetupPolynomialsPrecomputations<E, PlonkCsWidth4WithNextStepParams>>,
+    worker: &Worker,
 ) -> Result<PrecomputationsForPolynomial<'a, E::Fr>, SynthesisError> {
     let coset_factor = E::Fr::multiplicative_generator();
 
@@ -155,10 +132,7 @@ pub(crate) fn get_precomputed_x_lde<'a, E: Engine>(
 
         return Ok(PrecomputationsForPolynomial::Borrowed(p));
     } else {
-        let mut x_poly = Polynomial::from_values(vec![
-            coset_factor;
-            domain_size * LDE_FACTOR
-        ])?;
+        let mut x_poly = Polynomial::from_values(vec![coset_factor; domain_size * LDE_FACTOR])?;
         x_poly.distribute_powers(&worker, x_poly.omega);
         x_poly.bitreverse_enumeration(&worker);
 
@@ -167,9 +141,9 @@ pub(crate) fn get_precomputed_x_lde<'a, E: Engine>(
 }
 
 pub(crate) fn get_precomputed_inverse_divisor<'a, E: Engine>(
-    domain_size: usize, 
-    setup_precomputations: &Option< &'a SetupPolynomialsPrecomputations<E, PlonkCsWidth4WithNextStepParams> >,
-    worker: &Worker
+    domain_size: usize,
+    setup_precomputations: &Option<&'a SetupPolynomialsPrecomputations<E, PlonkCsWidth4WithNextStepParams>>,
+    worker: &Worker,
 ) -> Result<PrecomputationsForPolynomial<'a, E::Fr>, SynthesisError> {
     let coset_factor = E::Fr::multiplicative_generator();
 
@@ -178,13 +152,7 @@ pub(crate) fn get_precomputed_inverse_divisor<'a, E: Engine>(
 
         return Ok(PrecomputationsForPolynomial::Borrowed(p));
     } else {
-        let mut vanishing_poly_inverse_bitreversed =
-            evaluate_vanishing_polynomial_of_degree_on_domain_size::<E::Fr>(
-                domain_size as u64,
-                &coset_factor,
-                (domain_size * LDE_FACTOR) as u64,
-                &worker,
-            )?;
+        let mut vanishing_poly_inverse_bitreversed = evaluate_vanishing_polynomial_of_degree_on_domain_size::<E::Fr>(domain_size as u64, &coset_factor, (domain_size * LDE_FACTOR) as u64, &worker)?;
         vanishing_poly_inverse_bitreversed.batch_inversion(&worker)?;
         vanishing_poly_inverse_bitreversed.bitreverse_enumeration(&worker);
 
@@ -195,18 +163,14 @@ pub(crate) fn get_precomputed_inverse_divisor<'a, E: Engine>(
 pub(crate) enum PrecomputedOmegas<'a, F: PrimeField, CP: CTPrecomputations<F>> {
     Borrowed(&'a CP, F),
     Owned(CP, F),
-    None
+    None,
 }
 
 impl<'a, F: PrimeField, CP: CTPrecomputations<F>> AsRef<CP> for PrecomputedOmegas<'a, F, CP> {
     fn as_ref(&self) -> &CP {
         match self {
-            PrecomputedOmegas::Borrowed(b, _) => {
-                b
-            },
-            PrecomputedOmegas::Owned(o, _) => {
-                &o
-            }
+            PrecomputedOmegas::Borrowed(b, _) => b,
+            PrecomputedOmegas::Owned(o, _) => &o,
             PrecomputedOmegas::None => {
                 unreachable!("precomputations must have been made");
             }
@@ -221,7 +185,7 @@ pub(crate) struct FirstPartialProverState<E: Engine, P: PlonkConstraintSystemPar
     witness_polys_as_coeffs: Vec<Polynomial<E::Fr, Coefficients>>,
     witness_polys_unpadded_values: Vec<Polynomial<E::Fr, Values>>,
 
-    _marker: std::marker::PhantomData<P>
+    _marker: std::marker::PhantomData<P>,
 }
 
 pub(crate) struct FirstProverMessage<E: Engine, P: PlonkConstraintSystemParams<E>> {
@@ -230,14 +194,14 @@ pub(crate) struct FirstProverMessage<E: Engine, P: PlonkConstraintSystemParams<E
     pub(crate) input_values: Vec<E::Fr>,
     pub(crate) wire_commitments: Vec<E::G1Affine>,
 
-    _marker: std::marker::PhantomData<P>
+    _marker: std::marker::PhantomData<P>,
 }
 
 pub(crate) struct FirstVerifierMessage<E: Engine, P: PlonkConstraintSystemParams<E>> {
     pub(crate) beta: E::Fr,
     pub(crate) gamma: E::Fr,
 
-    pub(crate) _marker: std::marker::PhantomData<P>
+    pub(crate) _marker: std::marker::PhantomData<P>,
 }
 
 pub(crate) struct SecondPartialProverState<E: Engine, P: PlonkConstraintSystemParams<E>> {
@@ -247,13 +211,13 @@ pub(crate) struct SecondPartialProverState<E: Engine, P: PlonkConstraintSystemPa
     witness_polys_as_coeffs: Vec<Polynomial<E::Fr, Coefficients>>,
     z_in_monomial_form: Polynomial<E::Fr, Coefficients>,
 
-    _marker: std::marker::PhantomData<P>
+    _marker: std::marker::PhantomData<P>,
 }
 
 pub(crate) struct SecondProverMessage<E: Engine, P: PlonkConstraintSystemParams<E>> {
     pub(crate) z_commitment: E::G1Affine,
 
-    _marker: std::marker::PhantomData<P>
+    _marker: std::marker::PhantomData<P>,
 }
 
 pub(crate) struct SecondVerifierMessage<E: Engine, P: PlonkConstraintSystemParams<E>> {
@@ -261,7 +225,7 @@ pub(crate) struct SecondVerifierMessage<E: Engine, P: PlonkConstraintSystemParam
     pub(crate) beta: E::Fr,
     pub(crate) gamma: E::Fr,
 
-    pub(crate) _marker: std::marker::PhantomData<P>
+    pub(crate) _marker: std::marker::PhantomData<P>,
 }
 
 pub(crate) struct ThirdPartialProverState<E: Engine, P: PlonkConstraintSystemParams<E>> {
@@ -272,13 +236,13 @@ pub(crate) struct ThirdPartialProverState<E: Engine, P: PlonkConstraintSystemPar
     z_in_monomial_form: Polynomial<E::Fr, Coefficients>,
     t_poly_parts: Vec<Polynomial<E::Fr, Coefficients>>,
 
-    _marker: std::marker::PhantomData<P>
+    _marker: std::marker::PhantomData<P>,
 }
 
 pub(crate) struct ThirdProverMessage<E: Engine, P: PlonkConstraintSystemParams<E>> {
     pub(crate) quotient_poly_commitments: Vec<E::G1Affine>,
 
-    _marker: std::marker::PhantomData<P>
+    _marker: std::marker::PhantomData<P>,
 }
 
 pub(crate) struct ThirdVerifierMessage<E: Engine, P: PlonkConstraintSystemParams<E>> {
@@ -287,7 +251,7 @@ pub(crate) struct ThirdVerifierMessage<E: Engine, P: PlonkConstraintSystemParams
     pub(crate) gamma: E::Fr,
     pub(crate) z: E::Fr,
 
-    pub(crate) _marker: std::marker::PhantomData<P>
+    pub(crate) _marker: std::marker::PhantomData<P>,
 }
 
 pub(crate) struct FourthPartialProverState<E: Engine, P: PlonkConstraintSystemParams<E>> {
@@ -305,7 +269,7 @@ pub(crate) struct FourthPartialProverState<E: Engine, P: PlonkConstraintSystemPa
     quotient_polynomial_at_z: E::Fr,
     linearization_polynomial_at_z: E::Fr,
 
-    _marker: std::marker::PhantomData<P>
+    _marker: std::marker::PhantomData<P>,
 }
 
 pub(crate) struct FourthProverMessage<E: Engine, P: PlonkConstraintSystemParams<E>> {
@@ -316,7 +280,7 @@ pub(crate) struct FourthProverMessage<E: Engine, P: PlonkConstraintSystemParams<
     pub(crate) quotient_polynomial_at_z: E::Fr,
     pub(crate) linearization_polynomial_at_z: E::Fr,
 
-    _marker: std::marker::PhantomData<P>
+    _marker: std::marker::PhantomData<P>,
 }
 
 pub(crate) struct FourthVerifierMessage<E: Engine, P: PlonkConstraintSystemParams<E>> {
@@ -326,26 +290,22 @@ pub(crate) struct FourthVerifierMessage<E: Engine, P: PlonkConstraintSystemParam
     pub(crate) z: E::Fr,
     pub(crate) v: E::Fr,
 
-    pub(crate) _marker: std::marker::PhantomData<P>
+    pub(crate) _marker: std::marker::PhantomData<P>,
 }
 
 pub(crate) struct FifthProverMessage<E: Engine, P: PlonkConstraintSystemParams<E>> {
     pub(crate) opening_proof_at_z: E::G1Affine,
     pub(crate) opening_proof_at_z_omega: E::G1Affine,
 
-    _marker: std::marker::PhantomData<P>
+    _marker: std::marker::PhantomData<P>,
 }
 
 impl<E: Engine> ProverAssembly4WithNextStep<E> {
     pub(crate) fn first_step_with_lagrange_form_key(
-        self, 
-        worker: &Worker, 
-        crs_vals: &Crs<E, CrsForLagrangeForm>, 
-    ) -> Result<(
-        FirstPartialProverState<E, PlonkCsWidth4WithNextStepParams>, 
-        FirstProverMessage<E, PlonkCsWidth4WithNextStepParams>
-    ), SynthesisError>
-    {
+        self,
+        worker: &Worker,
+        crs_vals: &Crs<E, CrsForLagrangeForm>,
+    ) -> Result<(FirstPartialProverState<E, PlonkCsWidth4WithNextStepParams>, FirstProverMessage<E, PlonkCsWidth4WithNextStepParams>), SynthesisError> {
         use crate::pairing::CurveAffine;
         use std::sync::Arc;
 
@@ -359,13 +319,11 @@ impl<E: Engine> ProverAssembly4WithNextStep<E> {
         let required_domain_size = n + 1;
         assert!(required_domain_size.is_power_of_two());
 
-        let non_residues = make_non_residues::<E::Fr>(
-            <PlonkCsWidth4WithNextStepParams as PlonkConstraintSystemParams<E>>::STATE_WIDTH - 1
-        );
+        let non_residues = make_non_residues::<E::Fr>(<PlonkCsWidth4WithNextStepParams as PlonkConstraintSystemParams<E>>::STATE_WIDTH - 1);
 
         let full_assignments = self.make_witness_polynomials()?;
 
-        // Commit wire polynomials 
+        // Commit wire polynomials
 
         let mut first_message = FirstProverMessage::<E, PlonkCsWidth4WithNextStepParams> {
             n: n,
@@ -373,15 +331,11 @@ impl<E: Engine> ProverAssembly4WithNextStep<E> {
             input_values: input_values.clone(),
             wire_commitments: Vec::with_capacity(4),
 
-            _marker: std::marker::PhantomData
+            _marker: std::marker::PhantomData,
         };
 
         for wire_poly in full_assignments.iter() {
-            let commitment = commit_using_raw_values(
-                &wire_poly, 
-                &crs_vals, 
-                &worker
-            )?;
+            let commitment = commit_using_raw_values(&wire_poly, &crs_vals, &worker)?;
 
             first_message.wire_commitments.push(commitment);
         }
@@ -401,22 +355,18 @@ impl<E: Engine> ProverAssembly4WithNextStep<E> {
             witness_polys_as_coeffs: vec![],
             witness_polys_unpadded_values: assignment_polynomials,
 
-            _marker: std::marker::PhantomData
+            _marker: std::marker::PhantomData,
         };
 
         Ok((state, first_message))
     }
 
     pub(crate) fn first_step_with_monomial_form_key<CPI: CTPrecomputations<E::Fr>>(
-        self, 
-        worker: &Worker, 
-        crs_mons: &Crs<E, CrsForMonomialForm>, 
-        precomputed_omegas_inv: &mut PrecomputedOmegas<E::Fr, CPI>
-    ) -> Result<(
-        FirstPartialProverState<E, PlonkCsWidth4WithNextStepParams>, 
-        FirstProverMessage<E, PlonkCsWidth4WithNextStepParams>
-    ), SynthesisError>
-    {
+        self,
+        worker: &Worker,
+        crs_mons: &Crs<E, CrsForMonomialForm>,
+        precomputed_omegas_inv: &mut PrecomputedOmegas<E::Fr, CPI>,
+    ) -> Result<(FirstPartialProverState<E, PlonkCsWidth4WithNextStepParams>, FirstProverMessage<E, PlonkCsWidth4WithNextStepParams>), SynthesisError> {
         use crate::pairing::CurveAffine;
         use std::sync::Arc;
 
@@ -430,13 +380,11 @@ impl<E: Engine> ProverAssembly4WithNextStep<E> {
         let required_domain_size = n + 1;
         assert!(required_domain_size.is_power_of_two());
 
-        let non_residues = make_non_residues::<E::Fr>(
-            <PlonkCsWidth4WithNextStepParams as PlonkConstraintSystemParams<E>>::STATE_WIDTH - 1
-        );
+        let non_residues = make_non_residues::<E::Fr>(<PlonkCsWidth4WithNextStepParams as PlonkConstraintSystemParams<E>>::STATE_WIDTH - 1);
 
         let full_assignments = self.make_witness_polynomials()?;
 
-        // Commit wire polynomials 
+        // Commit wire polynomials
 
         let mut first_message = FirstProverMessage::<E, PlonkCsWidth4WithNextStepParams> {
             n: n,
@@ -444,7 +392,7 @@ impl<E: Engine> ProverAssembly4WithNextStep<E> {
             input_values: input_values.clone(),
             wire_commitments: Vec::with_capacity(4),
 
-            _marker: std::marker::PhantomData
+            _marker: std::marker::PhantomData,
         };
 
         let mut wire_polys_as_coefficients = Vec::with_capacity(full_assignments.len());
@@ -458,14 +406,9 @@ impl<E: Engine> ProverAssembly4WithNextStep<E> {
 
         for wire_poly in full_assignments.iter() {
             let as_poly = Polynomial::from_values(wire_poly.clone())?;
-            let as_coeffs = as_poly
-                .ifft_using_bitreversed_ntt(&worker, precomputed_omegas_inv.as_ref(), &E::Fr::one())?;
+            let as_coeffs = as_poly.ifft_using_bitreversed_ntt(&worker, precomputed_omegas_inv.as_ref(), &E::Fr::one())?;
 
-            let commitment = commit_using_monomials(
-                &as_coeffs, 
-                &crs_mons, 
-                &worker
-            )?;
+            let commitment = commit_using_monomials(&as_coeffs, &crs_mons, &worker)?;
 
             wire_polys_as_coefficients.push(as_coeffs);
 
@@ -480,7 +423,6 @@ impl<E: Engine> ProverAssembly4WithNextStep<E> {
             assignment_polynomials.push(p);
         }
 
-
         let state = FirstPartialProverState::<E, PlonkCsWidth4WithNextStepParams> {
             required_domain_size,
             non_residues,
@@ -488,7 +430,7 @@ impl<E: Engine> ProverAssembly4WithNextStep<E> {
             witness_polys_as_coeffs: wire_polys_as_coefficients,
             witness_polys_unpadded_values: assignment_polynomials,
 
-            _marker: std::marker::PhantomData
+            _marker: std::marker::PhantomData,
         };
 
         Ok((state, first_message))
@@ -498,16 +440,12 @@ impl<E: Engine> ProverAssembly4WithNextStep<E> {
         first_state: FirstPartialProverState<E, PlonkCsWidth4WithNextStepParams>,
         first_verifier_message: FirstVerifierMessage<E, PlonkCsWidth4WithNextStepParams>,
         setup: &SetupPolynomials<E, PlonkCsWidth4WithNextStepParams>,
-        crs_mons: &Crs<E, CrsForMonomialForm>, 
-        setup_precomputations: &Option< &SetupPolynomialsPrecomputations<E, PlonkCsWidth4WithNextStepParams> >,
+        crs_mons: &Crs<E, CrsForMonomialForm>,
+        setup_precomputations: &Option<&SetupPolynomialsPrecomputations<E, PlonkCsWidth4WithNextStepParams>>,
         precomputed_omegas_inv: &mut PrecomputedOmegas<E::Fr, CPI>,
-        worker: &Worker
-    ) -> Result<(
-        SecondPartialProverState<E, PlonkCsWidth4WithNextStepParams>,
-        SecondProverMessage<E, PlonkCsWidth4WithNextStepParams>
-    ), SynthesisError>
-    {
-        let FirstVerifierMessage { beta, gamma, ..} = first_verifier_message;
+        worker: &Worker,
+    ) -> Result<(SecondPartialProverState<E, PlonkCsWidth4WithNextStepParams>, SecondProverMessage<E, PlonkCsWidth4WithNextStepParams>), SynthesisError> {
+        let FirstVerifierMessage { beta, gamma, .. } = first_verifier_message;
 
         assert_eq!(first_state.witness_polys_unpadded_values.len(), 4, "first state must containt assignment poly values");
 
@@ -522,10 +460,7 @@ impl<E: Engine> ProverAssembly4WithNextStep<E> {
 
         let domain = Domain::new_for_size(required_domain_size as u64)?;
 
-        let mut domain_elements = materialize_domain_elements_with_natural_enumeration(
-            &domain, 
-            &worker
-        );
+        let mut domain_elements = materialize_domain_elements_with_natural_enumeration(&domain, &worker);
 
         domain_elements.pop().expect("must pop last element for omega^i");
 
@@ -569,9 +504,7 @@ impl<E: Engine> ProverAssembly4WithNextStep<E> {
             for p in setup.permutation_polynomials.iter() {
                 let as_values = p.clone().fft(&worker);
                 let mut as_values = as_values.into_coeffs();
-                as_values
-                    .pop()
-                    .expect("must shorted permutation polynomial values by one");
+                as_values.pop().expect("must shorted permutation polynomial values by one");
 
                 let p = Polynomial::from_values_unpadded(as_values)?;
                 let p = PrecomputationsForPolynomial::Owned(p);
@@ -581,19 +514,15 @@ impl<E: Engine> ProverAssembly4WithNextStep<E> {
         }
 
         let z_den = {
-            assert_eq!(
-                permutation_polynomials_values_of_size_n_minus_one.len(), 
-                grand_products_protos_with_gamma.len()
-            );
+            assert_eq!(permutation_polynomials_values_of_size_n_minus_one.len(), grand_products_protos_with_gamma.len());
             let mut grand_products_proto_it = grand_products_protos_with_gamma.into_iter();
             let mut permutation_polys_it = permutation_polynomials_values_of_size_n_minus_one.iter();
 
             let mut z_2 = grand_products_proto_it.next().unwrap();
             z_2.add_assign_scaled(&worker, permutation_polys_it.next().unwrap().as_ref(), &beta);
 
-            for (mut p, perm) in grand_products_proto_it
-                                            .zip(permutation_polys_it) {
-                // permutation polynomials 
+            for (mut p, perm) in grand_products_proto_it.zip(permutation_polys_it) {
+                // permutation polynomials
                 p.add_assign_scaled(&worker, perm.as_ref(), &beta);
                 z_2.mul_assign(&worker, &p);
             }
@@ -617,11 +546,7 @@ impl<E: Engine> ProverAssembly4WithNextStep<E> {
         // interpolate on the main domain
         let z_in_monomial_form = z.ifft_using_bitreversed_ntt(&worker, precomputed_omegas_inv.as_ref(), &E::Fr::one())?;
 
-        let z_commitment = commit_using_monomials(
-            &z_in_monomial_form, 
-            &crs_mons, 
-            &worker
-        )?;
+        let z_commitment = commit_using_monomials(&z_in_monomial_form, &crs_mons, &worker)?;
 
         let state = SecondPartialProverState::<E, PlonkCsWidth4WithNextStepParams> {
             required_domain_size,
@@ -630,13 +555,12 @@ impl<E: Engine> ProverAssembly4WithNextStep<E> {
             witness_polys_as_coeffs: first_state.witness_polys_as_coeffs,
             z_in_monomial_form: z_in_monomial_form,
 
-            _marker: std::marker::PhantomData
+            _marker: std::marker::PhantomData,
         };
 
         let message = SecondProverMessage::<E, PlonkCsWidth4WithNextStepParams> {
             z_commitment: z_commitment,
-
-            _marker: std::marker::PhantomData
+            _marker: std::marker::PhantomData,
         };
 
         Ok((state, message))
@@ -646,22 +570,18 @@ impl<E: Engine> ProverAssembly4WithNextStep<E> {
         second_state: SecondPartialProverState<E, PlonkCsWidth4WithNextStepParams>,
         second_verifier_message: SecondVerifierMessage<E, PlonkCsWidth4WithNextStepParams>,
         setup: &SetupPolynomials<E, PlonkCsWidth4WithNextStepParams>,
-        crs_mons: &Crs<E, CrsForMonomialForm>, 
-        setup_precomputations: &Option< &SetupPolynomialsPrecomputations<E, PlonkCsWidth4WithNextStepParams> >,
+        crs_mons: &Crs<E, CrsForMonomialForm>,
+        setup_precomputations: &Option<&SetupPolynomialsPrecomputations<E, PlonkCsWidth4WithNextStepParams>>,
         precomputed_omegas: &mut PrecomputedOmegas<E::Fr, CP>,
         precomputed_omegas_inv: &mut PrecomputedOmegas<E::Fr, CPI>,
-        worker: &Worker
-    ) -> Result<(
-        ThirdPartialProverState<E, PlonkCsWidth4WithNextStepParams>,
-        ThirdProverMessage<E, PlonkCsWidth4WithNextStepParams>
-    ), SynthesisError>
-    {
+        worker: &Worker,
+    ) -> Result<(ThirdPartialProverState<E, PlonkCsWidth4WithNextStepParams>, ThirdProverMessage<E, PlonkCsWidth4WithNextStepParams>), SynthesisError> {
         let z_in_monomial_form = second_state.z_in_monomial_form;
 
         // those are z(x*Omega) formally
         let mut z_shifted_in_monomial_form = z_in_monomial_form.clone();
         z_shifted_in_monomial_form.distribute_powers(&worker, z_in_monomial_form.omega);
-        
+
         // now we have to LDE everything and compute quotient polynomial
         // also to save on openings that we will have to do from the monomial form anyway
 
@@ -686,32 +606,23 @@ impl<E: Engine> ProverAssembly4WithNextStep<E> {
 
         let mut witness_ldes_on_coset = vec![];
         let mut witness_next_ldes_on_coset = vec![];
- 
+
         for (idx, monomial) in witness_polys_in_monomial_form.iter().enumerate() {
             // this is D polynomial and we need to make next
             if idx == <PlonkCsWidth4WithNextStepParams as PlonkConstraintSystemParams<E>>::STATE_WIDTH - 1 {
                 let mut d_next = monomial.clone();
                 d_next.distribute_powers(&worker, d_next.omega);
 
-                let lde = d_next.bitreversed_lde_using_bitreversed_ntt(
-                    &worker, 
-                    LDE_FACTOR, 
-                    precomputed_omegas.as_ref(), 
-                    &coset_factor
-                )?;
+                let lde = d_next.bitreversed_lde_using_bitreversed_ntt(&worker, LDE_FACTOR, precomputed_omegas.as_ref(), &coset_factor)?;
 
                 witness_next_ldes_on_coset.push(lde);
             }
 
-            let lde = monomial.clone().bitreversed_lde_using_bitreversed_ntt(
-                &worker, 
-                LDE_FACTOR, 
-                precomputed_omegas.as_ref(), 
-                &coset_factor
-            )?;
+            let lde = monomial
+                .clone()
+                .bitreversed_lde_using_bitreversed_ntt(&worker, LDE_FACTOR, precomputed_omegas.as_ref(), &coset_factor)?;
             witness_ldes_on_coset.push(lde);
         }
-
 
         let SecondVerifierMessage { alpha, beta, gamma, .. } = second_verifier_message;
 
@@ -735,67 +646,34 @@ impl<E: Engine> ProverAssembly4WithNextStep<E> {
             inputs_poly.add_assign(&worker, setup.selector_polynomials.last().unwrap());
 
             // LDE
-            let mut t_1 = inputs_poly.bitreversed_lde_using_bitreversed_ntt(
-                &worker, 
-                LDE_FACTOR, 
-                precomputed_omegas.as_ref(), 
-                &coset_factor
-            )?;
+            let mut t_1 = inputs_poly.bitreversed_lde_using_bitreversed_ntt(&worker, LDE_FACTOR, precomputed_omegas.as_ref(), &coset_factor)?;
 
             // t_1 is now q_constant
 
             // Q_A * A
             let mut tmp = witness_ldes_on_coset[0].clone();
-            let a_selector = get_precomputed_selector_lde_for_index(
-                0, 
-                required_domain_size, 
-                &setup, 
-                &setup_precomputations,
-                precomputed_omegas,
-                &worker
-            )?;
+            let a_selector = get_precomputed_selector_lde_for_index(0, required_domain_size, &setup, &setup_precomputations, precomputed_omegas, &worker)?;
             tmp.mul_assign(&worker, &a_selector.as_ref());
             t_1.add_assign(&worker, &tmp);
             drop(a_selector);
 
             // Q_B * B
             tmp.reuse_allocation(&witness_ldes_on_coset[1]);
-            let b_selector = get_precomputed_selector_lde_for_index(
-                1, 
-                required_domain_size, 
-                &setup, 
-                &setup_precomputations,
-                precomputed_omegas,
-                &worker
-            )?;
+            let b_selector = get_precomputed_selector_lde_for_index(1, required_domain_size, &setup, &setup_precomputations, precomputed_omegas, &worker)?;
             tmp.mul_assign(&worker, &b_selector.as_ref());
             t_1.add_assign(&worker, &tmp);
             drop(b_selector);
 
             // Q_C * C
             tmp.reuse_allocation(&witness_ldes_on_coset[2]);
-            let c_selector = get_precomputed_selector_lde_for_index(
-                2, 
-                required_domain_size, 
-                &setup, 
-                &setup_precomputations,
-                precomputed_omegas,
-                &worker
-            )?;
+            let c_selector = get_precomputed_selector_lde_for_index(2, required_domain_size, &setup, &setup_precomputations, precomputed_omegas, &worker)?;
             tmp.mul_assign(&worker, c_selector.as_ref());
             t_1.add_assign(&worker, &tmp);
             drop(c_selector);
 
             // Q_D * D
             tmp.reuse_allocation(&witness_ldes_on_coset[3]);
-            let d_selector = get_precomputed_selector_lde_for_index(
-                3, 
-                required_domain_size, 
-                &setup, 
-                &setup_precomputations,
-                precomputed_omegas,
-                &worker
-            )?;
+            let d_selector = get_precomputed_selector_lde_for_index(3, required_domain_size, &setup, &setup_precomputations, precomputed_omegas, &worker)?;
             tmp.mul_assign(&worker, d_selector.as_ref());
             t_1.add_assign(&worker, &tmp);
             drop(d_selector);
@@ -803,27 +681,13 @@ impl<E: Engine> ProverAssembly4WithNextStep<E> {
             // Q_M * A * B
             tmp.reuse_allocation(&witness_ldes_on_coset[0]);
             tmp.mul_assign(&worker, &witness_ldes_on_coset[1]);
-            let m_selector = get_precomputed_selector_lde_for_index(
-                4, 
-                required_domain_size, 
-                &setup, 
-                &setup_precomputations,
-                precomputed_omegas,
-                &worker
-            )?;
+            let m_selector = get_precomputed_selector_lde_for_index(4, required_domain_size, &setup, &setup_precomputations, precomputed_omegas, &worker)?;
             tmp.mul_assign(&worker, &m_selector.as_ref());
             t_1.add_assign(&worker, &tmp);
             drop(m_selector);
 
             tmp.reuse_allocation(&witness_next_ldes_on_coset[0]);
-            let d_next_selector = get_precomputed_next_step_selector_lde_for_index(
-                0, 
-                required_domain_size, 
-                &setup, 
-                &setup_precomputations,
-                precomputed_omegas,
-                &worker
-            )?;
+            let d_next_selector = get_precomputed_next_step_selector_lde_for_index(0, required_domain_size, &setup, &setup_precomputations, precomputed_omegas, &worker)?;
             tmp.mul_assign(&worker, d_next_selector.as_ref());
             t_1.add_assign(&worker, &tmp);
             drop(d_next_selector);
@@ -836,30 +700,20 @@ impl<E: Engine> ProverAssembly4WithNextStep<E> {
 
         // now compute the permutation argument
 
-        let z_coset_lde_bitreversed = z_in_monomial_form.clone().bitreversed_lde_using_bitreversed_ntt(
-            &worker, 
-            LDE_FACTOR, 
-            precomputed_omegas.as_ref(), 
-            &coset_factor
-        )?;
+        let z_coset_lde_bitreversed = z_in_monomial_form
+            .clone()
+            .bitreversed_lde_using_bitreversed_ntt(&worker, LDE_FACTOR, precomputed_omegas.as_ref(), &coset_factor)?;
 
-        assert!(z_coset_lde_bitreversed.size() == required_domain_size*LDE_FACTOR);
+        assert!(z_coset_lde_bitreversed.size() == required_domain_size * LDE_FACTOR);
 
-        let z_shifted_coset_lde_bitreversed = z_shifted_in_monomial_form.bitreversed_lde_using_bitreversed_ntt(
-            &worker, 
-            LDE_FACTOR, 
-            precomputed_omegas.as_ref(), 
-            &coset_factor
-        )?;
+        let z_shifted_coset_lde_bitreversed = z_shifted_in_monomial_form.bitreversed_lde_using_bitreversed_ntt(&worker, LDE_FACTOR, precomputed_omegas.as_ref(), &coset_factor)?;
 
-        assert!(z_shifted_coset_lde_bitreversed.size() == required_domain_size*LDE_FACTOR);
+        assert!(z_shifted_coset_lde_bitreversed.size() == required_domain_size * LDE_FACTOR);
 
-        let non_residues = make_non_residues::<E::Fr>(
-            <PlonkCsWidth4WithNextStepParams as PlonkConstraintSystemParams<E>>::STATE_WIDTH - 1
-        );
+        let non_residues = make_non_residues::<E::Fr>(<PlonkCsWidth4WithNextStepParams as PlonkConstraintSystemParams<E>>::STATE_WIDTH - 1);
 
         // For both Z_1 and Z_2 we first check for grand products
-        // z*(X)(A + beta*X + gamma)(B + beta*k_1*X + gamma)(C + beta*K_2*X + gamma) - 
+        // z*(X)(A + beta*X + gamma)(B + beta*k_1*X + gamma)(C + beta*K_2*X + gamma) -
         // - (A + beta*perm_a(X) + gamma)(B + beta*perm_b(X) + gamma)(C + beta*perm_c(X) + gamma)*Z(X*Omega)== 0
 
         // we use evaluations of the polynomial X and K_i * X on a large domain's coset
@@ -873,11 +727,7 @@ impl<E: Engine> ProverAssembly4WithNextStep<E> {
 
             tmp.reuse_allocation(&witness_ldes_on_coset[0]);
             tmp.add_constant(&worker, &gamma);
-            let x_precomp = get_precomputed_x_lde(
-                required_domain_size, 
-                setup_precomputations,
-                &worker
-            )?;
+            let x_precomp = get_precomputed_x_lde(required_domain_size, setup_precomputations, &worker)?;
             tmp.add_assign_scaled(&worker, x_precomp.as_ref(), &beta);
             contrib_z.mul_assign(&worker, &tmp);
 
@@ -902,19 +752,12 @@ impl<E: Engine> ProverAssembly4WithNextStep<E> {
             // A + beta*perm_a + gamma
 
             for (idx, w) in witness_ldes_on_coset.iter().enumerate() {
-                    let perm = get_precomputed_permutation_poly_lde_for_index(
-                        idx, 
-                        required_domain_size, 
-                        &setup, 
-                        &setup_precomputations,
-                        precomputed_omegas,
-                        &worker
-                    )?;
-                    tmp.reuse_allocation(&w);
-                    tmp.add_constant(&worker, &gamma);
-                    tmp.add_assign_scaled(&worker, perm.as_ref(), &beta);
-                    contrib_z.mul_assign(&worker, &tmp);
-                }
+                let perm = get_precomputed_permutation_poly_lde_for_index(idx, required_domain_size, &setup, &setup_precomputations, precomputed_omegas, &worker)?;
+                tmp.reuse_allocation(&w);
+                tmp.add_constant(&worker, &gamma);
+                tmp.add_assign_scaled(&worker, perm.as_ref(), &beta);
+                contrib_z.mul_assign(&worker, &tmp);
+            }
 
             t_1.sub_assign_scaled(&worker, &contrib_z, &quotient_linearization_challenge);
 
@@ -931,12 +774,7 @@ impl<E: Engine> ProverAssembly4WithNextStep<E> {
             let mut z_minus_one_by_l_0 = z_coset_lde_bitreversed;
             z_minus_one_by_l_0.sub_constant(&worker, &E::Fr::one());
 
-            let l_coset_lde_bitreversed = l_0.bitreversed_lde_using_bitreversed_ntt(
-                &worker, 
-                LDE_FACTOR, 
-                precomputed_omegas.as_ref(), 
-                &coset_factor
-            )?;
+            let l_coset_lde_bitreversed = l_0.bitreversed_lde_using_bitreversed_ntt(&worker, LDE_FACTOR, precomputed_omegas.as_ref(), &coset_factor)?;
 
             z_minus_one_by_l_0.mul_assign(&worker, &l_coset_lde_bitreversed);
 
@@ -947,11 +785,7 @@ impl<E: Engine> ProverAssembly4WithNextStep<E> {
 
         drop(tmp);
 
-        let divisor_inversed = get_precomputed_inverse_divisor(
-            required_domain_size, 
-            setup_precomputations,
-            &worker
-        )?;
+        let divisor_inversed = get_precomputed_inverse_divisor(required_domain_size, setup_precomputations, &worker)?;
         t_1.mul_assign(&worker, divisor_inversed.as_ref());
 
         t_1.bitreverse_enumeration(&worker);
@@ -966,23 +800,18 @@ impl<E: Engine> ProverAssembly4WithNextStep<E> {
             input_values: input_values,
             witness_polys_as_coeffs: witness_polys_in_monomial_form,
             z_in_monomial_form: z_in_monomial_form,
-            t_poly_parts : t_poly_parts,
+            t_poly_parts: t_poly_parts,
 
-            _marker: std::marker::PhantomData
+            _marker: std::marker::PhantomData,
         };
 
         let mut message = ThirdProverMessage::<E, PlonkCsWidth4WithNextStepParams> {
             quotient_poly_commitments: Vec::with_capacity(4),
-
-            _marker: std::marker::PhantomData
+            _marker: std::marker::PhantomData,
         };
 
         for t_part in state.t_poly_parts.iter() {
-            let t_part_commitment = commit_using_monomials(
-                &t_part, 
-                &crs_mons, 
-                &worker
-            )?;
+            let t_part_commitment = commit_using_monomials(&t_part, &crs_mons, &worker)?;
 
             message.quotient_poly_commitments.push(t_part_commitment);
         }
@@ -994,12 +823,8 @@ impl<E: Engine> ProverAssembly4WithNextStep<E> {
         third_state: ThirdPartialProverState<E, PlonkCsWidth4WithNextStepParams>,
         third_verifier_message: ThirdVerifierMessage<E, PlonkCsWidth4WithNextStepParams>,
         setup: &SetupPolynomials<E, PlonkCsWidth4WithNextStepParams>,
-        worker: &Worker
-    ) -> Result<(
-        FourthPartialProverState<E, PlonkCsWidth4WithNextStepParams>,
-        FourthProverMessage<E, PlonkCsWidth4WithNextStepParams>
-    ), SynthesisError>
-    {
+        worker: &Worker,
+    ) -> Result<(FourthPartialProverState<E, PlonkCsWidth4WithNextStepParams>, FourthProverMessage<E, PlonkCsWidth4WithNextStepParams>), SynthesisError> {
         let ThirdVerifierMessage { alpha, beta, gamma, z, .. } = third_verifier_message;
         let required_domain_size = third_state.required_domain_size;
 
@@ -1011,7 +836,7 @@ impl<E: Engine> ProverAssembly4WithNextStep<E> {
             input_values: third_state.input_values,
             witness_polys_as_coeffs: third_state.witness_polys_as_coeffs,
             z_in_monomial_form: third_state.z_in_monomial_form,
-            t_poly_parts : third_state.t_poly_parts,
+            t_poly_parts: third_state.t_poly_parts,
             linearization_polynomial: Polynomial::<E::Fr, Coefficients>::new_for_size(0)?,
             wire_values_at_z: vec![],
             wire_values_at_z_omega: vec![],
@@ -1020,7 +845,7 @@ impl<E: Engine> ProverAssembly4WithNextStep<E> {
             quotient_polynomial_at_z: E::Fr::zero(),
             linearization_polynomial_at_z: E::Fr::zero(),
 
-            _marker: std::marker::PhantomData
+            _marker: std::marker::PhantomData,
         };
 
         let mut z_by_omega = z;
@@ -1091,9 +916,7 @@ impl<E: Engine> ProverAssembly4WithNextStep<E> {
             // + (a(z) + beta*z + gamma)*()*()*()*Z(x)
 
             let mut factor = quotient_linearization_challenge;
-            for (wire_at_z, non_residue) in state.wire_values_at_z.iter()
-                            .zip(Some(E::Fr::one()).iter().chain(&state.non_residues)) 
-            {
+            for (wire_at_z, non_residue) in state.wire_values_at_z.iter().zip(Some(E::Fr::one()).iter().chain(&state.non_residues)) {
                 let mut t = z;
                 t.mul_assign(&non_residue);
                 t.mul_assign(&beta);
@@ -1111,9 +934,7 @@ impl<E: Engine> ProverAssembly4WithNextStep<E> {
             factor.mul_assign(&beta);
             factor.mul_assign(&z_at_z_omega);
 
-            for (wire_at_z, perm_at_z) in state.wire_values_at_z.iter()
-                            .zip(state.permutation_polynomials_at_z.iter())
-            {
+            for (wire_at_z, perm_at_z) in state.wire_values_at_z.iter().zip(state.permutation_polynomials_at_z.iter()) {
                 let mut t = *perm_at_z;
                 t.mul_assign(&beta);
                 t.add_assign(&wire_at_z);
@@ -1146,7 +967,7 @@ impl<E: Engine> ProverAssembly4WithNextStep<E> {
         // sanity check - verification
         {
             let mut lhs = t_at_z;
-            let vanishing_at_z = evaluate_vanishing_for_size(&z ,required_domain_size as u64);
+            let vanishing_at_z = evaluate_vanishing_for_size(&z, required_domain_size as u64);
             lhs.mul_assign(&vanishing_at_z);
 
             let mut quotient_linearization_challenge = E::Fr::one();
@@ -1176,9 +997,9 @@ impl<E: Engine> ProverAssembly4WithNextStep<E> {
                 tmp.mul_assign(&beta);
                 tmp.add_assign(&gamma);
                 tmp.add_assign(&w);
-                
+
                 z_part.mul_assign(&tmp);
-            }   
+            }
 
             // last poly value and gamma
             let mut tmp = gamma;
@@ -1190,7 +1011,7 @@ impl<E: Engine> ProverAssembly4WithNextStep<E> {
             rhs.sub_assign(&z_part);
 
             quotient_linearization_challenge.mul_assign(&alpha);
-            
+
             // - L_0(z) * \alpha^2
 
             let mut l_0_at_z = evaluate_l0_at_point(required_domain_size as u64, z)?;
@@ -1211,21 +1032,19 @@ impl<E: Engine> ProverAssembly4WithNextStep<E> {
             quotient_polynomial_at_z: state.quotient_polynomial_at_z,
             linearization_polynomial_at_z: state.linearization_polynomial_at_z,
 
-            _marker: std::marker::PhantomData
+            _marker: std::marker::PhantomData,
         };
 
         Ok((state, message))
     }
 
-
     pub(crate) fn fifth_step_from_fourth_step(
         mut fourth_state: FourthPartialProverState<E, PlonkCsWidth4WithNextStepParams>,
         fourth_verifier_message: FourthVerifierMessage<E, PlonkCsWidth4WithNextStepParams>,
         setup: &SetupPolynomials<E, PlonkCsWidth4WithNextStepParams>,
-        crs_mons: &Crs<E, CrsForMonomialForm>, 
-        worker: &Worker
-    ) -> Result<FifthProverMessage<E, PlonkCsWidth4WithNextStepParams>, SynthesisError>
-    {
+        crs_mons: &Crs<E, CrsForMonomialForm>,
+        worker: &Worker,
+    ) -> Result<FifthProverMessage<E, PlonkCsWidth4WithNextStepParams>, SynthesisError> {
         let FourthVerifierMessage { z, v, .. } = fourth_verifier_message;
         let required_domain_size = fourth_state.required_domain_size;
 
@@ -1307,23 +1126,15 @@ impl<E: Engine> ProverAssembly4WithNextStep<E> {
         let open_at_z_omega = polys.pop().unwrap().0;
         let open_at_z = polys.pop().unwrap().0;
 
-        let opening_at_z = commit_using_monomials(
-            &open_at_z, 
-            &crs_mons,
-            &worker
-        )?;
+        let opening_at_z = commit_using_monomials(&open_at_z, &crs_mons, &worker)?;
 
-        let opening_at_z_omega = commit_using_monomials(
-            &open_at_z_omega, 
-            &crs_mons,
-            &worker
-        )?;
+        let opening_at_z_omega = commit_using_monomials(&open_at_z_omega, &crs_mons, &worker)?;
 
         let message = FifthProverMessage::<E, PlonkCsWidth4WithNextStepParams> {
             opening_proof_at_z: opening_at_z,
             opening_proof_at_z_omega: opening_at_z_omega,
 
-            _marker: std::marker::PhantomData
+            _marker: std::marker::PhantomData,
         };
 
         Ok(message)

@@ -81,15 +81,7 @@ impl Implementation {
         }
     }
 
-    pub fn compress1_loop(
-        &self,
-        input: &[u8],
-        words: &mut [Word; 8],
-        count: Count,
-        last_node: LastNode,
-        finalize: Finalize,
-        stride: Stride,
-    ) {
+    pub fn compress1_loop(&self, input: &[u8], words: &mut [Word; 8], count: Count, last_node: LastNode, finalize: Finalize, stride: Stride) {
         match self.0 {
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
             Platform::AVX2 | Platform::SSE41 => unsafe {
@@ -104,9 +96,7 @@ impl Implementation {
     pub fn compress4_loop(&self, jobs: &mut [Job; 4], finalize: Finalize, stride: Stride) {
         match self.0 {
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-            Platform::AVX2 | Platform::SSE41 => unsafe {
-                sse41::compress4_loop(jobs, finalize, stride)
-            },
+            Platform::AVX2 | Platform::SSE41 => unsafe { sse41::compress4_loop(jobs, finalize, stride) },
             _ => panic!("unsupported"),
         }
     }
@@ -130,13 +120,7 @@ pub struct Job<'a, 'b> {
 impl<'a, 'b> core::fmt::Debug for Job<'a, 'b> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         // NB: Don't print the words. Leaking them would allow length extension.
-        write!(
-            f,
-            "Job {{ input_len: {}, count: {}, last_node: {} }}",
-            self.input.len(),
-            self.count,
-            self.last_node.yes(),
-        )
+        write!(f, "Job {{ input_len: {}, count: {}, last_node: {} }}", self.input.len(), self.count, self.last_node.yes(),)
     }
 }
 
@@ -214,12 +198,7 @@ pub(crate) fn flag_word(flag: bool) -> Word {
 // input can be finalized (i.e. whether there aren't any more bytes after this
 // block). Note that this is written so that the optimizer can elide bounds
 // checks, see: https://godbolt.org/z/0hH2bC
-pub fn final_block<'a>(
-    input: &'a [u8],
-    offset: usize,
-    buffer: &'a mut [u8; BLOCKBYTES],
-    stride: Stride,
-) -> (&'a [u8; BLOCKBYTES], usize, bool) {
+pub fn final_block<'a>(input: &'a [u8], offset: usize, buffer: &'a mut [u8; BLOCKBYTES], stride: Stride) -> (&'a [u8; BLOCKBYTES], usize, bool) {
     let capped_offset = cmp::min(offset, input.len());
     let offset_slice = &input[capped_offset..];
     if offset_slice.len() >= BLOCKBYTES {
@@ -258,21 +237,12 @@ mod test {
         {
             if is_x86_feature_detected!("avx2") {
                 assert_eq!(Platform::AVX2, Implementation::detect().0);
-                assert_eq!(
-                    Platform::AVX2,
-                    Implementation::avx2_if_supported().unwrap().0
-                );
-                assert_eq!(
-                    Platform::SSE41,
-                    Implementation::sse41_if_supported().unwrap().0
-                );
+                assert_eq!(Platform::AVX2, Implementation::avx2_if_supported().unwrap().0);
+                assert_eq!(Platform::SSE41, Implementation::sse41_if_supported().unwrap().0);
             } else if is_x86_feature_detected!("sse4.1") {
                 assert_eq!(Platform::SSE41, Implementation::detect().0);
                 assert!(Implementation::avx2_if_supported().is_none());
-                assert_eq!(
-                    Platform::SSE41,
-                    Implementation::sse41_if_supported().unwrap().0
-                );
+                assert_eq!(Platform::SSE41, Implementation::sse41_if_supported().unwrap().0);
             } else {
                 assert_eq!(Platform::Portable, Implementation::detect().0);
                 assert!(Implementation::avx2_if_supported().is_none());
@@ -332,38 +302,18 @@ mod test {
     }
 
     fn initial_test_words(input_index: usize) -> [Word; 8] {
-        crate::Params::new()
-            .node_offset(input_index as u64)
-            .to_words()
+        crate::Params::new().node_offset(input_index as u64).to_words()
     }
 
     // Use the portable implementation, one block at a time, to compute the
     // final state words expected for a given test case.
-    fn reference_compression(
-        input: &[u8],
-        stride: Stride,
-        last_node: LastNode,
-        finalize: Finalize,
-        mut count: Count,
-        input_index: usize,
-    ) -> [Word; 8] {
+    fn reference_compression(input: &[u8], stride: Stride, last_node: LastNode, finalize: Finalize, mut count: Count, input_index: usize) -> [Word; 8] {
         let mut words = initial_test_words(input_index);
         let mut offset = 0;
         while offset == 0 || offset < input.len() {
             let block_size = cmp::min(BLOCKBYTES, input.len() - offset);
-            let maybe_finalize = if offset + stride.padded_blockbytes() < input.len() {
-                Finalize::No
-            } else {
-                finalize
-            };
-            portable::compress1_loop(
-                &input[offset..][..block_size],
-                &mut words,
-                count,
-                last_node,
-                maybe_finalize,
-                Stride::Serial,
-            );
+            let maybe_finalize = if offset + stride.padded_blockbytes() < input.len() { Finalize::No } else { finalize };
+            portable::compress1_loop(&input[offset..][..block_size], &mut words, count, last_node, maybe_finalize, Stride::Serial);
             offset += stride.padded_blockbytes();
             count = count.wrapping_add(BLOCKBYTES as Count);
         }
@@ -381,18 +331,10 @@ mod test {
         paint_test_input(&mut input);
 
         exercise_cases(|stride, length, last_node, finalize, count| {
-            let reference_words =
-                reference_compression(&input[..length], stride, last_node, finalize, count, 0);
+            let reference_words = reference_compression(&input[..length], stride, last_node, finalize, count, 0);
 
             let mut test_words = initial_test_words(0);
-            implementation.compress1_loop(
-                &input[..length],
-                &mut test_words,
-                count,
-                last_node,
-                finalize,
-                stride,
-            );
+            implementation.compress1_loop(&input[..length], &mut test_words, count, last_node, finalize, stride);
             assert_eq!(reference_words, test_words);
         });
     }
@@ -437,14 +379,7 @@ mod test {
         exercise_cases(|stride, length, last_node, finalize, count| {
             let mut reference_words = ArrayVec::<[_; N]>::new();
             for i in 0..N {
-                let words = reference_compression(
-                    &inputs[i][..length],
-                    stride,
-                    last_node,
-                    finalize,
-                    count.wrapping_add((i * BLOCKBYTES) as Count),
-                    i,
-                );
+                let words = reference_compression(&inputs[i][..length], stride, last_node, finalize, count.wrapping_add((i * BLOCKBYTES) as Count), i);
                 reference_words.push(words);
             }
 
@@ -502,14 +437,7 @@ mod test {
         exercise_cases(|stride, length, last_node, finalize, count| {
             let mut reference_words = ArrayVec::<[_; N]>::new();
             for i in 0..N {
-                let words = reference_compression(
-                    &inputs[i][..length],
-                    stride,
-                    last_node,
-                    finalize,
-                    count.wrapping_add((i * BLOCKBYTES) as Count),
-                    i,
-                );
+                let words = reference_compression(&inputs[i][..length], stride, last_node, finalize, count.wrapping_add((i * BLOCKBYTES) as Count), i);
                 reference_words.push(words);
             }
 

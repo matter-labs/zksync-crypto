@@ -114,9 +114,7 @@ fn bench_fr_add_assign(b: &mut ::test::Bencher) {
 
     let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
-    let v: Vec<(Fr, Fr)> = (0..SAMPLES)
-        .map(|_| (Fr::rand(&mut rng), Fr::rand(&mut rng)))
-        .collect();
+    let v: Vec<(Fr, Fr)> = (0..SAMPLES).map(|_| (Fr::rand(&mut rng), Fr::rand(&mut rng))).collect();
 
     let mut count = 0;
     b.iter(|| {
@@ -133,9 +131,7 @@ fn bench_fr_sub_assign(b: &mut ::test::Bencher) {
 
     let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
-    let v: Vec<(Fr, Fr)> = (0..SAMPLES)
-        .map(|_| (Fr::rand(&mut rng), Fr::rand(&mut rng)))
-        .collect();
+    let v: Vec<(Fr, Fr)> = (0..SAMPLES).map(|_| (Fr::rand(&mut rng), Fr::rand(&mut rng))).collect();
 
     let mut count = 0;
     b.iter(|| {
@@ -152,9 +148,7 @@ fn bench_fr_mul_assign(b: &mut ::test::Bencher) {
 
     let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
-    let v: Vec<(Fr, Fr)> = (0..SAMPLES)
-        .map(|_| (Fr::rand(&mut rng), Fr::rand(&mut rng)))
-        .collect();
+    let v: Vec<(Fr, Fr)> = (0..SAMPLES).map(|_| (Fr::rand(&mut rng), Fr::rand(&mut rng))).collect();
 
     let mut count = 0;
     b.iter(|| {
@@ -256,9 +250,7 @@ fn bench_fr_from_repr(b: &mut ::test::Bencher) {
 
     let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
-    let v: Vec<FrRepr> = (0..SAMPLES)
-        .map(|_| Fr::rand(&mut rng).into_repr())
-        .collect();
+    let v: Vec<FrRepr> = (0..SAMPLES).map(|_| Fr::rand(&mut rng).into_repr()).collect();
 
     let mut count = 0;
     b.iter(|| {

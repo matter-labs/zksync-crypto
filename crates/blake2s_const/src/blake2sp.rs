@@ -105,16 +105,7 @@ impl Params {
                 // because it isn't included in the state words.
                 .to_words()
         };
-        let leaf_words = [
-            leaf_words(0),
-            leaf_words(1),
-            leaf_words(2),
-            leaf_words(3),
-            leaf_words(4),
-            leaf_words(5),
-            leaf_words(6),
-            leaf_words(7),
-        ];
+        let leaf_words = [leaf_words(0), leaf_words(1), leaf_words(2), leaf_words(3), leaf_words(4), leaf_words(5), leaf_words(6), leaf_words(7)];
         let root_words = base_params
             .clone()
             .node_offset(0)
@@ -141,21 +132,12 @@ impl Params {
                 input: &input[input_start..],
                 words,
                 count: 0,
-                last_node: if i == DEGREE - 1 {
-                    LastNode::Yes
-                } else {
-                    LastNode::No
-                },
+                last_node: if i == DEGREE - 1 { LastNode::Yes } else { LastNode::No },
             }
         });
         many::compress_many(jobs, self.implementation, Finalize::Yes, Stride::Parallel);
         // Hash each leaf into the root.
-        finalize_root_words(
-            &leaf_words,
-            &mut root_words,
-            self.hash_length,
-            self.implementation,
-        )
+        finalize_root_words(&leaf_words, &mut root_words, self.hash_length, self.implementation)
     }
 
     /// Construct a BLAKE2sp `State` object based on these parameters.
@@ -167,11 +149,7 @@ impl Params {
     /// length of the final `Hash`, this is also associated data, and changing it will result in a
     /// totally different hash.
     pub fn hash_length(&mut self, length: usize) -> &mut Self {
-        assert!(
-            1 <= length && length <= OUTBYTES,
-            "Bad hash length: {}",
-            length
-        );
+        assert!(1 <= length && length <= OUTBYTES, "Bad hash length: {}", length);
         self.hash_length = length as u8;
         self
     }
@@ -283,12 +261,7 @@ impl State {
         *input = &input[take..];
     }
 
-    fn compress_to_leaves(
-        leaves: &mut [[Word; 8]; DEGREE],
-        input: &[u8],
-        count: &mut Count,
-        implementation: Implementation,
-    ) {
+    fn compress_to_leaves(leaves: &mut [[Word; 8]; DEGREE], input: &[u8], count: &mut Count, implementation: Implementation) {
         // Input is assumed to be an even number of blocks for each leaf. Since
         // we're not finilizing, debug asserts will fire otherwise.
         let jobs = leaves.iter_mut().enumerate().map(|(i, words)| {
@@ -321,21 +294,11 @@ impl State {
             if !input.is_empty() {
                 if input.len() > (DEGREE - 1) * BLOCKBYTES {
                     // Enough input coming to do both compressions.
-                    Self::compress_to_leaves(
-                        &mut self.leaf_words,
-                        &self.buf,
-                        &mut self.count,
-                        self.implementation,
-                    );
+                    Self::compress_to_leaves(&mut self.leaf_words, &self.buf, &mut self.count, self.implementation);
                     self.buf_len = 0;
                 } else {
                     // Only enough input coming for one compression.
-                    Self::compress_to_leaves(
-                        &mut self.leaf_words,
-                        &self.buf[..DEGREE * BLOCKBYTES],
-                        &mut self.count,
-                        self.implementation,
-                    );
+                    Self::compress_to_leaves(&mut self.leaf_words, &self.buf[..DEGREE * BLOCKBYTES], &mut self.count, self.implementation);
                     self.buf_len = (DEGREE * BLOCKBYTES) as u16;
                     let (buf_front, buf_back) = self.buf.split_at_mut(DEGREE * BLOCKBYTES);
                     buf_front.copy_from_slice(buf_back);
@@ -351,12 +314,7 @@ impl State {
         let mut bulk_bytes = input.len().saturating_sub(needed_tail);
         bulk_bytes -= bulk_bytes % (DEGREE * BLOCKBYTES);
         if bulk_bytes > 0 {
-            Self::compress_to_leaves(
-                &mut self.leaf_words,
-                &input[..bulk_bytes],
-                &mut self.count,
-                self.implementation,
-            );
+            Self::compress_to_leaves(&mut self.leaf_words, &input[..bulk_bytes], &mut self.count, self.implementation);
             input = &input[bulk_bytes..];
         }
 
@@ -373,32 +331,20 @@ impl State {
         // Hash whatever's remaining in the buffer and finalize the leaves.
         let buf_len = self.buf_len as usize;
         let mut leaves_copy = self.leaf_words;
-        let jobs = leaves_copy
-            .iter_mut()
-            .enumerate()
-            .map(|(leaf_index, leaf_words)| {
-                let input = &self.buf[cmp::min(leaf_index * BLOCKBYTES, buf_len)..buf_len];
-                Job {
-                    input,
-                    words: leaf_words,
-                    count: self.count,
-                    last_node: if leaf_index == DEGREE - 1 {
-                        LastNode::Yes
-                    } else {
-                        LastNode::No
-                    },
-                }
-            });
+        let jobs = leaves_copy.iter_mut().enumerate().map(|(leaf_index, leaf_words)| {
+            let input = &self.buf[cmp::min(leaf_index * BLOCKBYTES, buf_len)..buf_len];
+            Job {
+                input,
+                words: leaf_words,
+                count: self.count,
+                last_node: if leaf_index == DEGREE - 1 { LastNode::Yes } else { LastNode::No },
+            }
+        });
         many::compress_many(jobs, self.implementation, Finalize::Yes, Stride::Parallel);
 
         // Concatenate each leaf into the root and hash that.
         let mut root_words_copy = self.root_words;
-        finalize_root_words(
-            &leaves_copy,
-            &mut root_words_copy,
-            self.hash_length,
-            self.implementation,
-        )
+        finalize_root_words(&leaves_copy, &mut root_words_copy, self.hash_length, self.implementation)
     }
 
     /// Return the total number of bytes input so far.
@@ -407,10 +353,7 @@ impl State {
     /// It's exactly the total number of input bytes fed to `update`.
     pub fn count(&self) -> Count {
         // Remember that self.count is *per-leaf*.
-        let mut ret = self
-            .count
-            .wrapping_mul(DEGREE as Count)
-            .wrapping_add(self.buf_len as Count);
+        let mut ret = self.count.wrapping_mul(DEGREE as Count).wrapping_add(self.buf_len as Count);
         if self.is_keyed {
             ret -= (DEGREE * BLOCKBYTES) as Count;
         }
@@ -432,12 +375,7 @@ impl std::io::Write for State {
 
 impl fmt::Debug for State {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "State {{ count: {}, hash_length: {} }}",
-            self.count(),
-            self.hash_length,
-        )
+        write!(f, "State {{ count: {}, hash_length: {} }}", self.count(), self.hash_length,)
     }
 }
 
@@ -453,29 +391,13 @@ impl Default for State {
 // data for all nodes, this step must still use the untruncated output of each
 // leaf. Note also that, as mentioned above, the root node doesn't hash any key
 // bytes.
-fn finalize_root_words(
-    leaf_words: &[[Word; 8]; DEGREE],
-    root_words: &mut [Word; 8],
-    hash_length: u8,
-    imp: Implementation,
-) -> Hash {
+fn finalize_root_words(leaf_words: &[[Word; 8]; DEGREE], root_words: &mut [Word; 8], hash_length: u8, imp: Implementation) -> Hash {
     debug_assert_eq!(OUTBYTES, 8 * size_of::<Word>());
     let mut block = [0; DEGREE * OUTBYTES];
-    for (word, chunk) in leaf_words
-        .iter()
-        .flat_map(|words| words.iter())
-        .zip(block.chunks_exact_mut(size_of::<Word>()))
-    {
+    for (word, chunk) in leaf_words.iter().flat_map(|words| words.iter()).zip(block.chunks_exact_mut(size_of::<Word>())) {
         chunk.copy_from_slice(&word.to_le_bytes());
     }
-    imp.compress1_loop(
-        &block,
-        root_words,
-        0,
-        LastNode::Yes,
-        Finalize::Yes,
-        Stride::Serial,
-    );
+    imp.compress1_loop(&block, root_words, 0, LastNode::Yes, Finalize::Yes, Stride::Serial);
     Hash {
         bytes: crate::state_words_to_bytes(&root_words),
         len: hash_length,

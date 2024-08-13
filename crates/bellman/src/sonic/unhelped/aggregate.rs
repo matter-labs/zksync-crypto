@@ -1,26 +1,26 @@
-use crate::pairing::ff::{Field};
-use crate::pairing::{Engine, CurveProjective};
+use crate::pairing::ff::Field;
+use crate::pairing::{CurveProjective, Engine};
 use std::marker::PhantomData;
 
-use crate::sonic::helped::{Proof, SxyAdvice};
 use crate::sonic::helped::batch::Batch;
 use crate::sonic::helped::poly::{SxEval, SyEval};
 use crate::sonic::helped::Parameters;
+use crate::sonic::helped::{Proof, SxyAdvice};
 
 use crate::SynthesisError;
 
-use crate::sonic::transcript::{Transcript, TranscriptProtocol};
-use crate::sonic::util::*;
-use crate::sonic::cs::{Backend, SynthesisDriver};
-use crate::sonic::cs::{Circuit, Variable, Coeff};
-use crate::sonic::srs::SRS;
-use crate::sonic::sonic::CountNandQ;
-use crate::sonic::sonic::M;
-use super::s2_proof::{S2Eval, S2Proof};
-use super::permutation_structure::create_permutation_structure;
 use super::permutation_argument::PermutationArgument;
 use super::permutation_argument::SignatureOfCorrectComputation;
 use super::permutation_argument::SpecializedSRS;
+use super::permutation_structure::create_permutation_structure;
+use super::s2_proof::{S2Eval, S2Proof};
+use crate::sonic::cs::{Backend, SynthesisDriver};
+use crate::sonic::cs::{Circuit, Coeff, Variable};
+use crate::sonic::sonic::CountNandQ;
+use crate::sonic::sonic::M;
+use crate::sonic::srs::SRS;
+use crate::sonic::transcript::{Transcript, TranscriptProtocol};
+use crate::sonic::util::*;
 
 #[derive(Clone)]
 pub struct SuccinctAggregate<E: Engine> {
@@ -36,7 +36,6 @@ pub struct SuccinctAggregate<E: Engine> {
 
     pub z: E::Fr,
     pub w: E::Fr,
-
 }
 
 // pub fn create_aggregate<E: Engine, C: Circuit<E>, S: SynthesisDriver>(
@@ -55,9 +54,8 @@ pub fn create_aggregate_on_srs<E: Engine, C: Circuit<E>, S: SynthesisDriver>(
     circuit: &C,
     inputs: &[(Proof<E>, SxyAdvice<E>)],
     srs: &SRS<E>,
-    specialized_srs: &SpecializedSRS<E>
-) -> SuccinctAggregate<E>
-{
+    specialized_srs: &SpecializedSRS<E>,
+) -> SuccinctAggregate<E> {
     // TODO: precompute this?
     let (n, q) = {
         let mut tmp = CountNandQ::<S>::new();
@@ -77,8 +75,7 @@ pub fn create_aggregate_on_srs_using_information<E: Engine, C: Circuit<E>, S: Sy
     _specialized_srs: &SpecializedSRS<E>,
     n: usize,
     q: usize,
-) -> SuccinctAggregate<E>
-{
+) -> SuccinctAggregate<E> {
     use std::time::Instant;
     let start = Instant::now();
     // take few proofs that are to be evaluated at some y_i and make an aggregate from them
@@ -106,11 +103,10 @@ pub fn create_aggregate_on_srs_using_information<E: Engine, C: Circuit<E>, S: Sy
 
     // Compute C = g^{s(z, x)}
     let c = multiexp(
-        srs.g_positive_x_alpha[0..(n + q)]
-            .iter()
-            .chain_ext(srs.g_negative_x_alpha[0..n].iter()),
-        s_poly_positive.iter().chain_ext(s_poly_negative.iter())
-    ).into_affine();
+        srs.g_positive_x_alpha[0..(n + q)].iter().chain_ext(srs.g_negative_x_alpha[0..n].iter()),
+        s_poly_positive.iter().chain_ext(s_poly_negative.iter()),
+    )
+    .into_affine();
 
     transcript.commit_point(&c);
 
@@ -123,19 +119,13 @@ pub fn create_aggregate_on_srs_using_information<E: Engine, C: Circuit<E>, S: Sy
         let mut value = value;
         value.negate();
 
-        polynomial_commitment_opening(
-            n,
-            0,
-            s_poly_negative.iter().rev().chain_ext(Some(value).iter()).chain_ext(s_poly_positive.iter()),
-            w,
-            &srs
-        )
+        polynomial_commitment_opening(n, 0, s_poly_negative.iter().rev().chain_ext(Some(value).iter()).chain_ext(s_poly_positive.iter()), w, &srs)
     };
 
     println!("Commit and opening of for s(z, w) taken {:?}", start.elapsed());
 
-    // now we need signature of correct computation. For this purpose 
-    // verifier already knows specialized SRS, so we can just commit to 
+    // now we need signature of correct computation. For this purpose
+    // verifier already knows specialized SRS, so we can just commit to
     // s1 and s2 parts of such signature to get `w` and later open at this point!
 
     // Commit!
@@ -157,13 +147,7 @@ pub fn create_aggregate_on_srs_using_information<E: Engine, C: Circuit<E>, S: Sy
     println!("Permutation vectors synthesis taken {:?}", start.elapsed());
     let start = Instant::now();
 
-    let signature = PermutationArgument::make_signature(
-        non_permuted_coeffs, 
-        permutations, 
-        w, 
-        z, 
-        &srs,
-    );
+    let signature = PermutationArgument::make_signature(non_permuted_coeffs, permutations, w, z, &srs);
 
     println!("Succinct signature for s(z, Y) taken {:?}", start.elapsed());
 
@@ -192,13 +176,7 @@ pub fn create_aggregate_on_srs_using_information<E: Engine, C: Circuit<E>, S: Sy
             let mut value = value;
             value.negate();
 
-            polynomial_commitment_opening(
-                n,
-                0,
-                s_poly_negative.iter().rev().chain_ext(Some(value).iter()).chain_ext(s_poly_positive.iter()),
-                *y,
-                &srs
-            )
+            polynomial_commitment_opening(n, 0, s_poly_negative.iter().rev().chain_ext(Some(value).iter()).chain_ext(s_poly_positive.iter()), *y, &srs)
         };
 
         c_openings.push((opening, value));
@@ -211,7 +189,7 @@ pub fn create_aggregate_on_srs_using_information<E: Engine, C: Circuit<E>, S: Sy
     // challenges instead and open up a random linear combination.
 
     let mut poly_negative = vec![E::Fr::zero(); n];
-    let mut poly_positive = vec![E::Fr::zero(); 2*n];
+    let mut poly_positive = vec![E::Fr::zero(); 2 * n];
     let mut expected_value = E::Fr::zero();
 
     // TODO: this part can be further parallelized due to synthesis of S(X, y) being singlethreaded
@@ -231,8 +209,8 @@ pub fn create_aggregate_on_srs_using_information<E: Engine, C: Circuit<E>, S: Sy
         value.mul_assign(&r);
         expected_value.add_assign(&value);
 
-        mul_add_polynomials(& mut poly_negative[..], &s_poly_negative[..], r);
-        mul_add_polynomials(& mut poly_positive[..], &s_poly_positive[..], r);
+        mul_add_polynomials(&mut poly_negative[..], &s_poly_negative[..], r);
+        mul_add_polynomials(&mut poly_positive[..], &s_poly_positive[..], r);
     }
 
     println!("Re-evaluation of {} S polynomials taken {:?}", y_values.len(), start.elapsed());
@@ -241,13 +219,7 @@ pub fn create_aggregate_on_srs_using_information<E: Engine, C: Circuit<E>, S: Sy
         let mut value = expected_value;
         value.negate();
 
-        polynomial_commitment_opening(
-            n,
-            0,
-            poly_negative.iter().rev().chain_ext(Some(value).iter()).chain_ext(poly_positive.iter()),
-            z,
-            &srs
-        )
+        polynomial_commitment_opening(n, 0, poly_negative.iter().rev().chain_ext(Some(value).iter()).chain_ext(poly_positive.iter()), z, &srs)
     };
 
     SuccinctAggregate {
@@ -257,7 +229,6 @@ pub fn create_aggregate_on_srs_using_information<E: Engine, C: Circuit<E>, S: Sy
         s_opening,
         c_openings,
         opening,
-
         z: z,
         w: w,
     }

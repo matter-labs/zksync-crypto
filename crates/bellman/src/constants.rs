@@ -1,18 +1,13 @@
-pub const ETH_BLOCK_10_000_000_HASH: &'static str
-          = "aa20f7bde5be60603f11a45fc4923aab7552be775403fc00c2e6b805e6297dbe";
+pub const ETH_BLOCK_10_000_000_HASH: &'static str = "aa20f7bde5be60603f11a45fc4923aab7552be775403fc00c2e6b805e6297dbe";
 
-use crate::pairing::{Engine, CurveProjective};
 use crate::byteorder::{BigEndian, ReadBytesExt};
+use crate::pairing::{CurveProjective, Engine};
 
-pub fn make_random_points_with_unknown_discrete_log_from_seed<E: Engine>(
-    dst: &[u8],
-    seed: &[u8],
-    num_points: usize
-) -> Vec<E::G1Affine> {
+pub fn make_random_points_with_unknown_discrete_log_from_seed<E: Engine>(dst: &[u8], seed: &[u8], num_points: usize) -> Vec<E::G1Affine> {
     let mut result = vec![];
 
-    use rand::{Rng, SeedableRng};
     use rand::chacha::ChaChaRng;
+    use rand::{Rng, SeedableRng};
     // Create an RNG based on the outcome of the random beacon
     let mut rng = {
         // if we use Blake hasher
@@ -36,13 +31,6 @@ pub fn make_random_points_with_unknown_discrete_log_from_seed<E: Engine>(
     result
 }
 
-pub fn make_random_points_with_unknown_discrete_log<E: Engine>(
-    dst: &[u8],
-    num_points: usize
-) -> Vec<E::G1Affine> {
-    make_random_points_with_unknown_discrete_log_from_seed::<E>(
-        dst, 
-        &hex::decode(crate::constants::ETH_BLOCK_10_000_000_HASH).unwrap(),
-        num_points
-    )
+pub fn make_random_points_with_unknown_discrete_log<E: Engine>(dst: &[u8], num_points: usize) -> Vec<E::G1Affine> {
+    make_random_points_with_unknown_discrete_log_from_seed::<E>(dst, &hex::decode(crate::constants::ETH_BLOCK_10_000_000_HASH).unwrap(), num_points)
 }

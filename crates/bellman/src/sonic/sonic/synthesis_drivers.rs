@@ -1,12 +1,12 @@
-use std::marker::PhantomData;
+use crate::pairing::Engine;
 use crate::sonic::cs::{Backend, SynthesisDriver};
-use crate::pairing::{Engine};
-use crate::sonic::cs::{Variable, Circuit, ConstraintSystem, LinearCombination};
+use crate::sonic::cs::{Circuit, ConstraintSystem, LinearCombination, Variable};
 use crate::SynthesisError;
+use std::marker::PhantomData;
 
-use crate::pairing::ff::{Field};
+use crate::pairing::ff::Field;
 
-use super::constraint_systems::{NonassigningSynthesizer, Synthesizer, PermutationSynthesizer};
+use super::constraint_systems::{NonassigningSynthesizer, PermutationSynthesizer, Synthesizer};
 
 pub struct Basic;
 
@@ -17,8 +17,8 @@ impl SynthesisDriver for Basic {
         let one = tmp.alloc_input(|| Ok(E::Fr::one())).expect("should have no issues");
 
         match (one, <Synthesizer<E, B> as ConstraintSystem<E>>::ONE) {
-            (Variable::A(1), Variable::A(1)) => {},
-            _ => panic!("one variable is incorrect")
+            (Variable::A(1), Variable::A(1)) => {}
+            _ => panic!("one variable is incorrect"),
         }
 
         circuit.synthesize(&mut tmp)?;
@@ -36,8 +36,8 @@ impl SynthesisDriver for Nonassigning {
         let one = tmp.alloc_input(|| Ok(E::Fr::one())).expect("should have no issues");
 
         match (one, <NonassigningSynthesizer<E, B> as ConstraintSystem<E>>::ONE) {
-            (Variable::A(1), Variable::A(1)) => {},
-            _ => panic!("one variable is incorrect")
+            (Variable::A(1), Variable::A(1)) => {}
+            _ => panic!("one variable is incorrect"),
         }
 
         circuit.synthesize(&mut tmp)?;
@@ -115,8 +115,8 @@ impl SynthesisDriver for Permutation3 {
         let one = tmp.alloc_input(|| Ok(E::Fr::one())).expect("should have no issues");
 
         match (one, <PermutationSynthesizer<E, B> as ConstraintSystem<E>>::ONE) {
-            (Variable::A(1), Variable::A(1)) => {},
-            _ => panic!("one variable is incorrect")
+            (Variable::A(1), Variable::A(1)) => {}
+            _ => panic!("one variable is incorrect"),
         }
 
         circuit.synthesize(&mut tmp)?;

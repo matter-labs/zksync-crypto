@@ -2,42 +2,20 @@ use crate::log::Stopwatch;
 
 use rand::Rng;
 
-use std::sync::Arc;
 use std::collections::HashMap;
+use std::sync::Arc;
 
-use crate::pairing::{
-    Engine,
-    Wnaf,
-    CurveProjective,
-    CurveAffine
-};
+use crate::pairing::{CurveAffine, CurveProjective, Engine, Wnaf};
 
-use crate::pairing::ff::{    
-    PrimeField,
-    Field
-};
+use crate::pairing::ff::{Field, PrimeField};
 
-use super::{
-    IndexedSetup,
-};
+use super::IndexedSetup;
 
-use crate::{
-    SynthesisError,
-    Circuit,
-    ConstraintSystem,
-    LinearCombination,
-    Variable,
-    Index
-};
+use crate::{Circuit, ConstraintSystem, Index, LinearCombination, SynthesisError, Variable};
 
-use crate::domain::{
-    EvaluationDomain,
-    Scalar
-};
+use crate::domain::{EvaluationDomain, Scalar};
 
-use crate::worker::{
-    Worker
-};
+use crate::worker::Worker;
 
 use crate::plonk::polynomials::*;
 
@@ -70,9 +48,7 @@ impl<E: Engine> KeypairAssembly<E> {
 
     fn pad_square_to_size(&mut self, size: usize) -> Result<(), SynthesisError> {
         for _ in (self.num_inputs + self.num_aux)..size {
-            self.alloc(|| "", || {
-                Ok(E::Fr::one())
-            })?;
+            self.alloc(|| "", || Ok(E::Fr::one()))?;
         }
 
         self.a_rows.resize(size, LinearCombination::zero());
@@ -84,19 +60,14 @@ impl<E: Engine> KeypairAssembly<E> {
         Ok(())
     }
 
-    fn into_indexer_input(self, _worker: &Worker) ->
-        Result<(usize, usize, (Vec<Vec<(usize, E::Fr)>>, Vec<Vec<(usize, E::Fr)>> , Vec<Vec<(usize, E::Fr)>>)), SynthesisError> 
-    {
+    fn into_indexer_input(self, _worker: &Worker) -> Result<(usize, usize, (Vec<Vec<(usize, E::Fr)>>, Vec<Vec<(usize, E::Fr)>>, Vec<Vec<(usize, E::Fr)>>)), SynthesisError> {
         let domain_h_size = self.num_inputs + self.num_aux;
         let domain_h_size = domain_h_size.next_power_of_two();
 
         let domain_k_size = *[self.num_non_zero_in_a, self.num_non_zero_in_b, self.num_non_zero_in_c].iter().max().expect("must exist");
         let domain_k_size = domain_k_size.next_power_of_two();
 
-        fn into_sparse_matrix<E: Engine>(
-            constraints: Vec<LinearCombination<E>>, 
-            num_inputs: usize) 
-        -> Vec<Vec<(usize, E::Fr)>> {
+        fn into_sparse_matrix<E: Engine>(constraints: Vec<LinearCombination<E>>, num_inputs: usize) -> Vec<Vec<(usize, E::Fr)>> {
             let mut result = Vec::with_capacity(constraints.len());
             for row in constraints.into_iter() {
                 let mut new = Vec::with_capacity(row.0.len());
@@ -104,9 +75,9 @@ impl<E: Engine> KeypairAssembly<E> {
                     match var {
                         Variable(Index::Input(i)) => {
                             new.push((i, coeff));
-                        },
+                        }
                         Variable(Index::Aux(i)) => {
-                            new.push((i+num_inputs, coeff));
+                            new.push((i + num_inputs, coeff));
                         }
                     }
                 }
@@ -123,11 +94,7 @@ impl<E: Engine> KeypairAssembly<E> {
         let b_matrix = into_sparse_matrix(self.b_rows, num_inputs);
         let c_matrix = into_sparse_matrix(self.c_rows, num_inputs);
 
-        Ok((
-            domain_h_size,
-            domain_k_size,
-            (a_matrix, b_matrix, c_matrix)
-        ))
+        Ok((domain_h_size, domain_k_size, (a_matrix, b_matrix, c_matrix)))
     }
 }
 
@@ -138,10 +105,9 @@ pub(crate) fn materialize_domain_elements<F: PrimeField>(domain: &Domain<F>, wor
     let generator = domain.generator;
 
     worker.scope(values.len(), |scope, chunk| {
-        for (i, values) in values.chunks_mut(chunk).enumerate()
-        {
+        for (i, values) in values.chunks_mut(chunk).enumerate() {
             scope.spawn(move |_| {
-                let mut current_power = generator.pow(&[(i*chunk) as u64]);
+                let mut current_power = generator.pow(&[(i * chunk) as u64]);
 
                 for p in values {
                     *p = current_power;
@@ -154,11 +120,7 @@ pub(crate) fn materialize_domain_elements<F: PrimeField>(domain: &Domain<F>, wor
     values
 }
 
-pub(crate) fn eval_unnormalized_bivariate_lagrange_poly_over_diaginal<F: PrimeField>(
-    vanishing_degree: u64,
-    evaluate_on_domain: &Domain<F>, 
-    worker: &Worker
-) -> Vec<F> {
+pub(crate) fn eval_unnormalized_bivariate_lagrange_poly_over_diaginal<F: PrimeField>(vanishing_degree: u64, evaluate_on_domain: &Domain<F>, worker: &Worker) -> Vec<F> {
     let mut values = vec![F::zero(); evaluate_on_domain.size as usize];
 
     let mut repr = F::Repr::default();
@@ -174,10 +136,9 @@ pub(crate) fn eval_unnormalized_bivariate_lagrange_poly_over_diaginal<F: PrimeFi
 
     // each element is size * X ^ {size - 1}, so we just distribute powers of `generator_in_size_minus_one`
     worker.scope(values.len(), |scope, chunk| {
-        for (i, values) in values.chunks_mut(chunk).enumerate()
-        {
+        for (i, values) in values.chunks_mut(chunk).enumerate() {
             scope.spawn(move |_| {
-                let mut current_power = generator_in_size_minus_one.pow(&[(i*chunk) as u64]);
+                let mut current_power = generator_in_size_minus_one.pow(&[(i * chunk) as u64]);
                 current_power.mul_assign(&size_as_fe);
 
                 for p in values {
@@ -191,15 +152,10 @@ pub(crate) fn eval_unnormalized_bivariate_lagrange_poly_over_diaginal<F: PrimeFi
     values
 }
 
-pub(crate) fn eval_unnormalized_bivariate_lagrange_poly_over_different_inputs<F: PrimeField>(
-    alpha: F,
-    vanishing_poly_size: u64,
-    evaluate_on_domain: &Domain<F>, 
-    worker: &Worker
-) -> Vec<F> {
+pub(crate) fn eval_unnormalized_bivariate_lagrange_poly_over_different_inputs<F: PrimeField>(alpha: F, vanishing_poly_size: u64, evaluate_on_domain: &Domain<F>, worker: &Worker) -> Vec<F> {
     // (vanishing(X) - vanishing(alpha)) / (x - alpha)
     // we evaluate it on the domain where vanishing(X) == 0
-    // and make it as 
+    // and make it as
     // vanishing(alpha) / (alpha - x)
     let vanishing_at_alpha = evaluate_vanishing_for_size(&alpha, vanishing_poly_size);
     let inv_vanishing_at_alpha = vanishing_at_alpha.inverse().ok_or(SynthesisError::DivisionByZero).expect("should not vanish on random x");
@@ -218,11 +174,7 @@ pub(crate) fn eval_unnormalized_bivariate_lagrange_poly_over_different_inputs<F:
     inverses.into_coeffs()
 }
 
-pub(crate) fn reindex_from_one_domain_to_another_assuming_natural_ordering<F: PrimeField>(
-    domain_0: &Domain<F>,
-    domain_1: &Domain<F>,
-    index: usize
-) -> usize {
+pub(crate) fn reindex_from_one_domain_to_another_assuming_natural_ordering<F: PrimeField>(domain_0: &Domain<F>, domain_1: &Domain<F>, index: usize) -> usize {
     assert!(domain_0.size <= domain_1.size);
 
     let lde_factor = domain_1.size / domain_0.size;
@@ -233,11 +185,7 @@ pub(crate) fn reindex_from_one_domain_to_another_assuming_natural_ordering<F: Pr
     new_index
 }
 
-fn reindex_from_one_domain_to_another_assuming_bitreversed_ordering<F: PrimeField>(
-    domain_0: &Domain<F>,
-    domain_1: &Domain<F>,
-    index: usize
-) -> usize {
+fn reindex_from_one_domain_to_another_assuming_bitreversed_ordering<F: PrimeField>(domain_0: &Domain<F>, domain_1: &Domain<F>, index: usize) -> usize {
     assert!(domain_0.size <= domain_1.size);
 
     // in bitreversed ordering element of index i will always be in the beginning and unchanged index
@@ -248,12 +196,11 @@ fn reindex_from_one_domain_to_another_assuming_bitreversed_ordering<F: PrimeFiel
 impl<E: Engine> ConstraintSystem<E> for KeypairAssembly<E> {
     type Root = Self;
 
-    fn alloc<F, A, AR>(
-        &mut self,
-        _: A,
-        _: F
-    ) -> Result<Variable, SynthesisError>
-        where F: FnOnce() -> Result<E::Fr, SynthesisError>, A: FnOnce() -> AR, AR: Into<String>
+    fn alloc<F, A, AR>(&mut self, _: A, _: F) -> Result<Variable, SynthesisError>
+    where
+        F: FnOnce() -> Result<E::Fr, SynthesisError>,
+        A: FnOnce() -> AR,
+        AR: Into<String>,
     {
         // There is no assignment, so we don't even invoke the
         // function for obtaining one.
@@ -264,12 +211,11 @@ impl<E: Engine> ConstraintSystem<E> for KeypairAssembly<E> {
         Ok(Variable(Index::Aux(index)))
     }
 
-    fn alloc_input<F, A, AR>(
-        &mut self,
-        _: A,
-        _: F
-    ) -> Result<Variable, SynthesisError>
-        where F: FnOnce() -> Result<E::Fr, SynthesisError>, A: FnOnce() -> AR, AR: Into<String>
+    fn alloc_input<F, A, AR>(&mut self, _: A, _: F) -> Result<Variable, SynthesisError>
+    where
+        F: FnOnce() -> Result<E::Fr, SynthesisError>,
+        A: FnOnce() -> AR,
+        AR: Into<String>,
     {
         // There is no assignment, so we don't even invoke the
         // function for obtaining one.
@@ -280,40 +226,24 @@ impl<E: Engine> ConstraintSystem<E> for KeypairAssembly<E> {
         Ok(Variable(Index::Input(index)))
     }
 
-    fn enforce<A, AR, LA, LB, LC>(
-        &mut self,
-        _: A,
-        a: LA,
-        b: LB,
-        c: LC
-    )
-        where A: FnOnce() -> AR, AR: Into<String>,
-              LA: FnOnce(LinearCombination<E>) -> LinearCombination<E>,
-              LB: FnOnce(LinearCombination<E>) -> LinearCombination<E>,
-              LC: FnOnce(LinearCombination<E>) -> LinearCombination<E>
+    fn enforce<A, AR, LA, LB, LC>(&mut self, _: A, a: LA, b: LB, c: LC)
+    where
+        A: FnOnce() -> AR,
+        AR: Into<String>,
+        LA: FnOnce(LinearCombination<E>) -> LinearCombination<E>,
+        LB: FnOnce(LinearCombination<E>) -> LinearCombination<E>,
+        LC: FnOnce(LinearCombination<E>) -> LinearCombination<E>,
     {
         fn sort_vars(v_0: &Variable, v_1: &Variable) -> std::cmp::Ordering {
             match (v_0, v_1) {
-                (Variable(Index::Input(v_0_value)), Variable(Index::Input(v_1_value))) => {
-                    v_0_value.cmp(v_1_value)
-                },
-                (Variable(Index::Input(_)), Variable(Index::Aux(_))) => {
-                    std::cmp::Ordering::Less
-                },
-                (Variable(Index::Aux(_)), Variable(Index::Input(_))) => {
-                    std::cmp::Ordering::Greater
-                },
-                (Variable(Index::Aux(v_0_value)), Variable(Index::Aux(v_1_value))) => {
-                    v_0_value.cmp(v_1_value)
-                }
+                (Variable(Index::Input(v_0_value)), Variable(Index::Input(v_1_value))) => v_0_value.cmp(v_1_value),
+                (Variable(Index::Input(_)), Variable(Index::Aux(_))) => std::cmp::Ordering::Less,
+                (Variable(Index::Aux(_)), Variable(Index::Input(_))) => std::cmp::Ordering::Greater,
+                (Variable(Index::Aux(v_0_value)), Variable(Index::Aux(v_1_value))) => v_0_value.cmp(v_1_value),
             }
         }
 
-
-        fn deduplicate_with_sort<E: Engine>(
-            lc: LinearCombination<E>,
-            scratch: &mut HashMap<Variable, E::Fr>
-        ) -> LinearCombination<E> {
+        fn deduplicate_with_sort<E: Engine>(lc: LinearCombination<E>, scratch: &mut HashMap<Variable, E::Fr>) -> LinearCombination<E> {
             assert!(scratch.is_empty());
 
             if lc.as_ref().len() == 0 {
@@ -395,13 +325,14 @@ impl<E: Engine> ConstraintSystem<E> for KeypairAssembly<E> {
     }
 
     fn push_namespace<NR, N>(&mut self, _: N)
-        where NR: Into<String>, N: FnOnce() -> NR
+    where
+        NR: Into<String>,
+        N: FnOnce() -> NR,
     {
         // Do nothing; we don't care about namespaces in this context.
     }
 
-    fn pop_namespace(&mut self)
-    {
+    fn pop_namespace(&mut self) {
         // Do nothing; we don't care about namespaces in this context.
     }
 
@@ -411,10 +342,10 @@ impl<E: Engine> ConstraintSystem<E> for KeypairAssembly<E> {
 }
 
 /// Create parameters for a circuit, given some toxic waste.
-pub fn generate_parameters<E, C>(
-    circuit: C,
-) -> Result<IndexedSetup<E>, SynthesisError>
-    where E: Engine, C: Circuit<E>
+pub fn generate_parameters<E, C>(circuit: C) -> Result<IndexedSetup<E>, SynthesisError>
+where
+    E: Engine,
+    C: Circuit<E>,
 {
     let mut assembly = KeypairAssembly {
         num_inputs: 0,
@@ -459,13 +390,8 @@ pub fn generate_parameters<E, C>(
         matrix: Vec<Vec<(usize, F)>>,
         domain_h: &Domain<F>,
         domain_k: &Domain<F>,
-        worker: &Worker
-    ) -> Result<
-        (
-            usize,
-            [Polynomial<F, Coefficients>; 3],
-            [Vec<usize>; 2]
-        ), SynthesisError> {
+        worker: &Worker,
+    ) -> Result<(usize, [Polynomial<F, Coefficients>; 3], [Vec<usize>; 2]), SynthesisError> {
         let mut row_vec = Vec::with_capacity(domain_k.size as usize);
         let mut col_vec = Vec::with_capacity(domain_k.size as usize);
         let mut val_vec = Vec::with_capacity(domain_k.size as usize);
@@ -473,11 +399,7 @@ pub fn generate_parameters<E, C>(
         let mut inverses_for_lagrange_polys = Vec::with_capacity(domain_k.size as usize);
 
         let domain_h_elements = materialize_domain_elements(domain_h, worker);
-        let unnormalized_largrange_values_over_k = eval_unnormalized_bivariate_lagrange_poly_over_diaginal(
-            domain_h.size,
-            domain_k,
-            &worker
-        );
+        let unnormalized_largrange_values_over_k = eval_unnormalized_bivariate_lagrange_poly_over_diaginal(domain_h.size, domain_k, &worker);
 
         let mut row_indexes = Vec::with_capacity(domain_k.size as usize);
         let mut col_indexes = Vec::with_capacity(domain_k.size as usize);
@@ -486,7 +408,7 @@ pub fn generate_parameters<E, C>(
             for (col_index, coeff) in row {
                 let row_val = domain_h_elements[row_index];
                 row_indexes.push(row_index);
-                let col_val = domain_h_elements[col_index];  // TODO: do something with inputs?
+                let col_val = domain_h_elements[col_index]; // TODO: do something with inputs?
                 col_indexes.push(col_index);
 
                 row_vec.push(row_val);
@@ -495,15 +417,9 @@ pub fn generate_parameters<E, C>(
 
                 // row and column indexes are over H, but we can quickly pull their values from evaluations
                 // over K
-                let idx_row_into_larger_domain = reindex_from_one_domain_to_another_assuming_natural_ordering(
-                    domain_h, 
-                    domain_k, 
-                    row_index);
+                let idx_row_into_larger_domain = reindex_from_one_domain_to_another_assuming_natural_ordering(domain_h, domain_k, row_index);
 
-                let idx_col_into_larger_domain = reindex_from_one_domain_to_another_assuming_natural_ordering(
-                    domain_h, 
-                    domain_k, 
-                    col_index);
+                let idx_col_into_larger_domain = reindex_from_one_domain_to_another_assuming_natural_ordering(domain_h, domain_k, col_index);
 
                 let mut lagrange_eval_value = unnormalized_largrange_values_over_k[idx_row_into_larger_domain];
                 lagrange_eval_value.mul_assign(&unnormalized_largrange_values_over_k[idx_col_into_larger_domain]);
@@ -515,7 +431,7 @@ pub fn generate_parameters<E, C>(
 
         let mut inverses_for_lagrange = Polynomial::from_values_unpadded(inverses_for_lagrange_polys)?;
         inverses_for_lagrange.batch_inversion(&worker)?;
-        
+
         let mut val_values = Polynomial::from_values_unpadded(val_vec)?;
 
         val_values.mul_assign(&worker, &inverses_for_lagrange);
@@ -571,11 +487,7 @@ pub fn generate_parameters<E, C>(
     })
 }
 
-pub fn evaluate_bivariate_lagrange_at_point<F: PrimeField>(
-    x: F, 
-    y: F, 
-    vanishing_domain_size: u64
-) -> Result<F, SynthesisError> {
+pub fn evaluate_bivariate_lagrange_at_point<F: PrimeField>(x: F, y: F, vanishing_domain_size: u64) -> Result<F, SynthesisError> {
     if x == y {
         return evaluate_bivariate_lagrange_at_diagonal_point(x, vanishing_domain_size);
     }
@@ -593,7 +505,7 @@ pub fn evaluate_bivariate_lagrange_at_point<F: PrimeField>(
     num.mul_assign(&den);
 
     Ok(num)
-} 
+}
 
 pub fn evaluate_bivariate_lagrange_at_diagonal_point<F: PrimeField>(x: F, vanishing_domain_size: u64) -> Result<F, SynthesisError> {
     let mut repr = F::Repr::default();
@@ -604,7 +516,7 @@ pub fn evaluate_bivariate_lagrange_at_diagonal_point<F: PrimeField>(x: F, vanish
     result.mul_assign(&size_as_fe);
 
     Ok(result)
-} 
+}
 
 fn evaluate_bivariate_lagrange_at_point_for_vanishing_y<F: PrimeField>(x: F, y: F, vanishing_domain_size: u64) -> Result<F, SynthesisError> {
     if x == y {
@@ -624,7 +536,7 @@ fn evaluate_bivariate_lagrange_at_point_for_vanishing_y<F: PrimeField>(x: F, y: 
     num.mul_assign(&den);
 
     Ok(num)
-} 
+}
 
 pub(crate) fn evaluate_vanishing_for_size<F: PrimeField>(point: &F, vanishing_domain_size: u64) -> F {
     let mut result = point.pow(&[vanishing_domain_size]);
@@ -640,69 +552,54 @@ pub(crate) struct IndexerTester<E: Engine> {
 }
 
 impl<E: Engine> Circuit<E> for IndexerTester<E> {
-    fn synthesize<CS: ConstraintSystem<E>>(
-        self,
-        cs: &mut CS
-    ) -> Result<(), SynthesisError>
-    {
-        let a_var = cs.alloc(|| "a", || {
-            if let Some(a_value) = self.a {
-                Ok(a_value)
-            } else {
-                Err(SynthesisError::AssignmentMissing)
-            }
-        })?;
+    fn synthesize<CS: ConstraintSystem<E>>(self, cs: &mut CS) -> Result<(), SynthesisError> {
+        let a_var = cs.alloc(
+            || "a",
+            || {
+                if let Some(a_value) = self.a {
+                    Ok(a_value)
+                } else {
+                    Err(SynthesisError::AssignmentMissing)
+                }
+            },
+        )?;
+
+        cs.enforce(|| "a is zero", |lc| lc + a_var, |lc| lc + CS::one(), |lc| lc);
+
+        let b_var = cs.alloc(
+            || "b",
+            || {
+                if let Some(b_value) = self.b {
+                    Ok(b_value)
+                } else {
+                    Err(SynthesisError::AssignmentMissing)
+                }
+            },
+        )?;
+
+        cs.enforce(|| "b is one", |lc| lc + b_var, |lc| lc + CS::one(), |lc| lc + CS::one());
+
+        let c_var = cs.alloc_input(
+            || "c",
+            || {
+                if let Some(a_value) = self.a {
+                    Ok(a_value)
+                } else {
+                    Err(SynthesisError::AssignmentMissing)
+                }
+            },
+        )?;
+
+        cs.enforce(|| "a is equal to c", |lc| lc + a_var, |lc| lc + CS::one(), |lc| lc + c_var);
 
         cs.enforce(
-            || "a is zero",
-            |lc| lc + a_var,
-            |lc| lc + CS::one(),
-            |lc| lc
-        );
-
-        let b_var = cs.alloc(|| "b", || {
-            if let Some(b_value) = self.b {
-                Ok(b_value)
-            } else {
-                Err(SynthesisError::AssignmentMissing)
-            }
-        })?;
-
-        cs.enforce(
-            || "b is one",
-            |lc| lc + b_var,
-            |lc| lc + CS::one(),
-            |lc| lc + CS::one()
-        );
-
-        let c_var = cs.alloc_input(|| "c", || {
-            if let Some(a_value) = self.a {
-                Ok(a_value)
-            } else {
-                Err(SynthesisError::AssignmentMissing)
-            }
-        })?;
-
-        cs.enforce(
-            || "a is equal to c",
-            |lc| lc + a_var,
-            |lc| lc + CS::one(),
-            |lc| lc + c_var
-        );
-
-        cs.enforce(
-            || "large linear combinations (valid)", 
+            || "large linear combinations (valid)",
             |lc| lc + a_var + b_var + c_var,
             |lc| lc + CS::one(),
-            |lc| lc + a_var + b_var + c_var
+            |lc| lc + a_var + b_var + c_var,
         );
 
-        cs.enforce(
-            || "large linear combinations (invalid)", 
-            |lc| lc + a_var + b_var + c_var,
-            |lc| lc + a_var + b_var + c_var,
-            |lc| lc
-        );
+        cs.enforce(|| "large linear combinations (invalid)", |lc| lc + a_var + b_var + c_var, |lc| lc + a_var + b_var + c_var, |lc| lc);
 
         Ok(())
     }
@@ -710,15 +607,13 @@ impl<E: Engine> Circuit<E> for IndexerTester<E> {
 
 #[cfg(test)]
 mod test {
-    use crate::tests::XORDemo;
-    use crate::plonk::domains::*;
-    use crate::worker::Worker;
     use super::*;
+    use crate::plonk::domains::*;
+    use crate::tests::XORDemo;
+    use crate::worker::Worker;
     use std::marker::PhantomData;
 
-    fn test_over_engine_and_circuit<E: Engine, C: Circuit<E>>(
-        circuit: C
-    ) {
+    fn test_over_engine_and_circuit<E: Engine, C: Circuit<E>>(circuit: C) {
         let params = generate_parameters(circuit).unwrap();
         let worker = Worker::new();
 
@@ -776,12 +671,12 @@ mod test {
 
     #[test]
     fn test_interpolation_poly_1() {
-        use crate::pairing::bn256::{Bn256};
+        use crate::pairing::bn256::Bn256;
 
         let c = XORDemo::<Bn256> {
             a: None,
             b: None,
-            _marker: PhantomData
+            _marker: PhantomData,
         };
 
         test_over_engine_and_circuit(c);
@@ -791,10 +686,7 @@ mod test {
     fn test_interpolation_poly_2() {
         use crate::pairing::bn256::{Bn256, Fr};
 
-        let c = IndexerTester::<Bn256> {
-            a: None,
-            b: None,
-        };
+        let c = IndexerTester::<Bn256> { a: None, b: None };
 
         test_over_engine_and_circuit(c);
     }

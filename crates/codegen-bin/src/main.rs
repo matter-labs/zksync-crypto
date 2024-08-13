@@ -27,11 +27,7 @@ fn main() {
     let opts = Opts::from_args();
     println!("{:#?}", opts);
 
-    let Opts {
-        verification_key,
-        output,
-        encoding,
-    } = opts;
+    let Opts { verification_key, output, encoding } = opts;
 
     let encoding = match encoding {
         Some(encoding) => match encoding.as_str() {

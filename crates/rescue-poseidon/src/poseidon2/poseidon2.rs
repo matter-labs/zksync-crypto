@@ -1,17 +1,14 @@
-use crate::traits::HashParams;
-use franklin_crypto::bellman::{Engine, Field, PrimeField};
-use crate::common::domain_strategy::DomainStrategy;
 use super::params::Poseidon2Params;
+use crate::common::domain_strategy::DomainStrategy;
+use crate::traits::HashParams;
 use crate::traits::Sbox;
+use franklin_crypto::bellman::{Engine, Field, PrimeField};
 
 /// Receives inputs whose length `known` prior(fixed-length).
 /// Also uses custom domain strategy which basically sets value of capacity element to
 /// length of input and applies a padding rule which makes input size equals to multiple of
 /// rate parameter.
-pub fn poseidon2_hash<
-    E: Engine,
-    const L: usize
->(input: &[E::Fr; L]) -> [E::Fr; 2] {
+pub fn poseidon2_hash<E: Engine, const L: usize>(input: &[E::Fr; L]) -> [E::Fr; 2] {
     const WIDTH: usize = 3;
     const RATE: usize = 2;
 
@@ -19,14 +16,7 @@ pub fn poseidon2_hash<
     crate::generic_hash(&params, input, None)
 }
 
-pub(crate) fn poseidon2_round_function<
-    E: Engine,
-    const RATE: usize,
-    const WIDTH: usize,
->(
-    state: &mut [E::Fr; WIDTH],
-    params: &Poseidon2Params<E, RATE, WIDTH>,
-) {
+pub(crate) fn poseidon2_round_function<E: Engine, const RATE: usize, const WIDTH: usize>(state: &mut [E::Fr; WIDTH], params: &Poseidon2Params<E, RATE, WIDTH>) {
     debug_assert!(params.full_rounds & 1 == 0);
     let half_of_full_rounds = params.number_of_full_rounds() / 2;
 
@@ -44,20 +34,15 @@ pub(crate) fn poseidon2_round_function<
         apply_sbox::<E>(&mut state[..1], &params.alpha);
         poseidon2_matmul_internal::<E, WIDTH>(state, &params.diag_internal_matrix);
     }
-    
-    for r in (half_of_full_rounds + params.partial_rounds)..(2*half_of_full_rounds + params.partial_rounds) {
+
+    for r in (half_of_full_rounds + params.partial_rounds)..(2 * half_of_full_rounds + params.partial_rounds) {
         add_rc::<E, WIDTH>(state, &params.round_constants[r]);
         apply_sbox::<E>(state, &params.alpha);
         poseidon2_matmul_external::<E, WIDTH>(state);
     }
 }
 
-pub(crate) fn poseidon2_matmul_external<
-    E: Engine,
-    const WIDTH: usize,
->(
-    state: &mut [E::Fr; WIDTH]
-) {
+pub(crate) fn poseidon2_matmul_external<E: Engine, const WIDTH: usize>(state: &mut [E::Fr; WIDTH]) {
     match WIDTH {
         2 => {
             // Matrix circ(2, 1)
@@ -102,12 +87,7 @@ pub(crate) fn poseidon2_matmul_external<
     }
 }
 
-fn matmul_m4<
-    E: Engine,
-    const WIDTH: usize,
->(
-    state: &mut [E::Fr; WIDTH]
-) {
+fn matmul_m4<E: Engine, const WIDTH: usize>(state: &mut [E::Fr; WIDTH]) {
     // Mul each 4-element chunk by
     // [5, 7, 1, 3]
     // [4, 6, 1, 1]
@@ -146,14 +126,7 @@ fn matmul_m4<
     }
 }
 
-
-pub(crate) fn poseidon2_matmul_internal<
-    E: Engine,
-    const WIDTH: usize,
->(
-    state: &mut [E::Fr; WIDTH],
-    diag_internal_matrix: &[E::Fr; WIDTH]
-) {
+pub(crate) fn poseidon2_matmul_internal<E: Engine, const WIDTH: usize>(state: &mut [E::Fr; WIDTH], diag_internal_matrix: &[E::Fr; WIDTH]) {
     match WIDTH {
         2 => {
             // [2, 1]
@@ -186,11 +159,7 @@ pub(crate) fn poseidon2_matmul_internal<
         4 | 8 | 12 | 16 | 20 | 24 => {
             // Compute state sum
             let mut sum = state[0];
-            state
-                .iter()
-                .skip(1)
-                .take(WIDTH-1)
-                .for_each(|el| sum.add_assign(el));
+            state.iter().skip(1).take(WIDTH - 1).for_each(|el| sum.add_assign(el));
             // Add sum + (diag entry - 1) * element to each element
             for i in 0..WIDTH {
                 let mut coeff = diag_internal_matrix[i];
@@ -205,12 +174,7 @@ pub(crate) fn poseidon2_matmul_internal<
     }
 }
 
-pub(crate) fn apply_sbox<
-    E: Engine,
->(
-    elements: &mut [E::Fr],
-    sbox: &Sbox
-) {
+pub(crate) fn apply_sbox<E: Engine>(elements: &mut [E::Fr], sbox: &Sbox) {
     debug_assert!(sbox == &Sbox::Alpha(5));
 
     for element in elements.iter_mut() {
@@ -222,13 +186,7 @@ pub(crate) fn apply_sbox<
     }
 }
 
-pub(crate) fn add_rc<
-    E: Engine,
-    const WIDTH: usize,
->(
-    elements: &mut [E::Fr; WIDTH],
-    constants: &[E::Fr; WIDTH]
-) {
+pub(crate) fn add_rc<E: Engine, const WIDTH: usize>(elements: &mut [E::Fr; WIDTH], constants: &[E::Fr; WIDTH]) {
     for (element, constant) in elements.iter_mut().zip(constants.iter()) {
         element.add_assign(constant);
     }

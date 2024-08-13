@@ -26,11 +26,7 @@ pub enum DomainStrategy {
 
 impl DomainStrategy {
     /// Computes capacity value for specialization and domain seperation.
-    pub(crate) fn compute_capacity<E: Engine>(
-        &self,
-        input_len: usize,
-        rate: usize,
-    ) -> Option<E::Fr> {
+    pub(crate) fn compute_capacity<E: Engine>(&self, input_len: usize, rate: usize) -> Option<E::Fr> {
         let mut repr = <E::Fr as PrimeField>::Repr::default();
         repr.as_mut()[1] = 1u64; // 2^64 corresponds second le limb
         let mut el = E::Fr::from_repr(repr).unwrap();
@@ -66,11 +62,7 @@ impl DomainStrategy {
         }
     }
     /// Computes values for padding.
-    pub(crate) fn generate_padding_values<E: Engine>(
-        &self,
-        input_len: usize,
-        rate: usize
-    ) -> Vec<E::Fr> {
+    pub(crate) fn generate_padding_values<E: Engine>(&self, input_len: usize, rate: usize) -> Vec<E::Fr> {
         assert!(input_len != 0, "empty input");
         if input_len % rate == 0 {
             // input doesn't need padding

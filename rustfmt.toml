@@ -1,0 +1,4 @@
+# Rustfmt breaks with overly long lines and cannot format the code
+# without these settings
+max_width = 200
+comment_width = 200

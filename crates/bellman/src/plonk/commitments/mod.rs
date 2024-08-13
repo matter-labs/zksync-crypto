@@ -1,7 +1,7 @@
 use crate::pairing::ff::PrimeField;
 
-use crate::plonk::polynomials::*;
 use crate::plonk::commitments::transcript::*;
+use crate::plonk::polynomials::*;
 
 pub mod transparent;
 
@@ -22,7 +22,24 @@ pub trait CommitmentScheme<F: PrimeField> {
     fn commit_single(&self, poly: &Polynomial<F, Coefficients>) -> (Self::Commitment, Option<Self::IntermediateData>);
     fn commit_multiple(&self, polynomials: Vec<&Polynomial<F, Coefficients>>, degrees: Vec<usize>, aggregation_coefficient: F) -> (Self::Commitment, Option<Vec<Self::IntermediateData>>);
     fn open_single(&self, poly: &Polynomial<F, Coefficients>, at_point: F, opening_value: F, data: &Option<&Self::IntermediateData>, prng: &mut Self::Prng) -> Self::OpeningProof;
-    fn open_multiple(&self, polynomials: Vec<&Polynomial<F, Coefficients>>, degrees: Vec<usize>, aggregation_coefficient: F, at_points: Vec<F>, opening_values: Vec<F>, data: &Option<Vec<&Self::IntermediateData>>, prng: &mut Self::Prng) -> Self::OpeningProof;
+    fn open_multiple(
+        &self,
+        polynomials: Vec<&Polynomial<F, Coefficients>>,
+        degrees: Vec<usize>,
+        aggregation_coefficient: F,
+        at_points: Vec<F>,
+        opening_values: Vec<F>,
+        data: &Option<Vec<&Self::IntermediateData>>,
+        prng: &mut Self::Prng,
+    ) -> Self::OpeningProof;
     fn verify_single(&self, commitment: &Self::Commitment, at_point: F, claimed_value: F, proof: &Self::OpeningProof, prng: &mut Self::Prng) -> bool;
-    fn verify_multiple_openings(&self, commitments: Vec<&Self::Commitment>, at_points: Vec<F>, claimed_values: &Vec<F>, aggregation_coefficient: F, proof: &Self::OpeningProof, prng: &mut Self::Prng) -> bool;
+    fn verify_multiple_openings(
+        &self,
+        commitments: Vec<&Self::Commitment>,
+        at_points: Vec<F>,
+        claimed_values: &Vec<F>,
+        aggregation_coefficient: F,
+        proof: &Self::OpeningProof,
+        prng: &mut Self::Prng,
+    ) -> bool;
 }

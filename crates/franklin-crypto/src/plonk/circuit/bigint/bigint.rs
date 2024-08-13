@@ -1,33 +1,12 @@
-use crate::bellman::pairing::{
-    Engine,
-};
+use crate::bellman::pairing::Engine;
 
-use crate::bellman::pairing::ff::{
-    Field,
-    PrimeField,
-    PrimeFieldRepr,
-    BitIterator
-};
+use crate::bellman::pairing::ff::{BitIterator, Field, PrimeField, PrimeFieldRepr};
 
-use crate::bellman::{
-    SynthesisError,
-};
+use crate::bellman::SynthesisError;
 
 use crate::bellman::plonk::better_better_cs::cs::{
-    Variable, 
-    ConstraintSystem,
-    ArithmeticTerm,
-    MainGateTerm,
-    Width4MainGateWithDNext,
-    MainGate,
-    GateInternal,
-    Gate,
-    LinearCombinationOfTerms,
-    PolynomialMultiplicativeTerm,
-    PolynomialInConstraint,
-    TimeDilation,
-    Coefficient,
-    PlonkConstraintSystemParams
+    ArithmeticTerm, Coefficient, ConstraintSystem, Gate, GateInternal, LinearCombinationOfTerms, MainGate, MainGateTerm, PlonkConstraintSystemParams, PolynomialInConstraint,
+    PolynomialMultiplicativeTerm, TimeDilation, Variable, Width4MainGateWithDNext,
 };
 
 use num_bigint::BigUint;
@@ -51,7 +30,7 @@ pub struct LimbedRepresentationParameters<E: Engine> {
     pub shift_left_by_limb_constant: E::Fr,
     pub shift_right_by_limb_constant: E::Fr,
     pub mul_two_constant: E::Fr,
-    pub div_two_constant: E::Fr
+    pub div_two_constant: E::Fr,
 }
 
 impl<E: Engine> LimbedRepresentationParameters<E> {
@@ -108,37 +87,24 @@ pub(crate) fn get_num_bits<F: PrimeField>(el: &F) -> usize {
 }
 
 impl<E: Engine> Limb<E> {
-    pub fn new(
-        term: Term<E>,
-        max_value: BigUint,
-    ) -> Self {
-        Self {
-            term,
-            max_value,
-        }
+    pub fn new(term: Term<E>, max_value: BigUint) -> Self {
+        Self { term, max_value }
     }
 
-    pub fn new_constant(
-        value: BigUint
-    ) -> Self {
+    pub fn new_constant(value: BigUint) -> Self {
         let v = biguint_to_fe(value.clone());
 
         let term = Term::<E>::from_constant(v);
 
-        Self {
-            term,
-            max_value: value
-        }
+        Self { term, max_value: value }
     }
 
-    pub fn new_constant_from_field_value(
-        value: E::Fr
-    ) -> Self {
+    pub fn new_constant_from_field_value(value: E::Fr) -> Self {
         let term = Term::<E>::from_constant(value);
 
         Self {
             term,
-            max_value: fe_to_biguint(&value)
+            max_value: fe_to_biguint(&value),
         }
     }
 
@@ -188,10 +154,7 @@ impl<E: Engine> Limb<E> {
         self.term.get_constant_value()
     }
 
-    pub fn collapse_into_num<CS: ConstraintSystem<E>>(
-        &self,
-        cs: &mut CS
-    ) -> Result<Num<E>, SynthesisError> {
+    pub fn collapse_into_num<CS: ConstraintSystem<E>>(&self, cs: &mut CS) -> Result<Num<E>, SynthesisError> {
         self.term.collapse_into_num(cs)
     }
 
@@ -217,8 +180,8 @@ pub fn repr_to_biguint<F: PrimeField>(repr: &F::Repr) -> BigUint {
 #[track_caller]
 pub fn mod_inverse(el: &BigUint, modulus: &BigUint) -> BigUint {
     use crate::num_bigint::BigInt;
-    use crate::num_integer::{Integer, ExtendedGcd};
-    use crate::num_traits::{ToPrimitive, Zero, One};
+    use crate::num_integer::{ExtendedGcd, Integer};
+    use crate::num_traits::{One, ToPrimitive, Zero};
 
     if el.is_zero() {
         panic!("division by zero");
@@ -227,7 +190,7 @@ pub fn mod_inverse(el: &BigUint, modulus: &BigUint) -> BigUint {
     let el_signed = BigInt::from(el.clone());
     let modulus_signed = BigInt::from(modulus.clone());
 
-    let ExtendedGcd{ gcd, x: _, y, .. } = modulus_signed.extended_gcd(&el_signed); 
+    let ExtendedGcd { gcd, x: _, y, .. } = modulus_signed.extended_gcd(&el_signed);
     assert!(gcd.is_one());
     let y = if y < BigInt::zero() {
         let mut y = y;
@@ -269,8 +232,8 @@ pub fn some_biguint_to_fe<F: PrimeField>(value: &Option<BigUint>) -> Option<F> {
             let n = F::from_str(&value.to_str_radix(10)).unwrap();
 
             Some(n)
-        },
-        None => None
+        }
+        None => None,
     }
 }
 
@@ -288,8 +251,8 @@ pub fn some_fe_to_biguint<F: PrimeField>(el: &Option<F>) -> Option<BigUint> {
             let ret = repr_to_biguint::<F>(&repr);
 
             Some(ret)
-        },
-        None => None
+        }
+        None => None,
     }
 }
 

@@ -1,6 +1,6 @@
 use crate::pairing::ff::PrimeField;
-use crate::SynthesisError;
 use crate::worker::Worker;
+use crate::SynthesisError;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct Domain<F: PrimeField> {
@@ -31,7 +31,7 @@ impl<F: PrimeField> Domain<F> {
         Ok(Self {
             size: size,
             power_of_two: power_of_two,
-            generator: generator
+            generator: generator,
         })
     }
 
@@ -53,28 +53,20 @@ impl<F: PrimeField> Domain<F> {
         assert!(domain_size.is_power_of_two());
         let next_size = domain_size / 2;
 
-        let next_index = if natural_index < next_size {
-            natural_index
-        } else {
-            natural_index - next_size
-        };
+        let next_index = if natural_index < next_size { natural_index } else { natural_index - next_size };
 
         (next_index, next_size)
     }
 }
 
-pub(crate) fn materialize_domain_elements_with_natural_enumeration<F: PrimeField>(
-    domain: &Domain<F>, 
-    worker: &Worker
-) -> Vec<F> {
+pub(crate) fn materialize_domain_elements_with_natural_enumeration<F: PrimeField>(domain: &Domain<F>, worker: &Worker) -> Vec<F> {
     let mut values = vec![F::zero(); domain.size as usize];
     let generator = domain.generator;
 
     worker.scope(values.len(), |scope, chunk| {
-        for (i, values) in values.chunks_mut(chunk).enumerate()
-        {
+        for (i, values) in values.chunks_mut(chunk).enumerate() {
             scope.spawn(move |_| {
-                let mut current_power = generator.pow(&[(i*chunk) as u64]);
+                let mut current_power = generator.pow(&[(i * chunk) as u64]);
 
                 for p in values {
                     *p = current_power;

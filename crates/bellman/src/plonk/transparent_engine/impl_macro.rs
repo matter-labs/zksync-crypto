@@ -20,21 +20,22 @@ macro_rules! transparent_engine_impl {
             type Fqk = $fr;
 
             fn miller_loop<'a, I>(_i: I) -> Self::Fqk
-                where I: IntoIterator<Item=&'a (
-                                            &'a <Self::G1Affine as crate::pairing::CurveAffine>::Prepared,
-                                            &'a <Self::G2Affine as crate::pairing::CurveAffine>::Prepared
-                                    )>
+            where
+                I: IntoIterator<
+                    Item = &'a (
+                        &'a <Self::G1Affine as crate::pairing::CurveAffine>::Prepared,
+                        &'a <Self::G2Affine as crate::pairing::CurveAffine>::Prepared,
+                    ),
+                >,
             {
                 <$fr as crate::ff::Field>::zero()
             }
 
             /// Perform final exponentiation of the result of a miller loop.
-            fn final_exponentiation(this: &Self::Fqk) -> Option<Self::Fqk>
-            {
+            fn final_exponentiation(this: &Self::Fqk) -> Option<Self::Fqk> {
                 Some(*this)
             }
         }
-
 
         impl crate::pairing::CurveProjective for $fr {
             type Affine = $fr;
@@ -54,9 +55,7 @@ macro_rules! transparent_engine_impl {
                 <$fr as crate::ff::Field>::is_zero(self)
             }
 
-            fn batch_normalization(_: &mut [Self]) {
-                
-            }
+            fn batch_normalization(_: &mut [Self]) {}
 
             fn is_normalized(&self) -> bool {
                 true
@@ -78,8 +77,7 @@ macro_rules! transparent_engine_impl {
                 <$fr as crate::ff::Field>::negate(self);
             }
 
-            fn mul_assign<S: Into<<Self::Scalar as crate::ff::PrimeField>::Repr>>(self: &mut Self, other: S)
-            {
+            fn mul_assign<S: Into<<Self::Scalar as crate::ff::PrimeField>::Repr>>(self: &mut Self, other: S) {
                 let tmp = <$fr as crate::ff::PrimeField>::from_repr(other.into()).unwrap();
 
                 <$fr as crate::ff::Field>::mul_assign(self, &tmp);
@@ -164,8 +162,7 @@ macro_rules! transparent_engine_impl {
                 <$fr as crate::ff::Field>::negate(self);
             }
 
-            fn mul<S: Into<<Self::Scalar as crate::ff::PrimeField>::Repr>>(&self, other: S) -> Self::Projective
-            {
+            fn mul<S: Into<<Self::Scalar as crate::ff::PrimeField>::Repr>>(&self, other: S) -> Self::Projective {
                 let mut res = *self;
                 let tmp = <$fr as crate::ff::PrimeField>::from_repr(other.into()).unwrap();
 
@@ -217,10 +214,7 @@ macro_rules! transparent_engine_impl {
                 Self::Uncompressed::empty()
             }
 
-            fn from_raw_uncompressed_le_unchecked(
-                    _encoded: &Self::Uncompressed, 
-                    _infinity: bool
-            ) -> Result<Self, crate::pairing::GroupDecodingError> {
+            fn from_raw_uncompressed_le_unchecked(_encoded: &Self::Uncompressed, _infinity: bool) -> Result<Self, crate::pairing::GroupDecodingError> {
                 Ok(<Self as crate::ff::Field>::zero())
             }
 
@@ -228,5 +222,5 @@ macro_rules! transparent_engine_impl {
                 Self::from_raw_uncompressed_le_unchecked(&encoded, _infinity)
             }
         }
-    }
+    };
 }

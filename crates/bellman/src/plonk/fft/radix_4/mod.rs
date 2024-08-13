@@ -1,12 +1,10 @@
 use crate::ff::PrimeField;
 use crate::worker::*;
 
-pub(crate) fn best_fft<F: PrimeField>(a: &mut [F], worker: &Worker, omega: &F, log_n: u32)
-{
+pub(crate) fn best_fft<F: PrimeField>(a: &mut [F], worker: &Worker, omega: &F, log_n: u32) {
     assert!(log_n % 2 == 0); // TODO: For now
     let mut log_cpus = worker.log_num_cpus();
-    if log_cpus % 2 != 0
-    {
+    if log_cpus % 2 != 0 {
         log_cpus -= 1;
     }
 
@@ -30,19 +28,16 @@ fn base_4_digit_reverse(mut n: u64, l: u64) -> u64 {
 }
 
 #[inline(always)]
-fn bitreverse(mut n: u64, l: u64) -> u64
-{
+fn bitreverse(mut n: u64, l: u64) -> u64 {
     let mut r = 0;
-    for _ in 0..l
-    {
+    for _ in 0..l {
         r = (r << 1) | (n & 1);
         n >>= 1;
     }
     r
 }
 
-pub(crate) fn serial_fft_radix_4<F: PrimeField>(a: &mut [F], omega: &F, log_n: u32)
-{
+pub(crate) fn serial_fft_radix_4<F: PrimeField>(a: &mut [F], omega: &F, log_n: u32) {
     let n = a.len() as u64;
     assert_eq!(n, 1 << log_n);
 
@@ -61,13 +56,12 @@ pub(crate) fn serial_fft_radix_4<F: PrimeField>(a: &mut [F], omega: &F, log_n: u
 
     let mut m = 1;
     for _ in 0..(log_n / 2) {
-        let w_m = omega.pow(&[(n / (4*m)) as u64]);
+        let w_m = omega.pow(&[(n / (4 * m)) as u64]);
 
         let mut k = 0;
         while k < n {
             let mut w = F::one();
             for j in 0..m {
-
                 // y_0 = x_0 + x_1 + x_2 + x_3
                 // y_1 = x_0 + W_4 * x_1 - x_2 - W_4 * x_3
                 // y_2 = x_0 - x_1 + x_2 - x3
@@ -75,16 +69,16 @@ pub(crate) fn serial_fft_radix_4<F: PrimeField>(a: &mut [F], omega: &F, log_n: u
 
                 let mut u = w;
 
-                let x0 = a[(k+j) as usize];
+                let x0 = a[(k + j) as usize];
 
-                let mut x1 = a[(k+j+m) as usize];
+                let mut x1 = a[(k + j + m) as usize];
                 x1.mul_assign(&w);
 
-                let mut x2 = a[(k+j+2*m) as usize];
+                let mut x2 = a[(k + j + 2 * m) as usize];
                 u.mul_assign(&w);
                 x2.mul_assign(&u);
 
-                let mut x3 = a[(k+j+3*m) as usize];
+                let mut x3 = a[(k + j + 3 * m) as usize];
                 u.mul_assign(&w);
                 x3.mul_assign(&u);
 
@@ -94,10 +88,10 @@ pub(crate) fn serial_fft_radix_4<F: PrimeField>(a: &mut [F], omega: &F, log_n: u
                 let mut x1_plus_x3 = x1;
                 x1_plus_x3.add_assign(&x3);
 
-                a[(k+j) as usize] = x0_plus_x2;
-                a[(k+j) as usize].add_assign(&x1_plus_x3);
-                a[(k+j+2*m) as usize] = x0_plus_x2;
-                a[(k+j+2*m) as usize].sub_assign(&x1_plus_x3);
+                a[(k + j) as usize] = x0_plus_x2;
+                a[(k + j) as usize].add_assign(&x1_plus_x3);
+                a[(k + j + 2 * m) as usize] = x0_plus_x2;
+                a[(k + j + 2 * m) as usize].sub_assign(&x1_plus_x3);
 
                 let mut x0_minus_x2 = x0;
                 x0_minus_x2.sub_assign(&x2);
@@ -106,35 +100,28 @@ pub(crate) fn serial_fft_radix_4<F: PrimeField>(a: &mut [F], omega: &F, log_n: u
                 x1_minus_x3_by_w4.sub_assign(&x3);
                 x1_minus_x3_by_w4.mul_assign(&v);
 
-                a[(k+j+m) as usize] = x0_minus_x2;
-                a[(k+j+m) as usize].add_assign(&x1_minus_x3_by_w4);
-                a[(k+j+3*m) as usize] = x0_minus_x2;
-                a[(k+j+3*m) as usize].sub_assign(&x1_minus_x3_by_w4);
+                a[(k + j + m) as usize] = x0_minus_x2;
+                a[(k + j + m) as usize].add_assign(&x1_minus_x3_by_w4);
+                a[(k + j + 3 * m) as usize] = x0_minus_x2;
+                a[(k + j + 3 * m) as usize].sub_assign(&x1_minus_x3_by_w4);
 
                 w.mul_assign(&w_m);
             }
 
-            k += 4*m;
+            k += 4 * m;
         }
 
         m *= 4;
     }
 }
 
-pub(crate) fn parallel_fft_radix_4<F: PrimeField>(
-    a: &mut [F],
-    worker: &Worker,
-    omega: &F,
-    log_n: u32,
-    log_cpus: u32
-)
-{
+pub(crate) fn parallel_fft_radix_4<F: PrimeField>(a: &mut [F], worker: &Worker, omega: &F, log_n: u32, log_cpus: u32) {
     assert!(log_n >= log_cpus);
-    
+
     //we need log_n and log_cpu to be even
     assert!(log_n % 2 == 0);
     assert!(log_cpus % 2 == 0);
-    
+
     let num_cpus = 1 << log_cpus;
     let log_new_n = log_n - log_cpus;
     let mut tmp = vec![vec![F::zero(); 1 << log_new_n]; num_cpus];

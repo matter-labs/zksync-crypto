@@ -1,13 +1,13 @@
+use super::*;
 use crate::pairing::ff::PrimeField;
-use crate::plonk::commitments::transparent::iop_compiler::*;
+use crate::plonk::commitments::transcript::Prng;
 use crate::plonk::commitments::transparent::iop_compiler::coset_combining_blake2s_tree::*;
+use crate::plonk::commitments::transparent::iop_compiler::*;
+use crate::plonk::commitments::transparent::precomputations::*;
+use crate::plonk::commitments::transparent::utils::log2_floor;
 use crate::plonk::polynomials::*;
 use crate::worker::*;
 use crate::SynthesisError;
-use crate::plonk::commitments::transparent::utils::log2_floor;
-use crate::plonk::commitments::transcript::Prng;
-use crate::plonk::commitments::transparent::precomputations::*;
-use super::*;
 
 pub struct CosetCombiningFriIop<F: PrimeField> {
     cosets_schedule: Vec<usize>,
@@ -17,7 +17,7 @@ pub struct CosetCombiningFriIop<F: PrimeField> {
 #[derive(Clone, Debug)]
 pub struct CosetParams<F: PrimeField> {
     pub cosets_schedule: Vec<usize>,
-    pub coset_factor: F
+    pub coset_factor: F,
 }
 
 impl<F: PrimeField> FriIop<F> for CosetCombiningFriIop<F> {
@@ -28,43 +28,29 @@ impl<F: PrimeField> FriIop<F> for CosetCombiningFriIop<F> {
     type Proof = FRIProof<F, Self::IopType>;
     type Params = CosetParams<F>;
 
-    fn proof_from_lde<P: Prng<F, Input = <Self::IopType as IopInstance<F>>::Commitment>,
-        C: FriPrecomputations<F>
-    >(
-        lde_values: &Polynomial<F, Values>, 
+    fn proof_from_lde<P: Prng<F, Input = <Self::IopType as IopInstance<F>>::Commitment>, C: FriPrecomputations<F>>(
+        lde_values: &Polynomial<F, Values>,
         lde_factor: usize,
         output_coeffs_at_degree_plus_one: usize,
         precomputations: &C,
         worker: &Worker,
         prng: &mut P,
-        params: &Self::Params
+        params: &Self::Params,
     ) -> Result<Self::ProofPrototype, SynthesisError> {
-        Self::proof_from_lde_by_values(
-            lde_values, 
-            lde_factor,
-            output_coeffs_at_degree_plus_one,
-            precomputations,
-            worker,
-            prng,
-            params
-        )
+        Self::proof_from_lde_by_values(lde_values, lde_factor, output_coeffs_at_degree_plus_one, precomputations, worker, prng, params)
     }
 
     fn prototype_into_proof(
         prototype: Self::ProofPrototype,
         iop_values: &Polynomial<F, Values>,
         natural_first_element_indexes: Vec<usize>,
-        params: &Self::Params
+        params: &Self::Params,
     ) -> Result<Self::Proof, SynthesisError> {
         unimplemented!()
         // prototype.produce_proof(iop_values, natural_first_element_indexes)
     }
 
-    fn get_fri_challenges<P: Prng<F, Input = <Self::IopType as IopInstance<F>>::Commitment>>(
-        proof: &Self::Proof,
-        prng: &mut P,
-        params: &Self::Params
-    ) -> Vec<F> {
+    fn get_fri_challenges<P: Prng<F, Input = <Self::IopType as IopInstance<F>>::Commitment>>(proof: &Self::Proof, prng: &mut P, params: &Self::Params) -> Vec<F> {
         let mut fri_challenges = vec![];
 
         for root in proof.roots.iter() {
@@ -79,13 +65,7 @@ impl<F: PrimeField> FriIop<F> for CosetCombiningFriIop<F> {
         fri_challenges
     }
 
-    fn verify_proof_with_challenges(
-        proof: &Self::Proof,
-        natural_element_indexes: Vec<usize>,
-        expected_value: &[F],
-        fri_challenges: &[F],
-        params: &Self::Params
-    ) -> Result<bool, SynthesisError> {
+    fn verify_proof_with_challenges(proof: &Self::Proof, natural_element_indexes: Vec<usize>, expected_value: &[F], fri_challenges: &[F], params: &Self::Params) -> Result<bool, SynthesisError> {
         unimplemented!()
         // Self::verify_proof_queries(proof, natural_element_indexes, Self::DEGREE, expected_value, fri_challenges)
     }
@@ -97,7 +77,7 @@ use std::time::Instant;
 pub struct FRIProofPrototype<F: PrimeField, I: IopInstance<F>> {
     // pub l0_commitment: I,
     pub intermediate_commitments: Vec<I>,
-    pub intermediate_values: Vec< Polynomial<F, Values> >,
+    pub intermediate_values: Vec<Polynomial<F, Values>>,
     pub challenges: Vec<Vec<F>>,
     pub final_root: I::Commitment,
     pub final_coefficients: Vec<F>,
@@ -147,16 +127,14 @@ impl<F: PrimeField, I: IopInstance<F>> FriProof<F, I> for FRIProof<F, I> {
 }
 
 impl<F: PrimeField> CosetCombiningFriIop<F> {
-    pub fn proof_from_lde_by_values<P: Prng<F, Input = <<Self as FriIop<F>>::IopType as IopInstance<F>>::Commitment>,
-        C: FriPrecomputations<F>
-    >(
-        lde_values: &Polynomial<F, Values>, 
+    pub fn proof_from_lde_by_values<P: Prng<F, Input = <<Self as FriIop<F>>::IopType as IopInstance<F>>::Commitment>, C: FriPrecomputations<F>>(
+        lde_values: &Polynomial<F, Values>,
         lde_factor: usize,
         output_coeffs_at_degree_plus_one: usize,
         precomputations: &C,
         worker: &Worker,
         prng: &mut P,
-        params: &<Self as FriIop<F>>::Params
+        params: &<Self as FriIop<F>>::Params,
     ) -> Result<FRIProofPrototype<F, <Self as FriIop<F>>::IopType>, SynthesisError> {
         let mut coset_schedule_index = 0;
         let coset_factor = params.cosets_schedule[coset_schedule_index];
@@ -182,14 +160,19 @@ impl<F: PrimeField> CosetCombiningFriIop<F> {
         let mut two = F::one();
         two.double();
         let two_inv = two.inverse().expect("should exist");
-        
+
         assert!(output_coeffs_at_degree_plus_one.is_power_of_two());
         assert!(lde_factor.is_power_of_two());
 
         let initial_degree_plus_one = initial_domain_size / lde_factor;
-        assert_eq!(initial_degree_plus_one / total_wrap_factor, output_coeffs_at_degree_plus_one, 
+        assert_eq!(
+            initial_degree_plus_one / total_wrap_factor,
+            output_coeffs_at_degree_plus_one,
             "number of FRI round does not match the ouput degree: initial degree+1 =  {}, wrapping factor {}, output at degree+1 = {}",
-             initial_degree_plus_one, total_wrap_factor, output_coeffs_at_degree_plus_one);
+            initial_degree_plus_one,
+            total_wrap_factor,
+            output_coeffs_at_degree_plus_one
+        );
 
         let mut intermediate_commitments = vec![];
         let mut intermediate_values = vec![];
@@ -223,7 +206,7 @@ impl<F: PrimeField> CosetCombiningFriIop<F> {
         // etc...
 
         let num_steps = params.cosets_schedule.len();
-        
+
         for (fri_step, coset_factor) in params.cosets_schedule.iter().enumerate() {
             let coset_factor = *coset_factor;
             let wrapping_factor = 1 << coset_factor;
@@ -236,12 +219,12 @@ impl<F: PrimeField> CosetCombiningFriIop<F> {
             //    intermediate(omega*)       intermediate(-omega*)
             //    /           \                   /            \
             // this(omega)   this(-omega)     this(omega')    this(-omega')
-            // 
+            //
             // so omega* = omega^2i. omega' = sqrt(-omega^2i) = sqrt(omega^(N/2 + 2i)) = omega^N/4 + i
-            // 
+            //
             // we expect values to come bitreversed, so this(omega) and this(-omega) are always adjustent to each other
             // because in normal emumeration it would be elements b0XYZ and b1XYZ, and now it's bZYX0 and bZYX1
-            // 
+            //
             // this(omega^(N/4 + i)) for b00YZ has a form b01YZ, so bitreversed it's bZY00 and bZY10
             // this(-omega^(N/4 + i)) obviously has bZY11, so they are all near in initial values
 
@@ -249,12 +232,12 @@ impl<F: PrimeField> CosetCombiningFriIop<F> {
                 for (i, v) in next_values.chunks_mut(chunk).enumerate() {
                     let next_domain_challenges = next_domain_challenges.clone();
                     scope.spawn(move |_| {
-                        let initial_k = i*chunk;
+                        let initial_k = i * chunk;
                         let mut this_level_values = Vec::with_capacity(wrapping_factor);
                         let mut next_level_values = vec![F::zero(); wrapping_factor];
                         for (j, v) in v.iter_mut().enumerate() {
                             let batch_id = initial_k + j;
-                            let values_offset = batch_id*wrapping_factor;
+                            let values_offset = batch_id * wrapping_factor;
                             for (wrapping_step, challenge) in next_domain_challenges.iter().enumerate() {
                                 let base_omega_idx = (batch_id * wrapping_factor) >> (1 + wrapping_step);
                                 let expected_this_level_values = wrapping_factor >> wrapping_step;
@@ -314,9 +297,7 @@ impl<F: PrimeField> CosetCombiningFriIop<F> {
                 coset_schedule_index += 1;
                 this_domain_size = next_domain_size;
                 let coset_factor = params.cosets_schedule[coset_schedule_index];
-                let tree_params = FriSpecificBlake2sTreeParams {
-                    values_per_leaf: (1 << coset_factor)
-                };
+                let tree_params = FriSpecificBlake2sTreeParams { values_per_leaf: (1 << coset_factor) };
                 let intermediate_iop = FriSpecificBlake2sTree::create(next_values.as_ref(), &tree_params);
                 let root = intermediate_iop.get_commitment();
                 roots.push(root);
@@ -333,19 +314,19 @@ impl<F: PrimeField> CosetCombiningFriIop<F> {
 
                 challenges.push(next_domain_challenges.clone());
                 intermediate_commitments.push(intermediate_iop);
-            } 
+            }
 
             let next_values_as_poly = Polynomial::from_values(next_values)?;
             intermediate_values.push(next_values_as_poly);
 
-            values_slice = intermediate_values.last().expect("is something").as_ref();      
+            values_slice = intermediate_values.last().expect("is something").as_ref();
         }
 
         let final_root = roots.last().expect("will work").clone();
 
         assert_eq!(challenges.len(), num_steps);
         // assert_eq!(roots.len(), num_steps);
-        assert_eq!(intermediate_commitments.len(), num_steps-1);
+        assert_eq!(intermediate_commitments.len(), num_steps - 1);
         assert_eq!(intermediate_values.len(), num_steps);
 
         let mut final_poly_values = Polynomial::from_values(values_slice.to_vec())?;
@@ -363,7 +344,7 @@ impl<F: PrimeField> CosetCombiningFriIop<F> {
             if c.is_zero() {
                 degree -= 1;
             } else {
-                break
+                break;
             }
         }
 
@@ -382,7 +363,6 @@ impl<F: PrimeField> CosetCombiningFriIop<F> {
             output_coeffs_at_degree_plus_one,
             lde_factor,
         })
-
     }
 }
 
@@ -392,17 +372,17 @@ mod test {
     fn test_bench_fri_with_coset_combining() {
         use crate::ff::Field;
         use crate::ff::PrimeField;
-        use rand::{XorShiftRng, SeedableRng, Rand, Rng};
+        use crate::plonk::commitments::transcript::*;
+        use crate::plonk::commitments::transparent::fri::coset_combining_fri::fri::*;
+        use crate::plonk::commitments::transparent::fri::coset_combining_fri::FriPrecomputations;
+        use crate::plonk::commitments::transparent::utils::*;
+        use crate::plonk::fft::cooley_tukey_ntt::{BitReversedOmegas, CTPrecomputations, OmegasInvBitreversed};
+        use crate::plonk::polynomials::*;
         use crate::plonk::transparent_engine::proth_engine::Fr;
         use crate::plonk::transparent_engine::PartialTwoBitReductionField;
-        use crate::plonk::polynomials::*;
-        use std::time::Instant;
         use crate::worker::*;
-        use crate::plonk::commitments::transparent::utils::*;
-        use crate::plonk::fft::cooley_tukey_ntt::{CTPrecomputations, BitReversedOmegas, OmegasInvBitreversed};
-        use crate::plonk::commitments::transparent::fri::coset_combining_fri::FriPrecomputations;
-        use crate::plonk::commitments::transparent::fri::coset_combining_fri::fri::*;
-        use crate::plonk::commitments::transcript::*;
+        use rand::{Rand, Rng, SeedableRng, XorShiftRng};
+        use std::time::Instant;
 
         const SIZE: usize = 1024;
 
@@ -412,7 +392,7 @@ mod test {
 
         let rng = &mut XorShiftRng::from_seed([0x3dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
         let coeffs = (0..SIZE).map(|_| Fr::rand(rng)).collect::<Vec<_>>();
-    
+
         let poly = Polynomial::<Fr, _>::from_coeffs(coeffs).unwrap();
         let precomp = BitReversedOmegas::<Fr>::new_for_domain_size(poly.size());
         let start = Instant::now();
@@ -420,22 +400,14 @@ mod test {
         let eval_result = poly.bitreversed_lde_using_bitreversed_ntt(&worker, 16, &precomp, &coset_factor).unwrap();
         println!("LDE with factor 16 for size {} bitreversed {:?}", SIZE, start.elapsed());
 
-        let fri_precomp = <OmegasInvBitreversed::<Fr> as FriPrecomputations<Fr>>::new_for_domain_size(eval_result.size());
+        let fri_precomp = <OmegasInvBitreversed<Fr> as FriPrecomputations<Fr>>::new_for_domain_size(eval_result.size());
 
         let params = CosetParams::<Fr> {
             cosets_schedule: vec![3, 3, 3],
-            coset_factor: coset_factor
+            coset_factor: coset_factor,
         };
 
-        let fri_proto = CosetCombiningFriIop::<Fr>::proof_from_lde(
-            &eval_result, 
-            16, 
-            2, 
-            &fri_precomp, 
-            &worker, 
-            &mut transcript,
-            &params
-        ).expect("FRI must succeed");
+        let fri_proto = CosetCombiningFriIop::<Fr>::proof_from_lde(&eval_result, 16, 2, &fri_precomp, &worker, &mut transcript, &params).expect("FRI must succeed");
     }
 
     #[test]
@@ -443,17 +415,17 @@ mod test {
     fn test_invalid_eval_fri_with_coset_combining() {
         use crate::ff::Field;
         use crate::ff::PrimeField;
-        use rand::{XorShiftRng, SeedableRng, Rand, Rng};
+        use crate::plonk::commitments::transcript::*;
+        use crate::plonk::commitments::transparent::fri::coset_combining_fri::fri::*;
+        use crate::plonk::commitments::transparent::fri::coset_combining_fri::FriPrecomputations;
+        use crate::plonk::commitments::transparent::utils::*;
+        use crate::plonk::fft::cooley_tukey_ntt::{BitReversedOmegas, CTPrecomputations, OmegasInvBitreversed};
+        use crate::plonk::polynomials::*;
         use crate::plonk::transparent_engine::proth_engine::Fr;
         use crate::plonk::transparent_engine::PartialTwoBitReductionField;
-        use crate::plonk::polynomials::*;
-        use std::time::Instant;
         use crate::worker::*;
-        use crate::plonk::commitments::transparent::utils::*;
-        use crate::plonk::fft::cooley_tukey_ntt::{CTPrecomputations, BitReversedOmegas, OmegasInvBitreversed};
-        use crate::plonk::commitments::transparent::fri::coset_combining_fri::FriPrecomputations;
-        use crate::plonk::commitments::transparent::fri::coset_combining_fri::fri::*;
-        use crate::plonk::commitments::transcript::*;
+        use rand::{Rand, Rng, SeedableRng, XorShiftRng};
+        use std::time::Instant;
 
         const SIZE: usize = 1024;
 
@@ -463,7 +435,7 @@ mod test {
 
         let rng = &mut XorShiftRng::from_seed([0x3dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
         let coeffs = (0..SIZE).map(|_| Fr::rand(rng)).collect::<Vec<_>>();
-    
+
         let poly = Polynomial::<Fr, _>::from_coeffs(coeffs).unwrap();
         let precomp = BitReversedOmegas::<Fr>::new_for_domain_size(poly.size());
         let start = Instant::now();
@@ -472,21 +444,13 @@ mod test {
         eval_result.as_mut()[1].sub_assign(&Fr::one());
         println!("LDE with factor 16 for size {} bitreversed {:?}", SIZE, start.elapsed());
 
-        let fri_precomp = <OmegasInvBitreversed::<Fr> as FriPrecomputations<Fr>>::new_for_domain_size(eval_result.size());
+        let fri_precomp = <OmegasInvBitreversed<Fr> as FriPrecomputations<Fr>>::new_for_domain_size(eval_result.size());
 
         let params = CosetParams::<Fr> {
             cosets_schedule: vec![3, 3, 3],
-            coset_factor: coset_factor
+            coset_factor: coset_factor,
         };
 
-        let fri_proto = CosetCombiningFriIop::<Fr>::proof_from_lde(
-            &eval_result, 
-            16, 
-            2, 
-            &fri_precomp, 
-            &worker, 
-            &mut transcript,
-            &params
-        ).expect("FRI must succeed");
+        let fri_proto = CosetCombiningFriIop::<Fr>::proof_from_lde(&eval_result, 16, 2, &fri_precomp, &worker, &mut transcript, &params).expect("FRI must succeed");
     }
 }

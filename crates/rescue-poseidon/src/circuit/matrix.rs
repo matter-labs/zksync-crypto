@@ -1,10 +1,7 @@
 use franklin_crypto::bellman::{Engine, SynthesisError};
 use franklin_crypto::plonk::circuit::linear_combination::LinearCombination;
 // Computes matrix vector product and assigns result into same vector.
-pub(crate) fn matrix_vector_product<E: Engine, const DIM: usize>(
-    matrix: &[[E::Fr; DIM]; DIM],
-    vector: &mut [LinearCombination<E>; DIM],
-) -> Result<(), SynthesisError> {
+pub(crate) fn matrix_vector_product<E: Engine, const DIM: usize>(matrix: &[[E::Fr; DIM]; DIM], vector: &mut [LinearCombination<E>; DIM]) -> Result<(), SynthesisError> {
     let vec_cloned = vector.clone();
 
     for (idx, row) in matrix.iter().enumerate() {
@@ -19,10 +16,7 @@ pub(crate) fn matrix_vector_product<E: Engine, const DIM: usize>(
 }
 
 // Computes sparse matrix - vector by exploiting sparsity of optimized matrixes.
-pub(crate) fn mul_by_sparse_matrix<E: Engine, const DIM: usize>(
-    matrix: &[[E::Fr; DIM]; DIM],
-    vector: &mut [LinearCombination<E>; DIM],
-) {
+pub(crate) fn mul_by_sparse_matrix<E: Engine, const DIM: usize>(matrix: &[[E::Fr; DIM]; DIM], vector: &mut [LinearCombination<E>; DIM]) {
     assert_eq!(DIM, 3, "valid only for 3x3 matrix");
 
     let vec_cloned = vector.clone();
@@ -30,7 +24,7 @@ pub(crate) fn mul_by_sparse_matrix<E: Engine, const DIM: usize>(
     // we will assign result into input vector so set each to zero
     for lc in vector.iter_mut() {
         *lc = LinearCombination::zero();
-    }    
+    }
 
     for (a, b) in vec_cloned.iter().zip(matrix[0].iter()) {
         vector[0].add_assign_scaled(a, *b);
@@ -63,17 +57,11 @@ mod test {
 
         let mut vector_fe: [Fr; DIM] = [Fr::rand(rng); DIM];
 
-        let mut vector_lc: [LinearCombination<_>; DIM] = (0..DIM)
-            .map(|_| LinearCombination::zero())
-            .collect::<Vec<LinearCombination<_>>>()
-            .try_into()
-            .expect("vector of lc");
+        let mut vector_lc: [LinearCombination<_>; DIM] = (0..DIM).map(|_| LinearCombination::zero()).collect::<Vec<LinearCombination<_>>>().try_into().expect("vector of lc");
         vector_fe
             .iter()
             .zip(vector_lc.iter_mut())
-            .for_each(|(src, dst)| {
-                *dst = LinearCombination::from(AllocatedNum::alloc(cs, || Ok(*src)).unwrap())
-            });
+            .for_each(|(src, dst)| *dst = LinearCombination::from(AllocatedNum::alloc(cs, || Ok(*src)).unwrap()));
 
         let mut matrix = [[Fr::zero(); DIM]; DIM];
         (0..9)

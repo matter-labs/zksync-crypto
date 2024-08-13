@@ -1,25 +1,25 @@
 use crate::pairing::ff::PrimeField;
 
+use crate::plonk::commitments::transparent::fri::FriPrecomputations;
 use crate::plonk::domains::Domain;
 use crate::plonk::fft::cooley_tukey_ntt::bitreverse;
+use crate::plonk::fft::distribute_powers;
+use crate::plonk::fft::with_precomputation::FftPrecomputations;
 use crate::plonk::polynomials::Polynomial;
 use crate::worker::Worker;
-use crate::plonk::fft::distribute_powers;
-use crate::plonk::commitments::transparent::fri::FriPrecomputations;
-use crate::plonk::fft::with_precomputation::FftPrecomputations;
 
 pub struct PrecomputedOmegas<F: PrimeField> {
     pub omegas: Vec<F>,
     pub coset: Vec<F>,
     pub omegas_inv: Vec<F>,
     pub omegas_inv_bitreversed: Vec<F>,
-    domain_size: usize
+    domain_size: usize,
 }
 
 impl<F: PrimeField> PrecomputedOmegas<F> {
     pub fn new_for_domain(domain: &Domain<F>, worker: &Worker) -> Self {
         let domain_size = domain.size as usize;
-        let precomputation_size = domain_size/2;
+        let precomputation_size = domain_size / 2;
 
         let omega = domain.generator;
         let omega_inv = domain.generator.inverse().expect("must exist");
@@ -68,17 +68,17 @@ impl<F: PrimeField> PrecomputedOmegas<F> {
             }
         });
 
-        PrecomputedOmegas{
+        PrecomputedOmegas {
             omegas,
             coset,
             omegas_inv,
             omegas_inv_bitreversed,
-            domain_size
+            domain_size,
         }
     }
 }
 
-impl<F: PrimeField> FriPrecomputations<F> for PrecomputedOmegas<F>{
+impl<F: PrimeField> FriPrecomputations<F> for PrecomputedOmegas<F> {
     fn new_for_domain_size(size: usize) -> Self {
         let domain = Domain::<F>::new_for_size(size as u64).expect("domain must exist");
         let worker = Worker::new();
@@ -98,7 +98,7 @@ impl<F: PrimeField> FriPrecomputations<F> for PrecomputedOmegas<F>{
     }
 }
 
-impl<F: PrimeField> FftPrecomputations<F> for PrecomputedOmegas<F>{
+impl<F: PrimeField> FftPrecomputations<F> for PrecomputedOmegas<F> {
     fn new_for_domain_size(size: usize) -> Self {
         let domain = Domain::<F>::new_for_size(size as u64).expect("domain must exist");
         let worker = Worker::new();
@@ -117,13 +117,13 @@ impl<F: PrimeField> FftPrecomputations<F> for PrecomputedOmegas<F>{
 pub struct PrecomputedInvOmegas<F: PrimeField> {
     pub omegas_inv: Vec<F>,
     pub omegas_inv_bitreversed: Vec<F>,
-    domain_size: usize
+    domain_size: usize,
 }
 
 impl<F: PrimeField> PrecomputedInvOmegas<F> {
     pub fn new_for_domain(domain: &Domain<F>, worker: &Worker) -> Self {
         let domain_size = domain.size as usize;
-        let precomputation_size = domain_size/2;
+        let precomputation_size = domain_size / 2;
 
         let omega = domain.generator;
         let omega_inv = omega.inverse().expect("must exist");
@@ -146,15 +146,15 @@ impl<F: PrimeField> PrecomputedInvOmegas<F> {
         omegas_inv_bitreversed.bitreverse_enumeration(worker);
         let omegas_inv_bitreversed = omegas_inv_bitreversed.into_coeffs();
 
-        PrecomputedInvOmegas{
+        PrecomputedInvOmegas {
             omegas_inv,
             omegas_inv_bitreversed,
-            domain_size
+            domain_size,
         }
     }
 }
 
-impl<F: PrimeField> FriPrecomputations<F> for PrecomputedInvOmegas<F>{
+impl<F: PrimeField> FriPrecomputations<F> for PrecomputedInvOmegas<F> {
     fn new_for_domain_size(size: usize) -> Self {
         let domain = Domain::<F>::new_for_size(size as u64).expect("domain must exist");
         let worker = Worker::new();

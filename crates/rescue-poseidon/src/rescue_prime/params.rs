@@ -28,17 +28,13 @@ pub struct RescuePrimeParams<E: Engine, const RATE: usize, const WIDTH: usize> {
     pub(crate) alpha_inv: Sbox,
     pub(crate) custom_gate: CustomGate,
 }
-impl<E: Engine, const RATE: usize, const WIDTH: usize> PartialEq
-    for RescuePrimeParams<E, RATE, WIDTH>
-{
+impl<E: Engine, const RATE: usize, const WIDTH: usize> PartialEq for RescuePrimeParams<E, RATE, WIDTH> {
     fn eq(&self, other: &Self) -> bool {
         self.hash_family() == other.hash_family()
     }
 }
 
-impl<E: Engine, const RATE: usize, const WIDTH: usize> Default
-    for RescuePrimeParams<E, RATE, WIDTH>
-{
+impl<E: Engine, const RATE: usize, const WIDTH: usize> Default for RescuePrimeParams<E, RATE, WIDTH> {
     fn default() -> Self {
         let (params, alpha, alpha_inv) = super::params::rescue_prime_params::<E, RATE, WIDTH>();
         Self {
@@ -73,9 +69,7 @@ impl<E: Engine, const RATE: usize, const WIDTH: usize> RescuePrimeParams<E, RATE
     }
 }
 
-impl<E: Engine, const RATE: usize, const WIDTH: usize> HashParams<E, RATE, WIDTH>
-    for RescuePrimeParams<E, RATE, WIDTH>
-{
+impl<E: Engine, const RATE: usize, const WIDTH: usize> HashParams<E, RATE, WIDTH> for RescuePrimeParams<E, RATE, WIDTH> {
     #[inline]
     fn allows_specialization(&self) -> bool {
         self.allows_specialization
@@ -175,28 +169,16 @@ fn compute_alpha(p: &[u8]) -> (BigUint, BigUint) {
             break;
         }
     }
-    let ExtendedGcd {
-        gcd,
-        y: mut alpha_inv,
-        ..
-    } = p_minus_one.extended_gcd(&actual_alpha);
+    let ExtendedGcd { gcd, y: mut alpha_inv, .. } = p_minus_one.extended_gcd(&actual_alpha);
     assert!(gcd.is_one());
     if alpha_inv < BigInt::zero() {
         alpha_inv += p_minus_one;
     };
 
-    (
-        actual_alpha.to_biguint().unwrap(),
-        alpha_inv.to_biguint().unwrap(),
-    )
+    (actual_alpha.to_biguint().unwrap(), alpha_inv.to_biguint().unwrap())
 }
 
-fn compute_round_constants<E: Engine, const RATE: usize, const WIDTH: usize>(
-    modulus_bytes: &[u8],
-    p_big: BigInt,
-    security_level: usize,
-    n: usize,
-) -> Vec<[E::Fr; WIDTH]> {
+fn compute_round_constants<E: Engine, const RATE: usize, const WIDTH: usize>(modulus_bytes: &[u8], p_big: BigInt, security_level: usize, n: usize) -> Vec<[E::Fr; WIDTH]> {
     fn shake256(input: &[u8], num_bytes: usize) -> Box<[u8]> {
         use sha3::digest::ExtendableOutput;
         use sha3::digest::Update;
@@ -214,10 +196,7 @@ fn compute_round_constants<E: Engine, const RATE: usize, const WIDTH: usize>(
 
     let bytes_per_int = ((modulus_bit_len / 8f32) + 1f32).ceil() as usize;
     let num_bytes = bytes_per_int * 2 * m * n;
-    let seed_string = format!(
-        "Rescue-XLIX({},{},{},{})",
-        p_big, m, capacity, security_level
-    );
+    let seed_string = format!("Rescue-XLIX({},{},{},{})", p_big, m, capacity, security_level);
     let seed_bytes = seed_string.as_bytes();
     let byte_string = shake256(seed_bytes, num_bytes);
     let mut round_constants = vec![];
@@ -256,8 +235,7 @@ fn compute_round_constants<E: Engine, const RATE: usize, const WIDTH: usize>(
     final_constants
 }
 
-pub fn rescue_prime_params<E: Engine, const RATE: usize, const WIDTH: usize>(
-) -> (InnerHashParameters<E, RATE, WIDTH>, u64, Vec<u64>) {
+pub fn rescue_prime_params<E: Engine, const RATE: usize, const WIDTH: usize>() -> (InnerHashParameters<E, RATE, WIDTH>, u64, Vec<u64>) {
     let security_level = 80;
 
     let mut modulus_bytes = vec![];
@@ -266,16 +244,10 @@ pub fn rescue_prime_params<E: Engine, const RATE: usize, const WIDTH: usize>(
     let p_big = BigInt::from_bytes_le(Sign::Plus, &modulus_bytes);
     let (alpha, alpha_inv) = compute_alpha(&modulus_bytes);
     let alpha = alpha.to_u64().expect("u64");
-    let number_of_rounds =
-        get_number_of_rounds(WIDTH, WIDTH - RATE, security_level, alpha as usize);
+    let number_of_rounds = get_number_of_rounds(WIDTH, WIDTH - RATE, security_level, alpha as usize);
 
     let mut params = InnerHashParameters::new(security_level, number_of_rounds, 0);
-    params.round_constants = compute_round_constants::<E, RATE, WIDTH>(
-        &modulus_bytes,
-        p_big,
-        security_level,
-        number_of_rounds,
-    );
+    params.round_constants = compute_round_constants::<E, RATE, WIDTH>(&modulus_bytes, p_big, security_level, number_of_rounds);
 
     params.compute_mds_matrix_for_rescue();
 
@@ -303,13 +275,9 @@ mod tests {
         let alpha = alpha.to_u32_digits()[0] as usize;
         let n = get_number_of_rounds(m, capacity, security_level, alpha);
 
-        println!(
-            "alpha {} alpha inv {:x} number of rounds {}",
-            alpha, alpha_inv, n
-        );
+        println!("alpha {} alpha inv {:x} number of rounds {}", alpha, alpha_inv, n);
 
-        let round_constants =
-            compute_round_constants::<Bn256, 2, 3>(&modulus_bytes, p_big, security_level, n);
+        let round_constants = compute_round_constants::<Bn256, 2, 3>(&modulus_bytes, p_big, security_level, n);
 
         println!("number of rounds {}", n);
         println!("number of round constants {}", round_constants.len());

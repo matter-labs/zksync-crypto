@@ -1,20 +1,19 @@
 use crate::pairing::ff::{Field, PrimeField};
-use crate::pairing::{Engine};
+use crate::pairing::Engine;
 
-use crate::{SynthesisError};
+use crate::SynthesisError;
 use std::marker::PhantomData;
 
 use crate::plonk::cs::gates::*;
 use crate::plonk::cs::*;
 
-use crate::worker::*;
-use super::polynomials::*;
 use super::domains::*;
-use crate::plonk::commitments::*;
+use super::polynomials::*;
 use crate::plonk::commitments::transcript::*;
-use crate::plonk::utils::*;
+use crate::plonk::commitments::*;
 use crate::plonk::generator::*;
-
+use crate::plonk::utils::*;
+use crate::worker::*;
 
 #[derive(Debug)]
 pub struct TestingAssembly<E: Engine> {
@@ -31,14 +30,14 @@ pub struct TestingAssembly<E: Engine> {
 
     inputs_map: Vec<usize>,
 
-    is_finalized: bool
+    is_finalized: bool,
 }
 
 impl<E: Engine> ConstraintSystem<E> for TestingAssembly<E> {
     // allocate a variable
     fn alloc<F>(&mut self, value: F) -> Result<Variable, SynthesisError>
     where
-        F: FnOnce() -> Result<E::Fr, SynthesisError> 
+        F: FnOnce() -> Result<E::Fr, SynthesisError>,
     {
         let value = value()?;
 
@@ -52,7 +51,7 @@ impl<E: Engine> ConstraintSystem<E> for TestingAssembly<E> {
     // allocate an input variable
     fn alloc_input<F>(&mut self, value: F) -> Result<Variable, SynthesisError>
     where
-        F: FnOnce() -> Result<E::Fr, SynthesisError> 
+        F: FnOnce() -> Result<E::Fr, SynthesisError>,
     {
         let value = value()?;
 
@@ -67,7 +66,6 @@ impl<E: Engine> ConstraintSystem<E> for TestingAssembly<E> {
         self.input_gates.push(gate);
 
         Ok(input_var)
-
     }
 
     // enforce variable as boolean
@@ -80,9 +78,7 @@ impl<E: Engine> ConstraintSystem<E> for TestingAssembly<E> {
     }
 
     // allocate an abstract gate
-    fn new_gate(&mut self, variables: (Variable, Variable, Variable), 
-        coeffs:(E::Fr,E::Fr,E::Fr,E::Fr,E::Fr)) -> Result<(), SynthesisError>
-    {
+    fn new_gate(&mut self, variables: (Variable, Variable, Variable), coeffs: (E::Fr, E::Fr, E::Fr, E::Fr, E::Fr)) -> Result<(), SynthesisError> {
         let gate = Gate::<E::Fr>::new_gate(variables, coeffs);
         self.aux_gates.push(gate);
         self.n += 1;
@@ -91,8 +87,7 @@ impl<E: Engine> ConstraintSystem<E> for TestingAssembly<E> {
     }
 
     // allocate a constant
-    fn enforce_constant(&mut self, variable: Variable, constant: E::Fr) -> Result<(), SynthesisError>
-    {
+    fn enforce_constant(&mut self, variable: Variable, constant: E::Fr) -> Result<(), SynthesisError> {
         let gate = Gate::<E::Fr>::new_enforce_constant_gate(variable, Some(constant), self.dummy_variable());
         self.aux_gates.push(gate);
         self.n += 1;
@@ -124,8 +119,7 @@ impl<E: Engine> ConstraintSystem<E> for TestingAssembly<E> {
     }
 
     // allocate a linear combination gate
-    fn enforce_zero_2(&mut self, variables: (Variable, Variable), coeffs:(E::Fr, E::Fr)) -> Result<(), SynthesisError>
-    {
+    fn enforce_zero_2(&mut self, variables: (Variable, Variable), coeffs: (E::Fr, E::Fr)) -> Result<(), SynthesisError> {
         let (v_0, v_1) = variables;
         let (c_0, c_1) = coeffs;
         let zero = E::Fr::zero();
@@ -138,8 +132,7 @@ impl<E: Engine> ConstraintSystem<E> for TestingAssembly<E> {
     }
 
     // allocate a linear combination gate
-    fn enforce_zero_3(&mut self, variables: (Variable, Variable, Variable), coeffs:(E::Fr, E::Fr, E::Fr)) -> Result<(), SynthesisError>
-    {
+    fn enforce_zero_3(&mut self, variables: (Variable, Variable, Variable), coeffs: (E::Fr, E::Fr, E::Fr)) -> Result<(), SynthesisError> {
         let gate = Gate::<E::Fr>::new_enforce_zero_gate(variables, coeffs);
         self.aux_gates.push(gate);
         self.n += 1;
@@ -175,8 +168,8 @@ impl<E: Engine> TestingAssembly<E> {
         tmp.enforce_constant(zero, E::Fr::zero()).expect("should have no issues");
 
         match (tmp.dummy_variable(), zero) {
-            (Variable(Index::Aux(1)), Variable(Index::Aux(1))) => {},
-            _ => panic!("zero variable is incorrect")
+            (Variable(Index::Aux(1)), Variable(Index::Aux(1))) => {}
+            _ => panic!("zero variable is incorrect"),
         }
 
         tmp
@@ -199,13 +192,13 @@ impl<E: Engine> TestingAssembly<E> {
             return;
         }
         let n = self.input_gates.len() + self.aux_gates.len();
-        if (n+1).is_power_of_two() {
+        if (n + 1).is_power_of_two() {
             return;
         }
 
         let empty_gate = Gate::<E::Fr>::new_empty_gate(self.dummy_variable());
 
-        let new_aux_len = (n+1).next_power_of_two() - 1 - self.input_gates.len();
+        let new_aux_len = (n + 1).next_power_of_two() - 1 - self.input_gates.len();
 
         self.aux_gates.resize(new_aux_len, empty_gate);
 
@@ -214,12 +207,8 @@ impl<E: Engine> TestingAssembly<E> {
 
     fn get_value(&self, var: &Variable) -> E::Fr {
         match var {
-            Variable(Index::Input(input)) => {
-                self.input_assingments[*input - 1]
-            },
-            Variable(Index::Aux(aux)) => {
-                self.aux_assingments[*aux - 1]
-            }
+            Variable(Index::Input(input)) => self.input_assingments[*input - 1],
+            Variable(Index::Aux(aux)) => self.aux_assingments[*aux - 1],
         }
     }
 
@@ -227,29 +216,22 @@ impl<E: Engine> TestingAssembly<E> {
         self.finalize();
         assert!(self.is_finalized);
 
-        fn coeff_into_field_element<F: PrimeField>(coeff: & Coeff<F>) -> F {
+        fn coeff_into_field_element<F: PrimeField>(coeff: &Coeff<F>) -> F {
             match coeff {
-                Coeff::Zero => {
-                    F::zero()
-                },
-                Coeff::One => {
-                    F::one()
-                },
+                Coeff::Zero => F::zero(),
+                Coeff::One => F::one(),
                 Coeff::NegativeOne => {
                     let mut tmp = F::one();
                     tmp.negate();
 
                     tmp
-                },
-                Coeff::Full(c) => {
-                    *c
-                },
+                }
+                Coeff::Full(c) => *c,
             }
         }
 
         // expect a small number of inputs
-        for (i, gate) in self.input_gates.iter().enumerate()
-        {
+        for (i, gate) in self.input_gates.iter().enumerate() {
             let q_l = coeff_into_field_element(&gate.q_l);
             let q_r = coeff_into_field_element(&gate.q_r);
             let q_o = coeff_into_field_element(&gate.q_o);
@@ -280,13 +262,12 @@ impl<E: Engine> TestingAssembly<E> {
             res.add_assign(&tmp);
 
             if !res.is_zero() {
-                println!("Unsatisfied at input gate {}", i+1);
+                println!("Unsatisfied at input gate {}", i + 1);
                 return false;
             }
         }
 
-        for (i, gate) in self.aux_gates.iter().enumerate()
-        {
+        for (i, gate) in self.aux_gates.iter().enumerate() {
             let q_l = coeff_into_field_element(&gate.q_l);
             let q_r = coeff_into_field_element(&gate.q_r);
             let q_o = coeff_into_field_element(&gate.q_o);
@@ -317,7 +298,7 @@ impl<E: Engine> TestingAssembly<E> {
             res.add_assign(&tmp);
 
             if !res.is_zero() {
-                println!("Unsatisfied at aux gate {}", i+1);
+                println!("Unsatisfied at aux gate {}", i + 1);
                 println!("Gate {:?}", *gate);
                 println!("A = {}, B = {}, C = {}", a_value, b_value, c_value);
                 return false;

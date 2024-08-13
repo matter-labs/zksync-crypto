@@ -1,27 +1,27 @@
 use crate::pairing::ff::PrimeField;
 use crate::plonk::domains::*;
-use crate::SynthesisError;
-use crate::worker::*;
-use crate::plonk::fft::*;
 use crate::plonk::fft::with_precomputation;
 use crate::plonk::fft::with_precomputation::FftPrecomputations;
+use crate::plonk::fft::*;
+use crate::worker::*;
+use crate::SynthesisError;
 
 use crate::plonk::fft::cooley_tukey_ntt;
-use crate::plonk::fft::cooley_tukey_ntt::CTPrecomputations;
 use crate::plonk::fft::cooley_tukey_ntt::partial_reduction;
+use crate::plonk::fft::cooley_tukey_ntt::CTPrecomputations;
 
 use crate::plonk::transparent_engine::PartialTwoBitReductionField;
 
 pub trait PolynomialForm: Sized + Copy + Clone {}
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub enum Coefficients { }
+pub enum Coefficients {}
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub enum Values { }
+pub enum Values {}
 
 impl PolynomialForm for Coefficients {}
-impl PolynomialForm for Values{}
+impl PolynomialForm for Values {}
 
 // TODO: Enforce bitreversed values as a separate form
 
@@ -38,9 +38,8 @@ pub struct Polynomial<F: PrimeField, P: PolynomialForm> {
     #[serde(skip_serializing, default)]
     #[serde(bound(serialize = ""))]
     #[serde(bound(deserialize = ""))]
-    _marker: std::marker::PhantomData<P>
+    _marker: std::marker::PhantomData<P>,
 }
-
 
 impl<F: PrimeField, P: PolynomialForm> Polynomial<F, P> {
     pub fn size(&self) -> usize {
@@ -59,12 +58,11 @@ impl<F: PrimeField, P: PolynomialForm> Polynomial<F, P> {
         self.coeffs
     }
 
-    pub fn distribute_powers(&mut self, worker: &Worker, g: F)
-    {
+    pub fn distribute_powers(&mut self, worker: &Worker, g: F) {
         distribute_powers(&mut self.coeffs, &worker, g);
     }
 
-    pub fn reuse_allocation<PP: PolynomialForm> (&mut self, other: &Polynomial<F, PP>) {
+    pub fn reuse_allocation<PP: PolynomialForm>(&mut self, other: &Polynomial<F, PP>) {
         assert_eq!(self.coeffs.len(), other.coeffs.len());
         self.coeffs.copy_from_slice(&other.coeffs);
     }
@@ -77,7 +75,7 @@ impl<F: PrimeField, P: PolynomialForm> Polynomial<F, P> {
                 let rj = cooley_tukey_ntt::bitreverse(j, log_n);
                 if j < rj {
                     self.coeffs.swap(j, rj);
-                }  
+                }
             }
 
             return;
@@ -93,27 +91,22 @@ impl<F: PrimeField, P: PolynomialForm> Polynomial<F, P> {
 
         worker.scope(0, |scope, _| {
             for thread_id in 0..to_spawn {
-                let r = unsafe {&mut *r};
+                let r = unsafe { &mut *r };
                 scope.spawn(move |_| {
                     let start = thread_id * chunk;
-                    let end = if start + chunk <= total_len {
-                        start + chunk
-                    } else {
-                        total_len
-                    };
+                    let end = if start + chunk <= total_len { start + chunk } else { total_len };
                     for j in start..end {
                         let rj = cooley_tukey_ntt::bitreverse(j, log_n);
                         if j < rj {
                             r.swap(j, rj);
-                        }  
+                        }
                     }
                 });
             }
         });
     }
 
-    pub fn scale(&mut self, worker: &Worker, g: F)
-    {
+    pub fn scale(&mut self, worker: &Worker, g: F) {
         if g == F::one() {
             return;
         }
@@ -129,8 +122,7 @@ impl<F: PrimeField, P: PolynomialForm> Polynomial<F, P> {
         });
     }
 
-    pub fn negate(&mut self, worker: &Worker)
-    {
+    pub fn negate(&mut self, worker: &Worker) {
         worker.scope(self.coeffs.len(), |scope, chunk| {
             for v in self.coeffs.chunks_mut(chunk) {
                 scope.spawn(move |_| {
@@ -142,8 +134,7 @@ impl<F: PrimeField, P: PolynomialForm> Polynomial<F, P> {
         });
     }
 
-    pub fn map<M: Fn(&mut F) -> () + Send + Copy>(&mut self, worker: &Worker, func: M)
-    {
+    pub fn map<M: Fn(&mut F) -> () + Send + Copy>(&mut self, worker: &Worker, func: M) {
         worker.scope(self.coeffs.len(), |scope, chunk| {
             for v in self.coeffs.chunks_mut(chunk) {
                 scope.spawn(move |_| {
@@ -155,8 +146,7 @@ impl<F: PrimeField, P: PolynomialForm> Polynomial<F, P> {
         });
     }
 
-    pub fn map_indexed<M: Fn(usize, &mut F) -> () + Send + Copy>(&mut self, worker: &Worker, func: M)
-    {
+    pub fn map_indexed<M: Fn(usize, &mut F) -> () + Send + Copy>(&mut self, worker: &Worker, func: M) {
         worker.scope(self.coeffs.len(), |scope, chunk| {
             for (chunk_idx, v) in self.coeffs.chunks_mut(chunk).enumerate() {
                 scope.spawn(move |_| {
@@ -171,7 +161,7 @@ impl<F: PrimeField, P: PolynomialForm> Polynomial<F, P> {
 
     pub fn pad_by_factor(&mut self, factor: usize) -> Result<(), SynthesisError> {
         debug_assert!(self.coeffs.len().is_power_of_two());
-        
+
         if factor == 1 {
             return Ok(());
         }
@@ -247,8 +237,7 @@ impl<F: PrimeField> Polynomial<F, Coefficients> {
         Self::from_coeffs(coeffs)
     }
 
-    pub fn from_coeffs(mut coeffs: Vec<F>) -> Result<Polynomial<F, Coefficients>, SynthesisError>
-    {
+    pub fn from_coeffs(mut coeffs: Vec<F>) -> Result<Polynomial<F, Coefficients>, SynthesisError> {
         let coeffs_len = coeffs.len();
 
         let domain = Domain::new_for_size(coeffs_len as u64)?;
@@ -265,13 +254,11 @@ impl<F: PrimeField> Polynomial<F, Coefficients> {
             omegainv: omega.inverse().unwrap(),
             geninv: F::multiplicative_generator().inverse().unwrap(),
             minv: F::from_str(&format!("{}", m)).unwrap().inverse().unwrap(),
-            _marker: std::marker::PhantomData
+            _marker: std::marker::PhantomData,
         })
     }
 
-    pub fn from_roots(roots: Vec<F>, worker: &Worker) -> Result<Polynomial<F, Coefficients>, SynthesisError>
-    {
-
+    pub fn from_roots(roots: Vec<F>, worker: &Worker) -> Result<Polynomial<F, Coefficients>, SynthesisError> {
         let coeffs_len = roots.len() + 1;
 
         let domain = Domain::<F>::new_for_size(coeffs_len as u64)?;
@@ -281,8 +268,7 @@ impl<F: PrimeField> Polynomial<F, Coefficients> {
         let mut subterms = vec![vec![]; num_threads];
 
         worker.scope(roots.len(), |scope, chunk| {
-            for (r, s) in roots.chunks(chunk)
-                    .zip(subterms.chunks_mut(1)) {
+            for (r, s) in roots.chunks(chunk).zip(subterms.chunks_mut(1)) {
                 scope.spawn(move |_| {
                     for r in r.iter() {
                         if s[0].len() == 0 {
@@ -330,11 +316,7 @@ impl<F: PrimeField> Polynomial<F, Coefficients> {
         Ok(result)
     }
 
-    pub fn evaluate_at_domain_for_degree_one(
-        &self, 
-        worker: &Worker, 
-        domain_size: u64
-    ) -> Result<Polynomial<F, Values>, SynthesisError> {
+    pub fn evaluate_at_domain_for_degree_one(&self, worker: &Worker, domain_size: u64) -> Result<Polynomial<F, Values>, SynthesisError> {
         assert_eq!(self.coeffs.len(), 2);
         let alpha = self.coeffs[1];
         let c = self.coeffs[0];
@@ -361,11 +343,7 @@ impl<F: PrimeField> Polynomial<F, Coefficients> {
         Polynomial::from_values(result)
     }
 
-    pub fn coset_evaluate_at_domain_for_degree_one(
-        &self, 
-        worker: &Worker, 
-        domain_size: u64
-    ) -> Result<Polynomial<F, Values>, SynthesisError> {
+    pub fn coset_evaluate_at_domain_for_degree_one(&self, worker: &Worker, domain_size: u64) -> Result<Polynomial<F, Values>, SynthesisError> {
         assert_eq!(self.coeffs.len(), 2);
         let alpha = self.coeffs[1];
         let c = self.coeffs[0];
@@ -401,7 +379,7 @@ impl<F: PrimeField> Polynomial<F, Coefficients> {
     //     if factor != next_power_of_two {
     //         return Err(SynthesisError::Error);
     //     }
-        
+
     //     let new_size = self.coeffs.len() * factor;
     //     let new_coeffs = vec![F::zero(); new_size];
     //     let old_coeffs = std::mem::replace(&mut self.coeffs, new_coeffs);
@@ -436,7 +414,7 @@ impl<F: PrimeField> Polynomial<F, Coefficients> {
     //     if factor != next_power_of_two {
     //         return Err(SynthesisError::Error);
     //     }
-        
+
     //     let new_size = self.coeffs.len() * factor;
     //     self.coeffs.resize(new_size, F::zero());
 
@@ -495,7 +473,7 @@ impl<F: PrimeField> Polynomial<F, Coefficients> {
 
     pub fn filtering_lde(self, worker: &Worker, factor: usize) -> Result<Polynomial<F, Values>, SynthesisError> {
         debug_assert!(self.coeffs.len().is_power_of_two());
-        
+
         if factor == 1 {
             return Ok(self.fft(&worker));
         }
@@ -512,7 +490,7 @@ impl<F: PrimeField> Polynomial<F, Coefficients> {
 
     pub fn lde_using_multiple_cosets_naive(self, worker: &Worker, factor: usize) -> Result<Polynomial<F, Values>, SynthesisError> {
         debug_assert!(self.coeffs.len().is_power_of_two());
-        
+
         if factor == 1 {
             return Ok(self.fft(&worker));
         }
@@ -545,10 +523,10 @@ impl<F: PrimeField> Polynomial<F, Coefficients> {
         worker.scope(final_values.len(), |scope, chunk| {
             for (i, v) in final_values.chunks_mut(chunk).enumerate() {
                 scope.spawn(move |_| {
-                    let mut idx = i*chunk;
+                    let mut idx = i * chunk;
                     for v in v.iter_mut() {
                         let coset_idx = idx % factor;
-                        let element_idx = idx / factor; 
+                        let element_idx = idx / factor;
                         *v = results_ref[coset_idx][element_idx];
 
                         idx += 1;
@@ -562,7 +540,7 @@ impl<F: PrimeField> Polynomial<F, Coefficients> {
 
     pub fn lde_using_multiple_cosets(self, worker: &Worker, factor: usize) -> Result<Polynomial<F, Values>, SynthesisError> {
         debug_assert!(self.coeffs.len().is_power_of_two());
-        
+
         if factor == 1 {
             return Ok(self.fft(&worker));
         }
@@ -617,10 +595,10 @@ impl<F: PrimeField> Polynomial<F, Coefficients> {
         worker.scope(final_values.len(), |scope, chunk| {
             for (i, v) in final_values.chunks_mut(chunk).enumerate() {
                 scope.spawn(move |_| {
-                    let mut idx = i*chunk;
+                    let mut idx = i * chunk;
                     for v in v.iter_mut() {
                         let coset_idx = idx % factor;
-                        let element_idx = idx / factor; 
+                        let element_idx = idx / factor;
                         *v = results_ref[coset_idx][element_idx];
 
                         idx += 1;
@@ -632,15 +610,10 @@ impl<F: PrimeField> Polynomial<F, Coefficients> {
         Polynomial::from_values(final_values)
     }
 
-    pub fn lde_using_multiple_cosets_with_precomputation<P: FftPrecomputations<F>>(
-        self, 
-        worker: &Worker, 
-        factor: usize,
-        precomputed_omegas: &P
-    ) -> Result<Polynomial<F, Values>, SynthesisError> {
+    pub fn lde_using_multiple_cosets_with_precomputation<P: FftPrecomputations<F>>(self, worker: &Worker, factor: usize, precomputed_omegas: &P) -> Result<Polynomial<F, Values>, SynthesisError> {
         debug_assert!(self.coeffs.len().is_power_of_two());
         debug_assert_eq!(self.size(), precomputed_omegas.domain_size());
-        
+
         if factor == 1 {
             return Ok(self.fft(&worker));
         }
@@ -690,10 +663,10 @@ impl<F: PrimeField> Polynomial<F, Coefficients> {
         worker.scope(final_values.len(), |scope, chunk| {
             for (i, v) in final_values.chunks_mut(chunk).enumerate() {
                 scope.spawn(move |_| {
-                    let mut idx = i*chunk;
+                    let mut idx = i * chunk;
                     for v in v.iter_mut() {
                         let coset_idx = idx % factor;
-                        let element_idx = idx / factor; 
+                        let element_idx = idx / factor;
                         *v = results_ref[coset_idx][element_idx];
 
                         idx += 1;
@@ -705,16 +678,11 @@ impl<F: PrimeField> Polynomial<F, Coefficients> {
         Polynomial::from_values(final_values)
     }
 
-    pub fn lde_using_bitreversed_ntt<P: CTPrecomputations<F>>(
-        self, 
-        worker: &Worker, 
-        factor: usize,
-        precomputed_omegas: &P
-    ) -> Result<Polynomial<F, Values>, SynthesisError> {
+    pub fn lde_using_bitreversed_ntt<P: CTPrecomputations<F>>(self, worker: &Worker, factor: usize, precomputed_omegas: &P) -> Result<Polynomial<F, Values>, SynthesisError> {
         use std::time::Instant;
         debug_assert!(self.coeffs.len().is_power_of_two());
         debug_assert_eq!(self.size(), precomputed_omegas.domain_size());
-        
+
         if factor == 1 {
             return Ok(self.fft(&worker));
         }
@@ -773,7 +741,7 @@ impl<F: PrimeField> Polynomial<F, Coefficients> {
         // let mut final_values = vec![F::zero(); new_size];
 
         let mut final_values = Vec::with_capacity(new_size);
-        unsafe {final_values.set_len(new_size)};
+        unsafe { final_values.set_len(new_size) };
 
         // copy here is more complicated: to have the value in a natural order
         // one has to use coset_idx to address the result element
@@ -784,11 +752,11 @@ impl<F: PrimeField> Polynomial<F, Coefficients> {
         worker.scope(final_values.len(), |scope, chunk| {
             for (i, v) in final_values.chunks_mut(chunk).enumerate() {
                 scope.spawn(move |_| {
-                    let mut idx = i*chunk;
+                    let mut idx = i * chunk;
                     for v in v.iter_mut() {
                         let coset_idx = idx % factor;
                         let element_idx = idx / factor;
-                        let element_idx = cooley_tukey_ntt::bitreverse(element_idx, log_n); 
+                        let element_idx = cooley_tukey_ntt::bitreverse(element_idx, log_n);
                         *v = results_ref[coset_idx][element_idx];
 
                         idx += 1;
@@ -805,12 +773,12 @@ impl<F: PrimeField> Polynomial<F, Coefficients> {
         //     for (chunk_idx, r) in results.chunks(chunk).enumerate() {
         //         let res = unsafe {&mut *res_ptr};
         //         scope.spawn(move |_| {
-        //             // elements from the coset i should be on the places 
+        //             // elements from the coset i should be on the places
         //             // of sequence i, i + lde_factor, i + 2*lde_factor, ...
         //             let mut coset_idx = chunk_idx * chunk;
         //             for r in r.iter() {
         //                 for (element_idx, el) in r.iter().enumerate() {
-        //                     let write_to = (cooley_tukey_ntt::bitreverse(element_idx, log_n) << factor_log_n) | coset_idx; 
+        //                     let write_to = (cooley_tukey_ntt::bitreverse(element_idx, log_n) << factor_log_n) | coset_idx;
         //                     res[write_to] = *el;
         //                 }
 
@@ -823,16 +791,15 @@ impl<F: PrimeField> Polynomial<F, Coefficients> {
         Polynomial::from_values(final_values)
     }
 
-
     // pub fn lde_using_bitreversed_ntt_no_allocations_lowest_bits_reversed<P: CTPrecomputations<F>>(
-    //     self, 
-    //     worker: &Worker, 
+    //     self,
+    //     worker: &Worker,
     //     factor: usize,
     //     precomputed_omegas: &P
     // ) -> Result<Polynomial<F, Values>, SynthesisError> {
     //     debug_assert!(self.coeffs.len().is_power_of_two());
     //     debug_assert_eq!(self.size(), precomputed_omegas.domain_size());
-        
+
     //     if factor == 1 {
     //         return Ok(self.fft(&worker));
     //     }
@@ -881,7 +848,7 @@ impl<F: PrimeField> Polynomial<F, Coefficients> {
     //                     let start = current_size * coset_idx;
     //                     let end = start + current_size;
     //                     let copy_start_pointer: *mut F = r[start..end].as_mut_ptr();
-                        
+
     //                     unsafe { std::ptr::copy_nonoverlapping(self_coeffs_ref.as_ptr(), copy_start_pointer, current_size) };
     //                 }
     //             });
@@ -900,8 +867,6 @@ impl<F: PrimeField> Polynomial<F, Coefficients> {
     //     //     // coset_generator.mul_assign(&coset_omega);
     //     // }
     //     // println!("Copying taken {:?}", start.elapsed());
-
-
 
     //     // for coset_idx in 0..factor {
     //     //     result.extend_from_slice(&self.coeffs);
@@ -977,7 +942,6 @@ impl<F: PrimeField> Polynomial<F, Coefficients> {
 
     //     // let higher_bits_mask = !lower_bits_mask;
 
-
     //     // worker.scope(0, |scope, _| {
     //     //     for thread_id in 0..to_spawn {
     //     //         let r = unsafe {&mut *r};
@@ -994,7 +958,7 @@ impl<F: PrimeField> Polynomial<F, Coefficients> {
     //     //                 let rj = cooley_tukey_ntt::bitreverse(element_idx, log_n) | coset_mask;
     //     //                 if j < rj {
     //     //                     r.swap(j, rj);
-    //     //                 }  
+    //     //                 }
     //     //             }
     //     //         });
     //     //     }
@@ -1007,7 +971,7 @@ impl<F: PrimeField> Polynomial<F, Coefficients> {
 
     pub fn coset_filtering_lde(mut self, worker: &Worker, factor: usize) -> Result<Polynomial<F, Values>, SynthesisError> {
         debug_assert!(self.coeffs.len().is_power_of_two());
-        
+
         if factor == 1 {
             return Ok(self.coset_fft(&worker));
         }
@@ -1045,7 +1009,7 @@ impl<F: PrimeField> Polynomial<F, Coefficients> {
             results.push(lde.into_coeffs());
             coset_generator.mul_assign(&domain.generator);
         }
-        
+
         let mut final_values = vec![F::zero(); new_size];
 
         let results_ref = &results;
@@ -1053,10 +1017,10 @@ impl<F: PrimeField> Polynomial<F, Coefficients> {
         worker.scope(final_values.len(), |scope, chunk| {
             for (i, v) in final_values.chunks_mut(chunk).enumerate() {
                 scope.spawn(move |_| {
-                    let mut idx = i*chunk;
+                    let mut idx = i * chunk;
                     for v in v.iter_mut() {
                         let coset_idx = idx % factor;
-                        let element_idx = idx / factor; 
+                        let element_idx = idx / factor;
                         *v = results_ref[coset_idx][element_idx];
 
                         idx += 1;
@@ -1065,13 +1029,12 @@ impl<F: PrimeField> Polynomial<F, Coefficients> {
             }
         });
 
-
         Polynomial::from_values(final_values)
     }
 
     pub fn coset_lde_using_multiple_cosets(self, worker: &Worker, factor: usize) -> Result<Polynomial<F, Values>, SynthesisError> {
         debug_assert!(self.coeffs.len().is_power_of_two());
-        
+
         if factor == 1 {
             return Ok(self.coset_fft(&worker));
         }
@@ -1123,10 +1086,10 @@ impl<F: PrimeField> Polynomial<F, Coefficients> {
         worker.scope(final_values.len(), |scope, chunk| {
             for (i, v) in final_values.chunks_mut(chunk).enumerate() {
                 scope.spawn(move |_| {
-                    let mut idx = i*chunk;
+                    let mut idx = i * chunk;
                     for v in v.iter_mut() {
                         let coset_idx = idx % factor;
-                        let element_idx = idx / factor; 
+                        let element_idx = idx / factor;
                         *v = results_ref[coset_idx][element_idx];
 
                         idx += 1;
@@ -1138,8 +1101,7 @@ impl<F: PrimeField> Polynomial<F, Coefficients> {
         Polynomial::from_values(final_values)
     }
 
-    pub fn fft(mut self, worker: &Worker) -> Polynomial<F, Values>
-    {
+    pub fn fft(mut self, worker: &Worker) -> Polynomial<F, Values> {
         debug_assert!(self.coeffs.len().is_power_of_two());
         best_fft(&mut self.coeffs, worker, &self.omega, self.exp, None);
 
@@ -1150,19 +1112,17 @@ impl<F: PrimeField> Polynomial<F, Coefficients> {
             omegainv: self.omegainv,
             geninv: self.geninv,
             minv: self.minv,
-            _marker: std::marker::PhantomData
+            _marker: std::marker::PhantomData,
         }
     }
 
-    pub fn coset_fft(mut self, worker: &Worker) -> Polynomial<F, Values>
-    {
+    pub fn coset_fft(mut self, worker: &Worker) -> Polynomial<F, Values> {
         debug_assert!(self.coeffs.len().is_power_of_two());
         self.distribute_powers(worker, F::multiplicative_generator());
         self.fft(worker)
     }
 
-    pub fn coset_fft_for_generator(mut self, worker: &Worker, gen: F) -> Polynomial<F, Values>
-    {
+    pub fn coset_fft_for_generator(mut self, worker: &Worker, gen: F) -> Polynomial<F, Values> {
         debug_assert!(self.coeffs.len().is_power_of_two());
         self.distribute_powers(worker, gen);
         self.fft(worker)
@@ -1234,11 +1194,9 @@ impl<F: PrimeField> Polynomial<F, Coefficients> {
         let mut subvalues = vec![F::zero(); num_threads];
 
         worker.scope(self.coeffs.len(), |scope, chunk| {
-            for (i, (a, s)) in self.coeffs.chunks(chunk)
-                        .zip(subvalues.chunks_mut(1))
-                        .enumerate() {
+            for (i, (a, s)) in self.coeffs.chunks(chunk).zip(subvalues.chunks_mut(1)).enumerate() {
                 scope.spawn(move |_| {
-                    let mut x = g.pow([(i*chunk) as u64]);
+                    let mut x = g.pow([(i * chunk) as u64]);
                     for a in a.iter() {
                         let mut value = x;
                         value.mul_assign(&a);
@@ -1258,7 +1216,6 @@ impl<F: PrimeField> Polynomial<F, Coefficients> {
     }
 }
 
-
 impl<F: PrimeField> Polynomial<F, Values> {
     pub fn new_for_size(size: usize) -> Result<Polynomial<F, Values>, SynthesisError> {
         let coeffs = vec![F::zero(); size];
@@ -1266,8 +1223,7 @@ impl<F: PrimeField> Polynomial<F, Values> {
         Self::from_values(coeffs)
     }
 
-    pub fn from_values(mut values: Vec<F>) -> Result<Polynomial<F, Values>, SynthesisError>
-    {
+    pub fn from_values(mut values: Vec<F>) -> Result<Polynomial<F, Values>, SynthesisError> {
         let coeffs_len = values.len();
 
         let domain = Domain::new_for_size(coeffs_len as u64)?;
@@ -1284,12 +1240,11 @@ impl<F: PrimeField> Polynomial<F, Values> {
             omegainv: omega.inverse().unwrap(),
             geninv: F::multiplicative_generator().inverse().unwrap(),
             minv: F::from_str(&format!("{}", m)).unwrap().inverse().unwrap(),
-            _marker: std::marker::PhantomData
+            _marker: std::marker::PhantomData,
         })
     }
 
-    pub fn from_values_unpadded(values: Vec<F>) -> Result<Polynomial<F, Values>, SynthesisError>
-    {
+    pub fn from_values_unpadded(values: Vec<F>) -> Result<Polynomial<F, Values>, SynthesisError> {
         let coeffs_len = values.len();
 
         let domain = Domain::new_for_size(coeffs_len as u64)?;
@@ -1304,27 +1259,24 @@ impl<F: PrimeField> Polynomial<F, Values> {
             omegainv: omega.inverse().unwrap(),
             geninv: F::multiplicative_generator().inverse().unwrap(),
             minv: F::from_str(&format!("{}", m)).unwrap().inverse().unwrap(),
-            _marker: std::marker::PhantomData
+            _marker: std::marker::PhantomData,
         })
     }
 
     // this function should only be used on the values that are bitreverse enumerated
     #[track_caller]
-    pub fn clone_subset_assuming_bitreversed(
-        &self, 
-        subset_factor: usize,
-    ) -> Result<Polynomial<F, Values>, SynthesisError> {
+    pub fn clone_subset_assuming_bitreversed(&self, subset_factor: usize) -> Result<Polynomial<F, Values>, SynthesisError> {
         if subset_factor == 1 {
             return Ok(self.clone());
         }
 
         assert!(subset_factor.is_power_of_two());
-        
+
         let current_size = self.coeffs.len();
         let new_size = current_size / subset_factor;
 
         let mut result = Vec::with_capacity(new_size);
-        unsafe { result.set_len(new_size)};
+        unsafe { result.set_len(new_size) };
 
         // copy elements. If factor is 2 then non-reversed we would output only elements that are == 0 mod 2
         // If factor is 2 and we are bit-reversed - we need to only output first half of the coefficients
@@ -1335,19 +1287,18 @@ impl<F: PrimeField> Polynomial<F, Values> {
         let end = new_size;
 
         result.copy_from_slice(&self.coeffs[start..end]);
-        
+
         // unsafe { result.set_len(new_size)};
         // let copy_to_start_pointer: *mut F = result[..].as_mut_ptr();
         // let copy_from_start_pointer: *const F = self.coeffs[start..end].as_ptr();
-                        
+
         // unsafe { std::ptr::copy_nonoverlapping(copy_from_start_pointer, copy_to_start_pointer, new_size) };
 
         Polynomial::from_values(result)
     }
 
     #[track_caller]
-    pub fn pow(&mut self, worker: &Worker, exp: u64)
-    {
+    pub fn pow(&mut self, worker: &Worker, exp: u64) {
         if exp == 2 {
             return self.square(&worker);
         }
@@ -1363,8 +1314,7 @@ impl<F: PrimeField> Polynomial<F, Values> {
     }
 
     #[track_caller]
-    pub fn square(&mut self, worker: &Worker)
-    {
+    pub fn square(&mut self, worker: &Worker) {
         worker.scope(self.coeffs.len(), |scope, chunk| {
             for v in self.coeffs.chunks_mut(chunk) {
                 scope.spawn(move |_| {
@@ -1376,8 +1326,7 @@ impl<F: PrimeField> Polynomial<F, Values> {
         });
     }
 
-    pub fn ifft(mut self, worker: &Worker) -> Polynomial<F, Coefficients>
-    {
+    pub fn ifft(mut self, worker: &Worker) -> Polynomial<F, Coefficients> {
         debug_assert!(self.coeffs.len().is_power_of_two());
         best_fft(&mut self.coeffs, worker, &self.omegainv, self.exp, None);
 
@@ -1400,13 +1349,12 @@ impl<F: PrimeField> Polynomial<F, Values> {
             omegainv: self.omegainv,
             geninv: self.geninv,
             minv: self.minv,
-            _marker: std::marker::PhantomData
+            _marker: std::marker::PhantomData,
         }
     }
 
     #[track_caller]
-    pub fn icoset_fft(self, worker: &Worker) -> Polynomial<F, Coefficients>
-    {
+    pub fn icoset_fft(self, worker: &Worker) -> Polynomial<F, Coefficients> {
         debug_assert!(self.coeffs.len().is_power_of_two());
         let geninv = self.geninv;
         let mut res = self.ifft(worker);
@@ -1416,8 +1364,7 @@ impl<F: PrimeField> Polynomial<F, Values> {
     }
 
     #[track_caller]
-    pub fn icoset_fft_for_generator(self, worker: &Worker, coset_generator: &F) -> Polynomial<F, Coefficients>
-    {
+    pub fn icoset_fft_for_generator(self, worker: &Worker, coset_generator: &F) -> Polynomial<F, Coefficients> {
         debug_assert!(self.coeffs.len().is_power_of_two());
         let geninv = coset_generator.inverse().expect("must exist");
         let mut res = self.ifft(worker);
@@ -1468,7 +1415,7 @@ impl<F: PrimeField> Polynomial<F, Values> {
     }
 
     #[track_caller]
-    pub fn rotate(mut self, by: usize) -> Result<Polynomial<F, Values>, SynthesisError>{
+    pub fn rotate(mut self, by: usize) -> Result<Polynomial<F, Values>, SynthesisError> {
         let mut values: Vec<_> = self.coeffs.drain(by..).collect();
 
         for c in self.coeffs.into_iter() {
@@ -1483,7 +1430,7 @@ impl<F: PrimeField> Polynomial<F, Values> {
         // use a barycentric formula
 
         // L_i(X) = (omega^i / N) / (X - omega^i) * (X^N - 1)
-        // we'll have to pay more for batch inversion at some point, but 
+        // we'll have to pay more for batch inversion at some point, but
         // it's still useful
         let domain_size = self.size() as u64;
         assert!(domain_size.is_power_of_two());
@@ -1499,15 +1446,14 @@ impl<F: PrimeField> Polynomial<F, Values> {
         // constant factor = 1 / ( (1 / N) * (X^N - 1) ) = N / (X^N - 1)
 
         worker.scope(tmp.len(), |scope, chunk| {
-            for (i, vals) in tmp.chunks_mut(chunk)
-                        .enumerate() {
+            for (i, vals) in tmp.chunks_mut(chunk).enumerate() {
                 scope.spawn(move |_| {
                     // let mut one_over_omega_pow = generator_inv.pow([(i*chunk) as u64]);
                     // one_over_omega_pow.mul_assign(&constant_factor);
-                    let mut omega_power = generator.pow([(i*chunk) as u64]);
+                    let mut omega_power = generator.pow([(i * chunk) as u64]);
                     for val in vals.iter_mut() {
                         val.sub_assign(&omega_power); // (X - omega^i)
-                        // val.mul_assign(&one_over_omega_pow); // (X - omega^i) * N / (X^N - 1) * omega^(-i), so when we inverse it's valid evaluation
+                                                      // val.mul_assign(&one_over_omega_pow); // (X - omega^i) * N / (X^N - 1) * omega^(-i), so when we inverse it's valid evaluation
                         omega_power.mul_assign(&generator);
                         // one_over_omega_pow.mul_assign(&generator_inv);
                     }
@@ -1524,11 +1470,9 @@ impl<F: PrimeField> Polynomial<F, Values> {
         constant_factor.mul_assign(&self.minv);
 
         worker.scope(values.size(), |scope, chunk| {
-            for (i, (vals, coeffs)) in values.as_mut().chunks_mut(chunk)
-                            .zip(self.coeffs.chunks(chunk))
-                        .enumerate() {
+            for (i, (vals, coeffs)) in values.as_mut().chunks_mut(chunk).zip(self.coeffs.chunks(chunk)).enumerate() {
                 scope.spawn(move |_| {
-                    let mut omega_power = generator.pow([(i*chunk) as u64]);
+                    let mut omega_power = generator.pow([(i * chunk) as u64]);
                     omega_power.mul_assign(&constant_factor);
                     for (val, coeff) in vals.iter_mut().zip(coeffs.iter()) {
                         val.mul_assign(&omega_power);
@@ -1546,14 +1490,14 @@ impl<F: PrimeField> Polynomial<F, Values> {
     pub fn barycentric_over_coset_evaluate_at(&self, worker: &Worker, x: F, coset_factor: &F) -> Result<F, SynthesisError> {
         // use a barycentric formula
         // L_i(x) = \prod_{i != j} (X - x_j) / \prod_{i != j} (x_i - x_j)
-        // that for a case when x_j = g*omega^j is simplified 
+        // that for a case when x_j = g*omega^j is simplified
 
-        // \prod_{i != j} (X - x_j) = (X^N - g^N) / (X - g * omega^i) 
+        // \prod_{i != j} (X - x_j) = (X^N - g^N) / (X - g * omega^i)
 
         // \prod_{i != j} (x_i - x_j) = g * (omega)^i / N
 
         // L_i(X) = (g*(omega)^i / N) / (X - g*(omega)^i) * (X^N - g^N)
-        // we'll have to pay more for batch inversion at some point, but 
+        // we'll have to pay more for batch inversion at some point, but
         // it's still useful
         let domain_size = self.size() as u64;
         assert!(domain_size.is_power_of_two());
@@ -1575,10 +1519,9 @@ impl<F: PrimeField> Polynomial<F, Values> {
         // constant factor = 1 / ( (1 / N) * (X^N - g^N) ) = N / (X^N - g^N)
 
         worker.scope(tmp.len(), |scope, chunk| {
-            for (i, vals) in tmp.chunks_mut(chunk)
-                        .enumerate() {
+            for (i, vals) in tmp.chunks_mut(chunk).enumerate() {
                 scope.spawn(move |_| {
-                    let mut omega_power = generator.pow([(i*chunk) as u64]);
+                    let mut omega_power = generator.pow([(i * chunk) as u64]);
                     omega_power.mul_assign(&coset_factor);
                     for val in vals.iter_mut() {
                         val.sub_assign(&omega_power); // (X - omega^i)
@@ -1599,11 +1542,9 @@ impl<F: PrimeField> Polynomial<F, Values> {
         constant_factor.mul_assign(&normalization_factor);
 
         worker.scope(values.size(), |scope, chunk| {
-            for (i, (vals, coeffs)) in values.as_mut().chunks_mut(chunk)
-                            .zip(self.coeffs.chunks(chunk))
-                        .enumerate() {
+            for (i, (vals, coeffs)) in values.as_mut().chunks_mut(chunk).zip(self.coeffs.chunks(chunk)).enumerate() {
                 scope.spawn(move |_| {
-                    let mut omega_power = generator.pow([(i*chunk) as u64]);
+                    let mut omega_power = generator.pow([(i * chunk) as u64]);
                     omega_power.mul_assign(&constant_factor);
                     for (val, coeff) in vals.iter_mut().zip(coeffs.iter()) {
                         val.mul_assign(&omega_power);
@@ -1618,7 +1559,7 @@ impl<F: PrimeField> Polynomial<F, Values> {
     }
 
     // pub fn split_into_even_and_odd_assuming_natural_ordering(
-    //     self, 
+    //     self,
     //     worker: &Worker,
     // ) -> Result<(Polynomial::<F, Values>, Polynomial::<F, Values>), SynthesisError> {
     //     // Classical trick: f(x) = f_even(X^2) + x * f_odd(X^2)
@@ -1670,11 +1611,7 @@ impl<F: PrimeField> Polynomial<F, Values> {
     // }
 
     #[track_caller]
-    pub fn split_into_even_and_odd_assuming_natural_ordering(
-        self, 
-        worker: &Worker, 
-        coset_offset: &F
-    ) -> Result<(Polynomial::<F, Values>, Polynomial::<F, Values>), SynthesisError> {
+    pub fn split_into_even_and_odd_assuming_natural_ordering(self, worker: &Worker, coset_offset: &F) -> Result<(Polynomial<F, Values>, Polynomial<F, Values>), SynthesisError> {
         // Classical trick: f(x) = f_even(X^2) + x * f_odd(X^2)
 
         // f(g) = c_0 + c_1 * g + c_2 * g + c_3 * g
@@ -1692,9 +1629,8 @@ impl<F: PrimeField> Polynomial<F, Values> {
         // (f(g*Omega) + f(-g*Omega))/2 = c_0 + c_2 * g*Omega^2 + ... - those are values of the even coefficient polynomial at X^2/g
         // (f(g*Omega) - f(-g*Omega))/2 / (g * Omega) = c_1 + c_3 * Omega^2 + ... - those are values of the even coefficient polynomial at X^2/g^2
 
-
         // to make it homogenius (cause we don't care about particular coefficients)
-        // we make it as 
+        // we make it as
         // (f(g*Omega) + f(-g*Omega))/2 / g = c_0/g + c_2 * Omega^2 - values for some polynomial over (X^2 / g^2)
         // (f(g*Omega) - f(-g*Omega))/2 / (g * Omega) = c_1 + c_3 * Omega^2 - values for some polynomial over (X^2 / g^2)
         assert!(self.coeffs.len().is_power_of_two());
@@ -1704,7 +1640,7 @@ impl<F: PrimeField> Polynomial<F, Values> {
 
         let mut coeffs = self.coeffs;
 
-        let mut second: Vec<_> = coeffs.drain(result_len..(2*result_len)).collect();
+        let mut second: Vec<_> = coeffs.drain(result_len..(2 * result_len)).collect();
         let mut first = coeffs;
 
         let generator_inv = self.omegainv;
@@ -1726,11 +1662,9 @@ impl<F: PrimeField> Polynomial<F, Values> {
         // f_odd(X^2) = (f(x) - f(-x))/ 2x
 
         worker.scope(first.len(), |scope, chunk| {
-            for (i, (first, second)) in first.chunks_mut(chunk)
-                        .zip(second.chunks_mut(chunk))
-                        .enumerate() {
+            for (i, (first, second)) in first.chunks_mut(chunk).zip(second.chunks_mut(chunk)).enumerate() {
                 scope.spawn(move |_| {
-                    let mut divisor_odd = generator_inv.pow([(i*chunk) as u64]);
+                    let mut divisor_odd = generator_inv.pow([(i * chunk) as u64]);
                     divisor_odd.mul_assign(&constant_factor);
                     for (f, s) in first.iter_mut().zip(second.iter_mut()) {
                         let f_at_x = *f;
@@ -1776,12 +1710,9 @@ impl<F: PrimeField> Polynomial<F, Values> {
         let mut subproducts = vec![F::one(); num_threads as usize];
 
         worker.scope(self.coeffs.len(), |scope, chunk| {
-            for ((g, c), s) in work_chunk.chunks_mut(chunk)
-                        .zip(self.coeffs.chunks(chunk))
-                        .zip(subproducts.chunks_mut(1)) {
+            for ((g, c), s) in work_chunk.chunks_mut(chunk).zip(self.coeffs.chunks(chunk)).zip(subproducts.chunks_mut(1)) {
                 scope.spawn(move |_| {
-                    for (g, c) in g.iter_mut()
-                                    .zip(c.iter()) {
+                    for (g, c) in g.iter_mut().zip(c.iter()) {
                         s[0].mul_assign(&c);
                         *g = s[0];
                     }
@@ -1803,8 +1734,7 @@ impl<F: PrimeField> Polynomial<F, Values> {
         let chunk_len = worker.get_chunk_size(self.coeffs.len());
 
         worker.scope(0, |scope, _| {
-            for (g, s) in work_chunk[chunk_len..].chunks_mut(chunk_len)
-                        .zip(subproducts.chunks(1)) {
+            for (g, s) in work_chunk[chunk_len..].chunks_mut(chunk_len).zip(subproducts.chunks(1)) {
                 scope.spawn(move |_| {
                     for g in g.iter_mut() {
                         g.mul_assign(&s[0]);
@@ -1824,12 +1754,9 @@ impl<F: PrimeField> Polynomial<F, Values> {
         let mut subproducts = vec![F::one(); num_threads as usize];
 
         worker.scope(self.coeffs.len(), |scope, chunk| {
-            for ((g, c), s) in result.chunks_mut(chunk)
-                        .zip(self.coeffs.chunks(chunk))
-                        .zip(subproducts.chunks_mut(1)) {
+            for ((g, c), s) in result.chunks_mut(chunk).zip(self.coeffs.chunks(chunk)).zip(subproducts.chunks_mut(1)) {
                 scope.spawn(move |_| {
-                    for (g, c) in g.iter_mut()
-                                    .zip(c.iter()) {
+                    for (g, c) in g.iter_mut().zip(c.iter()) {
                         s[0].mul_assign(&c);
                         *g = s[0];
                     }
@@ -1851,8 +1778,7 @@ impl<F: PrimeField> Polynomial<F, Values> {
         let chunk_len = worker.get_chunk_size(self.coeffs.len());
 
         worker.scope(0, |scope, _| {
-            for (g, s) in result[chunk_len..].chunks_mut(chunk_len)
-                        .zip(subproducts.chunks(1)) {
+            for (g, s) in result[chunk_len..].chunks_mut(chunk_len).zip(subproducts.chunks(1)) {
                 scope.spawn(move |_| {
                     let c = s[0];
                     for g in g.iter_mut() {
@@ -1884,8 +1810,7 @@ impl<F: PrimeField> Polynomial<F, Values> {
         let mut subresults = vec![F::zero(); num_threads as usize];
 
         worker.scope(self.coeffs.len(), |scope, chunk| {
-            for (c, s) in self.coeffs.chunks(chunk)
-                        .zip(subresults.chunks_mut(1)) {
+            for (c, s) in self.coeffs.chunks(chunk).zip(subresults.chunks_mut(1)) {
                 scope.spawn(move |_| {
                     for c in c.iter() {
                         s[0].add_assign(&c);
@@ -1912,12 +1837,9 @@ impl<F: PrimeField> Polynomial<F, Values> {
         let mut subsums = vec![F::zero(); num_threads as usize];
 
         worker.scope(self.coeffs.len(), |scope, chunk| {
-            for ((g, c), s) in result[1..].chunks_mut(chunk)
-                        .zip(self.coeffs.chunks(chunk))
-                        .zip(subsums.chunks_mut(1)) {
+            for ((g, c), s) in result[1..].chunks_mut(chunk).zip(self.coeffs.chunks(chunk)).zip(subsums.chunks_mut(1)) {
                 scope.spawn(move |_| {
-                    for (g, c) in g.iter_mut()
-                                    .zip(c.iter()) {
+                    for (g, c) in g.iter_mut().zip(c.iter()) {
                         s[0].add_assign(&c);
                         *g = s[0];
                     }
@@ -1939,8 +1861,7 @@ impl<F: PrimeField> Polynomial<F, Values> {
         let chunk_len = worker.get_chunk_size(self.coeffs.len());
 
         worker.scope(0, |scope, _| {
-            for (g, s) in result[(chunk_len+1)..].chunks_mut(chunk_len)
-                        .zip(subsums.chunks(1)) {
+            for (g, s) in result[(chunk_len + 1)..].chunks_mut(chunk_len).zip(subsums.chunks(1)) {
                 scope.spawn(move |_| {
                     let c = s[0];
                     for g in g.iter_mut() {
@@ -2032,9 +1953,7 @@ impl<F: PrimeField> Polynomial<F, Values> {
         let mut subproducts = vec![F::one(); num_threads as usize];
 
         worker.scope(self.coeffs.len(), |scope, chunk| {
-            for ((a, g), s) in self.coeffs.chunks(chunk)
-                        .zip(grand_products.chunks_mut(chunk))
-                        .zip(subproducts.chunks_mut(1)) {
+            for ((a, g), s) in self.coeffs.chunks(chunk).zip(grand_products.chunks_mut(chunk)).zip(subproducts.chunks_mut(1)) {
                 scope.spawn(move |_| {
                     for (a, g) in a.iter().zip(g.iter_mut()) {
                         s[0].mul_assign(&a);
@@ -2071,12 +1990,9 @@ impl<F: PrimeField> Polynomial<F, Values> {
         }
 
         worker.scope(self.coeffs.len(), |scope, chunk| {
-            for ((a, g), s) in self.coeffs.chunks_mut(chunk)
-                        .zip(grand_products.chunks(chunk))
-                        .zip(subinverses.chunks_mut(1)) {
+            for ((a, g), s) in self.coeffs.chunks_mut(chunk).zip(grand_products.chunks(chunk)).zip(subinverses.chunks_mut(1)) {
                 scope.spawn(move |_| {
-                    for (a, g) in a.iter_mut().rev()
-                                .zip(g.iter().rev().skip(1).chain(Some(F::one()).iter())) {
+                    for (a, g) in a.iter_mut().rev().zip(g.iter().rev().skip(1).chain(Some(F::one()).iter())) {
                         // s[0] = abc^-1
                         // a = c
                         // g = ab
@@ -2105,7 +2021,7 @@ impl<F: PrimeField> Polynomial<F, Values> {
         assert!(by < len);
         let mut new_coeffs = vec![F::zero(); self.coeffs.len()];
         new_coeffs[..(len - by)].copy_from_slice(&self.coeffs[by..]);
-        new_coeffs[(len-by)..].copy_from_slice(&self.coeffs[..by]);
+        new_coeffs[(len - by)..].copy_from_slice(&self.coeffs[..by]);
 
         Self::from_values(new_coeffs)
     }
@@ -2132,15 +2048,15 @@ impl<F: PrimeField> Polynomial<F, Values> {
 
 impl<F: PartialTwoBitReductionField> Polynomial<F, Coefficients> {
     pub fn bitreversed_lde_using_bitreversed_ntt_with_partial_reduction<P: CTPrecomputations<F>>(
-        self, 
-        worker: &Worker, 
+        self,
+        worker: &Worker,
         factor: usize,
         precomputed_omegas: &P,
-        coset_factor: &F
+        coset_factor: &F,
     ) -> Result<Polynomial<F, Values>, SynthesisError> {
         debug_assert!(self.coeffs.len().is_power_of_two());
         debug_assert_eq!(self.size(), precomputed_omegas.domain_size());
-        
+
         if factor == 1 {
             return Ok(self.fft(&worker));
         }
@@ -2172,7 +2088,7 @@ impl<F: PartialTwoBitReductionField> Polynomial<F, Coefficients> {
         // let mut results = vec![self.coeffs.clone(); factor];
 
         let mut result = Vec::with_capacity(new_size);
-        unsafe { result.set_len(new_size)};
+        unsafe { result.set_len(new_size) };
 
         let r = &mut result[..] as *mut [F];
 
@@ -2188,13 +2104,13 @@ impl<F: PartialTwoBitReductionField> Polynomial<F, Coefficients> {
 
         worker.scope(range.len(), |scope, chunk| {
             for coset_idx in range.chunks(chunk) {
-                let r = unsafe {&mut *r};
+                let r = unsafe { &mut *r };
                 scope.spawn(move |_| {
                     for coset_idx in coset_idx.iter() {
                         let start = current_size * coset_idx;
                         let end = start + current_size;
                         let copy_start_pointer: *mut F = r[start..end].as_mut_ptr();
-                        
+
                         unsafe { std::ptr::copy_nonoverlapping(self_coeffs_ref.as_ptr(), copy_start_pointer, current_size) };
                     }
                 });
@@ -2213,18 +2129,18 @@ impl<F: PartialTwoBitReductionField> Polynomial<F, Coefficients> {
         // Each coset will produce values at specific indexes only, e.g
         // coset factor of omega^0 = 1 will produce elements that are only at places == 0 mod 16
         // coset factor of omega^1 will produce elements that are only at places == 1 mod 16
-        // etc. We expect the output to be bitreversed, so 
+        // etc. We expect the output to be bitreversed, so
         // elements for coset factor of omega^0 = 1 will need to be placed first (00 top bits, bitreversed 00)
         // elements for coset factor of omega^1 will need to be placed after the first half (10 top bits, bitreversed 01)
 
         worker.scope(0, |scope, _| {
             for coset_idx in 0..to_spawn {
-                let r = unsafe {&mut *r};
+                let r = unsafe { &mut *r };
                 scope.spawn(move |_| {
                     let from = coset_size * coset_idx;
                     let to = from + coset_size;
                     let one = F::one();
-                    let bitreversed_power = cooley_tukey_ntt::bitreverse(coset_idx, factor_log); 
+                    let bitreversed_power = cooley_tukey_ntt::bitreverse(coset_idx, factor_log);
                     let mut coset_generator = coset_omega.pow(&[bitreversed_power as u64]);
                     coset_generator.mul_assign(&coset_factor);
                     if coset_generator != one {
@@ -2241,10 +2157,10 @@ impl<F: PartialTwoBitReductionField> Polynomial<F, Coefficients> {
 
 impl<F: PartialTwoBitReductionField> Polynomial<F, Values> {
     pub fn ifft_using_bitreversed_ntt_with_partial_reduction<P: CTPrecomputations<F>>(
-        self, 
-        worker: &Worker, 
+        self,
+        worker: &Worker,
         precomputed_omegas: &P,
-        coset_generator: &F
+        coset_generator: &F,
     ) -> Result<Polynomial<F, Coefficients>, SynthesisError> {
         if self.coeffs.len() <= worker.cpus * 4 {
             return Ok(self.ifft(&worker));
@@ -2255,7 +2171,7 @@ impl<F: PartialTwoBitReductionField> Polynomial<F, Values> {
         cooley_tukey_ntt::partial_reduction::best_ct_ntt_partial_reduction(&mut coeffs, worker, exp, Some(worker.cpus), precomputed_omegas);
 
         let mut this = Polynomial::from_coeffs(coeffs)?;
-        
+
         this.bitreverse_enumeration(&worker);
 
         let geninv = coset_generator.inverse().expect("must exist");
@@ -2283,12 +2199,7 @@ impl<F: PartialTwoBitReductionField> Polynomial<F, Values> {
 impl<F: PrimeField> Polynomial<F, Values> {
     /// taken in natural enumeration
     /// outputs in natural enumeration
-    pub fn ifft_using_bitreversed_ntt<P: CTPrecomputations<F>>(
-        self, 
-        worker: &Worker, 
-        precomputed_omegas: &P,
-        coset_generator: &F
-    ) -> Result<Polynomial<F, Coefficients>, SynthesisError> {
+    pub fn ifft_using_bitreversed_ntt<P: CTPrecomputations<F>>(self, worker: &Worker, precomputed_omegas: &P, coset_generator: &F) -> Result<Polynomial<F, Coefficients>, SynthesisError> {
         if self.coeffs.len() <= worker.cpus * 4 {
             return Ok(self.ifft(&worker));
         }
@@ -2297,7 +2208,7 @@ impl<F: PrimeField> Polynomial<F, Values> {
         let exp = self.exp;
         cooley_tukey_ntt::best_ct_ntt(&mut coeffs, worker, exp, Some(worker.cpus), precomputed_omegas);
         let mut this = Polynomial::from_coeffs(coeffs)?;
-        
+
         this.bitreverse_enumeration(&worker);
 
         let geninv = coset_generator.inverse().expect("must exist");
@@ -2324,15 +2235,15 @@ impl<F: PrimeField> Polynomial<F, Values> {
 
 impl<F: PrimeField> Polynomial<F, Coefficients> {
     pub fn bitreversed_lde_using_bitreversed_ntt<P: CTPrecomputations<F>>(
-        self, 
-        worker: &Worker, 
+        self,
+        worker: &Worker,
         factor: usize,
         precomputed_omegas: &P,
-        coset_factor: &F
+        coset_factor: &F,
     ) -> Result<Polynomial<F, Values>, SynthesisError> {
         debug_assert!(self.coeffs.len().is_power_of_two());
         debug_assert_eq!(self.size(), precomputed_omegas.domain_size());
-        
+
         if factor == 1 {
             return Ok(self.fft(&worker));
         }
@@ -2364,7 +2275,7 @@ impl<F: PrimeField> Polynomial<F, Coefficients> {
         // let mut results = vec![self.coeffs.clone(); factor];
 
         let mut result = Vec::with_capacity(new_size);
-        unsafe { result.set_len(new_size)};
+        unsafe { result.set_len(new_size) };
 
         let r = &mut result[..] as *mut [F];
 
@@ -2380,13 +2291,13 @@ impl<F: PrimeField> Polynomial<F, Coefficients> {
 
         worker.scope(range.len(), |scope, chunk| {
             for coset_idx in range.chunks(chunk) {
-                let r = unsafe {&mut *r};
+                let r = unsafe { &mut *r };
                 scope.spawn(move |_| {
                     for coset_idx in coset_idx.iter() {
                         let start = current_size * coset_idx;
                         let end = start + current_size;
                         let copy_start_pointer: *mut F = r[start..end].as_mut_ptr();
-                        
+
                         unsafe { std::ptr::copy_nonoverlapping(self_coeffs_ref.as_ptr(), copy_start_pointer, current_size) };
                     }
                 });
@@ -2405,18 +2316,18 @@ impl<F: PrimeField> Polynomial<F, Coefficients> {
         // Each coset will produce values at specific indexes only, e.g
         // coset factor of omega^0 = 1 will produce elements that are only at places == 0 mod 16
         // coset factor of omega^1 will produce elements that are only at places == 1 mod 16
-        // etc. We expect the output to be bitreversed, so 
+        // etc. We expect the output to be bitreversed, so
         // elements for coset factor of omega^0 = 1 will need to be placed first (00 top bits, bitreversed 00)
         // elements for coset factor of omega^1 will need to be placed after the first half (10 top bits, bitreversed 01)
 
         worker.scope(0, |scope, _| {
             for coset_idx in 0..to_spawn {
-                let r = unsafe {&mut *r};
+                let r = unsafe { &mut *r };
                 scope.spawn(move |_| {
                     let from = coset_size * coset_idx;
                     let to = from + coset_size;
                     let one = F::one();
-                    let bitreversed_power = cooley_tukey_ntt::bitreverse(coset_idx, factor_log); 
+                    let bitreversed_power = cooley_tukey_ntt::bitreverse(coset_idx, factor_log);
                     let mut coset_generator = coset_omega.pow(&[bitreversed_power as u64]);
                     coset_generator.mul_assign(&coset_factor);
                     if coset_generator != one {
@@ -2432,12 +2343,7 @@ impl<F: PrimeField> Polynomial<F, Coefficients> {
 
     /// taken in natural enumeration
     /// outputs in natural enumeration
-    pub fn fft_using_bitreversed_ntt<P: CTPrecomputations<F>>(
-        self, 
-        worker: &Worker, 
-        precomputed_omegas: &P,
-        coset_generator: &F
-    ) -> Result<Polynomial<F, Values>, SynthesisError> {
+    pub fn fft_using_bitreversed_ntt<P: CTPrecomputations<F>>(self, worker: &Worker, precomputed_omegas: &P, coset_generator: &F) -> Result<Polynomial<F, Values>, SynthesisError> {
         if self.coeffs.len() <= worker.cpus * 4 {
             return Ok(self.coset_fft_for_generator(&worker, *coset_generator));
         }
@@ -2451,7 +2357,7 @@ impl<F: PrimeField> Polynomial<F, Coefficients> {
         let exp = this.exp;
         cooley_tukey_ntt::best_ct_ntt(&mut coeffs, worker, exp, Some(worker.cpus), precomputed_omegas);
         let mut this = Polynomial::from_values(coeffs)?;
-        
+
         this.bitreverse_enumeration(&worker);
 
         Ok(this)
@@ -2459,12 +2365,7 @@ impl<F: PrimeField> Polynomial<F, Coefficients> {
 
     /// taken in natural enumeration
     /// outputs in natural enumeration
-    pub fn fft_using_bitreversed_ntt_output_bitreversed<P: CTPrecomputations<F>>(
-        self, 
-        worker: &Worker, 
-        precomputed_omegas: &P,
-        coset_generator: &F
-    ) -> Result<Polynomial<F, Values>, SynthesisError> {
+    pub fn fft_using_bitreversed_ntt_output_bitreversed<P: CTPrecomputations<F>>(self, worker: &Worker, precomputed_omegas: &P, coset_generator: &F) -> Result<Polynomial<F, Values>, SynthesisError> {
         if self.coeffs.len() <= worker.cpus * 4 {
             return Ok(self.coset_fft_for_generator(&worker, *coset_generator));
         }
@@ -2478,7 +2379,7 @@ impl<F: PrimeField> Polynomial<F, Coefficients> {
         let exp = this.exp;
         cooley_tukey_ntt::best_ct_ntt(&mut coeffs, worker, exp, Some(worker.cpus), precomputed_omegas);
         let this = Polynomial::from_values(coeffs)?;
-    
+
         Ok(this)
     }
 }
@@ -2487,19 +2388,18 @@ impl<F: PrimeField> Polynomial<F, Coefficients> {
 mod test {
     use core::num;
 
-
     #[test]
     fn test_shifted_grand_product() {
-        use crate::pairing::bn256::Fr;
-        use crate::ff::{Field, PrimeField};
         use super::*;
+        use crate::ff::{Field, PrimeField};
+        use crate::pairing::bn256::Fr;
 
-        use rand::{XorShiftRng, SeedableRng, Rand, Rng};
         use crate::worker::Worker;
-    
+        use rand::{Rand, Rng, SeedableRng, XorShiftRng};
+
         let samples: usize = 1 << 20;
         let rng = &mut XorShiftRng::from_seed([0x3dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
-    
+
         let v = (0..samples).map(|_| Fr::rand(rng)).collect::<Vec<_>>();
 
         let mut manual = vec![];
@@ -2523,16 +2423,16 @@ mod test {
 
     #[test]
     fn test_grand_product() {
-        use crate::pairing::bn256::Fr;
-        use crate::ff::{Field, PrimeField};
         use super::*;
+        use crate::ff::{Field, PrimeField};
+        use crate::pairing::bn256::Fr;
 
-        use rand::{XorShiftRng, SeedableRng, Rand, Rng};
         use crate::worker::Worker;
-    
+        use rand::{Rand, Rng, SeedableRng, XorShiftRng};
+
         let samples: usize = 1 << 20;
         let rng = &mut XorShiftRng::from_seed([0x3dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
-    
+
         let v = (0..samples).map(|_| Fr::rand(rng)).collect::<Vec<_>>();
 
         let mut manual = vec![];
@@ -2556,18 +2456,18 @@ mod test {
     #[test]
     #[ignore]
     fn test_insane_size_lde() {
-        use crate::pairing::bn256::Fr;
-        use crate::ff::{Field, PrimeField};
         use super::*;
+        use crate::ff::{Field, PrimeField};
+        use crate::pairing::bn256::Fr;
 
-        use rand::{XorShiftRng, SeedableRng, Rand, Rng};
         use crate::worker::Worker;
+        use rand::{Rand, Rng, SeedableRng, XorShiftRng};
 
         let max_size = 1 << 26;
         let worker = Worker::new();
 
         assert!(worker.cpus >= 16, "should be tested only on large machines");
-    
+
         let scalars = crate::kate_commitment::test::make_random_field_elements::<Fr>(&worker, max_size);
 
         for size in vec![1 << 23, 1 << 24, 1 << 25, 1 << 26] {
@@ -2576,7 +2476,7 @@ mod test {
 
             let omegas_bitreversed = BitReversedOmegas::<Fr>::new_for_domain_size(size.next_power_of_two());
             for cpus in vec![4, 8, 16, 32] {
-            // for cpus in vec![16, 24, 32] {
+                // for cpus in vec![16, 24, 32] {
 
                 use std::time::Instant;
 
@@ -2586,12 +2486,7 @@ mod test {
 
                 let now = Instant::now();
 
-                let _ = poly.bitreversed_lde_using_bitreversed_ntt(
-                    &subworker,
-                    4,
-                    &omegas_bitreversed,
-                    &Fr::multiplicative_generator()
-                ).unwrap();
+                let _ = poly.bitreversed_lde_using_bitreversed_ntt(&subworker, 4, &omegas_bitreversed, &Fr::multiplicative_generator()).unwrap();
 
                 println!("Total LDE time for {} points on {} cpus = {:?}", size, cpus, now.elapsed());
             }
@@ -2601,18 +2496,18 @@ mod test {
     #[test]
     #[ignore]
     fn test_fft_scaling() {
-        use crate::pairing::bn256::Fr;
-        use crate::ff::{Field, PrimeField};
         use super::*;
+        use crate::ff::{Field, PrimeField};
+        use crate::pairing::bn256::Fr;
 
-        use rand::{XorShiftRng, SeedableRng, Rand, Rng};
         use crate::worker::Worker;
+        use rand::{Rand, Rng, SeedableRng, XorShiftRng};
 
         let max_size = 1 << 26;
         let worker = Worker::new();
 
         assert!(worker.cpus >= 16, "should be tested only on large machines");
-    
+
         let scalars = crate::kate_commitment::test::make_random_field_elements::<Fr>(&worker, max_size);
 
         for size in vec![1 << 23, 1 << 24, 1 << 25, 1 << 26] {
@@ -2621,7 +2516,7 @@ mod test {
 
             let omegas_bitreversed = BitReversedOmegas::<Fr>::new_for_domain_size(size.next_power_of_two());
             for cpus in vec![4, 8, 16, 32] {
-            // for cpus in vec![16, 24, 32] {
+                // for cpus in vec![16, 24, 32] {
 
                 use std::time::Instant;
 
@@ -2631,12 +2526,13 @@ mod test {
 
                 let now = Instant::now();
 
-                let _ = poly.fft_using_bitreversed_ntt_output_bitreversed(
-                    &subworker,
-                    &omegas_bitreversed,
-                    &Fr::one()
-                    // &Fr::multiplicative_generator()
-                ).unwrap();
+                let _ = poly
+                    .fft_using_bitreversed_ntt_output_bitreversed(
+                        &subworker,
+                        &omegas_bitreversed,
+                        &Fr::one(), // &Fr::multiplicative_generator()
+                    )
+                    .unwrap();
 
                 println!("Total FFT time time for {} points on {} cpus = {:?}", size, cpus, now.elapsed());
             }
@@ -2645,21 +2541,21 @@ mod test {
 
     #[test]
     fn test_lde_explicit_multicore_validity() {
-        use crate::pairing::bn256::Fr;
-        use crate::ff::{Field, PrimeField};
         use super::*;
+        use crate::ff::{Field, PrimeField};
+        use crate::pairing::bn256::Fr;
 
         if cfg!(debug_assertions) {
             println!("Will be too slow to run in test mode, abort");
             return;
         }
 
-        use rand::{XorShiftRng, SeedableRng, Rand, Rng};
         use crate::worker::Worker;
+        use rand::{Rand, Rng, SeedableRng, XorShiftRng};
 
         let size = 1 << 21;
         let worker = Worker::new();
-    
+
         let scalars = crate::kate_commitment::test::make_random_field_elements::<Fr>(&worker, size);
         let poly = Polynomial::from_coeffs(scalars).unwrap();
         let omegas_bitreversed = BitReversedOmegas::<Fr>::new_for_domain_size(size.next_power_of_two());
@@ -2679,12 +2575,7 @@ mod test {
                 //     &Fr::multiplicative_generator()
                 // ).unwrap();
 
-                let candidate = poly.bitreversed_lde_using_bitreversed_ntt(
-                    &subworker, 
-                    4, 
-                    &omegas_bitreversed, 
-                    &Fr::multiplicative_generator()
-                ).unwrap();
+                let candidate = poly.bitreversed_lde_using_bitreversed_ntt(&subworker, 4, &omegas_bitreversed, &Fr::multiplicative_generator()).unwrap();
 
                 if let Some(to_compare) = reference.take() {
                     assert_eq!(candidate.as_ref(), to_compare.as_ref(), "mismatch for {} cpus", num_cpus);

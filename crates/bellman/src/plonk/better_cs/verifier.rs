@@ -1,10 +1,10 @@
 use crate::pairing::ff::{Field, PrimeField};
-use crate::pairing::{Engine};
+use crate::pairing::Engine;
 
-use crate::{SynthesisError};
+use crate::plonk::domains::*;
 use crate::plonk::polynomials::*;
 use crate::worker::Worker;
-use crate::plonk::domains::*;
+use crate::SynthesisError;
 
 use std::marker::PhantomData;
 
@@ -13,15 +13,15 @@ use super::keys::{Proof, VerificationKey};
 
 use crate::source::{DensityTracker, DensityTrackerersChain};
 
-use crate::kate_commitment::*;
 use super::utils::*;
+use crate::kate_commitment::*;
 
 use crate::plonk::commitments::transcript::*;
 
 pub fn verify<E: Engine, P: PlonkConstraintSystemParams<E>, T: Transcript<E::Fr>>(
     proof: &Proof<E, P>,
     verification_key: &VerificationKey<E, P>,
-    transcript_init_params: Option< <T as Prng<E::Fr> >:: InitializationParameters>,
+    transcript_init_params: Option<<T as Prng<E::Fr>>::InitializationParameters>,
 ) -> Result<bool, SynthesisError> {
     let (valid, _) = verify_and_aggregate::<E, P, T>(proof, verification_key, transcript_init_params)?;
 
@@ -31,18 +31,14 @@ pub fn verify<E: Engine, P: PlonkConstraintSystemParams<E>, T: Transcript<E::Fr>
 pub fn verify_and_aggregate<E: Engine, P: PlonkConstraintSystemParams<E>, T: Transcript<E::Fr>>(
     proof: &Proof<E, P>,
     verification_key: &VerificationKey<E, P>,
-    transcript_init_params: Option< <T as Prng<E::Fr> >:: InitializationParameters>,
+    transcript_init_params: Option<<T as Prng<E::Fr>>::InitializationParameters>,
 ) -> Result<(bool, [E::G1Affine; 2]), SynthesisError> {
     use crate::pairing::CurveAffine;
     use crate::pairing::CurveProjective;
 
     assert!(P::CAN_ACCESS_NEXT_TRACE_STEP);
 
-    let mut transcript = if let Some(p) = transcript_init_params {
-        T::new_from_params(p)
-    } else {
-        T::new()
-    };
+    let mut transcript = if let Some(p) = transcript_init_params { T::new_from_params(p) } else { T::new() };
 
     if proof.n != verification_key.n {
         return Err(SynthesisError::MalformedVerifyingKey);
@@ -112,7 +108,6 @@ pub fn verify_and_aggregate<E: Engine, P: PlonkConstraintSystemParams<E>, T: Tra
 
     transcript.commit_field_element(&proof.grand_product_at_z_omega);
 
-
     // do the actual check for relationship at z
 
     {
@@ -145,9 +140,9 @@ pub fn verify_and_aggregate<E: Engine, P: PlonkConstraintSystemParams<E>, T: Tra
             tmp.mul_assign(&beta);
             tmp.add_assign(&gamma);
             tmp.add_assign(&w);
-            
+
             z_part.mul_assign(&tmp);
-        }   
+        }
 
         // last poly value and gamma
         let mut tmp = gamma;
@@ -159,7 +154,7 @@ pub fn verify_and_aggregate<E: Engine, P: PlonkConstraintSystemParams<E>, T: Tra
         rhs.sub_assign(&z_part);
 
         quotient_linearization_challenge.mul_assign(&alpha);
-        
+
         // - L_0(z) * \alpha^2
 
         let mut l_0_at_z = evaluate_l0_at_point(required_domain_size as u64, z)?;
@@ -188,7 +183,7 @@ pub fn verify_and_aggregate<E: Engine, P: PlonkConstraintSystemParams<E>, T: Tra
 
     // calculate the power to add z(X) commitment that is opened at x*omega
     // it's r(X) + witness + all permutations + 1
-    let v_power_for_standalone_z_x_opening = 1 + 1 + P::STATE_WIDTH + (P::STATE_WIDTH-1);
+    let v_power_for_standalone_z_x_opening = 1 + 1 + P::STATE_WIDTH + (P::STATE_WIDTH - 1);
 
     let virtual_commitment_for_linearization_poly = {
         let mut r = E::G1::zero();
@@ -214,7 +209,7 @@ pub fn verify_and_aggregate<E: Engine, P: PlonkConstraintSystemParams<E>, T: Tra
 
         // v * [alpha * (a + beta*z + gamma)(b + beta*k_1*z + gamma)()() * z(X) -
         // - \alpha * (a*perm_a(z)*beta + gamma)()()*beta*z(z*omega) * perm_d(X) +
-        // + alpha^2 * L_0(z) * z(X) ] + 
+        // + alpha^2 * L_0(z) * z(X) ] +
         // + v^{P} * u * z(X)
         // and join alpha^2 * L_0(z) and v^{P} * u into the first term containing z(X)
 
@@ -223,9 +218,7 @@ pub fn verify_and_aggregate<E: Engine, P: PlonkConstraintSystemParams<E>, T: Tra
             let mut scalar = E::Fr::one();
 
             // permutation part
-            for (wire, non_res) in proof.wire_values_at_z.iter()
-                            .zip(Some(E::Fr::one()).iter().chain(&non_residues)) 
-            {
+            for (wire, non_res) in proof.wire_values_at_z.iter().zip(Some(E::Fr::one()).iter().chain(&non_residues)) {
                 let mut tmp = z;
                 tmp.mul_assign(&non_res);
                 tmp.mul_assign(&beta);
@@ -265,9 +258,7 @@ pub fn verify_and_aggregate<E: Engine, P: PlonkConstraintSystemParams<E>, T: Tra
             let mut scalar = E::Fr::one();
 
             // permutation part
-            for (wire, perm_at_z) in proof.wire_values_at_z.iter()
-                            .zip(&proof.permutation_polynomials_at_z) 
-            {
+            for (wire, perm_at_z) in proof.wire_values_at_z.iter().zip(&proof.permutation_polynomials_at_z) {
                 let mut tmp = beta;
                 tmp.mul_assign(&perm_at_z);
                 tmp.add_assign(&wire);
@@ -287,7 +278,7 @@ pub fn verify_and_aggregate<E: Engine, P: PlonkConstraintSystemParams<E>, T: Tra
         {
             let mut tmp = proof.grand_product_commitment.mul(grand_product_part_at_z.into_repr());
             tmp.sub_assign(&verification_key.permutation_commitments.last().unwrap().mul(last_permutation_part_at_z.into_repr()));
-            
+
             r.add_assign(&tmp);
         }
 
@@ -352,19 +343,20 @@ pub fn verify_and_aggregate<E: Engine, P: PlonkConstraintSystemParams<E>, T: Tra
 
     let mut multiopening_challenge_for_values = E::Fr::one();
     let mut aggregated_value = proof.quotient_polynomial_at_z;
-    for value_at_z in Some(proof.linearization_polynomial_at_z).iter()
-            .chain(&proof.wire_values_at_z)
-            .chain(&proof.permutation_polynomials_at_z) 
-        {
-            multiopening_challenge_for_values.mul_assign(&v);   
-            let mut tmp = *value_at_z;
-            tmp.mul_assign(&multiopening_challenge_for_values);
-            aggregated_value.add_assign(&tmp);
-        }
+    for value_at_z in Some(proof.linearization_polynomial_at_z)
+        .iter()
+        .chain(&proof.wire_values_at_z)
+        .chain(&proof.permutation_polynomials_at_z)
+    {
+        multiopening_challenge_for_values.mul_assign(&v);
+        let mut tmp = *value_at_z;
+        tmp.mul_assign(&multiopening_challenge_for_values);
+        aggregated_value.add_assign(&tmp);
+    }
 
     // add parts that are opened at z*omega using `u`
     {
-        multiopening_challenge_for_values.mul_assign(&v);  
+        multiopening_challenge_for_values.mul_assign(&v);
         let mut scalar = multiopening_challenge_for_values;
         scalar.mul_assign(&u);
         let mut tmp = proof.grand_product_at_z_omega;
@@ -373,7 +365,7 @@ pub fn verify_and_aggregate<E: Engine, P: PlonkConstraintSystemParams<E>, T: Tra
         aggregated_value.add_assign(&tmp);
     }
     {
-        multiopening_challenge_for_values.mul_assign(&v);  
+        multiopening_challenge_for_values.mul_assign(&v);
         let mut scalar = multiopening_challenge_for_values;
         scalar.mul_assign(&u);
         let mut tmp = proof.wire_values_at_z_omega[0];
@@ -388,7 +380,7 @@ pub fn verify_and_aggregate<E: Engine, P: PlonkConstraintSystemParams<E>, T: Tra
     commitments_aggregation.sub_assign(&E::G1Affine::one().mul(aggregated_value.into_repr()));
 
     // now check that
-    // e(proof_for_z + u*proof_for_z_omega, g2^x) = e(z*proof_for_z + z*omega*u*proof_for_z_omega + (aggregated_commitment - aggregated_opening), g2^1) 
+    // e(proof_for_z + u*proof_for_z_omega, g2^x) = e(z*proof_for_z + z*omega*u*proof_for_z_omega + (aggregated_commitment - aggregated_opening), g2^1)
     // with a corresponding change of sign
 
     let mut pair_with_generator = commitments_aggregation;
@@ -405,12 +397,12 @@ pub fn verify_and_aggregate<E: Engine, P: PlonkConstraintSystemParams<E>, T: Tra
     let pair_with_generator = pair_with_generator.into_affine();
     let pair_with_x = pair_with_x.into_affine();
 
-    let valid = E::final_exponentiation(
-        &E::miller_loop(&[
-            (&pair_with_generator.prepare(), &verification_key.g2_elements[0].prepare()),
-            (&pair_with_x.prepare(), &verification_key.g2_elements[1].prepare())
-        ])
-    ).unwrap() == E::Fqk::one();
+    let valid = E::final_exponentiation(&E::miller_loop(&[
+        (&pair_with_generator.prepare(), &verification_key.g2_elements[0].prepare()),
+        (&pair_with_x.prepare(), &verification_key.g2_elements[1].prepare()),
+    ]))
+    .unwrap()
+        == E::Fqk::one();
 
     Ok((valid, [pair_with_generator, pair_with_x]))
 }

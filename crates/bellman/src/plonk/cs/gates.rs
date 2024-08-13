@@ -1,8 +1,8 @@
 use crate::pairing::ff::{Field, PrimeField};
-use crate::pairing::{Engine};
-use std::ops::{Add, Sub, Neg};
+use crate::pairing::Engine;
+use std::ops::{Add, Neg, Sub};
 
-pub use super::variable::{Variable, Index};
+pub use super::variable::{Index, Variable};
 
 pub enum Coeff<F: PrimeField> {
     Zero,
@@ -16,16 +16,16 @@ impl<F: PrimeField> std::fmt::Debug for Coeff<F> {
         match self {
             Coeff::Zero => {
                 write!(f, "Coeff 0x0")
-            },
+            }
             Coeff::One => {
                 write!(f, "Coeff 0x1")
-            },
+            }
             Coeff::NegativeOne => {
                 write!(f, "Coeff -0x1")
-            },
+            }
             Coeff::Full(c) => {
                 write!(f, "Coeff {:?}", c)
-            },
+            }
         }
     }
 }
@@ -35,18 +35,18 @@ impl<F: PrimeField> Coeff<F> {
         match self {
             Coeff::Zero => {
                 *with = F::zero();
-            },
-            Coeff::One => {},
+            }
+            Coeff::One => {}
             Coeff::NegativeOne => {
                 with.negate();
-            },
+            }
             Coeff::Full(val) => {
                 with.mul_assign(val);
             }
         }
     }
 
-    pub fn new(coeff: F) -> Self {  
+    pub fn new(coeff: F) -> Self {
         let mut negative_one = F::one();
         negative_one.negate();
 
@@ -95,13 +95,15 @@ pub struct Gate<F: PrimeField> {
     pub(crate) q_o: Coeff<F>,
     pub(crate) q_m: Coeff<F>,
     pub(crate) q_c: Coeff<F>,
-} 
+}
 
 impl<F: PrimeField> std::fmt::Debug for Gate<F> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Gate A = {:?}, B = {:?}, C = {:?}, q_l = {:?}, q_r = {:?}, q_o = {:?}, q_m = {:?}, q_c = {:?}", 
-        self.a_wire, self.b_wire, self.c_wire, self.q_l, self.q_r, self.q_o, self.q_m, self.q_c)
-
+        write!(
+            f,
+            "Gate A = {:?}, B = {:?}, C = {:?}, q_l = {:?}, q_r = {:?}, q_o = {:?}, q_m = {:?}, q_c = {:?}",
+            self.a_wire, self.b_wire, self.c_wire, self.q_l, self.q_r, self.q_o, self.q_m, self.q_c
+        )
     }
 }
 
@@ -132,7 +134,6 @@ impl<F: PrimeField> Gate<F> {
     }
 
     pub(crate) fn new_multiplication_gate(variables: (Variable, Variable, Variable)) -> Self {
-        
         Self {
             a_wire: variables.0,
             b_wire: variables.1,
@@ -160,7 +161,7 @@ impl<F: PrimeField> Gate<F> {
 
     pub(crate) fn new_lc_gate(variables: (Variable, Variable, Variable), coeffs: (F, F, F), constant: F) -> Self {
         let (a_coeff, b_coeff, c_coeff) = coeffs;
-        
+
         Self {
             a_wire: variables.0,
             b_wire: variables.1,
@@ -175,7 +176,7 @@ impl<F: PrimeField> Gate<F> {
 
     pub(crate) fn new_enforce_zero_gate(variables: (Variable, Variable, Variable), coeffs: (F, F, F)) -> Self {
         let (a_coeff, b_coeff, c_coeff) = coeffs;
-        
+
         Self {
             a_wire: variables.0,
             b_wire: variables.1,
@@ -189,7 +190,6 @@ impl<F: PrimeField> Gate<F> {
     }
 
     pub(crate) fn new_enforce_boolean_gate(variable: Variable, dummy_variable: Variable) -> Self {
-
         Self {
             a_wire: variable,
             b_wire: variable,
@@ -203,7 +203,6 @@ impl<F: PrimeField> Gate<F> {
     }
 
     pub(crate) fn new_empty_gate(dummy_variable: Variable) -> Self {
-
         Self {
             a_wire: dummy_variable,
             b_wire: dummy_variable,
@@ -250,8 +249,7 @@ impl<F: PrimeField> Gate<F> {
         }
     }
 
-    pub(crate) fn new_gate(variables: (Variable, Variable, Variable), 
-        coeffs: (F, F, F, F, F)) -> Self {
+    pub(crate) fn new_gate(variables: (Variable, Variable, Variable), coeffs: (F, F, F, F, F)) -> Self {
         let (q_l, q_r, q_o, q_m, q_c) = coeffs;
 
         Self {

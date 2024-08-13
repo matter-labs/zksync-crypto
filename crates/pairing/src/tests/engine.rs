@@ -22,15 +22,9 @@ pub fn engine_tests<E: Engine>() {
         let c = E::G1::rand(&mut rng).into_affine().prepare();
         let d = E::G2::rand(&mut rng).into_affine().prepare();
 
-        assert_eq!(
-            E::Fqk::one(),
-            E::final_exponentiation(&E::miller_loop(&[(&z1, &b)])).unwrap()
-        );
+        assert_eq!(E::Fqk::one(), E::final_exponentiation(&E::miller_loop(&[(&z1, &b)])).unwrap());
 
-        assert_eq!(
-            E::Fqk::one(),
-            E::final_exponentiation(&E::miller_loop(&[(&a, &z2)])).unwrap()
-        );
+        assert_eq!(E::Fqk::one(), E::final_exponentiation(&E::miller_loop(&[(&a, &z2)])).unwrap());
 
         assert_eq!(
             E::final_exponentiation(&E::miller_loop(&[(&z1, &b), (&c, &d)])).unwrap(),
@@ -83,8 +77,7 @@ fn random_miller_loop_tests<E: Engine>() {
         let c = c.into_affine().prepare();
         let d = d.into_affine().prepare();
 
-        let abcd_with_double_loop =
-            E::final_exponentiation(&E::miller_loop(&[(&a, &b), (&c, &d)])).unwrap();
+        let abcd_with_double_loop = E::final_exponentiation(&E::miller_loop(&[(&a, &b), (&c, &d)])).unwrap();
 
         assert_eq!(abcd, abcd_with_double_loop);
     }

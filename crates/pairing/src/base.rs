@@ -4,19 +4,7 @@ use std::fmt;
 
 /// Projective representation of an elliptic curve point guaranteed to be
 /// in the correct prime order subgroup.
-pub trait GenericCurveProjective:
-    PartialEq
-    + Eq
-    + Sized
-    + Copy
-    + Clone
-    + Send
-    + Sync
-    + fmt::Debug
-    + fmt::Display
-    + rand::Rand
-    + 'static
-{
+pub trait GenericCurveProjective: PartialEq + Eq + Sized + Copy + Clone + Send + Sync + fmt::Debug + fmt::Display + rand::Rand + 'static {
     type Scalar: PrimeField;
     type Base: SqrtField;
     type Affine: GenericCurveAffine<Projective = Self, Scalar = Self::Scalar, Base = Self::Base>;
@@ -76,7 +64,7 @@ pub trait GenericCurveProjective:
     fn as_xyz(&self) -> (&Self::Base, &Self::Base, &Self::Base) {
         unimplemented!("default implementation does not exist for this function")
     }
-    
+
     /// Returns underlying X, Y and Z coordinates. Users should check for infinity
     /// outside of this call
     fn into_xyz_unchecked(self) -> (Self::Base, Self::Base, Self::Base) {
@@ -98,9 +86,7 @@ pub trait GenericCurveProjective:
 
 /// Affine representation of an elliptic curve point guaranteed to be
 /// in the correct prime order subgroup.
-pub trait GenericCurveAffine:
-    Copy + Clone + Sized + Send + Sync + fmt::Debug + fmt::Display + PartialEq + Eq + 'static
-{
+pub trait GenericCurveAffine: Copy + Clone + Sized + Send + Sync + fmt::Debug + fmt::Display + PartialEq + Eq + 'static {
     type Scalar: PrimeField;
     type Base: SqrtField;
     type Projective: GenericCurveProjective<Affine = Self, Scalar = Self::Scalar, Base = Self::Base>;
@@ -127,7 +113,7 @@ pub trait GenericCurveAffine:
     /// Returns references to underlying X and Y coordinates. Users should check for infinity
     /// outside of this call
     fn as_xy(&self) -> (&Self::Base, &Self::Base);
-    
+
     /// Returns underlying X and Y coordinates. Users should check for infinity
     /// outside of this call
     fn into_xy_unchecked(self) -> (Self::Base, Self::Base);
@@ -175,9 +161,9 @@ pub trait GenericRawEncodable<const N: usize>: GenericUncompressedEncodable<N> {
 }
 
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
-pub struct EncodingBytes<G: GenericCurveAffine, const N: usize>{
+pub struct EncodingBytes<G: GenericCurveAffine, const N: usize> {
     bytes: [u8; N],
-    _marker: std::marker::PhantomData<G>
+    _marker: std::marker::PhantomData<G>,
 }
 
 impl<G: GenericCurveAffine, const N: usize> AsRef<[u8]> for EncodingBytes<G, N> {
@@ -197,7 +183,7 @@ impl<G: GenericCurveAffine, const N: usize> EncodingBytes<G, N> {
     pub fn empty() -> Self {
         Self {
             bytes: [0u8; N],
-            _marker: std::marker::PhantomData
+            _marker: std::marker::PhantomData,
         }
     }
 
@@ -215,7 +201,7 @@ impl<G: GenericCurveAffine, const N: usize> EncodingBytes<G, N> {
     pub fn from_bytes(bytes: [u8; N]) -> Self {
         Self {
             bytes,
-            _marker: std::marker::PhantomData
+            _marker: std::marker::PhantomData,
         }
     }
 }
@@ -260,7 +246,7 @@ impl<G: CurveAffine> GenericCurveAffine for G {
     fn as_xy(&self) -> (&Self::Base, &Self::Base) {
         <Self as CurveAffine>::as_xy(&self)
     }
-    
+
     /// Returns underlying X and Y coordinates. Users should check for infinity
     /// outside of this call
     fn into_xy_unchecked(self) -> (Self::Base, Self::Base) {
@@ -312,7 +298,7 @@ impl<G: CurveProjective> GenericCurveProjective for G {
 
     /// Normalizes a slice of projective elements so that
     /// conversion to affine is cheap.
-    fn batch_normalization(v: &mut [Self]){
+    fn batch_normalization(v: &mut [Self]) {
         <Self as CurveProjective>::batch_normalization(v)
     }
 
@@ -374,7 +360,7 @@ impl<G: CurveProjective> GenericCurveProjective for G {
     fn as_xyz(&self) -> (&Self::Base, &Self::Base, &Self::Base) {
         <Self as CurveProjective>::as_xyz(self)
     }
-    
+
     /// Returns underlying X, Y and Z coordinates. Users should check for infinity
     /// outside of this call
     fn into_xyz_unchecked(self) -> (Self::Base, Self::Base, Self::Base) {

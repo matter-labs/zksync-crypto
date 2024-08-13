@@ -1,25 +1,25 @@
-use crate::pairing::ff::{Field};
-use crate::pairing::{Engine, CurveProjective};
+use crate::pairing::ff::Field;
+use crate::pairing::{CurveProjective, Engine};
 use std::marker::PhantomData;
 
-use crate::sonic::helped::{Proof, SxyAdvice};
 use crate::sonic::helped::batch::Batch;
 use crate::sonic::helped::poly::{SxEval, SyEval};
 use crate::sonic::helped::Parameters;
+use crate::sonic::helped::{Proof, SxyAdvice};
 
 use crate::SynthesisError;
 
-use crate::sonic::transcript::{Transcript, TranscriptProtocol};
-use crate::sonic::util::*;
-use crate::sonic::cs::{Backend, SynthesisDriver, ConstraintSystem};
-use crate::sonic::cs::{Circuit, Variable, Coeff};
-use crate::sonic::srs::SRS;
+use crate::sonic::cs::{Backend, ConstraintSystem, SynthesisDriver};
+use crate::sonic::cs::{Circuit, Coeff, Variable};
+use crate::sonic::sonic::PermutationSynthesizer;
 use crate::sonic::sonic::Preprocess;
 use crate::sonic::sonic::M;
-use crate::sonic::sonic::PermutationSynthesizer;
+use crate::sonic::srs::SRS;
+use crate::sonic::transcript::{Transcript, TranscriptProtocol};
+use crate::sonic::util::*;
 
-use super::s2_proof::*;
 use super::permutation_argument::*;
+use super::s2_proof::*;
 
 #[derive(Clone)]
 pub struct PermutationStructure<E: Engine> {
@@ -30,25 +30,20 @@ pub struct PermutationStructure<E: Engine> {
     pub c: Vec<[Option<(Coeff<E>, usize)>; M]>,
 }
 
-pub fn create_permutation_structure<E: Engine, C: Circuit<E>>(
-    circuit: &C,
-) -> PermutationStructure<E>
-{
+pub fn create_permutation_structure<E: Engine, C: Circuit<E>>(circuit: &C) -> PermutationStructure<E> {
     let mut backend: Preprocess<E> = Preprocess::new();
 
     let (a, b, c) = {
-
         let mut cs: PermutationSynthesizer<E, &'_ mut Preprocess<E>> = PermutationSynthesizer::new(&mut backend);
 
         let one = cs.alloc_input(|| Ok(E::Fr::one())).expect("should have no issues");
 
         match (one, <PermutationSynthesizer<E, &'_ mut Preprocess<E>> as ConstraintSystem<E>>::ONE) {
-            (Variable::A(1), Variable::A(1)) => {},
-            _ => panic!("one variable is incorrect")
+            (Variable::A(1), Variable::A(1)) => {}
+            _ => panic!("one variable is incorrect"),
         }
 
         circuit.synthesize(&mut cs).expect("should synthesize");
-
 
         (cs.a, cs.b, cs.c)
     };
@@ -58,16 +53,10 @@ pub fn create_permutation_structure<E: Engine, C: Circuit<E>>(
 
     // println!("Will have {} gates and {} linear constraints", n, q);
 
-    PermutationStructure::<E> {
-        n: n,
-        q: q,
-        a: a,
-        b: b,
-        c: c
-    }
+    PermutationStructure::<E> { n: n, q: q, a: a, b: b, c: c }
 }
 
-use rand::{Rng, Rand};
+use rand::{Rand, Rng};
 
 impl<E: Engine> PermutationStructure<E> {
     pub fn calculate_s2_commitment_value(&self, srs: &SRS<E>) -> E::G1Affine {
@@ -83,8 +72,8 @@ impl<E: Engine> PermutationStructure<E> {
     pub fn create_inverse_permutation_vectors(&self) -> (Vec<Vec<E::Fr>>, Vec<Vec<usize>>) {
         // we have to form non-permuted coefficients, as well as permutation structures;
         let n = self.n;
-        let mut non_permuted_coeffs = vec![vec![E::Fr::zero(); 3*n+1]; M];
-        let mut permutations = vec![vec![0usize; 3*n+1]; M];
+        let mut non_permuted_coeffs = vec![vec![E::Fr::zero(); 3 * n + 1]; M];
+        let mut permutations = vec![vec![0usize; 3 * n + 1]; M];
 
         let one = E::Fr::one();
         let mut minus_one = E::Fr::one();
@@ -93,7 +82,7 @@ impl<E: Engine> PermutationStructure<E> {
         let mut not_empty = [false; M];
         // go other the permutations
         for (gate_index, info) in self.a.iter().enumerate() {
-            let offset = n-1;
+            let offset = n - 1;
             for i in 0..M {
                 // coefficients of A are placed at the offset = 0 from the beginning of the vector
                 if let Some((coeff, place)) = info[i].as_ref() {
@@ -103,21 +92,20 @@ impl<E: Engine> PermutationStructure<E> {
                     let place_coeff_into = &mut non_permuted_coeffs[i];
                     let place_permutation_into = &mut permutations[i];
                     match coeff {
-                        Coeff::Zero => {
-                        },
+                        Coeff::Zero => {}
                         Coeff::One => {
                             not_empty[i] = true;
-                            place_coeff_into[array_position] = one; 
+                            place_coeff_into[array_position] = one;
                             place_permutation_into[array_position] = *place;
-                        },
+                        }
                         Coeff::NegativeOne => {
                             not_empty[i] = true;
-                            place_coeff_into[array_position] = minus_one; 
+                            place_coeff_into[array_position] = minus_one;
                             place_permutation_into[array_position] = *place;
-                        },
+                        }
                         Coeff::Full(value) => {
                             not_empty[i] = true;
-                            place_coeff_into[array_position] = *value; 
+                            place_coeff_into[array_position] = *value;
                             place_permutation_into[array_position] = *place;
                         }
                     }
@@ -135,21 +123,20 @@ impl<E: Engine> PermutationStructure<E> {
                     let place_coeff_into = &mut non_permuted_coeffs[i];
                     let place_permutation_into = &mut permutations[i];
                     match coeff {
-                        Coeff::Zero => {
-                        },
+                        Coeff::Zero => {}
                         Coeff::One => {
                             not_empty[i] = true;
-                            place_coeff_into[array_position] = one; 
+                            place_coeff_into[array_position] = one;
                             place_permutation_into[array_position] = *place;
-                        },
+                        }
                         Coeff::NegativeOne => {
                             not_empty[i] = true;
-                            place_coeff_into[array_position] = minus_one; 
+                            place_coeff_into[array_position] = minus_one;
                             place_permutation_into[array_position] = *place;
-                        },
+                        }
                         Coeff::Full(value) => {
                             not_empty[i] = true;
-                            place_coeff_into[array_position] = *value; 
+                            place_coeff_into[array_position] = *value;
                             place_permutation_into[array_position] = *place;
                         }
                     }
@@ -158,7 +145,7 @@ impl<E: Engine> PermutationStructure<E> {
         }
 
         for (gate_index, info) in self.c.iter().enumerate() {
-            let offset = 2*n + 1;
+            let offset = 2 * n + 1;
             for i in 0..M {
                 // coefficients of A are placed at the offset = 0 from the beginning of the vector
                 if let Some((coeff, place)) = info[i].as_ref() {
@@ -168,21 +155,20 @@ impl<E: Engine> PermutationStructure<E> {
                     let place_coeff_into = &mut non_permuted_coeffs[i];
                     let place_permutation_into = &mut permutations[i];
                     match coeff {
-                        Coeff::Zero => {
-                        },
+                        Coeff::Zero => {}
                         Coeff::One => {
                             not_empty[i] = true;
-                            place_coeff_into[array_position] = one; 
+                            place_coeff_into[array_position] = one;
                             place_permutation_into[array_position] = *place;
-                        },
+                        }
                         Coeff::NegativeOne => {
                             not_empty[i] = true;
-                            place_coeff_into[array_position] = minus_one; 
+                            place_coeff_into[array_position] = minus_one;
                             place_permutation_into[array_position] = *place;
-                        },
+                        }
                         Coeff::Full(value) => {
                             not_empty[i] = true;
-                            place_coeff_into[array_position] = *value; 
+                            place_coeff_into[array_position] = *value;
                             place_permutation_into[array_position] = *place;
                         }
                     }
@@ -216,7 +202,7 @@ impl<E: Engine> PermutationStructure<E> {
         // find something faster, although it's still linear
 
         for i in 0..m {
-            let mut fillers: Vec<usize> = (1..=(3*n+1)).map(|el| el).collect();
+            let mut fillers: Vec<usize> = (1..=(3 * n + 1)).map(|el| el).collect();
             for (p, c) in permutations[i].iter_mut().zip(non_permuted_coeffs[i].iter()) {
                 if *p == 0 {
                     assert!(c.is_zero());
@@ -246,8 +232,8 @@ impl<E: Engine> PermutationStructure<E> {
     pub fn create_permutation_vectors(&self) -> (Vec<Vec<E::Fr>>, Vec<Vec<usize>>) {
         // we have to form non-permuted coefficients, as well as permutation structures;
         let n = self.n;
-        let mut non_permuted_coeffs = vec![vec![E::Fr::zero(); 3*n+1]; M];
-        let mut permutations = vec![vec![0usize; 3*n+1]; M];
+        let mut non_permuted_coeffs = vec![vec![E::Fr::zero(); 3 * n + 1]; M];
+        let mut permutations = vec![vec![0usize; 3 * n + 1]; M];
 
         let one = E::Fr::one();
         let mut minus_one = E::Fr::one();
@@ -256,7 +242,7 @@ impl<E: Engine> PermutationStructure<E> {
         let mut not_empty = [false; M];
         // go other the permutations
         for (gate_index, info) in self.a.iter().enumerate() {
-            let offset = n-1;
+            let offset = n - 1;
             for i in 0..M {
                 // coefficients of A are placed at the offset = 0 from the beginning of the vector
                 if let Some((coeff, place)) = info[i].as_ref() {
@@ -267,21 +253,20 @@ impl<E: Engine> PermutationStructure<E> {
                     let place_coeff_into = &mut non_permuted_coeffs[i];
                     let place_permutation_into = &mut permutations[i];
                     match coeff {
-                        Coeff::Zero => {
-                        },
+                        Coeff::Zero => {}
                         Coeff::One => {
                             not_empty[i] = true;
-                            place_coeff_into[coeff_position] = one; 
+                            place_coeff_into[coeff_position] = one;
                             place_permutation_into[array_position] = *place;
-                        },
+                        }
                         Coeff::NegativeOne => {
                             not_empty[i] = true;
-                            place_coeff_into[coeff_position] = minus_one; 
+                            place_coeff_into[coeff_position] = minus_one;
                             place_permutation_into[array_position] = *place;
-                        },
+                        }
                         Coeff::Full(value) => {
                             not_empty[i] = true;
-                            place_coeff_into[coeff_position] = *value; 
+                            place_coeff_into[coeff_position] = *value;
                             place_permutation_into[array_position] = *place;
                         }
                     }
@@ -300,21 +285,20 @@ impl<E: Engine> PermutationStructure<E> {
                     let place_coeff_into = &mut non_permuted_coeffs[i];
                     let place_permutation_into = &mut permutations[i];
                     match coeff {
-                        Coeff::Zero => {
-                        },
+                        Coeff::Zero => {}
                         Coeff::One => {
                             not_empty[i] = true;
-                            place_coeff_into[coeff_position] = one; 
+                            place_coeff_into[coeff_position] = one;
                             place_permutation_into[array_position] = *place;
-                        },
+                        }
                         Coeff::NegativeOne => {
                             not_empty[i] = true;
-                            place_coeff_into[coeff_position] = minus_one; 
+                            place_coeff_into[coeff_position] = minus_one;
                             place_permutation_into[array_position] = *place;
-                        },
+                        }
                         Coeff::Full(value) => {
                             not_empty[i] = true;
-                            place_coeff_into[coeff_position] = *value; 
+                            place_coeff_into[coeff_position] = *value;
                             place_permutation_into[array_position] = *place;
                         }
                     }
@@ -323,7 +307,7 @@ impl<E: Engine> PermutationStructure<E> {
         }
 
         for (gate_index, info) in self.c.iter().enumerate() {
-            let offset = 2*n + 1;
+            let offset = 2 * n + 1;
             for i in 0..M {
                 // coefficients of A are placed at the offset = 0 from the beginning of the vector
                 if let Some((coeff, place)) = info[i].as_ref() {
@@ -334,21 +318,20 @@ impl<E: Engine> PermutationStructure<E> {
                     let place_coeff_into = &mut non_permuted_coeffs[i];
                     let place_permutation_into = &mut permutations[i];
                     match coeff {
-                        Coeff::Zero => {
-                        },
+                        Coeff::Zero => {}
                         Coeff::One => {
                             not_empty[i] = true;
-                            place_coeff_into[coeff_position] = one; 
+                            place_coeff_into[coeff_position] = one;
                             place_permutation_into[array_position] = *place;
-                        },
+                        }
                         Coeff::NegativeOne => {
                             not_empty[i] = true;
-                            place_coeff_into[coeff_position] = minus_one; 
+                            place_coeff_into[coeff_position] = minus_one;
                             place_permutation_into[array_position] = *place;
-                        },
+                        }
                         Coeff::Full(value) => {
                             not_empty[i] = true;
-                            place_coeff_into[coeff_position] = *value; 
+                            place_coeff_into[coeff_position] = *value;
                             place_permutation_into[array_position] = *place;
                         }
                     }
@@ -382,7 +365,7 @@ impl<E: Engine> PermutationStructure<E> {
         // find something faster, although it's still linear
 
         for i in 0..m {
-            let mut fillers: Vec<usize> = (1..=(3*n+1)).map(|el| el).collect();
+            let mut fillers: Vec<usize> = (1..=(3 * n + 1)).map(|el| el).collect();
             for (p, _c) in permutations[i].iter_mut().zip(non_permuted_coeffs[i].iter()) {
                 if *p == 0 {
                     continue;
@@ -410,7 +393,7 @@ impl<E: Engine> PermutationStructure<E> {
         (non_permuted_coeffs, permutations)
     }
 
-    pub fn print_constraints(n:usize, q: usize, coeffs: &Vec<Vec<E::Fr>>, permutations: &Vec<Vec<usize>>) {
+    pub fn print_constraints(n: usize, q: usize, coeffs: &Vec<Vec<E::Fr>>, permutations: &Vec<Vec<usize>>) {
         let m = coeffs.len();
 
         for constraint_idx in 1..=q {
@@ -425,25 +408,20 @@ impl<E: Engine> PermutationStructure<E> {
             for (var_idx, coeff) in terms.into_iter() {
                 if var_idx < n + 1 {
                     print!("{} * A({})", coeff, n - var_idx);
-                } else if var_idx < 2*n + 1 {
+                } else if var_idx < 2 * n + 1 {
                     print!("{} * B({})", coeff, var_idx - n);
                 } else {
-                    print!("{} * C({})", coeff, var_idx - 2*n);
+                    print!("{} * C({})", coeff, var_idx - 2 * n);
                 }
                 print!("\n");
             }
         }
     }
 
-    pub fn create_permutation_special_reference(&self, srs: &SRS<E>) -> SpecializedSRS<E>
-    {
+    pub fn create_permutation_special_reference(&self, srs: &SRS<E>) -> SpecializedSRS<E> {
         let (non_permuted_coeffs, permutations) = self.create_permutation_vectors();
 
-        let specialized_srs = PermutationArgument::make_specialized_srs(
-            &non_permuted_coeffs, 
-            &permutations, 
-            &srs
-        );
+        let specialized_srs = PermutationArgument::make_specialized_srs(&non_permuted_coeffs, &permutations, &srs);
 
         specialized_srs
     }
@@ -455,7 +433,7 @@ impl<E: Engine> PermutationStructure<E> {
         for permutation_index in 0..permutations.len() {
             for (variable_index, sigma_i) in permutations[permutation_index].iter().enumerate() {
                 let y_power = y.pow([*sigma_i as u64]);
-                let x_power = z.pow([(variable_index+1) as u64]);
+                let x_power = z.pow([(variable_index + 1) as u64]);
                 let coeff = non_permuted_coeffs[permutation_index][*sigma_i - 1];
 
                 let mut result = coeff;
@@ -476,39 +454,33 @@ impl<E: Engine> PermutationStructure<E> {
         println!("Naive S contribution scaled = {}", s_contrib);
 
         // let specialized_srs = PermutationArgument::make_specialized_srs(
-        //     &non_permuted_coeffs, 
-        //     &permutations, 
+        //     &non_permuted_coeffs,
+        //     &permutations,
         //     &srs
         // );
 
-        let signature = PermutationArgument::make_signature(
-            non_permuted_coeffs,
-            permutations,
-            y,
-            z,
-            &srs,
-        );
+        let signature = PermutationArgument::make_signature(non_permuted_coeffs, permutations, y, z, &srs);
 
         signature
-    } 
+    }
 
-    pub fn create_permutation_arguments<R: Rng>(&self, y: E::Fr, z: E::Fr, rng: &mut R, srs: &SRS<E>) 
-    -> (Vec<(E::G1Affine, E::G1Affine)>, Vec<E::Fr>, PermutationProof<E>, PermutationArgumentProof<E>, E::Fr, usize, E::Fr)
-    {
+    pub fn create_permutation_arguments<R: Rng>(
+        &self,
+        y: E::Fr,
+        z: E::Fr,
+        rng: &mut R,
+        srs: &SRS<E>,
+    ) -> (Vec<(E::G1Affine, E::G1Affine)>, Vec<E::Fr>, PermutationProof<E>, PermutationArgumentProof<E>, E::Fr, usize, E::Fr) {
         // we have to form non-permuted coefficients, as well as permutation structures;
         let n = self.n;
-        
+
         let (non_permuted_coeffs, permutations) = self.create_permutation_vectors();
 
         let m = non_permuted_coeffs.len();
 
         println!("Will need {} permutation polynomials", m);
 
-        let specialized_srs = PermutationArgument::make_specialized_srs(
-            &non_permuted_coeffs, 
-            &permutations, 
-            &srs
-        );
+        let specialized_srs = PermutationArgument::make_specialized_srs(&non_permuted_coeffs, &permutations, &srs);
 
         // evaluate S naively
 
@@ -516,7 +488,7 @@ impl<E: Engine> PermutationStructure<E> {
         for permutation_index in 0..m {
             for (variable_index, sigma_i) in permutations[permutation_index].iter().enumerate() {
                 let y_power = y.pow([*sigma_i as u64]);
-                let x_power = z.pow([(variable_index+1) as u64]);
+                let x_power = z.pow([(variable_index + 1) as u64]);
                 let coeff = non_permuted_coeffs[permutation_index][*sigma_i - 1];
 
                 let mut result = coeff;
@@ -538,41 +510,25 @@ impl<E: Engine> PermutationStructure<E> {
             s_commitments.push(s);
             // println!("S' = {}", s_prime);
             s_prime_commitments.push(s_prime);
-
         }
 
-        let z_prime : E::Fr = rng.gen();
+        let z_prime: E::Fr = rng.gen();
 
         let opening = argument.open_commitments_to_s_prime(&challenges, y, z_prime, &srs);
 
         let randomness = (0..2).map(|_| E::Fr::rand(rng)).collect::<Vec<_>>();
 
-        let valid = PermutationArgument::verify_s_prime_commitment(n, 
-            &randomness, 
-            &challenges, 
-            &s_prime_commitments, 
-            &opening, 
-            y, 
-            z_prime, 
-            &specialized_srs, 
-            &srs);
+        let valid = PermutationArgument::verify_s_prime_commitment(n, &randomness, &challenges, &s_prime_commitments, &opening, y, z_prime, &specialized_srs, &srs);
 
         assert!(valid, "s' commitment must be valid");
 
-        let beta : E::Fr = rng.gen();
-        let gamma : E::Fr = rng.gen();
+        let beta: E::Fr = rng.gen();
+        let gamma: E::Fr = rng.gen();
 
         let grand_product_challenges = (0..m).map(|_| E::Fr::rand(rng)).collect::<Vec<_>>();
-        let wellformed_challenges = (0..(2*m)).map(|_| E::Fr::rand(rng)).collect::<Vec<_>>();
+        let wellformed_challenges = (0..(2 * m)).map(|_| E::Fr::rand(rng)).collect::<Vec<_>>();
 
-        let proof = argument.make_argument(
-            beta, 
-            gamma, 
-            & grand_product_challenges, 
-            & wellformed_challenges, 
-            y, 
-            z, 
-            &specialized_srs, &srs);
+        let proof = argument.make_argument(beta, gamma, &grand_product_challenges, &wellformed_challenges, y, z, &specialized_srs, &srs);
 
         let valid = PermutationArgument::verify(&s_commitments, &proof, z, &srs);
 
@@ -584,24 +540,18 @@ impl<E: Engine> PermutationStructure<E> {
 
 #[test]
 fn test_simple_succinct_sonic() {
-    use crate::pairing::ff::{Field, PrimeField};
-    use crate::pairing::{Engine, CurveAffine, CurveProjective};
     use crate::pairing::bls12_381::{Bls12, Fr};
-    use std::time::{Instant};
-    use crate::sonic::srs::SRS;
+    use crate::pairing::ff::{Field, PrimeField};
+    use crate::pairing::{CurveAffine, CurveProjective, Engine};
     use crate::sonic::cs::{Circuit, ConstraintSystem, LinearCombination};
+    use crate::sonic::srs::SRS;
+    use std::time::Instant;
 
     struct MyCircuit;
 
     impl<E: Engine> Circuit<E> for MyCircuit {
         fn synthesize<CS: ConstraintSystem<E>>(&self, cs: &mut CS) -> Result<(), SynthesisError> {
-            let (a, b, c) = cs.multiply(|| {
-                Ok((
-                    E::Fr::from_str("10").unwrap(),
-                    E::Fr::from_str("20").unwrap(),
-                    E::Fr::from_str("200").unwrap(),
-                ))
-            })?;
+            let (a, b, c) = cs.multiply(|| Ok((E::Fr::from_str("10").unwrap(), E::Fr::from_str("20").unwrap(), E::Fr::from_str("200").unwrap())))?;
 
             cs.enforce_zero(LinearCombination::zero() + (Coeff::Full(E::Fr::from_str("2").unwrap()), a) - b);
             cs.enforce_zero(LinearCombination::zero() + (Coeff::Full(E::Fr::from_str("20").unwrap()), a) - c);
@@ -636,22 +586,22 @@ fn test_simple_succinct_sonic() {
     println!("done in {:?}", start.elapsed());
 
     {
-        use rand::{XorShiftRng, SeedableRng, Rand, Rng};
+        use rand::{Rand, Rng, SeedableRng, XorShiftRng};
         let _rng = &mut XorShiftRng::from_seed([0x3dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
-        
-        use crate::sonic::sonic::Basic;
-        use crate::sonic::sonic::AdaptorCircuit;
+
+        use crate::sonic::helped::helper::create_aggregate_on_srs;
         use crate::sonic::helped::prover::{create_advice_on_srs, create_proof_on_srs};
-        use crate::sonic::helped::{MultiVerifier, get_circuit_parameters_for_succinct_sonic};
-        use crate::sonic::helped::helper::{create_aggregate_on_srs};
+        use crate::sonic::helped::{get_circuit_parameters_for_succinct_sonic, MultiVerifier};
+        use crate::sonic::sonic::AdaptorCircuit;
+        use crate::sonic::sonic::Basic;
         use crate::sonic::sonic::Permutation3;
         use crate::sonic::unhelped::permutation_structure::*;
 
         // let z: Fr = rng.gen();
-        // let y: Fr = rng.gen();  
+        // let y: Fr = rng.gen();
 
         let z: Fr = Fr::from_str("2").unwrap();
-        let y: Fr = Fr::one();  
+        let y: Fr = Fr::one();
 
         let perm_structure = create_permutation_structure::<Bls12, _>(&MyCircuit);
         let (non_permuted_coeffs, permutations) = perm_structure.create_permutation_vectors();
@@ -674,7 +624,7 @@ fn test_simple_succinct_sonic() {
                     // let coeff_sigma_i = non_permuted_coeffs[j][sigma_i - 1];
 
                     let y_power = y.pow([sigma_i as u64]);
-                    let x_power = z.pow([(i+1) as u64]);
+                    let x_power = z.pow([(i + 1) as u64]);
                     // let mut result = coeff_sigma_i;
                     let mut result = coeff_i;
                     result.mul_assign(&y_power);

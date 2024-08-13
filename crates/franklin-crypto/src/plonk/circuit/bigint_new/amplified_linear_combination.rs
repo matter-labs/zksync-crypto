@@ -1,53 +1,89 @@
-use super::*;
-use crate::bellman::plonk::better_better_cs::cs::{
-    Variable, Index, ConstraintSystem, ArithmeticTerm, MainGateTerm, Gate, MainGate
-};
 use super::super::simple_term::Term;
+use super::*;
 use crate::bellman::plonk::better_better_cs::cs::PlonkConstraintSystemParams;
+use crate::bellman::plonk::better_better_cs::cs::{ArithmeticTerm, ConstraintSystem, Gate, Index, MainGate, MainGateTerm, Variable};
 use crate::indexmap::{IndexMap, IndexSet};
 use crate::plonk::circuit::utils::is_selector_specialized_gate;
 
-const REQUIRED_STATE_WIDTH : usize = 4;
-
+const REQUIRED_STATE_WIDTH: usize = 4;
 
 #[derive(Clone, Debug)]
 struct GateConstructorHelper<E: Engine> {
-    a: Variable, b: Variable, c: Variable, d: Variable,
-    a_mul_b_coef: E::Fr, a_mul_c_coef: E::Fr,
-    a_linear_coef: E::Fr, b_linear_coef: E::Fr, c_linear_coef: E::Fr, d_linear_coef: E::Fr,
-    cnst: E::Fr, free_vars_start_idx: usize, free_vars_end_idx: usize, is_final: bool 
+    a: Variable,
+    b: Variable,
+    c: Variable,
+    d: Variable,
+    a_mul_b_coef: E::Fr,
+    a_mul_c_coef: E::Fr,
+    a_linear_coef: E::Fr,
+    b_linear_coef: E::Fr,
+    c_linear_coef: E::Fr,
+    d_linear_coef: E::Fr,
+    cnst: E::Fr,
+    free_vars_start_idx: usize,
+    free_vars_end_idx: usize,
+    is_final: bool,
 }
 
 impl<E: Engine> GateConstructorHelper<E> {
     pub fn new<CS: ConstraintSystem<E>>(cs: &mut CS) -> Self {
         let dummy = AllocatedNum::zero(cs).get_variable();
         GateConstructorHelper::<E> {
-            a: dummy, b: dummy, c: dummy, d: dummy, a_mul_b_coef: E::Fr::zero(), a_mul_c_coef: E::Fr::zero(),
-            a_linear_coef: E::Fr::zero(), b_linear_coef: E::Fr::zero(), c_linear_coef: E::Fr::zero(), 
-            d_linear_coef: E::Fr::zero(), cnst: E::Fr::zero(), 
-            free_vars_start_idx: 0, free_vars_end_idx: REQUIRED_STATE_WIDTH, is_final: false 
+            a: dummy,
+            b: dummy,
+            c: dummy,
+            d: dummy,
+            a_mul_b_coef: E::Fr::zero(),
+            a_mul_c_coef: E::Fr::zero(),
+            a_linear_coef: E::Fr::zero(),
+            b_linear_coef: E::Fr::zero(),
+            c_linear_coef: E::Fr::zero(),
+            d_linear_coef: E::Fr::zero(),
+            cnst: E::Fr::zero(),
+            free_vars_start_idx: 0,
+            free_vars_end_idx: REQUIRED_STATE_WIDTH,
+            is_final: false,
         }
     }
 
     pub fn new_for_mul<CS: ConstraintSystem<E>>(cs: &mut CS, vars: OrderedVariablePair, coef: E::Fr) -> Self {
         let dummy = AllocatedNum::zero(cs).get_variable();
         GateConstructorHelper::<E> {
-            a: vars.first, b: vars.second, c: dummy, d: dummy, a_mul_b_coef: coef, a_mul_c_coef: E::Fr::zero(),
-            a_linear_coef: E::Fr::zero(), b_linear_coef: E::Fr::zero(), c_linear_coef: E::Fr::zero(), 
-            d_linear_coef: E::Fr::zero(), cnst: E::Fr::zero(), 
-            free_vars_start_idx: 2, free_vars_end_idx: REQUIRED_STATE_WIDTH, is_final: false 
+            a: vars.first,
+            b: vars.second,
+            c: dummy,
+            d: dummy,
+            a_mul_b_coef: coef,
+            a_mul_c_coef: E::Fr::zero(),
+            a_linear_coef: E::Fr::zero(),
+            b_linear_coef: E::Fr::zero(),
+            c_linear_coef: E::Fr::zero(),
+            d_linear_coef: E::Fr::zero(),
+            cnst: E::Fr::zero(),
+            free_vars_start_idx: 2,
+            free_vars_end_idx: REQUIRED_STATE_WIDTH,
+            is_final: false,
         }
     }
 
-    pub fn new_for_pair_of_muls<CS: ConstraintSystem<E>>(
-        cs: &mut CS, a: Variable, b: Variable, c: Variable, a_mul_b_coef: E::Fr, a_mul_c_coef: E::Fr
-    ) -> Self {
+    pub fn new_for_pair_of_muls<CS: ConstraintSystem<E>>(cs: &mut CS, a: Variable, b: Variable, c: Variable, a_mul_b_coef: E::Fr, a_mul_c_coef: E::Fr) -> Self {
         let dummy = AllocatedNum::zero(cs).get_variable();
         let zero = E::Fr::zero();
         GateConstructorHelper::<E> {
-            a, b, c, d: dummy, a_mul_b_coef, a_mul_c_coef, 
-            a_linear_coef: zero, b_linear_coef: zero, c_linear_coef: zero, d_linear_coef: zero, 
-            cnst: zero, free_vars_start_idx: 3, free_vars_end_idx: REQUIRED_STATE_WIDTH, is_final: false 
+            a,
+            b,
+            c,
+            d: dummy,
+            a_mul_b_coef,
+            a_mul_c_coef,
+            a_linear_coef: zero,
+            b_linear_coef: zero,
+            c_linear_coef: zero,
+            d_linear_coef: zero,
+            cnst: zero,
+            free_vars_start_idx: 3,
+            free_vars_end_idx: REQUIRED_STATE_WIDTH,
+            is_final: false,
         }
     }
 
@@ -67,23 +103,24 @@ impl<E: Engine> GateConstructorHelper<E> {
 
     pub fn add_linear_coefficients_for_bound_variables(&mut self, var_map: &mut IndexMap<Variable, E::Fr>) {
         let iter = std::array::IntoIter::new([
-            (self.a, &mut self.a_linear_coef), (self.b, &mut self.b_linear_coef), 
-            (self.c, &mut self.c_linear_coef), (self.d, &mut self.d_linear_coef)
-        ]).take(self.free_vars_start_idx);
+            (self.a, &mut self.a_linear_coef),
+            (self.b, &mut self.b_linear_coef),
+            (self.c, &mut self.c_linear_coef),
+            (self.d, &mut self.d_linear_coef),
+        ])
+        .take(self.free_vars_start_idx);
         for (var, pos) in iter {
             let fr = var_map.remove(&var).unwrap_or(E::Fr::zero());
             *pos = fr;
         }
     }
 
-    pub fn add_linear_coefficients_for_free_variables(
-        &mut self, var_map: &mut IndexMap<Variable, E::Fr>, free_vars_set: &mut IndexSet<Variable>
-    ) {
+    pub fn add_linear_coefficients_for_free_variables(&mut self, var_map: &mut IndexMap<Variable, E::Fr>, free_vars_set: &mut IndexSet<Variable>) {
         // Rust is not an expressive language at all, that's why we unroll the loop manually
         // How much better it would look in C++.. Mmm...
         let mut vars = [self.a, self.b, self.c, self.d];
         let mut coefs = [self.a_linear_coef, self.b_linear_coef, self.c_linear_coef, self.d_linear_coef];
-        
+
         let num_elems = self.free_vars_end_idx - self.free_vars_start_idx;
         for (var_ptr, coef_ptr) in vars.iter_mut().zip(coefs.iter_mut()).skip(self.free_vars_start_idx).take(num_elems) {
             if free_vars_set.is_empty() {
@@ -114,7 +151,7 @@ impl<E: Engine> GateConstructorHelper<E> {
         let range_of_multiplicative_terms = CS::MainGate::range_of_multiplicative_term();
         let range_of_linear_terms = CS::MainGate::range_of_linear_terms();
         let index_for_constant_term = CS::MainGate::index_for_constant_term();
-        let range_of_next_step_linear_terms =  CS::MainGate::range_of_next_step_linear_terms();
+        let range_of_next_step_linear_terms = CS::MainGate::range_of_next_step_linear_terms();
 
         let dummy = AllocatedNum::zero(cs).get_variable();
         let gate_term = MainGateTerm::new();
@@ -122,12 +159,12 @@ impl<E: Engine> GateConstructorHelper<E> {
         let vars = [self.a, self.b, self.c, self.d];
 
         for (pos, fr) in range_of_multiplicative_terms.zip(&[self.a_mul_b_coef, self.a_mul_c_coef]) {
-            coefs[pos] = *fr; 
+            coefs[pos] = *fr;
         }
 
         let linear_coefs = [self.a_linear_coef, self.b_linear_coef, self.c_linear_coef, self.d_linear_coef];
         for (pos, fr) in range_of_linear_terms.zip(&linear_coefs[..]) {
-            coefs[pos] = *fr; 
+            coefs[pos] = *fr;
         }
 
         coefs[index_for_constant_term] = self.cnst;
@@ -140,18 +177,21 @@ impl<E: Engine> GateConstructorHelper<E> {
         let mg = CS::MainGate::default();
         cs.new_single_gate_for_trace_step(&mg, &coefs, &vars, &[])
     }
-        
+
     pub fn evaluate_next_trace_step_value<CS: ConstraintSystem<E>>(&self, cs: &mut CS) -> Result<E::Fr, SynthesisError> {
         let a_val = cs.get_value(self.a)?;
         let b_val = cs.get_value(self.b)?;
         let c_val = cs.get_value(self.c)?;
         let d_val = cs.get_value(self.d)?;
-        
+
         let mut result = self.cnst;
         let products = [
-            &[a_val, b_val, self.a_mul_b_coef][..], &[a_val, c_val, self.a_mul_c_coef][..], 
-            &[a_val, self.a_linear_coef][..], &[b_val, self.b_linear_coef][..], 
-            &[c_val, self.c_linear_coef][..], &[d_val, self.d_linear_coef][..]
+            &[a_val, b_val, self.a_mul_b_coef][..],
+            &[a_val, c_val, self.a_mul_c_coef][..],
+            &[a_val, self.a_linear_coef][..],
+            &[b_val, self.b_linear_coef][..],
+            &[c_val, self.c_linear_coef][..],
+            &[d_val, self.d_linear_coef][..],
         ];
         for chunk in std::array::IntoIter::new(products) {
             let mut tmp = chunk[0].clone();
@@ -165,11 +205,10 @@ impl<E: Engine> GateConstructorHelper<E> {
     }
 }
 
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 struct OrderedVariablePair {
     first: Variable,
-    second: Variable
+    second: Variable,
 }
 
 impl OrderedVariablePair {
@@ -192,7 +231,6 @@ impl OrderedVariablePair {
         }
     }
 }
-
 
 // module containing amplified version of linear combination that supports both linear and multiplicative terms
 pub struct AmplifiedLinearCombination<E: Engine> {
@@ -220,7 +258,7 @@ impl<E: Engine> From<AllocatedNum<E>> for AmplifiedLinearCombination<E> {
             value: num.value,
             linear_terms: IndexMap::from([(num.variable, E::Fr::one())]),
             quadratic_terms: IndexMap::new(),
-            constant: E::Fr::zero()
+            constant: E::Fr::zero(),
         }
     }
 }
@@ -228,17 +266,13 @@ impl<E: Engine> From<AllocatedNum<E>> for AmplifiedLinearCombination<E> {
 impl<E: Engine> From<Num<E>> for AmplifiedLinearCombination<E> {
     fn from(num: Num<E>) -> AmplifiedLinearCombination<E> {
         match num {
-            Num::Variable(allocated) => {
-                Self::from(allocated)
+            Num::Variable(allocated) => Self::from(allocated),
+            Num::Constant(constant) => Self {
+                value: Some(constant),
+                linear_terms: IndexMap::new(),
+                quadratic_terms: IndexMap::new(),
+                constant: constant,
             },
-            Num::Constant(constant) => {
-                Self {
-                    value: Some(constant),
-                    linear_terms: IndexMap::new(),
-                    quadratic_terms: IndexMap::new(),
-                    constant: constant
-                }
-            }
         }
     }
 }
@@ -303,12 +337,12 @@ impl<E: Engine> AmplifiedLinearCombination<E> {
         match number {
             Num::Variable(ref allocated_number) => {
                 self.add_assign_variable_with_coeff(allocated_number, coeff);
-            },
+            }
             Num::Constant(constant) => {
                 let mut res = coeff;
                 res.mul_assign(&constant);
                 self.add_assign_constant(res);
-            } 
+            }
         }
     }
 
@@ -325,16 +359,15 @@ impl<E: Engine> AmplifiedLinearCombination<E> {
                 curval.add_assign(&tmp);
 
                 Some(curval)
-            },
-            _ => None
+            }
+            _ => None,
         };
 
         self.value = newval;
         self.linear_terms.entry(variable.get_variable()).and_modify(|fr| fr.add_assign(&coeff)).or_insert(coeff);
     }
 
-    pub fn add_assign_term(&mut self, term: &Term<E>)
-    {
+    pub fn add_assign_term(&mut self, term: &Term<E>) {
         if term.is_constant() {
             self.add_assign_constant(term.get_constant_value());
             return;
@@ -345,29 +378,26 @@ impl<E: Engine> AmplifiedLinearCombination<E> {
         self.add_assign_number_with_coeff(&term.num, term.coeff);
     }
 
-    pub fn sub_assign_term(&mut self, term: &Term<E>)
-    {
+    pub fn sub_assign_term(&mut self, term: &Term<E>) {
         let mut negated_term = term.clone();
         negated_term.negate();
         self.add_assign_term(&negated_term);
     }
 
-    pub fn add_assign_term_with_coeff(&mut self, term: &Term<E>, coeff: E::Fr)
-    {
+    pub fn add_assign_term_with_coeff(&mut self, term: &Term<E>, coeff: E::Fr) {
         let mut scaled_term = term.clone();
         scaled_term.scale(&coeff);
         self.add_assign_term(&scaled_term)
     }
 
-    pub fn sub_assign_term_with_coeff(&mut self, term: &Term<E>, coeff: E::Fr)
-    {
+    pub fn sub_assign_term_with_coeff(&mut self, term: &Term<E>, coeff: E::Fr) {
         let mut scaled_term = term.clone();
         scaled_term.scale(&coeff);
         scaled_term.negate();
         self.add_assign_term(&scaled_term)
     }
-   
-    pub fn add_assign_constant(&mut self, coeff: E::Fr){
+
+    pub fn add_assign_constant(&mut self, coeff: E::Fr) {
         if coeff.is_zero() {
             return;
         }
@@ -377,10 +407,8 @@ impl<E: Engine> AmplifiedLinearCombination<E> {
                 curval.add_assign(&coeff);
 
                 Some(curval)
-            },
-            None => {
-                None
             }
+            None => None,
         };
 
         self.value = newval;
@@ -408,7 +436,7 @@ impl<E: Engine> AmplifiedLinearCombination<E> {
         a_scaled.scale(&coeff);
 
         if let Some(fr) = a_scaled.try_into_constant_value() {
-            self.add_assign_term_with_coeff(b, fr);    
+            self.add_assign_term_with_coeff(b, fr);
         } else if let Some(fr) = b.try_into_constant_value() {
             self.add_assign_term_with_coeff(&a_scaled, fr);
         } else {
@@ -418,36 +446,36 @@ impl<E: Engine> AmplifiedLinearCombination<E> {
                     tmp.mul_assign(&b_val);
                     tmp.add_assign(&lc_val);
                     Some(tmp)
-                },
+                }
                 _ => None,
             };
 
             // let a = p_1 * x + c_1, b = p_2 * y + c_2, then:
-            // a * b = (p_1 * x + c_1) * (p_2 * y + c_2) = 
+            // a * b = (p_1 * x + c_1) * (p_2 * y + c_2) =
             // = p_1 * p_2 * x * y + p_1 * c_2 * x + p_2 * c_1 * y + c_1 * c_2
-            let (x, p_1, c_1) = a_scaled.unpack(); 
+            let (x, p_1, c_1) = a_scaled.unpack();
             let (y, p_2, c_2) = b.unpack();
-        
+
             // add p_1 * p_2 * x * y
             let var_pair = OrderedVariablePair::new(x, y);
             let mut coeff = p_1.clone();
-            coeff.mul_assign(&p_2); 
+            coeff.mul_assign(&p_2);
             self.quadratic_terms.entry(var_pair).and_modify(|fr| fr.add_assign(&coeff)).or_insert(coeff);
 
             // add p_1 * c_2 * x
             let mut coeff = p_1.clone();
-            coeff.mul_assign(&c_2); 
+            coeff.mul_assign(&c_2);
             self.linear_terms.entry(x).and_modify(|fr| fr.add_assign(&coeff)).or_insert(coeff);
 
             // add p_2 * c_1 * y
             let mut coeff = c_1.clone();
-            coeff.mul_assign(&p_2); 
+            coeff.mul_assign(&p_2);
             self.linear_terms.entry(y).and_modify(|fr| fr.add_assign(&coeff)).or_insert(coeff);
 
             // add c_1 * c_2
             let mut coeff = c_1.clone();
             coeff.mul_assign(&c_2);
-            self.constant.add_assign(&coeff); 
+            self.constant.add_assign(&coeff);
         }
     }
 
@@ -462,7 +490,7 @@ impl<E: Engine> AmplifiedLinearCombination<E> {
             quad.insert(var_pair.first);
             quad.insert(var_pair.second);
         }
-        
+
         let mut lin = IndexSet::new();
         for var in self.linear_terms.keys() {
             lin.insert(var.clone());
@@ -480,14 +508,16 @@ impl<E: Engine> AmplifiedLinearCombination<E> {
         assert!(CS::Params::STATE_WIDTH == REQUIRED_STATE_WIDTH);
         assert!(is_selector_specialized_gate::<E, CS>());
         self.normalize();
-        if self.len() == 0 { return Ok(0); }
- 
+        if self.len() == 0 {
+            return Ok(0);
+        }
+
         let mut linear_terms_only_vars = self.get_linear_terms_only_variables();
-        let flattened_quad_releations : Vec<(OrderedVariablePair, E::Fr)> = self.quadratic_terms.into_iter().collect();
+        let flattened_quad_releations: Vec<(OrderedVariablePair, E::Fr)> = self.quadratic_terms.into_iter().collect();
         let flattened_arr_len = flattened_quad_releations.len();
-        let mut arr_indexer : IndexMap<Variable, usize> = IndexMap::new();
-        let mut gate_templates : Vec<GateConstructorHelper<E>> = vec![];
-        let mut num_gates_allocated : usize = 0;
+        let mut arr_indexer: IndexMap<Variable, usize> = IndexMap::new();
+        let mut gate_templates: Vec<GateConstructorHelper<E>> = vec![];
+        let mut num_gates_allocated: usize = 0;
 
         for i in 0..flattened_arr_len {
             let (var_pair_i, fr_i) = flattened_quad_releations[i].clone();
@@ -495,7 +525,7 @@ impl<E: Engine> AmplifiedLinearCombination<E> {
             for var in [var_pair_i.first, var_pair_i.second].iter() {
                 if let Some(j) = arr_indexer.get(var) {
                     let (var_pair_j, fr_j) = flattened_quad_releations[*j].clone();
-                    
+
                     // construct gate from two multiplications:
                     let a = *var;
                     let b = var_pair_i.get_associate(a);
@@ -514,7 +544,7 @@ impl<E: Engine> AmplifiedLinearCombination<E> {
                 }
             }
         }
-        
+
         let unconsumed_idxes = IndexSet::<usize>::from_iter(arr_indexer.into_values());
         for i in unconsumed_idxes {
             let (var_pair, fr) = flattened_quad_releations[i];
@@ -531,31 +561,27 @@ impl<E: Engine> AmplifiedLinearCombination<E> {
             if is_first {
                 gate_template.add_constant_term(self.constant);
                 is_first = false;
-            }
-            else {
+            } else {
                 gate_template.add_next_trace_step_term(next_trace_step_var);
             }
             gate_template.add_linear_coefficients_for_bound_variables(&mut self.linear_terms);
-            gate_template.add_linear_coefficients_for_free_variables(
-                &mut self.linear_terms, &mut linear_terms_only_vars
-            );
+            gate_template.add_linear_coefficients_for_free_variables(&mut self.linear_terms, &mut linear_terms_only_vars);
 
             let is_final = (idx >= gate_templates.len()) && (linear_terms_only_vars.is_empty());
             if is_final {
                 gate_template.set_finality_flag();
-            }
-            else {
+            } else {
                 // we manually allocate the new variable
                 let may_be_new_intermediate_value = gate_template.evaluate_next_trace_step_value(cs);
-                next_trace_step_var = cs.alloc(|| { may_be_new_intermediate_value })?;
+                next_trace_step_var = cs.alloc(|| may_be_new_intermediate_value)?;
             }
             gate_template.materialize(cs)?;
             num_gates_allocated += 1;
 
             if is_final {
-                break
+                break;
             }
-        } 
+        }
         Ok(num_gates_allocated)
     }
 
@@ -578,7 +604,7 @@ impl<E: Engine> AmplifiedLinearCombination<E> {
         minus_one.negate();
         self.add_assign_number_with_coeff(&num, minus_one);
         let num_gates = self.enforce_zero(cs)?;
-        
+
         Ok((num, num_gates))
     }
 }

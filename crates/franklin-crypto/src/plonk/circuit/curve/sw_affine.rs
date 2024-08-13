@@ -1,61 +1,41 @@
-use crate::bellman::pairing::{
-    Engine,
-    GenericCurveAffine,
-    GenericCurveProjective,
-};
+use crate::bellman::pairing::{Engine, GenericCurveAffine, GenericCurveProjective};
 
-use crate::bellman::pairing::ff::{
-    Field,
-    PrimeField,
-    PrimeFieldRepr,
-    BitIterator,
-    ScalarEngine
-};
+use crate::bellman::pairing::ff::{BitIterator, Field, PrimeField, PrimeFieldRepr, ScalarEngine};
 
-use crate::bellman::{
-    SynthesisError,
-};
+use crate::bellman::SynthesisError;
 
 use crate::bellman::plonk::better_better_cs::cs::{
-    Variable, 
-    ConstraintSystem,
-    ArithmeticTerm,
-    MainGateTerm,
-    Width4MainGateWithDNext,
-    MainGate,
-    GateInternal,
-    Gate,
-    LinearCombinationOfTerms,
-    PolynomialMultiplicativeTerm,
-    PolynomialInConstraint,
-    TimeDilation,
-    Coefficient,
-    PlonkConstraintSystemParams,
-    TrivialAssembly,
-    PlonkCsWidth4WithNextStepParams,
+    ArithmeticTerm, Coefficient, ConstraintSystem, Gate, GateInternal, LinearCombinationOfTerms, MainGate, MainGateTerm, PlonkConstraintSystemParams, PlonkCsWidth4WithNextStepParams,
+    PolynomialInConstraint, PolynomialMultiplicativeTerm, TimeDilation, TrivialAssembly, Variable, Width4MainGateWithDNext,
 };
 
 use crate::plonk::circuit::Assignment;
 
 use super::super::allocated_num::{AllocatedNum, Num};
+use super::super::boolean::{AllocatedBit, Boolean};
 use super::super::linear_combination::LinearCombination;
 use super::super::simple_term::Term;
-use super::super::boolean::{Boolean, AllocatedBit};
 
 use num_bigint::BigUint;
 use num_integer::Integer;
 
-use super::super::bigint::field::*;
 use super::super::bigint::bigint::*;
+use super::super::bigint::field::*;
 
 #[derive(Clone, Debug)]
-pub struct AffinePoint<'a, E: Engine, G: GenericCurveAffine> where <G as GenericCurveAffine>::Base: PrimeField {
+pub struct AffinePoint<'a, E: Engine, G: GenericCurveAffine>
+where
+    <G as GenericCurveAffine>::Base: PrimeField,
+{
     pub x: FieldElement<'a, E, G::Base>,
     pub y: FieldElement<'a, E, G::Base>,
     pub value: Option<G>,
 }
 
-impl<'a, E: Engine, G: GenericCurveAffine> AffinePoint<'a, E, G> where <G as GenericCurveAffine>::Base: PrimeField {
+impl<'a, E: Engine, G: GenericCurveAffine> AffinePoint<'a, E, G>
+where
+    <G as GenericCurveAffine>::Base: PrimeField,
+{
     pub fn get_x(&self) -> FieldElement<'a, E, G::Base> {
         self.x.clone()
     }
@@ -64,116 +44,67 @@ impl<'a, E: Engine, G: GenericCurveAffine> AffinePoint<'a, E, G> where <G as Gen
         self.y.clone()
     }
 
-    pub fn alloc<CS: ConstraintSystem<E>>(
-        cs: &mut CS,
-        value: Option<G>,
-        params: &'a RnsParameters<E, G::Base>
-    ) -> Result<Self, SynthesisError> {
+    pub fn alloc<CS: ConstraintSystem<E>>(cs: &mut CS, value: Option<G>, params: &'a RnsParameters<E, G::Base>) -> Result<Self, SynthesisError> {
         let (x, y) = match value {
             Some(v) => {
                 assert!(!v.is_zero());
                 let (x, y) = v.into_xy_unchecked();
 
                 (Some(x), Some(y))
-            },
-            None => {
-                (None, None)
             }
+            None => (None, None),
         };
 
-        let x = FieldElement::new_allocated_in_field(
-            cs, 
-            x, 
-            params
-        )?;
+        let x = FieldElement::new_allocated_in_field(cs, x, params)?;
 
-        let y = FieldElement::new_allocated_in_field(
-            cs, 
-            y, 
-            params
-        )?;
+        let y = FieldElement::new_allocated_in_field(cs, y, params)?;
 
         // let x = FieldElement::new_allocated(
-        //     cs, 
-        //     x, 
+        //     cs,
+        //     x,
         //     params
         // )?;
 
         // let y = FieldElement::new_allocated(
-        //     cs, 
-        //     y, 
+        //     cs,
+        //     y,
         //     params
         // )?;
 
-        let new = Self {
-            x,
-            y,
-            value
-        };
+        let new = Self { x, y, value };
 
         Ok(new)
     }
 
-    pub fn from_xy_unchecked(
-        x: FieldElement<'a, E, G::Base>,
-        y: FieldElement<'a, E, G::Base>,
-    ) -> Self {
+    pub fn from_xy_unchecked(x: FieldElement<'a, E, G::Base>, y: FieldElement<'a, E, G::Base>) -> Self {
         let value = match (x.get_field_value(), y.get_field_value()) {
-            (Some(x), Some(y)) => {
-                Some(G::from_xy_unchecked(x, y))
-            },
-            _ => {
-                None
-            }
+            (Some(x), Some(y)) => Some(G::from_xy_unchecked(x, y)),
+            _ => None,
         };
 
-        let new = Self {
-            x,
-            y,
-            value
-        };
+        let new = Self { x, y, value };
 
         new
     }
 
-    pub fn constant(
-        value: G,
-        params: &'a RnsParameters<E, G::Base>
-    ) -> Self {
+    pub fn constant(value: G, params: &'a RnsParameters<E, G::Base>) -> Self {
         assert!(!value.is_zero());
         let (x, y) = value.into_xy_unchecked();
 
-        let x = FieldElement::new_constant(
-            x,
-            params
-        );
+        let x = FieldElement::new_constant(x, params);
 
-        let y = FieldElement::new_constant(
-            y,
-            params
-        );
+        let y = FieldElement::new_constant(y, params);
 
-        let new = Self {
-            x,
-            y,
-            value: Some(value)
-        };
+        let new = Self { x, y, value: Some(value) };
 
         new
     }
 
-    pub fn zero(
-        params: &'a RnsParameters<E, G::Base>
-    ) -> Self
-    {
+    pub fn zero(params: &'a RnsParameters<E, G::Base>) -> Self {
         let x = FieldElement::zero(params);
         let y = FieldElement::zero(params);
 
-        let new = Self {
-            x,
-            y,
-            value: Some(G::zero())
-        };
+        let new = Self { x, y, value: Some(G::zero()) };
 
         new
     }
@@ -186,10 +117,7 @@ impl<'a, E: Engine, G: GenericCurveAffine> AffinePoint<'a, E, G> where <G as Gen
         self.value
     }
 
-    fn normalize_coordinates<CS: ConstraintSystem<E>>(
-        self,
-        cs: &mut CS
-    ) -> Result<Self, SynthesisError> {
+    fn normalize_coordinates<CS: ConstraintSystem<E>>(self, cs: &mut CS) -> Result<Self, SynthesisError> {
         let this_value = self.value;
 
         let this_x = self.x.force_reduce_close_to_modulus(cs)?;
@@ -198,18 +126,13 @@ impl<'a, E: Engine, G: GenericCurveAffine> AffinePoint<'a, E, G> where <G as Gen
         let this = Self {
             x: this_x,
             y: this_y,
-            value: this_value
+            value: this_value,
         };
 
         Ok(this)
     }
 
-    pub fn equals<CS: ConstraintSystem<E>>(
-        cs: &mut CS,
-        this: Self,
-        other: Self,
-    ) -> Result<(Boolean, (Self, Self)), SynthesisError> 
-    {
+    pub fn equals<CS: ConstraintSystem<E>>(cs: &mut CS, this: Self, other: Self) -> Result<(Boolean, (Self, Self)), SynthesisError> {
         let this = this.normalize_coordinates(cs)?;
         let other = other.normalize_coordinates(cs)?;
 
@@ -226,47 +149,40 @@ impl<'a, E: Engine, G: GenericCurveAffine> AffinePoint<'a, E, G> where <G as Gen
         Ok((equals, (this, other)))
     }
 
-    pub fn negate<CS: ConstraintSystem<E>>(
-        self,
-        cs: &mut CS,
-    ) -> Result<(Self, Self), SynthesisError> {
+    pub fn negate<CS: ConstraintSystem<E>>(self, cs: &mut CS) -> Result<(Self, Self), SynthesisError> {
         let this_value = self.get_value();
 
         let this_x = self.x;
         let this_y = self.y;
 
         let (this_y_negated, this_y) = this_y.negated(cs)?;
-       
+
         let new_value = match this_value {
             Some(this) => {
                 let mut tmp = this;
                 tmp.negate();
 
                 Some(tmp)
-            },
-            _ => None
+            }
+            _ => None,
         };
-   
+
         let new = Self {
             x: this_x.clone(),
             y: this_y_negated,
-            value: new_value
+            value: new_value,
         };
 
         let this = Self {
             x: this_x,
             y: this_y,
-            value: this_value
+            value: this_value,
         };
 
         Ok((new, this))
     }
 
-    pub fn conditionally_negate<CS: ConstraintSystem<E>>(
-        self,
-        cs: &mut CS,
-        flag: &Boolean
-    ) -> Result<(Self, (Self, Self)), SynthesisError> {
+    pub fn conditionally_negate<CS: ConstraintSystem<E>>(self, cs: &mut CS, flag: &Boolean) -> Result<(Self, (Self, Self)), SynthesisError> {
         let this_value = self.get_value();
         let this_value_nagated = this_value.map(|el| {
             let mut tmp = el;
@@ -282,8 +198,8 @@ impl<'a, E: Engine, G: GenericCurveAffine> AffinePoint<'a, E, G> where <G as Gen
                 }
 
                 Some(value)
-            },
-            _ => None
+            }
+            _ => None,
         };
 
         let this_x = self.x;
@@ -292,38 +208,34 @@ impl<'a, E: Engine, G: GenericCurveAffine> AffinePoint<'a, E, G> where <G as Gen
         let (this_y_negated, this_y) = this_y.negated(cs)?;
 
         let (selected_y, (this_y_negated, this_y)) = FieldElement::select(cs, flag, this_y_negated, this_y)?;
-       
+
         let new = Self {
             x: this_x.clone(),
             y: selected_y,
-            value: new_value
+            value: new_value,
         };
 
         let this = Self {
             x: this_x.clone(),
             y: this_y,
-            value: this_value
+            value: this_value,
         };
 
         let this_negated = Self {
             x: this_x,
             y: this_y_negated,
-            value: this_value_nagated
+            value: this_value_nagated,
         };
 
         Ok((new, (this, this_negated)))
     }
 
     #[track_caller]
-    pub fn add_unequal<CS: ConstraintSystem<E>>(
-        self,
-        cs: &mut CS,
-        other: Self
-    ) -> Result<(Self, (Self, Self)), SynthesisError> {
+    pub fn add_unequal<CS: ConstraintSystem<E>>(self, cs: &mut CS, other: Self) -> Result<(Self, (Self, Self)), SynthesisError> {
         match (self.get_value(), other.get_value()) {
             (Some(first), Some(second)) => {
                 assert!(first != second, "points are actually equal with value {}", first);
-            },
+            }
             _ => {}
         }
 
@@ -344,24 +256,19 @@ impl<'a, E: Engine, G: GenericCurveAffine> AffinePoint<'a, E, G> where <G as Gen
         this.add_unequal_unchecked(cs, other)
     }
 
-
     #[track_caller]
-    pub fn add_unequal_unchecked<CS: ConstraintSystem<E>>(
-        self,
-        cs: &mut CS,
-        other: Self
-    ) -> Result<(Self, (Self, Self)), SynthesisError> {
+    pub fn add_unequal_unchecked<CS: ConstraintSystem<E>>(self, cs: &mut CS, other: Self) -> Result<(Self, (Self, Self)), SynthesisError> {
         match (self.get_value(), other.get_value()) {
             (Some(first), Some(second)) => {
                 assert!(first != second, "points are actually equal with value {}", first);
-            },
+            }
             _ => {}
         }
         // since we are in a circuit we don't use projective coodinates cause inversions are
-        // "cheap" in terms of constraints 
+        // "cheap" in terms of constraints
 
         // we also do not want to have branching here,
-        // so this function implicitly requires that 
+        // so this function implicitly requires that
         // points are not equal
 
         // we need to calculate lambda = (y' - y)/(x' - x). We don't care about a particular
@@ -403,48 +310,40 @@ impl<'a, E: Engine, G: GenericCurveAffine> AffinePoint<'a, E, G> where <G as Gen
                 tmp.add_assign_mixed(&other);
 
                 Some(tmp.into_affine())
-            },
-            _ => None
+            }
+            _ => None,
         };
-   
-        let new = Self {
-            x: new_x,
-            y: new_y,
-            value: new_value
-        };
+
+        let new = Self { x: new_x, y: new_y, value: new_value };
 
         let this = Self {
             x: this_x,
             y: this_y,
-            value: this_value
+            value: this_value,
         };
 
         let other = Self {
             x: other_x,
             y: other_y,
-            value: other_value
+            value: other_value,
         };
 
         Ok((new, (this, other)))
     }
 
     #[track_caller]
-    pub fn sub_unequal<CS: ConstraintSystem<E>>(
-        self,
-        cs: &mut CS,
-        other: Self
-    ) -> Result<(Self, (Self, Self)), SynthesisError> {
+    pub fn sub_unequal<CS: ConstraintSystem<E>>(self, cs: &mut CS, other: Self) -> Result<(Self, (Self, Self)), SynthesisError> {
         match (self.get_value(), other.get_value()) {
             (Some(first), Some(second)) => {
                 assert!(first != second, "points are actually equal with value {}", first);
-            },
+            }
             _ => {}
         }
         // since we are in a circuit we don't use projective coodinates cause inversions are
-        // "cheap" in terms of constraints 
+        // "cheap" in terms of constraints
 
         // we also do not want to have branching here,
-        // so this function implicitly requires that 
+        // so this function implicitly requires that
         // points are not equal
 
         // we need to calculate lambda = (y' - y)/(x' - x). We don't care about a particular
@@ -479,7 +378,7 @@ impl<'a, E: Engine, G: GenericCurveAffine> AffinePoint<'a, E, G> where <G as Gen
         // lambda * -(x - new_x) + (- y)
 
         let (new_x_minus_this_x, (new_x, this_x)) = new_x.sub(cs, this_x)?;
-        
+
         let (new_y, _) = lambda.fma_with_addition_chain(cs, new_x_minus_this_x, vec![this_y_negated])?;
 
         let new_value = match (this_value, other_value) {
@@ -491,42 +390,34 @@ impl<'a, E: Engine, G: GenericCurveAffine> AffinePoint<'a, E, G> where <G as Gen
                 tmp.add_assign_mixed(&t0);
 
                 Some(tmp.into_affine())
-            },
-            _ => None
+            }
+            _ => None,
         };
-   
-        let new = Self {
-            x: new_x,
-            y: new_y,
-            value: new_value
-        };
+
+        let new = Self { x: new_x, y: new_y, value: new_value };
 
         let this = Self {
             x: this_x,
             y: this_y,
-            value: this_value
+            value: this_value,
         };
 
         let other = Self {
             x: other_x,
             y: other_y,
-            value: other_value
+            value: other_value,
         };
-
 
         Ok((new, (this, other)))
     }
 
     #[track_caller]
-    pub fn double<CS: ConstraintSystem<E>>(
-        self,
-        cs: &mut CS,
-    ) -> Result<(Self, Self), SynthesisError> {
+    pub fn double<CS: ConstraintSystem<E>>(self, cs: &mut CS) -> Result<(Self, Self), SynthesisError> {
         // since we are in a circuit we don't use projective coodinates cause inversions are
-        // "cheap" in terms of constraints 
+        // "cheap" in terms of constraints
 
         // we also do not want to have branching here,
-        // so this function implicitly requires that 
+        // so this function implicitly requires that
         // points are not equal
 
         // we need to calculate lambda = (y' - y)/(x' - x). We don't care about a particular
@@ -563,32 +454,19 @@ impl<'a, E: Engine, G: GenericCurveAffine> AffinePoint<'a, E, G> where <G as Gen
                 tmp.double();
 
                 Some(tmp.into_affine())
-            },
-            _ => None
-        };
-   
-        let new = Self {
-            x: new_x,
-            y: new_y,
-            value: new_value
+            }
+            _ => None,
         };
 
-        let this = Self {
-            x: x,
-            y: y,
-            value: this_value
-        };
+        let new = Self { x: new_x, y: new_y, value: new_value };
 
+        let this = Self { x: x, y: y, value: this_value };
 
         Ok((new, this))
     }
 
     #[track_caller]
-    pub fn double_and_add<CS: ConstraintSystem<E>>(
-        self,
-        cs: &mut CS,
-        other: Self
-    ) -> Result<(Self, (Self, Self)), SynthesisError> {
+    pub fn double_and_add<CS: ConstraintSystem<E>>(self, cs: &mut CS, other: Self) -> Result<(Self, (Self, Self)), SynthesisError> {
         // doubles self and adds other
 
         // even though https://www.researchgate.net/publication/283556724_New_Fast_Algorithms_for_Elliptic_Curve_Arithmetic_in_Affine_Coordinates exists
@@ -611,13 +489,8 @@ impl<'a, E: Engine, G: GenericCurveAffine> AffinePoint<'a, E, G> where <G as Gen
         this.double_and_add_unchecked(cs, other)
     }
 
-
     #[track_caller]
-    pub fn double_and_add_unchecked<CS: ConstraintSystem<E>>(
-        self,
-        cs: &mut CS,
-        other: Self
-    ) -> Result<(Self, (Self, Self)), SynthesisError> {
+    pub fn double_and_add_unchecked<CS: ConstraintSystem<E>>(self, cs: &mut CS, other: Self) -> Result<(Self, (Self, Self)), SynthesisError> {
         // doubles self and adds other
 
         // even though https://www.researchgate.net/publication/283556724_New_Fast_Algorithms_for_Elliptic_Curve_Arithmetic_in_Affine_Coordinates exists
@@ -678,46 +551,32 @@ impl<'a, E: Engine, G: GenericCurveAffine> AffinePoint<'a, E, G> where <G as Gen
                 tmp.add_assign_mixed(&other);
 
                 Some(tmp.into_affine())
-            },
-            _ => None
+            }
+            _ => None,
         };
-   
-        let new = Self {
-            x: new_x,
-            y: new_y,
-            value: new_value
-        };
+
+        let new = Self { x: new_x, y: new_y, value: new_value };
 
         let this = Self {
             x: this_x,
             y: this_y,
-            value: this_value
+            value: this_value,
         };
 
         let other = Self {
             x: other_x,
             y: other_y,
-            value: other_value
+            value: other_value,
         };
 
         Ok((new, (this, other)))
     }
 
-    pub fn mul_by_fixed_scalar<CS: ConstraintSystem<E>>(
-        self,
-        _cs: &mut CS,
-        _scalar: &G::Scalar
-    ) -> Result<(Self, Self), SynthesisError> {
+    pub fn mul_by_fixed_scalar<CS: ConstraintSystem<E>>(self, _cs: &mut CS, _scalar: &G::Scalar) -> Result<(Self, Self), SynthesisError> {
         unimplemented!()
     }
 
-    pub fn select<CS: ConstraintSystem<E>>(
-        cs: &mut CS,
-        flag: &Boolean,
-        first: Self,
-        second: Self
-    ) -> Result<(Self, (Self, Self)), SynthesisError> {
-
+    pub fn select<CS: ConstraintSystem<E>>(cs: &mut CS, flag: &Boolean, first: Self, second: Self) -> Result<(Self, (Self, Self)), SynthesisError> {
         let first_value = first.get_value();
         let second_value = second.get_value();
         let (x, (first_x, second_x)) = FieldElement::select(cs, flag, first.x, second.x)?;
@@ -726,36 +585,28 @@ impl<'a, E: Engine, G: GenericCurveAffine> AffinePoint<'a, E, G> where <G as Gen
         let value = match (flag.get_value(), first_value, second_value) {
             (Some(true), Some(p), _) => Some(p),
             (Some(false), _, Some(p)) => Some(p),
-            (_, _, _) => None
+            (_, _, _) => None,
         };
 
-        let selected = AffinePoint { 
-            x : x, 
-            y : y, 
-            value 
-        };
+        let selected = AffinePoint { x: x, y: y, value };
 
         let first = Self {
             x: first_x,
             y: first_y,
-            value: first_value
+            value: first_value,
         };
 
         let second = Self {
             x: second_x,
             y: second_y,
-            value: second_value
+            value: second_value,
         };
 
         Ok((selected, (first, second)))
     }
 
     #[track_caller]
-    pub fn is_on_curve_for_zero_a<CS: ConstraintSystem<E>>(
-        self,
-        cs: &mut CS,
-        curve_b: G::Base
-    ) -> Result<(Boolean, Self), SynthesisError> {
+    pub fn is_on_curve_for_zero_a<CS: ConstraintSystem<E>>(self, cs: &mut CS, curve_b: G::Base) -> Result<(Boolean, Self), SynthesisError> {
         let params = self.x.representation_params;
         assert_eq!(curve_b, G::b_coeff());
         let b = FieldElement::new_constant(curve_b, params);
@@ -780,21 +631,12 @@ impl<'a, E: Engine, G: GenericCurveAffine> AffinePoint<'a, E, G> where <G as Gen
         // dbg!(lhs.get_field_value());
         // dbg!(rhs.get_field_value());
 
-        let p = Self {
-            x,
-            y,
-            value
-        };
+        let p = Self { x, y, value };
 
         Ok((is_on_curve, p))
     }
 
-    pub fn mul_by_skewed_scalar_decomposition<CS: ConstraintSystem<E>>(
-        self,
-        cs: &mut CS,
-        entries: &[Boolean],
-        offset_generator: G,
-    ) -> Result<(Self, Self), SynthesisError> {
+    pub fn mul_by_skewed_scalar_decomposition<CS: ConstraintSystem<E>>(self, cs: &mut CS, entries: &[Boolean], offset_generator: G) -> Result<(Self, Self), SynthesisError> {
         let params = self.x.representation_params;
         let this_value = self.get_value();
         let this_copy = self.clone();
@@ -815,8 +657,8 @@ impl<'a, E: Engine, G: GenericCurveAffine> AffinePoint<'a, E, G> where <G as Gen
         let (minus_y, y) = y.negated(cs)?;
 
         for e in entries_without_first_and_last.iter() {
-            let (selected_y, _) = FieldElement::select(cs, e, minus_y.clone(), y.clone())?;  
-  
+            let (selected_y, _) = FieldElement::select(cs, e, minus_y.clone(), y.clone())?;
+
             let t_value = match (this_value, e.get_value()) {
                 (Some(val), Some(bit)) => {
                     let mut val = val;
@@ -825,15 +667,11 @@ impl<'a, E: Engine, G: GenericCurveAffine> AffinePoint<'a, E, G> where <G as Gen
                     }
 
                     Some(val)
-                },
-                _ => None
+                }
+                _ => None,
             };
 
-            let t = Self {
-                x: x,
-                y: selected_y,
-                value: t_value
-            };
+            let t = Self { x: x, y: selected_y, value: t_value };
 
             let (new_acc, (_, t)) = acc.double_and_add(cs, t)?;
 
@@ -861,8 +699,8 @@ impl<'a, E: Engine, G: GenericCurveAffine> AffinePoint<'a, E, G> where <G as Gen
                 } else {
                     Some(a_value)
                 }
-            },
-            _ => None
+            }
+            _ => None,
         };
 
         let (final_acc_x, _) = FieldElement::select(cs, last_entry, with_skew_x, acc_x)?;
@@ -877,7 +715,7 @@ impl<'a, E: Engine, G: GenericCurveAffine> AffinePoint<'a, E, G> where <G as Gen
         let result = Self {
             x: final_acc_x,
             y: final_acc_y,
-            value: final_value
+            value: final_value,
         };
 
         let (result, _) = result.sub_unequal(cs, offset)?;
@@ -888,12 +726,7 @@ impl<'a, E: Engine, G: GenericCurveAffine> AffinePoint<'a, E, G> where <G as Gen
 
 impl<'a, E: Engine> AffinePoint<'a, E, E::G1Affine> {
     #[track_caller]
-    pub fn mul<CS: ConstraintSystem<E>>(
-        self,
-        cs: &mut CS,
-        scalar: &Num::<E>,
-        bit_limit: Option<usize>
-    ) -> Result<(Self, Self), SynthesisError> {
+    pub fn mul<CS: ConstraintSystem<E>>(self, cs: &mut CS, scalar: &Num<E>, bit_limit: Option<usize>) -> Result<(Self, Self), SynthesisError> {
         if let Some(value) = scalar.get_value() {
             assert!(!value.is_zero(), "can not multiply by zero in the current approach");
         }
@@ -913,10 +746,7 @@ impl<'a, E: Engine> AffinePoint<'a, E, E::G1Affine> {
         // we add a random point to the accumulator to avoid having zero anywhere (with high probability)
         // and unknown discrete log allows us to be "safe"
 
-        let offset_generator = crate::constants::make_random_points_with_unknown_discrete_log_proj::<E>(
-            &crate::constants::MULTIEXP_DST[..], 
-            1
-        )[0];
+        let offset_generator = crate::constants::make_random_points_with_unknown_discrete_log_proj::<E>(&crate::constants::MULTIEXP_DST[..], 1)[0];
 
         let generator = Self::constant(offset_generator, params);
 
@@ -932,8 +762,8 @@ impl<'a, E: Engine> AffinePoint<'a, E, E::G1Affine> {
         let (minus_y, y) = y.negated(cs)?;
 
         for e in entries_without_first_and_last.iter() {
-            let (selected_y, _) = FieldElement::select(cs, e, minus_y.clone(), y.clone())?;  
-  
+            let (selected_y, _) = FieldElement::select(cs, e, minus_y.clone(), y.clone())?;
+
             let t_value = match (this_value, e.get_value()) {
                 (Some(val), Some(bit)) => {
                     let mut val = val;
@@ -942,15 +772,11 @@ impl<'a, E: Engine> AffinePoint<'a, E, E::G1Affine> {
                     }
 
                     Some(val)
-                },
-                _ => None
+                }
+                _ => None,
             };
 
-            let t = Self {
-                x: x,
-                y: selected_y,
-                value: t_value
-            };
+            let t = Self { x: x, y: selected_y, value: t_value };
 
             let (new_acc, (_, t)) = acc.double_and_add(cs, t)?;
 
@@ -978,8 +804,8 @@ impl<'a, E: Engine> AffinePoint<'a, E, E::G1Affine> {
                 } else {
                     Some(a_value)
                 }
-            },
-            _ => None
+            }
+            _ => None,
         };
 
         let (final_acc_x, _) = FieldElement::select(cs, last_entry, with_skew_x, acc_x)?;
@@ -993,7 +819,7 @@ impl<'a, E: Engine> AffinePoint<'a, E, E::G1Affine> {
         let result = Self {
             x: final_acc_x,
             y: final_acc_y,
-            value: final_value
+            value: final_value,
         };
 
         let (result, _) = result.sub_unequal(cs, offset)?;
@@ -1002,12 +828,7 @@ impl<'a, E: Engine> AffinePoint<'a, E, E::G1Affine> {
     }
 
     #[track_caller]
-    pub fn multiexp<CS: ConstraintSystem<E>>(
-        cs: &mut CS,
-        scalars: &[Num::<E>],
-        points: &[Self],
-        bit_limit: Option<usize>
-    ) -> Result<Self, SynthesisError> {
+    pub fn multiexp<CS: ConstraintSystem<E>>(cs: &mut CS, scalars: &[Num<E>], points: &[Self], bit_limit: Option<usize>) -> Result<Self, SynthesisError> {
         assert_eq!(scalars.len(), points.len());
 
         let params = points[0].x.representation_params;
@@ -1034,10 +855,7 @@ impl<'a, E: Engine> AffinePoint<'a, E, E::G1Affine> {
         // we add a random point to the accumulator to avoid having zero anywhere (with high probability)
         // and unknown discrete log allows us to be "safe"
 
-        let offset_generator = crate::constants::make_random_points_with_unknown_discrete_log_proj::<E>(
-            &crate::constants::MULTIEXP_DST[..], 
-            1
-        )[0];
+        let offset_generator = crate::constants::make_random_points_with_unknown_discrete_log_proj::<E>(&crate::constants::MULTIEXP_DST[..], 1)[0];
 
         let generator = Self::constant(offset_generator, params);
 
@@ -1088,8 +906,8 @@ impl<'a, E: Engine> AffinePoint<'a, E, E::G1Affine> {
                     } else {
                         Some(a_value)
                     }
-                },
-                _ => None
+                }
+                _ => None,
             };
 
             let (final_acc_x, _) = FieldElement::select(cs, last_entry, with_skew_x, acc_x)?;
@@ -1098,26 +916,26 @@ impl<'a, E: Engine> AffinePoint<'a, E, E::G1Affine> {
             let result = Self {
                 x: final_acc_x,
                 y: final_acc_y,
-                value: final_value
+                value: final_value,
             };
 
             acc = result;
         }
-        
+
         let shift = BigUint::from(1u64) << num_doubles;
         let as_scalar_repr = biguint_to_repr::<E::Fr>(shift);
         let offset_value = offset_generator.mul(as_scalar_repr).into_affine();
         let offset = Self::constant(offset_value, params);
 
         let (result, _) = acc.sub_unequal(cs, offset)?;
-        
+
         Ok(result)
     }
 
     #[track_caller]
     pub fn multiexp_using_endomorphism<CS: ConstraintSystem<E>>(
         cs: &mut CS,
-        scalars: &[Num::<E>],
+        scalars: &[Num<E>],
         points: &[Self],
         endo_parameters: &super::endomorphism::EndomorphismParameters<E>,
     ) -> Result<Self, SynthesisError> {
@@ -1139,15 +957,11 @@ impl<'a, E: Engine> AffinePoint<'a, E, E::G1Affine> {
             let (x_beta, (x, _)) = x.mul(cs, beta.clone())?;
             let (y_negated, y) = y.negated(cs)?;
 
-            let p = AffinePoint {
-                x,
-                y, 
-                value,
-            };
+            let p = AffinePoint { x, y, value };
 
             let p_endo = AffinePoint {
                 x: x_beta,
-                y: y_negated, 
+                y: y_negated,
                 value: endo_value,
             };
 
@@ -1168,7 +982,7 @@ impl<'a, E: Engine> AffinePoint<'a, E, E::G1Affine> {
                     // let (k1, k2) = endo_parameters.calculate_decomposition(*c);
 
                     // (Num::Constant(k1), Num::Constant(k1))
-                },
+                }
                 Num::Variable(var) => {
                     let (k1_val, k2_val) = if let Some(val) = var.get_value() {
                         let (k1, k2) = endo_parameters.calculate_decomposition(val);
@@ -1177,7 +991,7 @@ impl<'a, E: Engine> AffinePoint<'a, E, E::G1Affine> {
                         reconstruction.mul_assign(&endo_parameters.lambda);
                         reconstruction.negate();
                         reconstruction.add_assign(&k1);
-            
+
                         assert_eq!(reconstruction, val);
 
                         (Some(k1), Some(k2))
@@ -1215,18 +1029,11 @@ impl<'a, E: Engine> AffinePoint<'a, E, E::G1Affine> {
 }
 
 #[track_caller]
-pub fn decompose_allocated_num_into_skewed_table<E: Engine, CS: ConstraintSystem<E>>(
-    cs: &mut CS,
-    num: &AllocatedNum<E>,
-    bit_limit: Option<usize>
-) -> Result<Vec<Boolean>, SynthesisError> {
+pub fn decompose_allocated_num_into_skewed_table<E: Engine, CS: ConstraintSystem<E>>(cs: &mut CS, num: &AllocatedNum<E>, bit_limit: Option<usize>) -> Result<Vec<Boolean>, SynthesisError> {
     let bit_values = compute_skewed_naf_table(&num.get_value(), bit_limit);
     let mut bits = Vec::with_capacity(bit_values.len());
     for b in bit_values {
-        let a = Boolean::from(AllocatedBit::alloc(
-            cs,
-            b
-        )?);
+        let a = Boolean::from(AllocatedBit::alloc(cs, b)?);
         bits.push(a);
     }
 
@@ -1302,16 +1109,12 @@ fn get_bit<R: PrimeFieldRepr>(repr: &R, bit: usize) -> bool {
 
 #[track_caller]
 fn compute_skewed_naf_table<F: PrimeField>(value: &Option<F>, bit_limit: Option<usize>) -> Vec<Option<bool>> {
-    let bit_limit = if let Some(limit) = bit_limit {
-        limit
-    } else {
-        F::NUM_BITS as usize
-    };
+    let bit_limit = if let Some(limit) = bit_limit { limit } else { F::NUM_BITS as usize };
 
     assert!(bit_limit > 0);
 
     if value.is_none() {
-        return vec![None; bit_limit+1];
+        return vec![None; bit_limit + 1];
     }
 
     let value = value.unwrap();
@@ -1319,7 +1122,7 @@ fn compute_skewed_naf_table<F: PrimeField>(value: &Option<F>, bit_limit: Option<
 
     let one_repr = F::one().into_repr();
 
-    let mut bits = vec![None; bit_limit+1];
+    let mut bits = vec![None; bit_limit + 1];
 
     if get_bit(&value_repr, 0) == false {
         *bits.last_mut().unwrap() = Some(true);
@@ -1331,7 +1134,7 @@ fn compute_skewed_naf_table<F: PrimeField>(value: &Option<F>, bit_limit: Option<
     let inner_bits = &mut bits[1..bit_limit];
 
     for (i, bit) in inner_bits.iter_mut().rev().enumerate() {
-        let b = get_bit(&value_repr, i+1);
+        let b = get_bit(&value_repr, i + 1);
         if b {
             *bit = Some(false);
         } else {
@@ -1359,19 +1162,11 @@ fn compute_skewed_naf_table<F: PrimeField>(value: &Option<F>, bit_limit: Option<
             reconstructed.double();
 
             let high_bit = bits[i].unwrap();
-            let mut high_contribution = if high_bit {
-                minus_one
-            } else {
-                F::one()
-            };
+            let mut high_contribution = if high_bit { minus_one } else { F::one() };
             high_contribution.double();
 
-            let low_bit = bits[i+1].unwrap();
-            let low_contribution = if low_bit {
-                minus_one
-            } else {
-                F::one()
-            };
+            let low_bit = bits[i + 1].unwrap();
+            let low_contribution = if low_bit { minus_one } else { F::one() };
 
             reconstructed.add_assign(&high_contribution);
             reconstructed.add_assign(&low_contribution);
@@ -1380,7 +1175,7 @@ fn compute_skewed_naf_table<F: PrimeField>(value: &Option<F>, bit_limit: Option<
         if bit_limit & 1 == 1 {
             reconstructed.double();
 
-            let last_bit = bits[bit_limit-1].unwrap();
+            let last_bit = bits[bit_limit - 1].unwrap();
             if last_bit {
                 reconstructed.add_assign(&minus_one);
             } else {
@@ -1402,10 +1197,7 @@ fn simulate_multiplication<E: Engine>(point: E::G1Affine, scalar: E::Fr, num_bit
     let entries = compute_skewed_naf_table(&Some(scalar), num_bits);
     let base = point;
 
-    let offset_generator = crate::constants::make_random_points_with_unknown_discrete_log_proj::<E>(
-        &crate::constants::MULTIEXP_DST[..], 
-        1
-    )[0];
+    let offset_generator = crate::constants::make_random_points_with_unknown_discrete_log_proj::<E>(&crate::constants::MULTIEXP_DST[..], 1)[0];
 
     let mut accumulator = base.into_projective();
     accumulator.add_assign_mixed(&offset_generator);
@@ -1469,12 +1261,12 @@ fn simulate_multiplication<E: Engine>(point: E::G1Affine, scalar: E::Fr, num_bit
 mod test {
     use super::*;
 
+    use crate::bellman::pairing::bn256::{Bn256, Fq, Fr, G1Affine};
     use crate::plonk::circuit::*;
-    use crate::bellman::pairing::bn256::{Fq, Bn256, Fr, G1Affine};
 
     #[test]
-    fn test_add_on_random_witnesses(){
-        use rand::{XorShiftRng, SeedableRng, Rng};
+    fn test_add_on_random_witnesses() {
+        use rand::{Rng, SeedableRng, XorShiftRng};
         let rng = &mut XorShiftRng::from_seed([0x3dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
         let params = RnsParameters::<Bn256, Fq>::new_for_field(68, 110, 4);
@@ -1484,18 +1276,10 @@ mod test {
 
             let a_f: G1Affine = rng.gen();
             let b_f: G1Affine = rng.gen();
-            let a = AffinePoint::alloc(
-                &mut cs, 
-                Some(a_f), 
-                &params
-            ).unwrap();
+            let a = AffinePoint::alloc(&mut cs, Some(a_f), &params).unwrap();
 
-            let b = AffinePoint::alloc(
-                &mut cs, 
-                Some(b_f), 
-                &params
-            ).unwrap();
-    
+            let b = AffinePoint::alloc(&mut cs, Some(b_f), &params).unwrap();
+
             let (result, (a, b)) = a.add_unequal(&mut cs, b).unwrap();
 
             assert!(cs.is_satisfied());
@@ -1524,10 +1308,9 @@ mod test {
         }
     }
 
-
     #[test]
-    fn test_add_with_constant_on_random_witnesses(){
-        use rand::{XorShiftRng, SeedableRng, Rng};
+    fn test_add_with_constant_on_random_witnesses() {
+        use rand::{Rng, SeedableRng, XorShiftRng};
         let rng = &mut XorShiftRng::from_seed([0x3dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
         let params = RnsParameters::<Bn256, Fq>::new_for_field(68, 110, 4);
@@ -1537,17 +1320,10 @@ mod test {
 
             let a_f: G1Affine = rng.gen();
             let b_f: G1Affine = rng.gen();
-            let a = AffinePoint::alloc(
-                &mut cs, 
-                Some(a_f), 
-                &params
-            ).unwrap();
+            let a = AffinePoint::alloc(&mut cs, Some(a_f), &params).unwrap();
 
-            let b = AffinePoint::constant(
-                b_f,
-                &params
-            );
-    
+            let b = AffinePoint::constant(b_f, &params);
+
             let (result, (a, b)) = a.add_unequal(&mut cs, b).unwrap();
 
             assert!(cs.is_satisfied());
@@ -1577,8 +1353,8 @@ mod test {
     }
 
     #[test]
-    fn test_sub_on_random_witnesses(){
-        use rand::{XorShiftRng, SeedableRng, Rng};
+    fn test_sub_on_random_witnesses() {
+        use rand::{Rng, SeedableRng, XorShiftRng};
         let rng = &mut XorShiftRng::from_seed([0x3dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
         let params = RnsParameters::<Bn256, Fq>::new_for_field(68, 110, 4);
@@ -1588,18 +1364,10 @@ mod test {
 
             let a_f: G1Affine = rng.gen();
             let b_f: G1Affine = rng.gen();
-            let a = AffinePoint::alloc(
-                &mut cs, 
-                Some(a_f), 
-                &params
-            ).unwrap();
+            let a = AffinePoint::alloc(&mut cs, Some(a_f), &params).unwrap();
 
-            let b = AffinePoint::alloc(
-                &mut cs, 
-                Some(b_f), 
-                &params
-            ).unwrap();
-    
+            let b = AffinePoint::alloc(&mut cs, Some(b_f), &params).unwrap();
+
             let (result, (a, b)) = a.sub_unequal(&mut cs, b).unwrap();
 
             assert!(cs.is_satisfied());
@@ -1629,8 +1397,8 @@ mod test {
     }
 
     #[test]
-    fn test_double_on_random_witnesses(){
-        use rand::{XorShiftRng, SeedableRng, Rng};
+    fn test_double_on_random_witnesses() {
+        use rand::{Rng, SeedableRng, XorShiftRng};
         let rng = &mut XorShiftRng::from_seed([0x3dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
         let params = RnsParameters::<Bn256, Fq>::new_for_field(68, 110, 4);
@@ -1640,12 +1408,8 @@ mod test {
 
             let a_f: G1Affine = rng.gen();
 
-            let a = AffinePoint::alloc(
-                &mut cs, 
-                Some(a_f), 
-                &params
-            ).unwrap();
-    
+            let a = AffinePoint::alloc(&mut cs, Some(a_f), &params).unwrap();
+
             let (result, a) = a.double(&mut cs).unwrap();
 
             assert!(cs.is_satisfied());
@@ -1671,8 +1435,8 @@ mod test {
     }
 
     #[test]
-    fn test_double_and_add_on_random_witnesses(){
-        use rand::{XorShiftRng, SeedableRng, Rng};
+    fn test_double_and_add_on_random_witnesses() {
+        use rand::{Rng, SeedableRng, XorShiftRng};
         let rng = &mut XorShiftRng::from_seed([0x3dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
         let params = RnsParameters::<Bn256, Fq>::new_for_field(68, 110, 4);
@@ -1683,18 +1447,10 @@ mod test {
             let a_f: G1Affine = rng.gen();
             let b_f: G1Affine = rng.gen();
 
-            let a = AffinePoint::alloc(
-                &mut cs, 
-                Some(a_f), 
-                &params
-            ).unwrap();
+            let a = AffinePoint::alloc(&mut cs, Some(a_f), &params).unwrap();
 
-            let b = AffinePoint::alloc(
-                &mut cs, 
-                Some(b_f), 
-                &params
-            ).unwrap();
-    
+            let b = AffinePoint::alloc(&mut cs, Some(b_f), &params).unwrap();
+
             let (result, (a, b)) = a.double_and_add(&mut cs, b).unwrap();
 
             let mut result_recalcualted = a_f.into_projective();
@@ -1735,21 +1491,20 @@ mod test {
     }
 
     #[test]
-    fn test_skewed_decomposition_on_random_witnesses(){
-        use rand::{XorShiftRng, SeedableRng, Rng};
+    fn test_skewed_decomposition_on_random_witnesses() {
+        use rand::{Rng, SeedableRng, XorShiftRng};
         let rng = &mut XorShiftRng::from_seed([0x3dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
         for _i in 0..100 {
             let a_f: Fr = rng.gen();
 
             let _ = compute_skewed_naf_table(&Some(a_f), None);
-            
         }
     }
 
     #[test]
-    fn test_allocated_skewed_decomposition_on_random_witnesses(){
-        use rand::{XorShiftRng, SeedableRng, Rng};
+    fn test_allocated_skewed_decomposition_on_random_witnesses() {
+        use rand::{Rng, SeedableRng, XorShiftRng};
         let rng = &mut XorShiftRng::from_seed([0x3dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
         for i in 0..100 {
@@ -1757,12 +1512,7 @@ mod test {
 
             let a_f: Fr = rng.gen();
 
-            let a = AllocatedNum::alloc(
-                &mut cs, 
-                || {
-                    Ok(a_f)
-                }
-            ).unwrap();
+            let a = AllocatedNum::alloc(&mut cs, || Ok(a_f)).unwrap();
 
             let _ = decompose_allocated_num_into_skewed_table(&mut cs, &a, None).unwrap();
 
@@ -1774,13 +1524,12 @@ mod test {
         }
     }
 
-
     #[test]
-    fn test_allocated_skewed_decomposition_bls12_on_random_witnesses(){
-        use rand::{XorShiftRng, SeedableRng, Rng};
+    fn test_allocated_skewed_decomposition_bls12_on_random_witnesses() {
+        use rand::{Rng, SeedableRng, XorShiftRng};
         let rng = &mut XorShiftRng::from_seed([0x3dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
-        use crate::bellman::pairing::bls12_381::{Bls12, Fr, Fq, G1Affine, G1};
+        use crate::bellman::pairing::bls12_381::{Bls12, Fq, Fr, G1Affine, G1};
 
         let mut four = Fr::one();
         four.double();
@@ -1793,12 +1542,7 @@ mod test {
 
             let a_f: Fr = rng.gen();
 
-            let a = AllocatedNum::alloc(
-                &mut cs, 
-                || {
-                    Ok(a_f)
-                }
-            ).unwrap();
+            let a = AllocatedNum::alloc(&mut cs, || Ok(a_f)).unwrap();
 
             let _ = decompose_allocated_num_into_skewed_table(&mut cs, &a, None).unwrap();
 
@@ -1811,8 +1555,8 @@ mod test {
     }
 
     #[test]
-    fn test_base_curve_multiplication_by_two_on_random_witnesses(){
-        use rand::{XorShiftRng, SeedableRng, Rng};
+    fn test_base_curve_multiplication_by_two_on_random_witnesses() {
+        use rand::{Rng, SeedableRng, XorShiftRng};
         let rng = &mut XorShiftRng::from_seed([0x3dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
         let params = RnsParameters::<Bn256, Fq>::new_for_field(68, 110, 4);
@@ -1824,23 +1568,14 @@ mod test {
             let mut b_f: Fr = Fr::one();
             b_f.double();
 
-            let a = AffinePoint::alloc(
-                &mut cs, 
-                Some(a_f), 
-                &params
-            ).unwrap();
+            let a = AffinePoint::alloc(&mut cs, Some(a_f), &params).unwrap();
 
-            let b = AllocatedNum::alloc(
-                &mut cs, 
-                || {
-                    Ok(b_f)
-                }
-            ).unwrap();
+            let b = AllocatedNum::alloc(&mut cs, || Ok(b_f)).unwrap();
 
             let b = Num::Variable(b);
 
             // simulate_multiplication::<Bn256>(a_f, b_f, Some(2));
-    
+
             let (result, a) = a.mul(&mut cs, &b, Some(2)).unwrap();
 
             let result_recalculated = a_f.mul(b_f.into_repr()).into_affine();
@@ -1875,8 +1610,8 @@ mod test {
     }
 
     #[test]
-    fn test_base_curve_multiplication_on_random_witnesses(){
-        use rand::{XorShiftRng, SeedableRng, Rng};
+    fn test_base_curve_multiplication_on_random_witnesses() {
+        use rand::{Rng, SeedableRng, XorShiftRng};
         let rng = &mut XorShiftRng::from_seed([0x3dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
         let params = RnsParameters::<Bn256, Fq>::new_for_field(68, 110, 4);
@@ -1887,21 +1622,12 @@ mod test {
             let a_f: G1Affine = rng.gen();
             let b_f: Fr = rng.gen();
 
-            let a = AffinePoint::alloc(
-                &mut cs, 
-                Some(a_f), 
-                &params
-            ).unwrap();
+            let a = AffinePoint::alloc(&mut cs, Some(a_f), &params).unwrap();
 
-            let b = AllocatedNum::alloc(
-                &mut cs, 
-                || {
-                    Ok(b_f)
-                }
-            ).unwrap();
+            let b = AllocatedNum::alloc(&mut cs, || Ok(b_f)).unwrap();
 
             let b = Num::Variable(b);
-    
+
             let (result, a) = a.mul(&mut cs, &b, None).unwrap();
 
             let result_recalculated = a_f.mul(b_f.into_repr()).into_affine();
@@ -1936,11 +1662,11 @@ mod test {
     }
 
     #[test]
-    fn test_base_curve_multiplication_with_range_table(){
-        use crate::plonk::circuit::tables::inscribe_default_range_table_for_bit_width_over_first_three_columns;
+    fn test_base_curve_multiplication_with_range_table() {
+        use crate::plonk::circuit::bigint::single_table_range_constraint::{print_stats, reset_stats};
         use crate::plonk::circuit::bigint::*;
-        use crate::plonk::circuit::bigint::single_table_range_constraint::{reset_stats, print_stats};
-        use rand::{XorShiftRng, SeedableRng, Rng};
+        use crate::plonk::circuit::tables::inscribe_default_range_table_for_bit_width_over_first_three_columns;
+        use rand::{Rng, SeedableRng, XorShiftRng};
         let rng = &mut XorShiftRng::from_seed([0x3dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
         let info = RangeConstraintInfo {
@@ -1950,13 +1676,7 @@ mod test {
             linear_terms_used: 3,
             strategy: RangeConstraintStrategy::SingleTableInvocation,
         };
-        let params = RnsParameters::<Bn256, Fq>::new_for_field_with_strategy(
-            68,
-            110, 
-            4, 
-            info,
-            true
-        );
+        let params = RnsParameters::<Bn256, Fq>::new_for_field_with_strategy(68, 110, 4, info, true);
 
         for i in 0..10 {
             let mut cs = TrivialAssembly::<Bn256, Width4WithCustomGates, Width4MainGateWithDNext>::new();
@@ -1964,21 +1684,12 @@ mod test {
             let a_f: G1Affine = rng.gen();
             let b_f: Fr = rng.gen();
 
-            let a = AffinePoint::alloc(
-                &mut cs, 
-                Some(a_f), 
-                &params
-            ).unwrap();
+            let a = AffinePoint::alloc(&mut cs, Some(a_f), &params).unwrap();
 
-            let b = AllocatedNum::alloc(
-                &mut cs, 
-                || {
-                    Ok(b_f)
-                }
-            ).unwrap();
+            let b = AllocatedNum::alloc(&mut cs, || Ok(b_f)).unwrap();
 
             let b = Num::Variable(b);
-    
+
             let (result, a) = a.mul(&mut cs, &b, None).unwrap();
 
             let result_recalculated = a_f.mul(b_f.into_repr()).into_affine();
@@ -2017,11 +1728,11 @@ mod test {
     }
 
     #[test]
-    fn test_bn254_multiexp_10_with_range_table(){
-        use crate::plonk::circuit::tables::inscribe_default_range_table_for_bit_width_over_first_three_columns;
+    fn test_bn254_multiexp_10_with_range_table() {
+        use crate::plonk::circuit::bigint::single_table_range_constraint::{print_stats, reset_stats};
         use crate::plonk::circuit::bigint::*;
-        use crate::plonk::circuit::bigint::single_table_range_constraint::{reset_stats, print_stats};
-        use rand::{XorShiftRng, SeedableRng, Rng};
+        use crate::plonk::circuit::tables::inscribe_default_range_table_for_bit_width_over_first_three_columns;
+        use rand::{Rng, SeedableRng, XorShiftRng};
         let rng = &mut XorShiftRng::from_seed([0x3dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
         let info = RangeConstraintInfo {
@@ -2031,13 +1742,7 @@ mod test {
             linear_terms_used: 3,
             strategy: RangeConstraintStrategy::SingleTableInvocation,
         };
-        let params = RnsParameters::<Bn256, Fq>::new_for_field_with_strategy(
-            68,
-            110, 
-            4, 
-            info,
-            true
-        );
+        let params = RnsParameters::<Bn256, Fq>::new_for_field_with_strategy(68, 110, 4, info, true);
 
         for i in 0..10 {
             let mut cs = TrivialAssembly::<Bn256, Width4WithCustomGates, Width4MainGateWithDNext>::new();
@@ -2052,14 +1757,10 @@ mod test {
                 a_s.push(a_f);
                 b_s.push(b_f);
             }
-            
+
             let mut a_p = vec![];
             for a in a_s.iter() {
-                let a = AffinePoint::alloc(
-                    &mut cs, 
-                    Some(*a), 
-                    &params
-                ).unwrap();
+                let a = AffinePoint::alloc(&mut cs, Some(*a), &params).unwrap();
 
                 a_p.push(a);
             }
@@ -2067,12 +1768,7 @@ mod test {
             let mut b_n = vec![];
 
             for b in b_s.iter() {
-                let b = AllocatedNum::alloc(
-                    &mut cs, 
-                    || {
-                        Ok(*b)
-                    }
-                ).unwrap();
+                let b = AllocatedNum::alloc(&mut cs, || Ok(*b)).unwrap();
 
                 let b = Num::Variable(b);
                 b_n.push(b);
@@ -2119,11 +1815,11 @@ mod test {
     }
 
     #[test]
-    fn test_bn254_multiexp_10_with_endo_and_range_table(){
-        use crate::plonk::circuit::tables::inscribe_default_range_table_for_bit_width_over_first_three_columns;
+    fn test_bn254_multiexp_10_with_endo_and_range_table() {
+        use crate::plonk::circuit::bigint::single_table_range_constraint::{print_stats, reset_stats};
         use crate::plonk::circuit::bigint::*;
-        use crate::plonk::circuit::bigint::single_table_range_constraint::{reset_stats, print_stats};
-        use rand::{XorShiftRng, SeedableRng, Rng};
+        use crate::plonk::circuit::tables::inscribe_default_range_table_for_bit_width_over_first_three_columns;
+        use rand::{Rng, SeedableRng, XorShiftRng};
         let rng = &mut XorShiftRng::from_seed([0x3dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
         let info = RangeConstraintInfo {
@@ -2133,13 +1829,7 @@ mod test {
             linear_terms_used: 3,
             strategy: RangeConstraintStrategy::SingleTableInvocation,
         };
-        let params = RnsParameters::<Bn256, Fq>::new_for_field_with_strategy(
-            68,
-            110, 
-            4, 
-            info,
-            true
-        );
+        let params = RnsParameters::<Bn256, Fq>::new_for_field_with_strategy(68, 110, 4, info, true);
         let endo_parameters = super::super::endomorphism::bn254_endomorphism_parameters();
 
         for i in 0..10 {
@@ -2155,14 +1845,10 @@ mod test {
                 a_s.push(a_f);
                 b_s.push(b_f);
             }
-            
+
             let mut a_p = vec![];
             for a in a_s.iter() {
-                let a = AffinePoint::alloc(
-                    &mut cs, 
-                    Some(*a), 
-                    &params
-                ).unwrap();
+                let a = AffinePoint::alloc(&mut cs, Some(*a), &params).unwrap();
 
                 a_p.push(a);
             }
@@ -2170,12 +1856,7 @@ mod test {
             let mut b_n = vec![];
 
             for b in b_s.iter() {
-                let b = AllocatedNum::alloc(
-                    &mut cs, 
-                    || {
-                        Ok(*b)
-                    }
-                ).unwrap();
+                let b = AllocatedNum::alloc(&mut cs, || Ok(*b)).unwrap();
 
                 let b = Num::Variable(b);
                 b_n.push(b);
@@ -2222,8 +1903,8 @@ mod test {
     }
 
     #[test]
-    fn test_base_curve_multiexp_1_on_random_witnesses(){
-        use rand::{XorShiftRng, SeedableRng, Rng};
+    fn test_base_curve_multiexp_1_on_random_witnesses() {
+        use rand::{Rng, SeedableRng, XorShiftRng};
         let rng = &mut XorShiftRng::from_seed([0x3dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
         let params = RnsParameters::<Bn256, Fq>::new_for_field(68, 110, 4);
@@ -2234,18 +1915,9 @@ mod test {
             let a_f: G1Affine = rng.gen();
             let b_f: Fr = rng.gen();
 
-            let a = AffinePoint::alloc(
-                &mut cs, 
-                Some(a_f), 
-                &params
-            ).unwrap();
+            let a = AffinePoint::alloc(&mut cs, Some(a_f), &params).unwrap();
 
-            let b = AllocatedNum::alloc(
-                &mut cs, 
-                || {
-                    Ok(b_f)
-                }
-            ).unwrap();
+            let b = AllocatedNum::alloc(&mut cs, || Ok(b_f)).unwrap();
 
             let b = Num::Variable(b);
 
@@ -2283,8 +1955,8 @@ mod test {
     }
 
     #[test]
-    fn test_base_curve_multiexp_2_on_random_witnesses(){
-        use rand::{XorShiftRng, SeedableRng, Rng};
+    fn test_base_curve_multiexp_2_on_random_witnesses() {
+        use rand::{Rng, SeedableRng, XorShiftRng};
         let rng = &mut XorShiftRng::from_seed([0x3dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
         let params = RnsParameters::<Bn256, Fq>::new_for_field(68, 110, 4);
@@ -2301,14 +1973,10 @@ mod test {
                 a_s.push(a_f);
                 b_s.push(b_f);
             }
-            
+
             let mut a_p = vec![];
             for a in a_s.iter() {
-                let a = AffinePoint::alloc(
-                    &mut cs, 
-                    Some(*a), 
-                    &params
-                ).unwrap();
+                let a = AffinePoint::alloc(&mut cs, Some(*a), &params).unwrap();
 
                 a_p.push(a);
             }
@@ -2316,12 +1984,7 @@ mod test {
             let mut b_n = vec![];
 
             for b in b_s.iter() {
-                let b = AllocatedNum::alloc(
-                    &mut cs, 
-                    || {
-                        Ok(*b)
-                    }
-                ).unwrap();
+                let b = AllocatedNum::alloc(&mut cs, || Ok(*b)).unwrap();
 
                 let b = Num::Variable(b);
                 b_n.push(b);
@@ -2364,8 +2027,8 @@ mod test {
     }
 
     #[test]
-    fn test_base_curve_multiexp_3_on_random_witnesses(){
-        use rand::{XorShiftRng, SeedableRng, Rng};
+    fn test_base_curve_multiexp_3_on_random_witnesses() {
+        use rand::{Rng, SeedableRng, XorShiftRng};
         let rng = &mut XorShiftRng::from_seed([0x3dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
         let params = RnsParameters::<Bn256, Fq>::new_for_field(68, 110, 4);
@@ -2382,14 +2045,10 @@ mod test {
                 a_s.push(a_f);
                 b_s.push(b_f);
             }
-            
+
             let mut a_p = vec![];
             for a in a_s.iter() {
-                let a = AffinePoint::alloc(
-                    &mut cs, 
-                    Some(*a), 
-                    &params
-                ).unwrap();
+                let a = AffinePoint::alloc(&mut cs, Some(*a), &params).unwrap();
 
                 a_p.push(a);
             }
@@ -2397,12 +2056,7 @@ mod test {
             let mut b_n = vec![];
 
             for b in b_s.iter() {
-                let b = AllocatedNum::alloc(
-                    &mut cs, 
-                    || {
-                        Ok(*b)
-                    }
-                ).unwrap();
+                let b = AllocatedNum::alloc(&mut cs, || Ok(*b)).unwrap();
 
                 let b = Num::Variable(b);
                 b_n.push(b);
@@ -2445,8 +2099,8 @@ mod test {
     }
 
     #[test]
-    fn test_base_curve_multiexp_4_on_random_witnesses(){
-        use rand::{XorShiftRng, SeedableRng, Rng};
+    fn test_base_curve_multiexp_4_on_random_witnesses() {
+        use rand::{Rng, SeedableRng, XorShiftRng};
         let rng = &mut XorShiftRng::from_seed([0x3dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
         let params = RnsParameters::<Bn256, Fq>::new_for_field(68, 110, 4);
@@ -2463,14 +2117,10 @@ mod test {
                 a_s.push(a_f);
                 b_s.push(b_f);
             }
-            
+
             let mut a_p = vec![];
             for a in a_s.iter() {
-                let a = AffinePoint::alloc(
-                    &mut cs, 
-                    Some(*a), 
-                    &params
-                ).unwrap();
+                let a = AffinePoint::alloc(&mut cs, Some(*a), &params).unwrap();
 
                 a_p.push(a);
             }
@@ -2478,12 +2128,7 @@ mod test {
             let mut b_n = vec![];
 
             for b in b_s.iter() {
-                let b = AllocatedNum::alloc(
-                    &mut cs, 
-                    || {
-                        Ok(*b)
-                    }
-                ).unwrap();
+                let b = AllocatedNum::alloc(&mut cs, || Ok(*b)).unwrap();
 
                 let b = Num::Variable(b);
                 b_n.push(b);
@@ -2526,8 +2171,8 @@ mod test {
     }
 
     #[test]
-    fn test_base_curve_multiexp_10_on_random_witnesses(){
-        use rand::{XorShiftRng, SeedableRng, Rng};
+    fn test_base_curve_multiexp_10_on_random_witnesses() {
+        use rand::{Rng, SeedableRng, XorShiftRng};
         let rng = &mut XorShiftRng::from_seed([0x3dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
         let params = RnsParameters::<Bn256, Fq>::new_for_field(68, 110, 4);
@@ -2544,14 +2189,10 @@ mod test {
                 a_s.push(a_f);
                 b_s.push(b_f);
             }
-            
+
             let mut a_p = vec![];
             for a in a_s.iter() {
-                let a = AffinePoint::alloc(
-                    &mut cs, 
-                    Some(*a), 
-                    &params
-                ).unwrap();
+                let a = AffinePoint::alloc(&mut cs, Some(*a), &params).unwrap();
 
                 a_p.push(a);
             }
@@ -2559,12 +2200,7 @@ mod test {
             let mut b_n = vec![];
 
             for b in b_s.iter() {
-                let b = AllocatedNum::alloc(
-                    &mut cs, 
-                    || {
-                        Ok(*b)
-                    }
-                ).unwrap();
+                let b = AllocatedNum::alloc(&mut cs, || Ok(*b)).unwrap();
 
                 let b = Num::Variable(b);
                 b_n.push(b);
@@ -2612,10 +2248,10 @@ mod test {
 
     #[test]
     fn test_base_curve_multiexp_10_bls_12_on_random_witnesses() {
-        use rand::{XorShiftRng, SeedableRng, Rng};
+        use rand::{Rng, SeedableRng, XorShiftRng};
         let rng = &mut XorShiftRng::from_seed([0x3dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
-        use crate::bellman::pairing::bls12_381::{Bls12, Fr, Fq, G1Affine, G1};
+        use crate::bellman::pairing::bls12_381::{Bls12, Fq, Fr, G1Affine, G1};
 
         use super::super::super::bigint::get_range_constraint_info;
 
@@ -2627,9 +2263,9 @@ mod test {
             // let strats = get_range_constraint_info(&cs);
 
             // let mut params = RnsParameters::<Bls12, Fq>::new_for_field_with_strategy(
-            //     96, 
-            //     110, 
-            //     6, 
+            //     96,
+            //     110,
+            //     6,
             //     strats[0],
             //     true
             // );
@@ -2646,14 +2282,10 @@ mod test {
                 a_s.push(a_f);
                 b_s.push(b_f);
             }
-            
+
             let mut a_p = vec![];
             for a in a_s.iter() {
-                let a = AffinePoint::alloc(
-                    &mut cs, 
-                    Some(*a), 
-                    &params
-                ).unwrap();
+                let a = AffinePoint::alloc(&mut cs, Some(*a), &params).unwrap();
 
                 a_p.push(a);
             }
@@ -2661,12 +2293,7 @@ mod test {
             let mut b_n = vec![];
 
             for b in b_s.iter() {
-                let b = AllocatedNum::alloc(
-                    &mut cs, 
-                    || {
-                        Ok(*b)
-                    }
-                ).unwrap();
+                let b = AllocatedNum::alloc(&mut cs, || Ok(*b)).unwrap();
 
                 let b = Num::Variable(b);
                 b_n.push(b);
@@ -2712,12 +2339,12 @@ mod test {
 
     #[test]
     fn test_base_curve_multiexp_10_bls_12_using_tables_on_random_witnesses() {
-        use crate::bellman::plonk::better_better_cs::cs::*;
         use super::super::super::bigint::get_range_constraint_info;
-        use rand::{XorShiftRng, SeedableRng, Rng};
+        use crate::bellman::plonk::better_better_cs::cs::*;
+        use rand::{Rng, SeedableRng, XorShiftRng};
         let rng = &mut XorShiftRng::from_seed([0x3dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
-        use crate::bellman::pairing::bls12_381::{Bls12, Fr, Fq, G1Affine, G1};
+        use crate::bellman::pairing::bls12_381::{Bls12, Fq, Fr, G1Affine, G1};
 
         let mut cs = TrivialAssembly::<Bls12, PlonkCsWidth4WithNextStepParams, Width4MainGateWithDNext>::new();
 
@@ -2728,13 +2355,7 @@ mod test {
 
         let strats = get_range_constraint_info(&cs);
 
-        let mut params = RnsParameters::<Bls12, Fq>::new_for_field_with_strategy(
-            96, 
-            110, 
-            6, 
-            strats[0],
-            true
-        );
+        let mut params = RnsParameters::<Bls12, Fq>::new_for_field_with_strategy(96, 110, 6, strats[0], true);
 
         params.set_prefer_double_limb_carry_propagation(false);
 
@@ -2748,14 +2369,10 @@ mod test {
             a_s.push(a_f);
             b_s.push(b_f);
         }
-        
+
         let mut a_p = vec![];
         for a in a_s.iter() {
-            let a = AffinePoint::alloc(
-                &mut cs, 
-                Some(*a), 
-                &params
-            ).unwrap();
+            let a = AffinePoint::alloc(&mut cs, Some(*a), &params).unwrap();
 
             a_p.push(a);
         }
@@ -2763,12 +2380,7 @@ mod test {
         let mut b_n = vec![];
 
         for b in b_s.iter() {
-            let b = AllocatedNum::alloc(
-                &mut cs, 
-                || {
-                    Ok(*b)
-                }
-            ).unwrap();
+            let b = AllocatedNum::alloc(&mut cs, || Ok(*b)).unwrap();
 
             let b = Num::Variable(b);
             b_n.push(b);

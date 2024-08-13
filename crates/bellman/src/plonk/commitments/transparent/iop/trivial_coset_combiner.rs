@@ -1,5 +1,5 @@
-use crate::pairing::ff::PrimeField;
 use super::*;
+use crate::pairing::ff::PrimeField;
 
 #[derive(Copy, Clone)]
 pub struct CosetOfSizeTwo;
@@ -9,19 +9,19 @@ impl CosetInformation for CosetOfSizeTwo {
 }
 
 pub struct TrivialCombiner<F: PrimeField> {
-    _marker: std::marker::PhantomData<F>
+    _marker: std::marker::PhantomData<F>,
 }
 
 impl<'c, F: PrimeField> CosetCombiner<F> for TrivialCombiner<F> {
     const EXPECTED_DEGREE: usize = 2usize;
     const COSET_SIZE: usize = 2usize;
 
-    #[inline(always)] 
+    #[inline(always)]
     fn get_for_natural_index(leafs: &[F], natural_index: usize) -> &F {
         &leafs[natural_index]
     }
 
-    #[inline(always)] 
+    #[inline(always)]
     fn get_for_tree_index(leafs: &[F], tree_index: usize) -> &F {
         &leafs[tree_index]
     }
@@ -39,13 +39,13 @@ impl<'c, F: PrimeField> CosetCombiner<F> for TrivialCombiner<F> {
         Self::get_coset_for_natural_index(natural_index, domain_size)
     }
 
-    #[inline(always)] 
+    #[inline(always)]
     fn tree_index_into_natural_index(tree_index: usize) -> usize {
         tree_index
     }
 
-    #[inline(always)] 
+    #[inline(always)]
     fn natural_index_into_tree_index(natural_index: usize) -> usize {
         natural_index
-    }    
+    }
 }

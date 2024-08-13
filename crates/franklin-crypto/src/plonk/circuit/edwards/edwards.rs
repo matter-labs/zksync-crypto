@@ -1,13 +1,13 @@
-use crate::generic_twisted_edwards::edwards::*;
 use crate::bellman::plonk::better_better_cs::cs::ConstraintSystem;
 use crate::bellman::{Engine, Field, PrimeField, SqrtField, SynthesisError};
-use crate::plonk::circuit::Assignment;
+use crate::generic_twisted_edwards::edwards::*;
 use crate::plonk::circuit::allocated_num::{AllocatedNum, Num};
 use crate::plonk::circuit::simple_term::Term;
+use crate::plonk::circuit::Assignment;
 use crate::plonk::circuit::{boolean::Boolean, linear_combination::LinearCombination};
 
 pub struct CircuitTwistedEdwardsCurveImplementor<E: Engine, C: TwistedEdwardsCurveParams<E>> {
-    pub implementor: TwistedEdwardsCurveImplementor<E, C>
+    pub implementor: TwistedEdwardsCurveImplementor<E, C>,
 }
 
 impl<E: Engine, C: TwistedEdwardsCurveParams<E>> CircuitTwistedEdwardsCurveImplementor<E, C> {
@@ -15,15 +15,10 @@ impl<E: Engine, C: TwistedEdwardsCurveParams<E>> CircuitTwistedEdwardsCurveImple
         let out_of_circuit_implementor = TwistedEdwardsCurveImplementor::new_from_params(params);
 
         Self {
-            implementor: out_of_circuit_implementor
+            implementor: out_of_circuit_implementor,
         }
     }
-    pub fn add<CS: ConstraintSystem<E>>(
-        &self,
-        cs: &mut CS,
-        p: &CircuitTwistedEdwardsPoint<E>,
-        q: &CircuitTwistedEdwardsPoint<E>,
-    ) -> Result<CircuitTwistedEdwardsPoint<E>, SynthesisError> {
+    pub fn add<CS: ConstraintSystem<E>>(&self, cs: &mut CS, p: &CircuitTwistedEdwardsPoint<E>, q: &CircuitTwistedEdwardsPoint<E>) -> Result<CircuitTwistedEdwardsPoint<E>, SynthesisError> {
         if !self.implementor.curve_params.is_param_a_equals_minus_one() {
             unimplemented!("not yet implemented for a != -1");
         }
@@ -65,11 +60,7 @@ impl<E: Engine, C: TwistedEdwardsCurveParams<E>> CircuitTwistedEdwardsCurveImple
 
         Ok(CircuitTwistedEdwardsPoint { x: x3, y: y3 })
     }
-    pub fn double<CS: ConstraintSystem<E>>(
-        &self,
-        cs: &mut CS,
-        p: &CircuitTwistedEdwardsPoint<E>,
-    ) -> Result<CircuitTwistedEdwardsPoint<E>, SynthesisError> {
+    pub fn double<CS: ConstraintSystem<E>>(&self, cs: &mut CS, p: &CircuitTwistedEdwardsPoint<E>) -> Result<CircuitTwistedEdwardsPoint<E>, SynthesisError> {
         if !self.implementor.curve_params.is_param_a_equals_minus_one() {
             unimplemented!("not yet implemented for a != -1");
         }
@@ -105,12 +96,7 @@ impl<E: Engine, C: TwistedEdwardsCurveParams<E>> CircuitTwistedEdwardsCurveImple
 
         Ok(CircuitTwistedEdwardsPoint { x: x3, y: y3 })
     }
-    pub fn mul<CS: ConstraintSystem<E>>(
-        &self,
-        cs: &mut CS,
-        p: &CircuitTwistedEdwardsPoint<E>,
-        s: &[Boolean],
-    ) -> Result<CircuitTwistedEdwardsPoint<E>, SynthesisError> {
+    pub fn mul<CS: ConstraintSystem<E>>(&self, cs: &mut CS, p: &CircuitTwistedEdwardsPoint<E>, s: &[Boolean]) -> Result<CircuitTwistedEdwardsPoint<E>, SynthesisError> {
         if !self.implementor.curve_params.is_param_a_equals_minus_one() {
             unimplemented!("not yet implemented for a != -1");
         }
@@ -171,11 +157,7 @@ impl<E: Engine, C: TwistedEdwardsCurveParams<E>> CircuitTwistedEdwardsCurveImple
 
     //     Ok(())
     // }
-    pub fn is_in_main_subgroup<CS: ConstraintSystem<E>>(
-        &self,
-        cs: &mut CS,
-        p: &CircuitTwistedEdwardsPoint<E>,
-    ) -> Result<Boolean, SynthesisError> {
+    pub fn is_in_main_subgroup<CS: ConstraintSystem<E>>(&self, cs: &mut CS, p: &CircuitTwistedEdwardsPoint<E>) -> Result<Boolean, SynthesisError> {
         if !self.implementor.curve_params.is_param_a_equals_minus_one() {
             unimplemented!("not yet implemented for a != -1");
         }
@@ -192,17 +174,9 @@ impl<E: Engine, C: TwistedEdwardsCurveParams<E>> CircuitTwistedEdwardsCurveImple
             }
         }
 
-        CircuitTwistedEdwardsPoint::equals(
-            cs,
-            &CircuitTwistedEdwardsPoint::zero(),
-            &tmp
-        )
+        CircuitTwistedEdwardsPoint::equals(cs, &CircuitTwistedEdwardsPoint::zero(), &tmp)
     }
-    pub fn mul_by_generator<CS: ConstraintSystem<E>>(
-        &self,
-        cs: &mut CS,
-        s: &[Boolean],
-    ) -> Result<CircuitTwistedEdwardsPoint<E>, SynthesisError> {
+    pub fn mul_by_generator<CS: ConstraintSystem<E>>(&self, cs: &mut CS, s: &[Boolean]) -> Result<CircuitTwistedEdwardsPoint<E>, SynthesisError> {
         if !self.implementor.curve_params.is_param_a_equals_minus_one() {
             unimplemented!("not yet implemented for a != -1");
         }
@@ -211,11 +185,7 @@ impl<E: Engine, C: TwistedEdwardsCurveParams<E>> CircuitTwistedEdwardsCurveImple
 
         self.mul(cs, &generator, s)
     }
-    pub fn alloc_point_enforce_on_curve<CS: ConstraintSystem<E>>(
-        &self,
-        cs: &mut CS,
-        p: Option<TwistedEdwardsPoint<E>>,
-    ) -> Result<CircuitTwistedEdwardsPoint<E>, SynthesisError> {
+    pub fn alloc_point_enforce_on_curve<CS: ConstraintSystem<E>>(&self, cs: &mut CS, p: Option<TwistedEdwardsPoint<E>>) -> Result<CircuitTwistedEdwardsPoint<E>, SynthesisError> {
         let p = p.map(|p| p.into_xy());
 
         let x_witness = p.map(|p| p.0);
@@ -228,11 +198,7 @@ impl<E: Engine, C: TwistedEdwardsCurveParams<E>> CircuitTwistedEdwardsCurveImple
 
         Ok(CircuitTwistedEdwardsPoint { x, y })
     }
-    pub fn alloc_point_unchecked<CS: ConstraintSystem<E>>(
-        &self,
-        cs: &mut CS,
-        p: Option<TwistedEdwardsPoint<E>>,
-    ) -> Result<CircuitTwistedEdwardsPoint<E>, SynthesisError> {
+    pub fn alloc_point_unchecked<CS: ConstraintSystem<E>>(&self, cs: &mut CS, p: Option<TwistedEdwardsPoint<E>>) -> Result<CircuitTwistedEdwardsPoint<E>, SynthesisError> {
         let p = p.map(|p| p.into_xy());
 
         let x_witness = p.map(|p| p.0);
@@ -251,7 +217,7 @@ impl<E: Engine, C: TwistedEdwardsCurveParams<E>> CircuitTwistedEdwardsCurveImple
 
         let x = p.x;
         let y = p.y;
-        
+
         // x^2
         let x2 = x.mul(cs, &x)?;
 
@@ -270,8 +236,7 @@ impl<E: Engine, C: TwistedEdwardsCurveParams<E>> CircuitTwistedEdwardsCurveImple
         Num::equals(cs, &lhs, &rhs)
     }
 
-    pub fn generator(&self) -> CircuitTwistedEdwardsPoint<E>
-    {
+    pub fn generator(&self) -> CircuitTwistedEdwardsPoint<E> {
         let gen = self.implementor.curve_params.generator();
         let (x, y) = gen.into_xy();
         let x = Num::Constant(x);
@@ -292,12 +257,7 @@ impl<E: Engine, C: TwistedEdwardsCurveParams<E>> CircuitTwistedEdwardsCurveImple
     //     Ok(CircuitTwistedEdwardsPoint { x, y })
     // }
 
-    pub fn from_xy_assert_on_curve<CS>(
-        &self,
-        cs: &mut CS,
-        x: &Num<E>,
-        y: &Num<E>,
-    ) -> Result<CircuitTwistedEdwardsPoint<E>, SynthesisError>
+    pub fn from_xy_assert_on_curve<CS>(&self, cs: &mut CS, x: &Num<E>, y: &Num<E>) -> Result<CircuitTwistedEdwardsPoint<E>, SynthesisError>
     where
         CS: ConstraintSystem<E>,
     {
@@ -322,10 +282,7 @@ impl<E: Engine, C: TwistedEdwardsCurveParams<E>> CircuitTwistedEdwardsCurveImple
 
         lhs.enforce_equal(cs, &rhs)?;
 
-        Ok(CircuitTwistedEdwardsPoint {
-            x: x.clone(),
-            y: y.clone(),
-        })
+        Ok(CircuitTwistedEdwardsPoint { x: x.clone(), y: y.clone() })
     }
 }
 
@@ -340,29 +297,17 @@ impl<E: Engine> Copy for CircuitTwistedEdwardsPoint<E> {}
 
 impl<E: Engine> CircuitTwistedEdwardsPoint<E> {
     pub fn zero() -> Self {
-        Self {
-            x: Num::zero(),
-            y: Num::one(),
-        }
+        Self { x: Num::zero(), y: Num::one() }
     }
 
-    pub fn conditionally_select<CS: ConstraintSystem<E>>(
-        cs: &mut CS,
-        flag: &Boolean,
-        first: &Self,
-        second: &Self,
-    ) -> Result<Self, SynthesisError> {
+    pub fn conditionally_select<CS: ConstraintSystem<E>>(cs: &mut CS, flag: &Boolean, first: &Self, second: &Self) -> Result<Self, SynthesisError> {
         let x = Num::conditionally_select(cs, flag, &first.x, &second.x)?;
         let y = Num::conditionally_select(cs, flag, &first.y, &second.y)?;
 
         Ok(Self { x, y })
     }
 
-    pub fn equals<CS: ConstraintSystem<E>>(
-        cs: &mut CS,
-        first: &Self,
-        second: &Self
-    ) -> Result<Boolean, SynthesisError> {
+    pub fn equals<CS: ConstraintSystem<E>>(cs: &mut CS, first: &Self, second: &Self) -> Result<Boolean, SynthesisError> {
         let a = Num::equals(cs, &first.x, &second.x)?;
         let b = Num::equals(cs, &first.y, &second.y)?;
 

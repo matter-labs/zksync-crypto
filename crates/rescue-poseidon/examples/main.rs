@@ -22,8 +22,7 @@ pub(crate) fn init_rng() -> XorShiftRng {
     XorShiftRng::from_seed(TEST_SEED)
 }
 
-pub(crate) fn init_cs<E: Engine>(
-) -> TrivialAssembly<E, Width4WithCustomGates, Width4MainGateWithDNext> {
+pub(crate) fn init_cs<E: Engine>() -> TrivialAssembly<E, Width4WithCustomGates, Width4MainGateWithDNext> {
     TrivialAssembly::<E, Width4WithCustomGates, Width4MainGateWithDNext>::new()
 }
 
@@ -76,11 +75,7 @@ fn run_generic_hash_fixed_length<E: Engine>() {
     // now, hash with rescue prime params
     // in this case we use original domain strategy used in RescuePrime paper
     let rescue_prime_params = RescuePrimeParams::<Bn256, RATE, WIDTH>::default();
-    let result = generic_hash(
-        &rescue_prime_params,
-        &input,
-        Some(DomainStrategy::FixedLength),
-    );
+    let result = generic_hash(&rescue_prime_params, &input, Some(DomainStrategy::FixedLength));
     assert_eq!(result.len(), RATE);
 }
 
@@ -95,17 +90,13 @@ fn run_generic_hash_var_length<E: Engine>() {
     let rescue_params = RescueParams::<Bn256, RATE, WIDTH>::default();
     let mut rescue_hasher = GenericSponge::new();
     rescue_hasher.absorb_multiple(&input, &rescue_params);
-    let _ = rescue_hasher
-        .squeeze(&rescue_params)
-        .expect("squeezed eleme");
+    let _ = rescue_hasher.squeeze(&rescue_params).expect("squeezed eleme");
 
     // go with poseidon
     let poseidon_params = PoseidonParams::<Bn256, RATE, WIDTH>::default();
     let mut poseidon_hasher = GenericSponge::new();
     poseidon_hasher.absorb_multiple(&input, &poseidon_params);
-    let _ = poseidon_hasher
-        .squeeze(&poseidon_params)
-        .expect("squeezed eleme");
+    let _ = poseidon_hasher.squeeze(&poseidon_params).expect("squeezed eleme");
 }
 
 fn run_circuit_generic_hash_fixed_length<E: Engine>() -> Result<(), SynthesisError> {

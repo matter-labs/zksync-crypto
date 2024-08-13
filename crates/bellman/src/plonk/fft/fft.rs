@@ -6,22 +6,17 @@ fn log2_floor(num: usize) -> u32 {
 
     let mut pow = 0;
 
-    while (1 << (pow+1)) <= num {
+    while (1 << (pow + 1)) <= num {
         pow += 1;
     }
 
     pow
 }
 
-pub(crate) fn best_fft<F: PrimeField>(a: &mut [F], worker: &Worker, omega: &F, log_n: u32, use_cpus_hint: Option<usize>)
-{
+pub(crate) fn best_fft<F: PrimeField>(a: &mut [F], worker: &Worker, omega: &F, log_n: u32, use_cpus_hint: Option<usize>) {
     let log_cpus = if let Some(hint) = use_cpus_hint {
         assert!(hint <= worker.cpus);
-        let hint = if hint > 0 {
-            log2_floor(hint)
-        } else {
-            0
-        };
+        let hint = if hint > 0 { log2_floor(hint) } else { 0 };
 
         hint
     } else {
@@ -35,8 +30,7 @@ pub(crate) fn best_fft<F: PrimeField>(a: &mut [F], worker: &Worker, omega: &F, l
     }
 }
 
-pub(crate) fn serial_fft<F: PrimeField>(a: &mut [F], omega: &F, log_n: u32)
-{
+pub(crate) fn serial_fft<F: PrimeField>(a: &mut [F], omega: &F, log_n: u32) {
     #[inline(always)]
     fn bitreverse(mut n: u32, l: u32) -> u32 {
         let mut r = 0;
@@ -59,36 +53,29 @@ pub(crate) fn serial_fft<F: PrimeField>(a: &mut [F], omega: &F, log_n: u32)
 
     let mut m = 1;
     for _ in 0..log_n {
-        let w_m = omega.pow(&[(n / (2*m)) as u64]);
+        let w_m = omega.pow(&[(n / (2 * m)) as u64]);
 
         let mut k = 0;
         while k < n {
             let mut w = F::one();
             for j in 0..m {
-                let mut t = a[(k+j+m) as usize];
+                let mut t = a[(k + j + m) as usize];
                 t.mul_assign(&w);
-                let mut tmp = a[(k+j) as usize];
+                let mut tmp = a[(k + j) as usize];
                 tmp.sub_assign(&t);
-                a[(k+j+m) as usize] = tmp;
-                a[(k+j) as usize].add_assign(&t);
+                a[(k + j + m) as usize] = tmp;
+                a[(k + j) as usize].add_assign(&t);
                 w.mul_assign(&w_m);
             }
 
-            k += 2*m;
+            k += 2 * m;
         }
-        
+
         m *= 2;
     }
 }
 
-pub(crate) fn parallel_fft<F: PrimeField>(
-    a: &mut [F],
-    worker: &Worker,
-    omega: &F,
-    log_n: u32,
-    log_cpus: u32
-)
-{
+pub(crate) fn parallel_fft<F: PrimeField>(a: &mut [F], worker: &Worker, omega: &F, log_n: u32, log_cpus: u32) {
     assert!(log_n >= log_cpus);
 
     let num_cpus = 1 << log_cpus;

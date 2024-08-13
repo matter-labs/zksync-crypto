@@ -3,36 +3,36 @@
 pub mod circuit;
 #[allow(dead_code)]
 mod common;
-mod sponge;
 pub mod poseidon;
 pub mod poseidon2;
 pub mod rescue;
 pub mod rescue_prime;
+mod sponge;
 #[cfg(test)]
 mod tests;
 mod traits;
 
 use std::convert::TryInto;
 
-pub use circuit::sponge::{
-    circuit_generic_hash, circuit_generic_round_function, CircuitGenericSponge, circuit_generic_round_function_conditional
-};
-use serde::{ser::{SerializeTuple}, Serialize};
-use smallvec::SmallVec;
-pub use traits::{HashParams, CustomGate, HashFamily};
-pub use sponge::{generic_hash, generic_round_function, GenericSponge};
+pub use circuit::sponge::{circuit_generic_hash, circuit_generic_round_function, circuit_generic_round_function_conditional, CircuitGenericSponge};
+pub use common::domain_strategy::DomainStrategy;
 pub use poseidon::{params::PoseidonParams, poseidon_hash};
 pub use rescue::{params::RescueParams, rescue_hash};
 pub use rescue_prime::{params::RescuePrimeParams, rescue_prime_hash};
-pub use common::domain_strategy::DomainStrategy;
+use serde::{ser::SerializeTuple, Serialize};
+use smallvec::SmallVec;
+pub use sponge::{generic_hash, generic_round_function, GenericSponge};
+pub use traits::{CustomGate, HashFamily, HashParams};
 
 pub extern crate franklin_crypto;
 
 pub trait BigArraySerde<'de>: Sized {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-        where S: serde::Serializer;
+    where
+        S: serde::Serializer;
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-        where D: serde::Deserializer<'de>;
+    where
+        D: serde::Deserializer<'de>;
 }
 
 // some wrappers that make array wrappers serializable themselves (resursively)
@@ -41,26 +41,29 @@ pub struct BigArrayRefWrapper<'de, B: BigArraySerde<'de>>(&'de B);
 
 impl<'de, B: BigArraySerde<'de>> serde::Serialize for BigArrayRefWrapper<'de, B> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-        where
-            S: serde::Serializer {
+    where
+        S: serde::Serializer,
+    {
         self.0.serialize(serializer)
     }
 }
 
-pub struct BigArrayWrapper<'de, B: BigArraySerde<'de>>(B, std::marker::PhantomData<& 'de ()>);
+pub struct BigArrayWrapper<'de, B: BigArraySerde<'de>>(B, std::marker::PhantomData<&'de ()>);
 
 impl<'de, B: BigArraySerde<'de>> serde::Serialize for BigArrayWrapper<'de, B> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-        where
-            S: serde::Serializer {
+    where
+        S: serde::Serializer,
+    {
         self.0.serialize(serializer)
     }
 }
 
 impl<'de, B: BigArraySerde<'de>> serde::Deserialize<'de> for BigArrayWrapper<'de, B> {
-fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
-        D: serde::Deserializer<'de> {
+        D: serde::Deserializer<'de>,
+    {
         let new = B::deserialize(deserializer)?;
 
         Ok(Self(new, std::marker::PhantomData))
@@ -72,7 +75,8 @@ struct ArrayVisitor<T, const M: usize> {
 }
 
 impl<'de, T, const M: usize> serde::de::Visitor<'de> for ArrayVisitor<T, M>
-    where T: serde::Deserialize<'de>
+where
+    T: serde::Deserialize<'de>,
 {
     type Value = [T; M];
 
@@ -81,12 +85,12 @@ impl<'de, T, const M: usize> serde::de::Visitor<'de> for ArrayVisitor<T, M>
     }
 
     fn visit_seq<A>(self, mut seq: A) -> Result<[T; M], A::Error>
-        where A: serde::de::SeqAccess<'de>
+    where
+        A: serde::de::SeqAccess<'de>,
     {
         let mut arr = Vec::with_capacity(M);
         for i in 0..M {
-            let el = seq.next_element()?
-                .ok_or_else(|| serde::de::Error::invalid_length(i, &self))?;
+            let el = seq.next_element()?.ok_or_else(|| serde::de::Error::invalid_length(i, &self))?;
             arr.push(el);
         }
         let arr: [T; M] = arr.try_into().map_err(|_| serde::de::Error::invalid_length(M, &self))?;
@@ -96,10 +100,12 @@ impl<'de, T, const M: usize> serde::de::Visitor<'de> for ArrayVisitor<T, M>
 }
 
 impl<'de, T, const N: usize> BigArraySerde<'de> for [T; N]
-    where T: serde::Serialize + serde::Deserialize<'de>
+where
+    T: serde::Serialize + serde::Deserialize<'de>,
 {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-        where S: serde::Serializer
+    where
+        S: serde::Serializer,
     {
         let mut seq = serializer.serialize_tuple(N)?;
         for elem in &self[..] {
@@ -109,7 +115,8 @@ impl<'de, T, const N: usize> BigArraySerde<'de> for [T; N]
     }
 
     fn deserialize<D>(deserializer: D) -> Result<[T; N], D::Error>
-        where D: serde::Deserializer<'de>
+    where
+        D: serde::Deserializer<'de>,
     {
         let visitor = ArrayVisitor::<_, N> { element: std::marker::PhantomData };
         deserializer.deserialize_tuple(N, visitor)
@@ -174,12 +181,18 @@ impl<'de, T, const N: usize> BigArraySerde<'de> for [T; N]
 //     }
 // }
 
-fn serialize_vec_of_arrays<T: serde::Serialize + serde::de::DeserializeOwned, const N: usize, S>(t: &Vec<[T; N]>, serializer: S) -> Result<S::Ok, S::Error> where S: serde::Serializer {
+fn serialize_vec_of_arrays<T: serde::Serialize + serde::de::DeserializeOwned, const N: usize, S>(t: &Vec<[T; N]>, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
     let cast: Vec<_> = t.iter().map(|el| BigArrayRefWrapper(el)).collect();
     cast.serialize(serializer)
 }
 
-fn deserialize_vec_of_arrays<'de, D, T: serde::Serialize + serde::de::DeserializeOwned, const N: usize>(deserializer: D) -> Result<Vec<[T; N]>, D::Error> where D: serde::Deserializer<'de> {
+fn deserialize_vec_of_arrays<'de, D, T: serde::Serialize + serde::de::DeserializeOwned, const N: usize>(deserializer: D) -> Result<Vec<[T; N]>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
     use serde::Deserialize;
 
     let result: Vec<BigArrayWrapper<'de, [T; N]>> = <Vec<BigArrayWrapper<'de, [T; N]>>>::deserialize(deserializer)?;
@@ -188,7 +201,10 @@ fn deserialize_vec_of_arrays<'de, D, T: serde::Serialize + serde::de::Deserializ
     Ok(result)
 }
 
-fn serialize_vec_of_arrays_of_arrays<T: serde::Serialize + serde::de::DeserializeOwned, const N: usize, const M: usize, S>(t: &Vec<[[T; N]; M]>, serializer: S) -> Result<S::Ok, S::Error> where S: serde::Serializer {
+fn serialize_vec_of_arrays_of_arrays<T: serde::Serialize + serde::de::DeserializeOwned, const N: usize, const M: usize, S>(t: &Vec<[[T; N]; M]>, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
     let mut flattened = Vec::with_capacity(t.len() * M);
     for row in t.iter() {
         for el in row.iter() {
@@ -200,7 +216,10 @@ fn serialize_vec_of_arrays_of_arrays<T: serde::Serialize + serde::de::Deserializ
     flattened.serialize(serializer)
 }
 
-fn deserialize_vec_of_arrays_of_arrays<'de, D, T: serde::Serialize + serde::de::DeserializeOwned, const N: usize, const M: usize>(deserializer: D) -> Result<Vec<[[T; N]; M]>, D::Error> where D: serde::Deserializer<'de> {
+fn deserialize_vec_of_arrays_of_arrays<'de, D, T: serde::Serialize + serde::de::DeserializeOwned, const N: usize, const M: usize>(deserializer: D) -> Result<Vec<[[T; N]; M]>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
     use serde::Deserialize;
 
     let flat_result: Vec<BigArrayWrapper<'de, [T; N]>> = <Vec<BigArrayWrapper<'de, [T; N]>>>::deserialize(deserializer)?;
@@ -212,7 +231,7 @@ fn deserialize_vec_of_arrays_of_arrays<'de, D, T: serde::Serialize + serde::de::
     for _ in 0..num_elements {
         let subarray: [[T; N]; M] = match flat_result.drain(..M).collect::<Vec<_>>().try_into() {
             Ok(a) => a,
-            Err(..) => panic!("length must patch")
+            Err(..) => panic!("length must patch"),
         };
         result.push(subarray);
     }
@@ -220,7 +239,10 @@ fn deserialize_vec_of_arrays_of_arrays<'de, D, T: serde::Serialize + serde::de::
     Ok(result)
 }
 
-fn serialize_array_of_arrays<T: serde::Serialize + serde::de::DeserializeOwned, const N: usize, const M: usize, S>(t: &[[T; N]; M], serializer: S) -> Result<S::Ok, S::Error> where S: serde::Serializer {
+fn serialize_array_of_arrays<T: serde::Serialize + serde::de::DeserializeOwned, const N: usize, const M: usize, S>(t: &[[T; N]; M], serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
     let mut seq = serializer.serialize_tuple(M)?;
     for el in t.iter() {
         let w = BigArrayRefWrapper(el);
@@ -230,7 +252,10 @@ fn serialize_array_of_arrays<T: serde::Serialize + serde::de::DeserializeOwned, 
     seq.end()
 }
 
-fn deserialize_array_of_arrays<'de, D, T: serde::Serialize + serde::de::DeserializeOwned, const N: usize, const M: usize>(deserializer: D) -> Result<[[T; N]; M], D::Error> where D: serde::Deserializer<'de> {
+fn deserialize_array_of_arrays<'de, D, T: serde::Serialize + serde::de::DeserializeOwned, const N: usize, const M: usize>(deserializer: D) -> Result<[[T; N]; M], D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
     let visitor = ArrayVisitor::<BigArrayWrapper<'de, [T; N]>, M> { element: std::marker::PhantomData };
     let result = deserializer.deserialize_tuple(M, visitor)?;
 
@@ -239,11 +264,7 @@ fn deserialize_array_of_arrays<'de, D, T: serde::Serialize + serde::de::Deserial
     Ok(subarray)
 }
 
-fn add_chain_pow_smallvec<F: franklin_crypto::bellman::pairing::ff::PrimeField>(
-    base: F,
-    add_chain: &[crate::traits::Step],
-    scratch_space: &mut SmallVec<[F; 512]>,
-) -> F {
+fn add_chain_pow_smallvec<F: franklin_crypto::bellman::pairing::ff::PrimeField>(base: F, add_chain: &[crate::traits::Step], scratch_space: &mut SmallVec<[F; 512]>) -> F {
     scratch_space.push(base);
 
     for (_idx, el) in add_chain.iter().enumerate() {
@@ -253,7 +274,7 @@ fn add_chain_pow_smallvec<F: franklin_crypto::bellman::pairing::ff::PrimeField>(
                 el.square();
 
                 scratch_space.push(el);
-            },
+            }
             crate::traits::Step::Add { left, right } => {
                 let mut el = scratch_space[*left];
                 el.mul_assign(&scratch_space[*right]);

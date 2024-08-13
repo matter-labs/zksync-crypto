@@ -1,9 +1,9 @@
+use super::matrix::{matrix_vector_product, mul_by_sparse_matrix};
 use super::sbox::sbox;
 use super::sponge::circuit_generic_hash_num;
-use super::matrix::{matrix_vector_product, mul_by_sparse_matrix};
-use crate::{DomainStrategy, poseidon::params::PoseidonParams};
 use crate::poseidon2::Poseidon2Params;
 use crate::traits::{HashFamily, HashParams};
+use crate::{poseidon::params::PoseidonParams, DomainStrategy};
 use franklin_crypto::bellman::plonk::better_better_cs::cs::ConstraintSystem;
 use franklin_crypto::bellman::{Field, SynthesisError};
 use franklin_crypto::{
@@ -16,23 +16,14 @@ use franklin_crypto::{
 /// length of input and applies a padding rule which makes input size equals to multiple of
 /// rate parameter.
 /// Uses pre-defined state-width=3 and rate=2.
-pub fn circuit_poseidon2_hash<E: Engine, CS: ConstraintSystem<E>, const L: usize>(
-    cs: &mut CS,
-    input: &[Num<E>; L],
-    domain_strategy: Option<DomainStrategy>,
-) -> Result<[Num<E>; 2], SynthesisError> {
+pub fn circuit_poseidon2_hash<E: Engine, CS: ConstraintSystem<E>, const L: usize>(cs: &mut CS, input: &[Num<E>; L], domain_strategy: Option<DomainStrategy>) -> Result<[Num<E>; 2], SynthesisError> {
     const WIDTH: usize = 3;
     const RATE: usize = 2;
     let params = Poseidon2Params::<E, RATE, WIDTH>::default();
     circuit_generic_hash_num(cs, input, &params, domain_strategy)
 }
 
-pub fn circuit_poseidon2_round_function<
-    E: Engine,
-    CS: ConstraintSystem<E>,
-    const RATE: usize,
-    const WIDTH: usize,
->(
+pub fn circuit_poseidon2_round_function<E: Engine, CS: ConstraintSystem<E>, const RATE: usize, const WIDTH: usize>(
     cs: &mut CS,
     params: &Poseidon2Params<E, RATE, WIDTH>,
     state: &mut [LinearCombination<E>; WIDTH],
@@ -53,13 +44,7 @@ pub fn circuit_poseidon2_round_function<
             s.add_assign_constant(*c);
         }
         // non linear sbox
-        sbox(
-            cs,
-            params.alpha(),
-            state,
-            Some(0..WIDTH),
-            params.custom_gate(),
-        )?;
+        sbox(cs, params.alpha(), state, Some(0..WIDTH), params.custom_gate())?;
 
         // mul state by mds
         matrix_vector_product(&params.mds_external_matrix, state)?;
@@ -91,9 +76,7 @@ pub fn circuit_poseidon2_round_function<
     }
 
     // second full round
-    for round in (params.number_of_partial_rounds() + half_of_full_rounds)
-        ..(params.number_of_partial_rounds() + params.number_of_full_rounds())
-    {
+    for round in (params.number_of_partial_rounds() + half_of_full_rounds)..(params.number_of_partial_rounds() + params.number_of_full_rounds()) {
         let round_constants = &params.round_constants[round];
 
         // add round constatnts
@@ -101,13 +84,7 @@ pub fn circuit_poseidon2_round_function<
             s.add_assign_constant(*c);
         }
         // non linear sbox
-        sbox(
-            cs,
-            params.alpha(),
-            state,
-            Some(0..WIDTH),
-            params.custom_gate(),
-        )?;
+        sbox(cs, params.alpha(), state, Some(0..WIDTH), params.custom_gate())?;
 
         // mul state by mds
         matrix_vector_product(&params.mds_external_matrix, state)?;

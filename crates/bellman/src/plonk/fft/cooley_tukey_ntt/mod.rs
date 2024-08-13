@@ -1,6 +1,6 @@
 use crate::pairing::ff::PrimeField;
-use crate::worker::*;
 use crate::plonk::domains::*;
+use crate::worker::*;
 
 pub(crate) mod partial_reduction;
 
@@ -31,16 +31,15 @@ fn bitreverse_naive(mut n: u32, l: u32) -> u32 {
     r
 }
 
-
 pub struct BitReversedOmegas<F: PrimeField> {
     pub omegas: Vec<F>,
-    pub(crate) domain_size: usize
+    pub(crate) domain_size: usize,
 }
 
 impl<F: PrimeField> BitReversedOmegas<F> {
     pub fn new_for_domain(domain: &Domain<F>, worker: &Worker) -> Self {
         let domain_size = domain.size as usize;
-        
+
         let omega = domain.generator;
         let precomputation_size = domain_size / 2;
         // let precomputation_size = domain_size;
@@ -72,14 +71,11 @@ impl<F: PrimeField> BitReversedOmegas<F> {
             }
         }
 
-        BitReversedOmegas{
-            omegas,
-            domain_size
-        }
+        BitReversedOmegas { omegas, domain_size }
     }
 }
 
-impl<F: PrimeField> CTPrecomputations<F> for BitReversedOmegas<F>{
+impl<F: PrimeField> CTPrecomputations<F> for BitReversedOmegas<F> {
     fn new_for_domain_size(size: usize) -> Self {
         let domain = Domain::<F>::new_for_size(size as u64).expect("domain must exist");
         let worker = Worker::new();
@@ -95,16 +91,15 @@ impl<F: PrimeField> CTPrecomputations<F> for BitReversedOmegas<F>{
     }
 }
 
-
 pub struct OmegasInvBitreversed<F: PrimeField> {
     pub omegas: Vec<F>,
-    pub(crate) domain_size: usize
+    pub(crate) domain_size: usize,
 }
 
 impl<F: PrimeField> OmegasInvBitreversed<F> {
     pub fn new_for_domain(domain: &Domain<F>, worker: &Worker) -> Self {
         let domain_size = domain.size as usize;
-        
+
         let omega = domain.generator.inverse().expect("must exist");
         let precomputation_size = domain_size / 2;
 
@@ -133,10 +128,7 @@ impl<F: PrimeField> OmegasInvBitreversed<F> {
             }
         }
 
-        OmegasInvBitreversed{
-            omegas,
-            domain_size
-        }
+        OmegasInvBitreversed { omegas, domain_size }
     }
 }
 
@@ -161,28 +153,17 @@ pub(crate) fn log2_floor(num: usize) -> u32 {
 
     let mut pow = 0;
 
-    while (1 << (pow+1)) <= num {
+    while (1 << (pow + 1)) <= num {
         pow += 1;
     }
 
     pow
 }
 
-pub(crate) fn best_ct_ntt<F: PrimeField, P: CTPrecomputations<F>>(
-    a: &mut [F], 
-    worker: &Worker, 
-    log_n: u32, 
-    use_cpus_hint: Option<usize>, 
-    precomputed_omegas: &P
-)
-{
+pub(crate) fn best_ct_ntt<F: PrimeField, P: CTPrecomputations<F>>(a: &mut [F], worker: &Worker, log_n: u32, use_cpus_hint: Option<usize>, precomputed_omegas: &P) {
     let log_cpus = if let Some(hint) = use_cpus_hint {
         assert!(hint <= worker.cpus);
-        let hint = if hint > 0 {
-            log2_floor(hint)
-        } else {
-            0
-        };
+        let hint = if hint > 0 { log2_floor(hint) } else { 0 };
 
         hint
     } else {
@@ -196,14 +177,9 @@ pub(crate) fn best_ct_ntt<F: PrimeField, P: CTPrecomputations<F>>(
     }
 }
 
-pub(crate) fn serial_ct_ntt<F: PrimeField, P: CTPrecomputations<F>>(
-    a: &mut [F],
-    log_n: u32,
-    precomputed_omegas: &P
-)
-{
+pub(crate) fn serial_ct_ntt<F: PrimeField, P: CTPrecomputations<F>>(a: &mut [F], log_n: u32, precomputed_omegas: &P) {
     assert_eq!(a.len(), precomputed_omegas.domain_size());
-    assert_eq!(a.len(), (1<<log_n) as usize);
+    assert_eq!(a.len(), (1 << log_n) as usize);
 
     let n = a.len();
     if n == 1 {
@@ -223,12 +199,12 @@ pub(crate) fn serial_ct_ntt<F: PrimeField, P: CTPrecomputations<F>>(
 
         for j in idx_1..idx_2 {
             let u = a[j];
-            let v = a[j+distance];
+            let v = a[j + distance];
 
             let mut tmp = u;
             tmp.sub_assign(&v);
 
-            a[j+distance] = tmp;
+            a[j + distance] = tmp;
             a[j].add_assign(&v);
         }
 
@@ -246,13 +222,13 @@ pub(crate) fn serial_ct_ntt<F: PrimeField, P: CTPrecomputations<F>>(
 
             for j in idx_1..idx_2 {
                 let u = a[j];
-                let mut v = a[j+distance];
+                let mut v = a[j + distance];
                 v.mul_assign(&s);
 
                 let mut tmp = u;
                 tmp.sub_assign(&v);
 
-                a[j+distance] = tmp;
+                a[j + distance] = tmp;
                 a[j].add_assign(&v);
             }
         }
@@ -271,7 +247,6 @@ pub(crate) fn serial_ct_ntt<F: PrimeField, P: CTPrecomputations<F>>(
     //     }
     // }
 }
-
 
 // pub(crate) fn serial_ct_ntt<F: PrimeField, P: CTPrecomputations<F>>(
 //     a: &mut [F],
@@ -328,15 +303,7 @@ pub(crate) fn serial_ct_ntt<F: PrimeField, P: CTPrecomputations<F>>(
 //     }
 // }
 
-
-pub(crate) fn parallel_ct_ntt<F: PrimeField, P: CTPrecomputations<F>>(
-    a: &mut [F],
-    worker: &Worker,
-    log_n: u32,
-    log_cpus: u32,
-    precomputed_omegas: &P
-)
-{
+pub(crate) fn parallel_ct_ntt<F: PrimeField, P: CTPrecomputations<F>>(a: &mut [F], worker: &Worker, log_n: u32, log_cpus: u32, precomputed_omegas: &P) {
     assert!(log_n >= log_cpus);
     assert_eq!(a.len(), precomputed_omegas.domain_size());
 
@@ -369,7 +336,7 @@ pub(crate) fn parallel_ct_ntt<F: PrimeField, P: CTPrecomputations<F>>(
 
     worker.scope(0, |scope, _| {
         for thread_id in 0..to_spawn {
-            let a = unsafe {&mut *a};
+            let a = unsafe { &mut *a };
             let mut pairs_per_group = pairs_per_group;
             let mut num_groups = num_groups;
             let mut distance = distance;
@@ -386,20 +353,16 @@ pub(crate) fn parallel_ct_ntt<F: PrimeField, P: CTPrecomputations<F>>(
                     let chunk = Worker::chunk_size_for_num_spawned_threads(group_size, to_spawn);
 
                     let start = group_start_idx + thread_id * chunk;
-                    let end = if start + chunk <= group_end_idx {
-                        start + chunk
-                    } else {
-                        group_end_idx
-                    };
+                    let end = if start + chunk <= group_end_idx { start + chunk } else { group_end_idx };
 
                     for j in start..end {
                         let u = a[j];
-                        let v = a[j+distance];
+                        let v = a[j + distance];
 
                         let mut tmp = u;
                         tmp.sub_assign(&v);
 
-                        a[j+distance] = tmp;
+                        a[j + distance] = tmp;
                         a[j].add_assign(&v);
                     }
 
@@ -425,11 +388,7 @@ pub(crate) fn parallel_ct_ntt<F: PrimeField, P: CTPrecomputations<F>>(
 
                         let chunk = Worker::chunk_size_for_num_spawned_threads(num_groups, to_spawn);
                         let start = thread_id * chunk;
-                        let end = if start + chunk <= num_groups {
-                            start + chunk
-                        } else {
-                            num_groups
-                        };
+                        let end = if start + chunk <= num_groups { start + chunk } else { num_groups };
 
                         for k in start..end {
                             let group_start_idx = k * pairs_per_group * 2;
@@ -438,13 +397,13 @@ pub(crate) fn parallel_ct_ntt<F: PrimeField, P: CTPrecomputations<F>>(
 
                             for j in group_start_idx..group_end_idx {
                                 let u = a[j];
-                                let mut v = a[j+distance];
+                                let mut v = a[j + distance];
                                 v.mul_assign(&s);
 
                                 let mut tmp = u;
                                 tmp.sub_assign(&v);
 
-                                a[j+distance] = tmp;
+                                a[j + distance] = tmp;
                                 a[j].add_assign(&v);
                             }
                         }
@@ -466,21 +425,17 @@ pub(crate) fn parallel_ct_ntt<F: PrimeField, P: CTPrecomputations<F>>(
                             let chunk = Worker::chunk_size_for_num_spawned_threads(group_size, to_spawn);
 
                             let start = group_start_idx + thread_id * chunk;
-                            let end = if start + chunk <= group_end_idx {
-                                start + chunk
-                            } else {
-                                group_end_idx
-                            };
+                            let end = if start + chunk <= group_end_idx { start + chunk } else { group_end_idx };
 
                             for j in start..end {
                                 let u = a[j];
-                                let mut v = a[j+distance];
+                                let mut v = a[j + distance];
                                 v.mul_assign(&s);
 
                                 let mut tmp = u;
                                 tmp.sub_assign(&v);
 
-                                a[j+distance] = tmp;
+                                a[j + distance] = tmp;
                                 a[j].add_assign(&v);
                             }
                         }
@@ -511,19 +466,18 @@ pub(crate) fn parallel_ct_ntt<F: PrimeField, P: CTPrecomputations<F>>(
     // }
 }
 
-
 #[cfg(test)]
 mod test {
     #[test]
     fn test_bit_reversed_omegas_computation() {
-        use rand::{XorShiftRng, SeedableRng, Rand, Rng};
-        use crate::plonk::transparent_engine::proth::Fr;
-        use crate::plonk::polynomials::*;
-        use std::time::Instant;
-        use crate::worker::*;
-        use crate::plonk::commitments::transparent::utils::*;
-        use super::CTPrecomputations;
         use super::BitReversedOmegas;
+        use super::CTPrecomputations;
+        use crate::plonk::commitments::transparent::utils::*;
+        use crate::plonk::polynomials::*;
+        use crate::plonk::transparent_engine::proth::Fr;
+        use crate::worker::*;
+        use rand::{Rand, Rng, SeedableRng, XorShiftRng};
+        use std::time::Instant;
 
         // let poly_sizes = vec![1_000_000, 2_000_000, 4_000_000];
 
@@ -539,17 +493,17 @@ mod test {
 
     #[test]
     fn test_bench_ct_serial_fft() {
-        use rand::{XorShiftRng, SeedableRng, Rand, Rng};
-        use crate::plonk::transparent_engine::proth::Fr;
-        use crate::plonk::polynomials::*;
-        use std::time::Instant;
-        use super::*;
-        use crate::worker::*;
-        use crate::plonk::commitments::transparent::utils::*;
-        use crate::plonk::fft::fft::serial_fft;
-        use super::CTPrecomputations;
         use super::BitReversedOmegas;
+        use super::CTPrecomputations;
+        use super::*;
+        use crate::plonk::commitments::transparent::utils::*;
         use crate::plonk::domains::Domain;
+        use crate::plonk::fft::fft::serial_fft;
+        use crate::plonk::polynomials::*;
+        use crate::plonk::transparent_engine::proth::Fr;
+        use crate::worker::*;
+        use rand::{Rand, Rng, SeedableRng, XorShiftRng};
+        use std::time::Instant;
 
         let poly_sizes = vec![1_000_000, 2_000_000, 4_000_000];
 
@@ -635,17 +589,17 @@ mod test {
 
     #[test]
     fn test_bench_ct_parallel_fft() {
-        use rand::{XorShiftRng, SeedableRng, Rand, Rng};
-        use crate::plonk::transparent_engine::proth::Fr;
-        use crate::plonk::polynomials::*;
-        use std::time::Instant;
-        use super::*;
-        use crate::worker::*;
-        use crate::plonk::commitments::transparent::utils::*;
-        use crate::plonk::fft::fft::parallel_fft;
-        use super::CTPrecomputations;
         use super::BitReversedOmegas;
+        use super::CTPrecomputations;
+        use super::*;
+        use crate::plonk::commitments::transparent::utils::*;
         use crate::plonk::domains::Domain;
+        use crate::plonk::fft::fft::parallel_fft;
+        use crate::plonk::polynomials::*;
+        use crate::plonk::transparent_engine::proth::Fr;
+        use crate::worker::*;
+        use rand::{Rand, Rng, SeedableRng, XorShiftRng};
+        use std::time::Instant;
 
         let poly_sizes = vec![1_000_000, 2_000_000, 4_000_000];
 
@@ -694,9 +648,3 @@ mod test {
         }
     }
 }
-
-
-
-
-
-

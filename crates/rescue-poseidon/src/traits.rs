@@ -5,7 +5,7 @@ pub enum HashFamily {
     Rescue,
     Poseidon,
     RescuePrime,
-    Poseidon2
+    Poseidon2,
 }
 
 #[derive(Copy, Clone, Debug, serde::Serialize, serde::Deserialize)]
@@ -17,13 +17,8 @@ pub enum CustomGate {
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum Step {
-    Double {
-        index: usize,
-    },
-    Add {
-        left: usize,
-        right: usize,
-    },
+    Double { index: usize },
+    Add { left: usize, right: usize },
 }
 
 #[derive(Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -46,15 +41,15 @@ impl std::fmt::Debug for Sbox {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Alpha(alpha) => write!(f, "sbox x^{}", alpha),
-            Self::AlphaInverse(vec, alpha) => write!(f, "inverse sbox [u64; {}] for x^{}", vec.len(), alpha),
+            Self::AlphaInverse(vec, alpha) => {
+                write!(f, "inverse sbox [u64; {}] for x^{}", vec.len(), alpha)
+            }
             Self::AddChain(_, alpha) => write!(f, "add chain inverse sbox for x^{}", alpha),
         }
     }
 }
 
-pub trait HashParams<E: Engine, const RATE: usize, const WIDTH: usize>:
-    Clone + Send + Sync + serde::Serialize + serde::de::DeserializeOwned
-{
+pub trait HashParams<E: Engine, const RATE: usize, const WIDTH: usize>: Clone + Send + Sync + serde::Serialize + serde::de::DeserializeOwned {
     #[inline]
     fn allows_specialization(&self) -> bool {
         false

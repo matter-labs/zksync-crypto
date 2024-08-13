@@ -1,14 +1,14 @@
-use crate::pairing::ff::{Field};
-use crate::pairing::{Engine};
+use crate::pairing::ff::Field;
+use crate::pairing::Engine;
 
-use crate::{SynthesisError};
+use crate::SynthesisError;
 use std::marker::PhantomData;
 
 pub mod gates;
 pub mod variable;
 
-use self::variable::*;
 use self::gates::*;
+use self::variable::*;
 
 pub trait Circuit<E: Engine> {
     fn synthesize<CS: ConstraintSystem<E>>(&self, cs: &mut CS) -> Result<(), SynthesisError>;
@@ -42,8 +42,7 @@ pub trait ConstraintSystem<E: Engine> {
     fn enforce_boolean(&mut self, variable: Variable) -> Result<(), SynthesisError>;
 
     // allocate an abstract gate
-    fn new_gate(&mut self, variables: (Variable, Variable, Variable), 
-        coeffs:(E::Fr, E::Fr, E::Fr, E::Fr, E::Fr)) -> Result<(), SynthesisError>;
+    fn new_gate(&mut self, variables: (Variable, Variable, Variable), coeffs: (E::Fr, E::Fr, E::Fr, E::Fr, E::Fr)) -> Result<(), SynthesisError>;
 
     // allocate a constant
     fn enforce_constant(&mut self, variable: Variable, constant: E::Fr) -> Result<(), SynthesisError>;
@@ -55,11 +54,10 @@ pub trait ConstraintSystem<E: Engine> {
     fn enforce_mul_3(&mut self, variables: (Variable, Variable, Variable)) -> Result<(), SynthesisError>;
 
     // allocate a linear combination gate
-    fn enforce_zero_2(&mut self, variables: (Variable, Variable), coeffs:(E::Fr, E::Fr)) -> Result<(), SynthesisError>;
+    fn enforce_zero_2(&mut self, variables: (Variable, Variable), coeffs: (E::Fr, E::Fr)) -> Result<(), SynthesisError>;
 
     // allocate a linear combination gate
-    fn enforce_zero_3(&mut self, variables: (Variable, Variable, Variable), coeffs:(E::Fr, E::Fr, E::Fr)) -> Result<(), SynthesisError>;
-
+    fn enforce_zero_3(&mut self, variables: (Variable, Variable, Variable), coeffs: (E::Fr, E::Fr, E::Fr)) -> Result<(), SynthesisError>;
 
     // // allocate a linear combination gate
     // fn enforce_zero_2<F>(&mut self, variables: (Variable, Variable), coeffs:(E::Fr, E::Fr), values: F) -> Result<(), SynthesisError>;
@@ -77,7 +75,7 @@ pub trait ConstraintSystem<E: Engine> {
     // where
     //     F: FnOnce() -> Result<(E::Fr, E::Fr, E::Fr), SynthesisError>;
 
-    fn get_value(&self, _variable: Variable) -> Result<E::Fr, SynthesisError> { 
+    fn get_value(&self, _variable: Variable) -> Result<E::Fr, SynthesisError> {
         Err(SynthesisError::AssignmentMissing)
     }
 
@@ -87,8 +85,6 @@ pub trait ConstraintSystem<E: Engine> {
     //     <Self as ConstraintSystem<E>>::ZERO
     // }
 }
-
-
 
 // /// This is a backend for the `SynthesisDriver` to relay information about
 // /// the concrete circuit. One backend might just collect basic information

@@ -1,11 +1,11 @@
 use crate::ff::PrimeField;
 
-use crate::plonk::domains::Domain;
-use crate::worker::Worker;
-use crate::plonk::fft::distribute_powers;
 use super::*;
+use crate::plonk::domains::Domain;
+use crate::plonk::fft::cooley_tukey_ntt::OmegasInvBitreversed;
 use crate::plonk::fft::cooley_tukey_ntt::{bitreverse, log2_floor};
-use crate::plonk::fft::cooley_tukey_ntt::{OmegasInvBitreversed};
+use crate::plonk::fft::distribute_powers;
+use crate::worker::Worker;
 
 impl<F: PrimeField> FriPrecomputations<F> for OmegasInvBitreversed<F> {
     fn new_for_domain_size(size: usize) -> Self {
@@ -25,13 +25,13 @@ impl<F: PrimeField> FriPrecomputations<F> for OmegasInvBitreversed<F> {
 
 pub struct CosetOmegasInvBitreversed<F: PrimeField> {
     pub omegas: Vec<F>,
-    domain_size: usize
+    domain_size: usize,
 }
 
 impl<F: PrimeField> CosetOmegasInvBitreversed<F> {
     pub fn new_for_domain(domain: &Domain<F>, worker: &Worker) -> Self {
         let domain_size = domain.size as usize;
-        
+
         let omega = domain.generator.inverse().expect("must exist");
         let precomputation_size = domain_size / 2;
 
@@ -62,10 +62,7 @@ impl<F: PrimeField> CosetOmegasInvBitreversed<F> {
             }
         }
 
-        CosetOmegasInvBitreversed{
-            omegas,
-            domain_size
-        }
+        CosetOmegasInvBitreversed { omegas, domain_size }
     }
 }
 

@@ -1,23 +1,13 @@
-use crate::pairing::ff::{
-    Field,
-    PrimeField, 
-    PrimeFieldRepr
-};
+use crate::pairing::ff::{Field, PrimeField, PrimeFieldRepr};
 
-use crate::pairing::{
-    Engine,
-    CurveAffine,
-    EncodedPoint
-};
+use crate::pairing::{CurveAffine, EncodedPoint, Engine};
 
-use crate::{
-    SynthesisError
-};
+use crate::SynthesisError;
 
 use crate::source::SourceBuilder;
+use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 use std::io::{self, Read, Write};
 use std::sync::Arc;
-use byteorder::{BigEndian, WriteBytesExt, ReadBytesExt};
 
 pub const NUM_BLINDINGS: usize = 6;
 // pub const NUM_BLINDINGS: usize = 0;
@@ -31,9 +21,7 @@ pub struct SxyAdvice<E: Engine> {
 
 impl<E: Engine> PartialEq for SxyAdvice<E> {
     fn eq(&self, other: &SxyAdvice<E>) -> bool {
-        self.s == other.s &&
-        self.opening == other.opening &&
-        self.szy == other.szy
+        self.s == other.s && self.opening == other.opening && self.szy == other.szy
     }
 }
 
@@ -44,26 +32,17 @@ pub struct Proof<E: Engine> {
     pub rz: E::Fr,
     pub rzy: E::Fr,
     pub z_opening: E::G1Affine,
-    pub zy_opening: E::G1Affine
+    pub zy_opening: E::G1Affine,
 }
 
 impl<E: Engine> PartialEq for Proof<E> {
     fn eq(&self, other: &Proof<E>) -> bool {
-        self.r == other.r &&
-        self.t == other.t &&
-        self.rz == other.rz &&
-        self.rzy == other.rzy &&
-        self.z_opening == other.z_opening &&
-        self.zy_opening == other.zy_opening
+        self.r == other.r && self.t == other.t && self.rz == other.rz && self.rzy == other.rzy && self.z_opening == other.z_opening && self.zy_opening == other.zy_opening
     }
 }
 
 impl<E: Engine> Proof<E> {
-    pub fn write<W: Write>(
-        &self,
-        mut writer: W
-    ) -> io::Result<()>
-    {
+    pub fn write<W: Write>(&self, mut writer: W) -> io::Result<()> {
         use crate::pairing::ff::{PrimeField, PrimeFieldRepr};
         writer.write_all(self.r.into_compressed().as_ref())?;
         writer.write_all(self.t.into_compressed().as_ref())?;
@@ -79,71 +58,63 @@ impl<E: Engine> Proof<E> {
         Ok(())
     }
 
-    pub fn read<R: Read>(
-        mut reader: R
-    ) -> io::Result<Self>
-    {
+    pub fn read<R: Read>(mut reader: R) -> io::Result<Self> {
         let mut g1_repr = <E::G1Affine as CurveAffine>::Compressed::empty();
         let mut fr_repr = E::Fr::zero().into_repr();
 
         reader.read_exact(g1_repr.as_mut())?;
-        let r = g1_repr
-                .into_affine()
-                .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
-                .and_then(|e| if e.is_zero() {
-                    Err(io::Error::new(io::ErrorKind::InvalidData, "point at infinity"))
-                } else {
-                    Ok(e)
-                })?;
+        let r = g1_repr.into_affine().map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e)).and_then(|e| {
+            if e.is_zero() {
+                Err(io::Error::new(io::ErrorKind::InvalidData, "point at infinity"))
+            } else {
+                Ok(e)
+            }
+        })?;
 
         reader.read_exact(g1_repr.as_mut())?;
-        let t = g1_repr
-                .into_affine()
-                .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
-                .and_then(|e| if e.is_zero() {
-                    Err(io::Error::new(io::ErrorKind::InvalidData, "point at infinity"))
-                } else {
-                    Ok(e)
-                })?;
+        let t = g1_repr.into_affine().map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e)).and_then(|e| {
+            if e.is_zero() {
+                Err(io::Error::new(io::ErrorKind::InvalidData, "point at infinity"))
+            } else {
+                Ok(e)
+            }
+        })?;
 
         fr_repr.read_be(&mut reader)?;
-        let rz = E::Fr::from_repr(fr_repr)
-                .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
-                .and_then(|e| if e.is_zero() {
-                    Err(io::Error::new(io::ErrorKind::InvalidData, "field element is zero"))
-                } else {
-                    Ok(e)
-                })?;
+        let rz = E::Fr::from_repr(fr_repr).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e)).and_then(|e| {
+            if e.is_zero() {
+                Err(io::Error::new(io::ErrorKind::InvalidData, "field element is zero"))
+            } else {
+                Ok(e)
+            }
+        })?;
 
         fr_repr.read_be(&mut reader)?;
-        let rzy = E::Fr::from_repr(fr_repr)
-                .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
-                .and_then(|e| if e.is_zero() {
-                    Err(io::Error::new(io::ErrorKind::InvalidData, "field element is zero"))
-                } else {
-                    Ok(e)
-                })?;
-
-        
-        reader.read_exact(g1_repr.as_mut())?;
-        let z_opening = g1_repr
-                .into_affine()
-                .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
-                .and_then(|e| if e.is_zero() {
-                    Err(io::Error::new(io::ErrorKind::InvalidData, "point at infinity"))
-                } else {
-                    Ok(e)
-                })?;
+        let rzy = E::Fr::from_repr(fr_repr).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e)).and_then(|e| {
+            if e.is_zero() {
+                Err(io::Error::new(io::ErrorKind::InvalidData, "field element is zero"))
+            } else {
+                Ok(e)
+            }
+        })?;
 
         reader.read_exact(g1_repr.as_mut())?;
-        let zy_opening = g1_repr
-                .into_affine()
-                .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
-                .and_then(|e| if e.is_zero() {
-                    Err(io::Error::new(io::ErrorKind::InvalidData, "point at infinity"))
-                } else {
-                    Ok(e)
-                })?;
+        let z_opening = g1_repr.into_affine().map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e)).and_then(|e| {
+            if e.is_zero() {
+                Err(io::Error::new(io::ErrorKind::InvalidData, "point at infinity"))
+            } else {
+                Ok(e)
+            }
+        })?;
+
+        reader.read_exact(g1_repr.as_mut())?;
+        let zy_opening = g1_repr.into_affine().map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e)).and_then(|e| {
+            if e.is_zero() {
+                Err(io::Error::new(io::ErrorKind::InvalidData, "point at infinity"))
+            } else {
+                Ok(e)
+            }
+        })?;
 
         Ok(Proof {
             r: r,
@@ -151,7 +122,7 @@ impl<E: Engine> Proof<E> {
             rz: rz,
             rzy: rzy,
             z_opening: z_opening,
-            zy_opening: zy_opening
+            zy_opening: zy_opening,
         })
     }
 }
@@ -170,27 +141,23 @@ pub struct VerifyingKey<E: Engine> {
 
     pub n: usize,
 
-    pub q: usize
+    pub q: usize,
 }
 
 impl<E: Engine> PartialEq for VerifyingKey<E> {
     fn eq(&self, other: &VerifyingKey<E>) -> bool {
-        self.alpha_x == other.alpha_x &&
-        self.alpha == other.alpha &&
-        self.neg_h == other.neg_h &&
-        self.neg_x_n_minus_d == other.neg_x_n_minus_d &&
-        self.k_map == other.k_map &&
-        self.n == other.n &&
-        self.q == other.q
+        self.alpha_x == other.alpha_x
+            && self.alpha == other.alpha
+            && self.neg_h == other.neg_h
+            && self.neg_x_n_minus_d == other.neg_x_n_minus_d
+            && self.k_map == other.k_map
+            && self.n == other.n
+            && self.q == other.q
     }
 }
 
 impl<E: Engine> VerifyingKey<E> {
-    pub fn write<W: Write>(
-        &self,
-        mut writer: W
-    ) -> io::Result<()>
-    {
+    pub fn write<W: Write>(&self, mut writer: W) -> io::Result<()> {
         writer.write_all(self.alpha_x.into_uncompressed().as_ref())?;
         writer.write_all(self.alpha.into_uncompressed().as_ref())?;
         writer.write_all(self.neg_h.into_uncompressed().as_ref())?;
@@ -206,10 +173,7 @@ impl<E: Engine> VerifyingKey<E> {
         Ok(())
     }
 
-    pub fn read<R: Read>(
-        mut reader: R
-    ) -> io::Result<Self>
-    {
+    pub fn read<R: Read>(mut reader: R) -> io::Result<Self> {
         let mut g2_repr = <E::G2Affine as CurveAffine>::Uncompressed::empty();
 
         reader.read_exact(g2_repr.as_mut())?;
@@ -245,17 +209,16 @@ impl<E: Engine> VerifyingKey<E> {
             neg_x_n_minus_d: neg_x_n_minus_d,
             k_map: k_map,
             n: n,
-            q: q
+            q: q,
         })
     }
 }
 
-use crate::sonic::cs::{Backend, SynthesisDriver};
-use crate::sonic::srs::SRS;
 use crate::sonic::cs::Circuit as SonicCircuit;
+use crate::sonic::cs::{Backend, SynthesisDriver};
 use crate::sonic::sonic::{Basic, Preprocess};
+use crate::sonic::srs::SRS;
 use std::marker::PhantomData;
-
 
 impl<E: Engine> VerifyingKey<E> {
     pub fn new<C: SonicCircuit<E>, S: SynthesisDriver>(circuit: C, srs: &SRS<E>) -> Result<Self, SynthesisError> {
@@ -284,7 +247,7 @@ impl<E: Engine> VerifyingKey<E> {
 
             k_map: preprocess.k_map,
             n: preprocess.n,
-            q: preprocess.q
+            q: preprocess.q,
         })
     }
 }
@@ -296,7 +259,7 @@ pub struct PreparedVerifyingKey<E: Engine> {
     neg_x_n_minus_d: <E::G2Affine as CurveAffine>::Prepared,
     k_map: Vec<usize>,
     n: usize,
-    q: usize
+    q: usize,
 }
 
 #[derive(Clone, Eq)]
@@ -333,80 +296,62 @@ pub struct Parameters<E: Engine> {
 
 impl<E: Engine> PartialEq for Parameters<E> {
     fn eq(&self, other: &Parameters<E>) -> bool {
-        self.vk == other.vk &&
-        self.srs == other.srs
+        self.vk == other.vk && self.srs == other.srs
     }
 }
 
 impl<E: Engine> Parameters<E> {
-    pub fn write<W: Write>(
-        &self,
-        mut writer: W
-    ) -> io::Result<()>
-    {
+    pub fn write<W: Write>(&self, mut writer: W) -> io::Result<()> {
         self.vk.write(&mut writer)?;
         self.srs.write(&mut writer)?;
 
         Ok(())
     }
 
-    pub fn read<R: Read>(
-        mut reader: R,
-        checked: bool
-    ) -> io::Result<Self>
-    {
+    pub fn read<R: Read>(mut reader: R, checked: bool) -> io::Result<Self> {
         let vk = VerifyingKey::<E>::read(&mut reader)?;
         let srs = SRS::<E>::read(&mut reader, checked)?;
 
-        Ok(Parameters {
-            vk: vk,
-            srs: srs
-        })
+        Ok(Parameters { vk: vk, srs: srs })
     }
 }
 
 #[test]
 fn parameters_generation() {
-    use crate::{ConstraintSystem, Circuit};
+    use crate::{Circuit, ConstraintSystem};
 
     use crate::pairing::bls12_381::{Bls12, Fr};
 
     #[derive(Clone)]
     struct MySillyCircuit<E: Engine> {
         a: Option<E::Fr>,
-        b: Option<E::Fr>
+        b: Option<E::Fr>,
     }
 
     impl<E: Engine> Circuit<E> for MySillyCircuit<E> {
-        fn synthesize<CS: ConstraintSystem<E>>(
-            self,
-            cs: &mut CS
-        ) -> Result<(), SynthesisError>
-        {
+        fn synthesize<CS: ConstraintSystem<E>>(self, cs: &mut CS) -> Result<(), SynthesisError> {
             let a = cs.alloc(|| "a", || self.a.ok_or(SynthesisError::AssignmentMissing))?;
             let b = cs.alloc(|| "b", || self.b.ok_or(SynthesisError::AssignmentMissing))?;
-            let c = cs.alloc_input(|| "c", || {
-                let mut a = self.a.ok_or(SynthesisError::AssignmentMissing)?;
-                let b = self.b.ok_or(SynthesisError::AssignmentMissing)?;
+            let c = cs.alloc_input(
+                || "c",
+                || {
+                    let mut a = self.a.ok_or(SynthesisError::AssignmentMissing)?;
+                    let b = self.b.ok_or(SynthesisError::AssignmentMissing)?;
 
-                a.mul_assign(&b);
-                Ok(a)
-            })?;
+                    a.mul_assign(&b);
+                    Ok(a)
+                },
+            )?;
 
-            cs.enforce(
-                || "a*b=c",
-                |lc| lc + a,
-                |lc| lc + b,
-                |lc| lc + c
-            );
+            cs.enforce(|| "a*b=c", |lc| lc + a, |lc| lc + b, |lc| lc + c);
 
             Ok(())
         }
     }
 
-    use rand::{Rng, Rand, thread_rng};
-    use super::{generate_parameters, get_circuit_parameters, generate_srs, generate_parameters_on_srs_and_information};
     use super::adapted_prover::create_proof;
+    use super::{generate_parameters, generate_parameters_on_srs_and_information, generate_srs, get_circuit_parameters};
+    use rand::{thread_rng, Rand, Rng};
 
     let info = get_circuit_parameters::<Bls12, _>(MySillyCircuit { a: None, b: None }).expect("Must get circuit info");
     println!("{:?}", info);
@@ -417,11 +362,7 @@ fn parameters_generation() {
 
     let params = generate_parameters::<Bls12, _>(MySillyCircuit { a: None, b: None }, alpha, x).unwrap();
     let srs = generate_srs::<Bls12>(alpha, x, info.n * 100).unwrap();
-    let naive_srs = SRS::<Bls12>::new(
-        info.n * 100,
-        x,
-        alpha,
-    );
+    let naive_srs = SRS::<Bls12>::new(info.n * 100, x, alpha);
 
     assert!(srs == naive_srs);
 
@@ -447,13 +388,7 @@ fn parameters_generation() {
         let mut c = a;
         c.mul_assign(&b);
 
-        let proof = create_proof (
-            MySillyCircuit {
-                a: Some(a),
-                b: Some(b)
-            },
-            &params,
-        ).unwrap();
+        let proof = create_proof(MySillyCircuit { a: Some(a), b: Some(b) }, &params).unwrap();
 
         let mut v = vec![];
         proof.write(&mut v).unwrap();

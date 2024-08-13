@@ -1,27 +1,21 @@
-use blake2s_simd::{Params, State};
-use crate::pairing::ff::{PrimeField, PrimeFieldRepr};
 use super::Prng;
+use crate::pairing::ff::{PrimeField, PrimeFieldRepr};
+use blake2s_simd::{Params, State};
 
 lazy_static! {
-    static ref STATELESS_PRNG_BLAKE2S_PARAMS: State = {
-        Params::new()
-            .hash_length(32)
-            .key(b"Squeamish Ossifrage")
-            .personal(b"S_Prng_F")
-            .to_state()
-    };
+    static ref STATELESS_PRNG_BLAKE2S_PARAMS: State = { Params::new().hash_length(32).key(b"Squeamish Ossifrage").personal(b"S_Prng_F").to_state() };
 }
 
 #[derive(Clone)]
 pub struct StatelessBlake2sPrng<F: PrimeField> {
     state: State,
-    _marker: std::marker::PhantomData<F>
+    _marker: std::marker::PhantomData<F>,
 }
 
 impl<F: PrimeField> StatelessBlake2sPrng<F> {
     const SHAVE_BITS: u32 = 256 - F::CAPACITY;
     // const REPR_SIZE: usize = std::mem::size_of::<F::Repr>();
-    const REPR_SIZE: usize = (((F::NUM_BITS as usize)/ 64) + 1) * 8;
+    const REPR_SIZE: usize = (((F::NUM_BITS as usize) / 64) + 1) * 8;
 }
 
 impl<F: PrimeField> Prng<F> for StatelessBlake2sPrng<F> {
@@ -32,7 +26,7 @@ impl<F: PrimeField> Prng<F> for StatelessBlake2sPrng<F> {
         assert!(F::NUM_BITS < 256);
         Self {
             state: STATELESS_PRNG_BLAKE2S_PARAMS.clone(),
-            _marker: std::marker::PhantomData
+            _marker: std::marker::PhantomData,
         }
     }
 
@@ -48,7 +42,7 @@ impl<F: PrimeField> Prng<F> for StatelessBlake2sPrng<F> {
     fn get_challenge(&mut self) -> F {
         let value = *(self.state.finalize().as_array());
         self.state = STATELESS_PRNG_BLAKE2S_PARAMS.clone();
-        
+
         let mut repr = F::Repr::default();
         let shaving_mask: u64 = 0xffffffffffffffff >> (Self::SHAVE_BITS % 64);
         repr.read_be(&value[..]).expect("will read");

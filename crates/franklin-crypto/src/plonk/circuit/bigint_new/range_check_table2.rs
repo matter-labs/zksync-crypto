@@ -20,13 +20,12 @@ impl<E: Engine> CombinedBitwiseLogicRangeTable<E> {
         let mut values = Vec::with_capacity(table_len);
         let mut map = std::collections::HashMap::with_capacity(table_len);
 
-        for (x, y) in (0..var_range).cartesian_product(0..var_range) 
-        {
-            let res_and = (x & y) as u64 ;
+        for (x, y) in (0..var_range).cartesian_product(0..var_range) {
+            let res_and = (x & y) as u64;
             let res_or = (x | y) as u64;
             let res_xor = (x ^ y) as u64;
             let z = res_and + (res_or << 16) + (res_xor << 32);
-            
+
             let x = u64_to_fe(x as u64);
             let y = u64_to_fe(y as u64);
             let z = u64_to_fe(z as u64);
@@ -48,9 +47,7 @@ impl<E: Engine> CombinedBitwiseLogicRangeTable<E> {
 
 impl<E: Engine> std::fmt::Debug for CombinedBitwiseLogicRangeTable<E> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("CombinedBitwiseLogicRangeTable")
-            .field("bits", &self.bits)
-            .finish()
+        f.debug_struct("CombinedBitwiseLogicRangeTable").field("bits", &self.bits).finish()
     }
 }
 
@@ -101,7 +98,7 @@ impl<E: Engine> LookupTableInternal<E> for CombinedBitwiseLogicRangeTable<E> {
         assert!(keys.len() == self.num_keys());
 
         if let Some(entry) = self.table_lookup_map.get(&(keys[0], keys[1])) {
-            return Ok(vec![*entry])
+            return Ok(vec![*entry]);
         }
 
         Err(SynthesisError::Unsatisfiable)

@@ -1,16 +1,11 @@
-use byteorder::{ByteOrder, LittleEndian};
-use bellman::pairing::ff::{adc, sbb, mac_with_carry};
-use bellman::pairing::ff::{BitIterator, Field, PrimeField, SqrtField, PrimeFieldRepr, PrimeFieldDecodingError, LegendreSymbol};
-use bellman::pairing::ff::LegendreSymbol::*;
 use super::ToUniform;
+use bellman::pairing::ff::LegendreSymbol::*;
+use bellman::pairing::ff::{adc, mac_with_carry, sbb};
+use bellman::pairing::ff::{BitIterator, Field, LegendreSymbol, PrimeField, PrimeFieldDecodingError, PrimeFieldRepr, SqrtField};
+use byteorder::{ByteOrder, LittleEndian};
 
 // s = 2736030358979909402780800718157159386076813972158567259200215660948447373041
-const MODULUS: FsRepr = FsRepr([
-    0x677297dc392126f1,
-    0xab3eedb83920ee0a,
-    0x370a08b6d0302b0b,
-    0x060c89ce5c263405,
-]);
+const MODULUS: FsRepr = FsRepr([0x677297dc392126f1, 0xab3eedb83920ee0a, 0x370a08b6d0302b0b, 0x060c89ce5c263405]);
 
 // The number of bits needed to represent the modulus.
 const MODULUS_BITS: u32 = 251;
@@ -20,50 +15,25 @@ const MODULUS_BITS: u32 = 251;
 const REPR_SHAVE_BITS: u32 = 5;
 
 // R = 2**256 % s
-const R: FsRepr = FsRepr([
-    0x073315dea08f9c76,
-    0xe7acffc6a098f24b,
-    0xf85a9201d818f015,
-    0x01f16424e1bb7724,
-]);
+const R: FsRepr = FsRepr([0x073315dea08f9c76, 0xe7acffc6a098f24b, 0xf85a9201d818f015, 0x01f16424e1bb7724]);
 
 // R2 = R^2 % s
-const R2: FsRepr = FsRepr([
-    0x35e44abee7ecb21e,
-    0x74646cacf5f84ec4,
-    0xe472df203faa158f,
-    0x0445b524f1ba50a8,
-]);
+const R2: FsRepr = FsRepr([0x35e44abee7ecb21e, 0x74646cacf5f84ec4, 0xe472df203faa158f, 0x0445b524f1ba50a8]);
 
 // INV = -(s^{-1} mod 2^64) mod s
 const INV: u64 = 0x532ce5aebc48f5ef;
 
 // GENERATOR = 7 (multiplicative generator of r-1 order, that is also quadratic nonresidue)
-const GENERATOR: FsRepr = FsRepr([
-    0x6380695df1aaf958,
-    0xff3d22fdf1ecc3f8,
-    0x5c65ec9f484e3a81,
-    0x0180a96573d3d9f8,
-]);
+const GENERATOR: FsRepr = FsRepr([0x6380695df1aaf958, 0xff3d22fdf1ecc3f8, 0x5c65ec9f484e3a81, 0x0180a96573d3d9f8]);
 
 // 2^S * t = MODULUS - 1 with t odd
 const S: u32 = 4;
 
 // 2^S root of unity computed by GENERATOR^t
-const ROOT_OF_UNITY: FsRepr = FsRepr([
-    0xa13885692e7afcb0,
-    0xb789766cd18573ca,
-    0xd5468c0174efc3b9,
-    0x03534b612b0b6f7a,
-]);
+const ROOT_OF_UNITY: FsRepr = FsRepr([0xa13885692e7afcb0, 0xb789766cd18573ca, 0xd5468c0174efc3b9, 0x03534b612b0b6f7a]);
 
 // -((2**256) mod s) mod s
-const NEGATIVE_ONE: Fs = Fs(FsRepr([
-    0x603f81fd98918a7b,
-    0xc391edf19887fbbf,
-    0x3eaf76b4f8173af5,
-    0x041b25a97a6abce0,
-]));
+const NEGATIVE_ONE: Fs = Fs(FsRepr([0x603f81fd98918a7b, 0xc391edf19887fbbf, 0x3eaf76b4f8173af5, 0x041b25a97a6abce0]));
 
 /// This is the underlying representation of an element of `Fs`.
 #[derive(Copy, Clone, PartialEq, Eq, Default, Debug, Hash, ::serde::Serialize, ::serde::Deserialize)]
@@ -76,8 +46,7 @@ impl ::rand::Rand for FsRepr {
     }
 }
 
-impl ::std::fmt::Display for FsRepr
-{
+impl ::std::fmt::Display for FsRepr {
     fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
         write!(f, "0x")?;
         for i in self.0.iter().rev() {
@@ -116,9 +85,9 @@ impl Ord for FsRepr {
     fn cmp(&self, other: &FsRepr) -> ::std::cmp::Ordering {
         for (a, b) in self.0.iter().rev().zip(other.0.iter().rev()) {
             if a < b {
-                return ::std::cmp::Ordering::Less
+                return ::std::cmp::Ordering::Less;
             } else if a > b {
-                return ::std::cmp::Ordering::Greater
+                return ::std::cmp::Ordering::Greater;
             }
         }
 
@@ -260,8 +229,7 @@ impl PrimeFieldRepr for FsRepr {
 #[derive(Copy, Clone, PartialEq, Eq, Debug, Hash, Default)]
 pub struct Fs(FsRepr);
 
-impl ::std::fmt::Display for Fs
-{
+impl ::std::fmt::Display for Fs {
     fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
         write!(f, "Fs({})", self.into_repr())
     }
@@ -276,7 +244,7 @@ impl ::rand::Rand for Fs {
             tmp.0.as_mut()[3] &= 0xffffffffffffffff >> REPR_SHAVE_BITS;
 
             if tmp.is_valid() {
-                return tmp
+                return tmp;
             }
         }
     }
@@ -290,7 +258,8 @@ impl From<Fs> for FsRepr {
 
 impl ::serde::Serialize for Fs {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-        where S: ::serde::Serializer 
+    where
+        S: ::serde::Serializer,
     {
         let repr = self.into_repr();
         repr.serialize(serializer)
@@ -299,7 +268,8 @@ impl ::serde::Serialize for Fs {
 
 impl<'de> ::serde::Deserialize<'de> for Fs {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where D: ::serde::Deserializer<'de> 
+    where
+        D: ::serde::Deserializer<'de>,
     {
         let repr = FsRepr::deserialize(deserializer)?;
         let new = Self::from_repr(repr).expect("serialized representation is expected to be valid");
@@ -333,9 +303,7 @@ impl PrimeField for Fs {
 
     fn into_repr(&self) -> FsRepr {
         let mut r = *self;
-        r.mont_reduce((self.0).0[0], (self.0).0[1],
-                      (self.0).0[2], (self.0).0[3],
-                      0, 0, 0, 0);
+        r.mont_reduce((self.0).0[0], (self.0).0[1], (self.0).0[2], (self.0).0[3], 0, 0, 0, 0);
         r.0
     }
 
@@ -477,8 +445,7 @@ impl Field for Fs {
     }
 
     #[inline]
-    fn mul_assign(&mut self, other: &Fs)
-    {
+    fn mul_assign(&mut self, other: &Fs) {
         let mut carry = 0;
         let r0 = mac_with_carry(0, (self.0).0[0], (other.0).0[0], &mut carry);
         let r1 = mac_with_carry(0, (self.0).0[0], (other.0).0[1], &mut carry);
@@ -507,8 +474,7 @@ impl Field for Fs {
     }
 
     #[inline]
-    fn square(&mut self)
-    {
+    fn square(&mut self) {
         let mut carry = 0;
         let r1 = mac_with_carry(0, (self.0).0[0], (self.0).0[1], &mut carry);
         let r2 = mac_with_carry(0, (self.0).0[0], (self.0).0[2], &mut carry);
@@ -561,18 +527,7 @@ impl Fs {
     }
 
     #[inline(always)]
-    fn mont_reduce(
-        &mut self,
-        r0: u64,
-        mut r1: u64,
-        mut r2: u64,
-        mut r3: u64,
-        mut r4: u64,
-        mut r5: u64,
-        mut r6: u64,
-        mut r7: u64
-    )
-    {
+    fn mont_reduce(&mut self, r0: u64, mut r1: u64, mut r2: u64, mut r3: u64, mut r4: u64, mut r5: u64, mut r6: u64, mut r7: u64) {
         // The Montgomery reduction here is based on Algorithm 14.32 in
         // Handbook of Applied Cryptography
         // <http://cacr.uwaterloo.ca/hac/about/chap14.pdf>.
@@ -653,18 +608,16 @@ impl ToUniform for Fs {
 }
 
 impl SqrtField for Fs {
-
     fn legendre(&self) -> LegendreSymbol {
         // s = self^((s - 1) // 2)
-        let s = self.pow([
-                0x33b94bee1c909378,
-                0xd59f76dc1c907705,
-                0x9b85045b68181585,
-                0x030644e72e131a02,
-            ]);
-        if s == Self::zero() { Zero }
-        else if s == Self::one() { QuadraticResidue }
-        else { QuadraticNonResidue }
+        let s = self.pow([0x33b94bee1c909378, 0xd59f76dc1c907705, 0x9b85045b68181585, 0x030644e72e131a02]);
+        if s == Self::zero() {
+            Zero
+        } else if s == Self::one() {
+            QuadraticResidue
+        } else {
+            QuadraticNonResidue
+        }
     }
 
     fn sqrt(&self) -> Option<Self> {
@@ -694,7 +647,6 @@ impl SqrtField for Fs {
     }
 }
 
-
 #[test]
 fn test_neg_one() {
     let mut o = Fs::one();
@@ -704,7 +656,7 @@ fn test_neg_one() {
 }
 
 #[cfg(test)]
-use rand::{SeedableRng, XorShiftRng, Rand};
+use rand::{Rand, SeedableRng, XorShiftRng};
 
 #[test]
 fn test_fs_repr_ordering() {
@@ -779,30 +731,15 @@ fn test_fs_repr_div2() {
 fn test_fs_repr_shr() {
     let mut a = FsRepr([0xb33fbaec482a283f, 0x997de0d3a88cb3df, 0x9af62d2a9a0e5525, 0x36003ab08de70da1]);
     a.shr(0);
-    assert_eq!(
-        a,
-        FsRepr([0xb33fbaec482a283f, 0x997de0d3a88cb3df, 0x9af62d2a9a0e5525, 0x36003ab08de70da1])
-    );
+    assert_eq!(a, FsRepr([0xb33fbaec482a283f, 0x997de0d3a88cb3df, 0x9af62d2a9a0e5525, 0x36003ab08de70da1]));
     a.shr(1);
-    assert_eq!(
-        a,
-        FsRepr([0xd99fdd762415141f, 0xccbef069d44659ef, 0xcd7b16954d072a92, 0x1b001d5846f386d0])
-    );
+    assert_eq!(a, FsRepr([0xd99fdd762415141f, 0xccbef069d44659ef, 0xcd7b16954d072a92, 0x1b001d5846f386d0]));
     a.shr(50);
-    assert_eq!(
-        a,
-        FsRepr([0xbc1a7511967bf667, 0xc5a55341caa4b32f, 0x75611bce1b4335e, 0x6c0])
-    );
+    assert_eq!(a, FsRepr([0xbc1a7511967bf667, 0xc5a55341caa4b32f, 0x75611bce1b4335e, 0x6c0]));
     a.shr(130);
-    assert_eq!(
-        a,
-        FsRepr([0x1d5846f386d0cd7, 0x1b0, 0x0, 0x0])
-    );
+    assert_eq!(a, FsRepr([0x1d5846f386d0cd7, 0x1b0, 0x0, 0x0]));
     a.shr(64);
-    assert_eq!(
-        a,
-        FsRepr([0x1b0, 0x0, 0x0, 0x0])
-    );
+    assert_eq!(a, FsRepr([0x1b0, 0x0, 0x0, 0x0]));
 }
 
 #[test]
@@ -1276,10 +1213,7 @@ fn test_fs_repr_display() {
         format!("{}", FsRepr([0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff])),
         "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff".to_string()
     );
-    assert_eq!(
-        format!("{}", FsRepr([0, 0, 0, 0])),
-        "0x0000000000000000000000000000000000000000000000000000000000000000".to_string()
-    );
+    assert_eq!(format!("{}", FsRepr([0, 0, 0, 0])), "0x0000000000000000000000000000000000000000000000000000000000000000".to_string());
 }
 
 #[test]
@@ -1305,17 +1239,9 @@ fn test_fs_root_of_unity() {
     // assert_eq!(Fs::S, 1);
     assert_eq!(Fs::multiplicative_generator(), Fs::from_repr(FsRepr::from(7)).unwrap());
     assert_eq!(
-        Fs::multiplicative_generator().pow([
-            0xa677297dc392126f,
-            0xbab3eedb83920ee0,
-            0x5370a08b6d0302b0,
-            0x0060c89ce5c26340,
-        ]),
+        Fs::multiplicative_generator().pow([0xa677297dc392126f, 0xbab3eedb83920ee0, 0x5370a08b6d0302b0, 0x0060c89ce5c26340,]),
         Fs::root_of_unity()
     );
-    assert_eq!(
-        Fs::root_of_unity().pow([1 << Fs::S]),
-        Fs::one()
-    );
+    assert_eq!(Fs::root_of_unity().pow([1 << Fs::S]), Fs::one());
     assert!(Fs::multiplicative_generator().sqrt().is_none());
 }

@@ -1,13 +1,12 @@
+use crate::bellman::pairing::ff::*;
 use crate::bellman::plonk::better_better_cs::cs::*;
 use crate::bellman::plonk::better_better_cs::lookup_tables::*;
 use crate::bellman::plonk::better_better_cs::utils;
-use crate::bellman::pairing::ff::*;
-use crate::bellman::SynthesisError;
 use crate::bellman::Engine;
+use crate::bellman::SynthesisError;
 
-use super::utils::*;
 use super::super::utils::*;
-
+use super::utils::*;
 
 // SHA256 SPECIFIC TABLES (so to say)
 // ----------------------------------------------------------------------------------------------------------------------------
@@ -38,7 +37,7 @@ impl<E: Engine> Sha256ShedulerHelperTable<E> {
         for x in 0..(1 << bits) {
             let y = map_into_sparse_form(shift_right(x, shift), base);
             let z = map_into_sparse_form(rotate_extract(x, rot, 0), base);
-            
+
             let x = E::Fr::from_str(&x.to_string()).unwrap();
             let y = E::Fr::from_str(&y.to_string()).unwrap();
             let z = E::Fr::from_str(&z.to_string()).unwrap();
@@ -60,8 +59,7 @@ impl<E: Engine> Sha256ShedulerHelperTable<E> {
 
 impl<E: Engine> std::fmt::Debug for Sha256ShedulerHelperTable<E> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Sha256ExtensionHelperTable")
-            .finish()
+        f.debug_struct("Sha256ExtensionHelperTable").finish()
     }
 }
 
@@ -112,10 +110,9 @@ impl<E: Engine> LookupTableInternal<E> for Sha256ShedulerHelperTable<E> {
         assert!(keys.len() == self.num_keys());
 
         if let Some(entry) = self.table_lookup_map.get(&keys[0]) {
-            return Ok(vec![entry.0, entry.1])
+            return Ok(vec![entry.0, entry.1]);
         }
 
         Err(SynthesisError::Unsatisfiable)
     }
 }
-

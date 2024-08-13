@@ -1,13 +1,11 @@
 mod tests {
-    use super::super::edwards::*;
     use super::super::bn256::*;
-    use crate::bellman::plonk::better_better_cs::cs::{
-        PlonkCsWidth4WithNextStepAndCustomGatesParams, TrivialAssembly, Width4MainGateWithDNext,
-    };
-    use crate::bellman::pairing::bn256::{Bn256, Fr};
-    use crate::bellman::pairing::ff::BitIterator;
+    use super::super::edwards::*;
     use crate::alt_babyjubjub::fs::Fs;
     use crate::alt_babyjubjub::AltJubjubBn256;
+    use crate::bellman::pairing::bn256::{Bn256, Fr};
+    use crate::bellman::pairing::ff::BitIterator;
+    use crate::bellman::plonk::better_better_cs::cs::{PlonkCsWidth4WithNextStepAndCustomGatesParams, TrivialAssembly, Width4MainGateWithDNext};
     use crate::bellman::{Field, PrimeField};
     use crate::jubjub::edwards::Point;
     use crate::plonk::circuit::allocated_num::{AllocatedNum, Num};
@@ -18,11 +16,7 @@ mod tests {
     fn test_new_altjubjub_addition() {
         let rng = &mut XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
-        let mut cs = TrivialAssembly::<
-            Bn256,
-            PlonkCsWidth4WithNextStepAndCustomGatesParams,
-            Width4MainGateWithDNext,
-        >::new();
+        let mut cs = TrivialAssembly::<Bn256, PlonkCsWidth4WithNextStepAndCustomGatesParams, Width4MainGateWithDNext>::new();
 
         let params = AltJubjubBn256::new();
 
@@ -31,19 +25,13 @@ mod tests {
             let (p_x, p_y) = p.into_xy();
             let p_x_num = Num::Variable(AllocatedNum::alloc(&mut cs, || Ok(p_x)).unwrap());
             let p_y_num = Num::Variable(AllocatedNum::alloc(&mut cs, || Ok(p_y)).unwrap());
-            let p_allocated = CircuitTwistedEdwardsPoint {
-                x: p_x_num,
-                y: p_y_num,
-            };
+            let p_allocated = CircuitTwistedEdwardsPoint { x: p_x_num, y: p_y_num };
 
             let q = Point::<Bn256, _>::rand(rng, &params).mul_by_cofactor(&params);
             let (q_x, q_y) = q.into_xy();
             let q_x_num = Num::Variable(AllocatedNum::alloc(&mut cs, || Ok(q_x)).unwrap());
             let q_y_num = Num::Variable(AllocatedNum::alloc(&mut cs, || Ok(q_y)).unwrap());
-            let q_allocated = CircuitTwistedEdwardsPoint {
-                x: q_x_num,
-                y: q_y_num,
-            };
+            let q_allocated = CircuitTwistedEdwardsPoint { x: q_x_num, y: q_y_num };
 
             let expected = p.add(&q, &params);
             let (expected_x, expected_y) = expected.into_xy();
@@ -68,11 +56,7 @@ mod tests {
     fn test_new_altjubjub_doubling() {
         let rng = &mut XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
-        let mut cs = TrivialAssembly::<
-            Bn256,
-            PlonkCsWidth4WithNextStepAndCustomGatesParams,
-            Width4MainGateWithDNext,
-        >::new();
+        let mut cs = TrivialAssembly::<Bn256, PlonkCsWidth4WithNextStepAndCustomGatesParams, Width4MainGateWithDNext>::new();
 
         let params = AltJubjubBn256::new();
 
@@ -85,10 +69,7 @@ mod tests {
 
             let p_x_num = Num::Variable(AllocatedNum::alloc(&mut cs, || Ok(p_x)).unwrap());
             let p_y_num = Num::Variable(AllocatedNum::alloc(&mut cs, || Ok(p_y)).unwrap());
-            let p_allocated = CircuitTwistedEdwardsPoint {
-                x: p_x_num,
-                y: p_y_num,
-            };
+            let p_allocated = CircuitTwistedEdwardsPoint { x: p_x_num, y: p_y_num };
 
             let curve = CircuitAltBabyJubjubBn256::get_implementor();
             let result = curve.double(&mut cs, &p_allocated).unwrap();
@@ -111,11 +92,7 @@ mod tests {
     fn test_new_altjubjub_multiplication() {
         let rng = &mut XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
-        let mut cs = TrivialAssembly::<
-            Bn256,
-            PlonkCsWidth4WithNextStepAndCustomGatesParams,
-            Width4MainGateWithDNext,
-        >::new();
+        let mut cs = TrivialAssembly::<Bn256, PlonkCsWidth4WithNextStepAndCustomGatesParams, Width4MainGateWithDNext>::new();
 
         let params = AltJubjubBn256::new();
 
@@ -125,10 +102,7 @@ mod tests {
 
             let p_x_num = Num::Variable(AllocatedNum::alloc(&mut cs, || Ok(p_x)).unwrap());
             let p_y_num = Num::Variable(AllocatedNum::alloc(&mut cs, || Ok(p_y)).unwrap());
-            let p_allocated = CircuitTwistedEdwardsPoint {
-                x: p_x_num,
-                y: p_y_num,
-            };
+            let p_allocated = CircuitTwistedEdwardsPoint { x: p_x_num, y: p_y_num };
 
             let s = Fs::rand(rng);
 
@@ -167,11 +141,7 @@ mod tests {
     fn test_new_altjubjub_is_on_curve() {
         let rng = &mut XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
-        let mut cs = TrivialAssembly::<
-            Bn256,
-            PlonkCsWidth4WithNextStepAndCustomGatesParams,
-            Width4MainGateWithDNext,
-        >::new();
+        let mut cs = TrivialAssembly::<Bn256, PlonkCsWidth4WithNextStepAndCustomGatesParams, Width4MainGateWithDNext>::new();
 
         let params = AltJubjubBn256::new();
 
@@ -182,10 +152,7 @@ mod tests {
 
             let p_x_num = Num::Variable(AllocatedNum::alloc(&mut cs, || Ok(p_x)).unwrap());
             let p_y_num = Num::Variable(AllocatedNum::alloc(&mut cs, || Ok(p_y)).unwrap());
-            let _p_allocated = CircuitTwistedEdwardsPoint {
-                x: p_x_num,
-                y: p_y_num,
-            };
+            let _p_allocated = CircuitTwistedEdwardsPoint { x: p_x_num, y: p_y_num };
 
             let curve = CircuitAltBabyJubjubBn256::get_implementor();
             let result = curve.from_xy_assert_on_curve(&mut cs, &p_x_num, &p_y_num).unwrap();
@@ -236,11 +203,7 @@ mod tests {
         use crate::jubjub::{FixedGenerators, JubjubParams};
         let rng = &mut XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
-        let mut cs = TrivialAssembly::<
-            Bn256,
-            PlonkCsWidth4WithNextStepAndCustomGatesParams,
-            Width4MainGateWithDNext,
-        >::new();
+        let mut cs = TrivialAssembly::<Bn256, PlonkCsWidth4WithNextStepAndCustomGatesParams, Width4MainGateWithDNext>::new();
 
         let params = AltJubjubBn256::new();
 

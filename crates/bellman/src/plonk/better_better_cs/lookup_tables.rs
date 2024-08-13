@@ -1,42 +1,41 @@
-use crate::pairing::ff::{Field, PrimeField};
-use crate::pairing::{Engine};
 use crate::bit_vec::BitVec;
+use crate::pairing::ff::{Field, PrimeField};
+use crate::pairing::Engine;
 
-use crate::{SynthesisError};
+use crate::SynthesisError;
 use std::marker::PhantomData;
 
-use crate::worker::Worker;
 use crate::plonk::domains::*;
 use crate::plonk::polynomials::*;
+use crate::worker::Worker;
 
-pub use crate::plonk::cs::variable::*;
-use crate::plonk::better_cs::utils::*;
 use super::cs::*;
 use super::data_structures::*;
+use crate::plonk::better_cs::utils::*;
+pub use crate::plonk::cs::variable::*;
 
 pub const RANGE_CHECK_SINGLE_APPLICATION_TABLE_NAME: &'static str = "Range check table for a single column";
 
-pub trait LookupTableInternal<E: Engine>: Send 
-    + Sync 
-    + 'static 
-    + std::any::Any 
-    + std::fmt::Debug {
-        fn name(&self) -> &'static str;
-        fn table_size(&self) -> usize;
-        fn num_keys(&self) -> usize;
-        fn num_values(&self) -> usize;
-        fn allows_combining(&self) -> bool;
-        fn is_valid_entry(&self, keys: &[E::Fr], values: &[E::Fr]) -> bool;
-        fn query(&self, keys: &[E::Fr]) -> Result<Vec<E::Fr>, SynthesisError>;
-        fn get_table_values_for_polys(&self) -> Vec<Vec<E::Fr>>;
-        fn table_id(&self) -> E::Fr;
-        fn sort(&self, values: &[E::Fr], column: usize) -> Result<Vec<E::Fr>, SynthesisError>;
-        fn box_clone(&self) -> Box<dyn LookupTableInternal<E>>;
-        fn column_is_trivial(&self, column_num: usize) -> bool;
-    }
+pub trait LookupTableInternal<E: Engine>: Send + Sync + 'static + std::any::Any + std::fmt::Debug {
+    fn name(&self) -> &'static str;
+    fn table_size(&self) -> usize;
+    fn num_keys(&self) -> usize;
+    fn num_values(&self) -> usize;
+    fn allows_combining(&self) -> bool;
+    fn is_valid_entry(&self, keys: &[E::Fr], values: &[E::Fr]) -> bool;
+    fn query(&self, keys: &[E::Fr]) -> Result<Vec<E::Fr>, SynthesisError>;
+    fn get_table_values_for_polys(&self) -> Vec<Vec<E::Fr>>;
+    fn table_id(&self) -> E::Fr;
+    fn sort(&self, values: &[E::Fr], column: usize) -> Result<Vec<E::Fr>, SynthesisError>;
+    fn box_clone(&self) -> Box<dyn LookupTableInternal<E>>;
+    fn column_is_trivial(&self, column_num: usize) -> bool;
+}
 
 impl<E: Engine> std::hash::Hash for dyn LookupTableInternal<E> {
-    fn hash<H>(&self, state: &mut H) where H: std::hash::Hasher {
+    fn hash<H>(&self, state: &mut H)
+    where
+        H: std::hash::Hasher,
+    {
         self.type_id().hash(state);
         self.name().hash(state);
         self.table_size().hash(state);
@@ -47,11 +46,7 @@ impl<E: Engine> std::hash::Hash for dyn LookupTableInternal<E> {
 
 impl<E: Engine> PartialEq for dyn LookupTableInternal<E> {
     fn eq(&self, other: &Self) -> bool {
-        self.type_id() == other.type_id() &&
-        self.name() == other.name() &&
-        self.table_size() == other.table_size() &&
-        self.num_keys() == other.num_keys() &&
-        self.num_values() == other.num_values()
+        self.type_id() == other.type_id() && self.name() == other.name() && self.table_size() == other.table_size() && self.num_keys() == other.num_keys() && self.num_values() == other.num_values()
     }
 }
 
@@ -66,7 +61,7 @@ pub struct LookupTableApplication<E: Engine> {
     table_to_apply: Box<dyn LookupTableInternal<E>>,
     #[serde(skip)]
     name_generator: Option<Box<dyn (Fn() -> String) + 'static + Send + Sync>>,
-    can_be_combined: bool
+    can_be_combined: bool,
 }
 
 impl<E: Engine> std::fmt::Debug for LookupTableApplication<E> {
@@ -82,10 +77,7 @@ impl<E: Engine> std::fmt::Debug for LookupTableApplication<E> {
 
 impl<E: Engine> PartialEq for LookupTableApplication<E> {
     fn eq(&self, other: &Self) -> bool {
-        self.name == other.name &&
-        self.apply_over == other.apply_over &&
-        &self.table_to_apply == &other.table_to_apply &&
-        self.can_be_combined == other.can_be_combined
+        self.name == other.name && self.apply_over == other.apply_over && &self.table_to_apply == &other.table_to_apply && self.can_be_combined == other.can_be_combined
     }
 }
 
@@ -97,14 +89,14 @@ impl<E: Engine> LookupTableApplication<E> {
         table: L,
         apply_over: Vec<PolyIdentifier>,
         name_generator: Option<Box<dyn (Fn() -> String) + 'static + Send + Sync>>,
-        can_be_combined: bool
+        can_be_combined: bool,
     ) -> Self {
         Self {
             name,
             apply_over,
             table_to_apply: Box::from(table) as Box<dyn LookupTableInternal<E>>,
             name_generator,
-            can_be_combined
+            can_be_combined,
         }
     }
 
@@ -118,7 +110,7 @@ impl<E: Engine> LookupTableApplication<E> {
             apply_over: over,
             table_to_apply: table.box_clone(),
             name_generator: None,
-            can_be_combined: true
+            can_be_combined: true,
         })
     }
 
@@ -142,7 +134,7 @@ impl<E: Engine> LookupTableApplication<E> {
             apply_over: over,
             table_to_apply: table.box_clone(),
             name_generator: None,
-            can_be_combined: true
+            can_be_combined: true,
         })
     }
 
@@ -207,15 +199,12 @@ pub struct MultiTableApplication<E: Engine> {
     apply_over: Vec<PolyIdentifier>,
     tables_to_apply: Vec<Box<dyn LookupTableInternal<E>>>,
     table_size: usize,
-    id: E::Fr
+    id: E::Fr,
 }
 
 impl<E: Engine> PartialEq for MultiTableApplication<E> {
     fn eq(&self, other: &Self) -> bool {
-        self.name == other.name &&
-        self.apply_over == other.apply_over &&
-        &self.tables_to_apply == &other.tables_to_apply &&
-        self.table_size == other.table_size
+        self.name == other.name && self.apply_over == other.apply_over && &self.tables_to_apply == &other.tables_to_apply && self.table_size == other.table_size
     }
 }
 
@@ -240,7 +229,7 @@ impl<E: Engine> MultiTableApplication<E> {
             apply_over: over,
             tables_to_apply: vec![table.box_clone(), table.box_clone(), table.box_clone()],
             table_size: 1 << width,
-            id: table_id_from_string::<E::Fr>(name)
+            id: table_id_from_string::<E::Fr>(name),
         })
     }
 
@@ -286,13 +275,13 @@ impl<E: Engine> MultiTableApplication<E> {
 pub struct RangeCheckTableOverSingleColumn<E: Engine> {
     table_entries: Vec<E::Fr>,
     entries_map: std::collections::HashMap<E::Fr, usize>,
-    bits: usize
+    bits: usize,
 }
 
 impl<E: Engine> RangeCheckTableOverSingleColumn<E> {
     pub fn new(bits: usize) -> Self {
         let mut entries = Vec::with_capacity(1 << bits);
-        let mut map =  std::collections::HashMap::with_capacity(1 << bits);
+        let mut map = std::collections::HashMap::with_capacity(1 << bits);
         for i in 0..(1 << bits) {
             let value = E::Fr::from_str(&i.to_string()).unwrap();
             entries.push(value);
@@ -302,16 +291,14 @@ impl<E: Engine> RangeCheckTableOverSingleColumn<E> {
         Self {
             table_entries: entries,
             entries_map: map,
-            bits
+            bits,
         }
     }
 }
 
 impl<E: Engine> std::fmt::Debug for RangeCheckTableOverSingleColumn<E> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("RangeCheckTableOverSingleColumn")
-            .field("bits", &self.bits)
-            .finish()
+        f.debug_struct("RangeCheckTableOverSingleColumn").field("bits", &self.bits).finish()
     }
 }
 
@@ -370,7 +357,7 @@ impl<E: Engine> LookupTableInternal<E> for RangeCheckTableOverSingleColumn<E> {
 pub struct RangeCheckTableOverOneColumnOfWidth3<E: Engine> {
     table_entries: Vec<E::Fr>,
     dummy_entries: Vec<E::Fr>,
-    bits: usize
+    bits: usize,
 }
 
 impl<E: Engine> RangeCheckTableOverOneColumnOfWidth3<E> {
@@ -385,16 +372,14 @@ impl<E: Engine> RangeCheckTableOverOneColumnOfWidth3<E> {
         Self {
             table_entries: entries,
             dummy_entries,
-            bits
+            bits,
         }
     }
 }
 
 impl<E: Engine> std::fmt::Debug for RangeCheckTableOverOneColumnOfWidth3<E> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("RangeCheckTableOverOneColumnOfWidth3")
-            .field("bits", &self.bits)
-            .finish()
+        f.debug_struct("RangeCheckTableOverOneColumnOfWidth3").field("bits", &self.bits).finish()
     }
 }
 
@@ -481,7 +466,7 @@ impl Binop for XorBinop {
 pub struct AndBinop;
 
 impl Binop for AndBinop {
-    const NAME: &'static str =  "AND binop";
+    const NAME: &'static str = "AND binop";
 
     fn apply(x: usize, y: usize) -> usize {
         x & y
@@ -505,7 +490,7 @@ pub struct TwoKeysOneValueBinopTable<E: Engine, B: Binop> {
     table_lookup_map: std::collections::HashMap<(E::Fr, E::Fr), E::Fr>,
     bits: usize,
     name: &'static str,
-    _binop_marker: std::marker::PhantomData<B>
+    _binop_marker: std::marker::PhantomData<B>,
 }
 
 impl<E: Engine, B: Binop> TwoKeysOneValueBinopTable<E, B> {
@@ -516,7 +501,7 @@ impl<E: Engine, B: Binop> TwoKeysOneValueBinopTable<E, B> {
 
         let mut map = std::collections::HashMap::with_capacity(1 << (bits * 2));
         for x in 0..(1 << bits) {
-            for y in 0..(1<<bits) {
+            for y in 0..(1 << bits) {
                 let z = B::apply(x, y);
 
                 let x = E::Fr::from_str(&x.to_string()).unwrap();
@@ -528,7 +513,6 @@ impl<E: Engine, B: Binop> TwoKeysOneValueBinopTable<E, B> {
 
                 map.insert((x, y), z);
             }
-            
         }
 
         Self {
@@ -536,17 +520,14 @@ impl<E: Engine, B: Binop> TwoKeysOneValueBinopTable<E, B> {
             table_lookup_map: map,
             bits,
             name,
-            _binop_marker: std::marker::PhantomData
+            _binop_marker: std::marker::PhantomData,
         }
     }
 }
 
 impl<E: Engine, B: Binop> std::fmt::Debug for TwoKeysOneValueBinopTable<E, B> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("TwoKeysOneValueBinopTable")
-            .field("bits", &self.bits)
-            .field("binop", &B::NAME)
-            .finish()
+        f.debug_struct("TwoKeysOneValueBinopTable").field("bits", &self.bits).field("binop", &B::NAME).finish()
     }
 }
 
@@ -555,8 +536,8 @@ impl<E: Engine, B: Binop> LookupTableInternal<E> for TwoKeysOneValueBinopTable<E
         self.name
     }
     fn table_size(&self) -> usize {
-        debug_assert_eq!(1usize << (self.bits*2), self.table_entries[0].len());
-        1usize << (self.bits*2)
+        debug_assert_eq!(1usize << (self.bits * 2), self.table_entries[0].len());
+        1usize << (self.bits * 2)
     }
     fn num_keys(&self) -> usize {
         2
@@ -581,7 +562,7 @@ impl<E: Engine, B: Binop> LookupTableInternal<E> for TwoKeysOneValueBinopTable<E
         assert!(keys.len() == 2);
 
         if let Some(entry) = self.table_lookup_map.get(&(keys[0], keys[1])) {
-            return Ok(vec![*entry])
+            return Ok(vec![*entry]);
         }
 
         Err(SynthesisError::Unsatisfiable)
@@ -603,14 +584,11 @@ impl<E: Engine, B: Binop> LookupTableInternal<E> for TwoKeysOneValueBinopTable<E
     fn column_is_trivial(&self, column_num: usize) -> bool {
         assert!(column_num < 3);
 
-        false 
+        false
     }
 }
 
-
-pub fn table_id_from_string<F: PrimeField>(
-    s: &str
-) -> F {
+pub fn table_id_from_string<F: PrimeField>(s: &str) -> F {
     let mut h = tiny_keccak::keccak256(s.as_bytes());
     for i in 0..4 {
         h[i] = 0u8;
@@ -626,16 +604,14 @@ pub fn table_id_from_string<F: PrimeField>(
 
 #[derive(Clone)]
 pub struct KeyValueSet<E: Engine> {
-    pub inner: [E::Fr; 3]
+    pub inner: [E::Fr; 3],
 }
 
-impl<E: Engine> Copy for KeyValueSet<E>{}
+impl<E: Engine> Copy for KeyValueSet<E> {}
 
 impl<E: Engine> KeyValueSet<E> {
     pub fn new(set: [E::Fr; 3]) -> Self {
-        Self {
-            inner: set
-        }
+        Self { inner: set }
     }
 
     pub fn from_slice(input: &[E::Fr]) -> Self {
@@ -643,9 +619,7 @@ impl<E: Engine> KeyValueSet<E> {
         let mut inner = [E::Fr::zero(); 3];
         inner.copy_from_slice(input);
 
-        Self {
-            inner
-        }
+        Self { inner }
     }
 }
 
@@ -684,7 +658,7 @@ impl<E: Engine> std::cmp::Ord for KeyValueSet<E> {
                         return ord;
                     }
                 }
-            },
+            }
             ord @ _ => {
                 return ord;
             }
@@ -700,9 +674,7 @@ impl<E: Engine> std::cmp::PartialOrd for KeyValueSet<E> {
 
 impl<E: Engine> std::fmt::Debug for KeyValueSet<E> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("KeyValueSet")
-            .field("inner", &self.inner)
-            .finish()
+        f.debug_struct("KeyValueSet").field("inner", &self.inner).finish()
     }
 }
 

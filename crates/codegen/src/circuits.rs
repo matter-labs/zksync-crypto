@@ -1,10 +1,7 @@
 use franklin_crypto::{
     bellman::{
         plonk::better_better_cs::{
-            cs::{
-                Circuit, ConstraintSystem, Gate, GateInternal, LookupTableApplication,
-                PolyIdentifier, Width4MainGateWithDNext,
-            },
+            cs::{Circuit, ConstraintSystem, Gate, GateInternal, LookupTableApplication, PolyIdentifier, Width4MainGateWithDNext},
             gates::selector_optimized_with_d_next::SelectorOptimizedWidth4MainGateWithDNext,
         },
         Engine, Field, PrimeField, SynthesisError,
@@ -49,9 +46,9 @@ macro_rules! circuit_inner {
                     ])
                 }else{
                     Ok(vec![
-                        Self::MainGate::default().into_internal(),                        
+                        Self::MainGate::default().into_internal(),
                     ])
-                }                
+                }
             }
         }
     };
@@ -61,27 +58,22 @@ macro_rules! circuit_inner {
 macro_rules! circuit {
     ($id:ident, $main_gate:ty) => {
         circuit_inner!($id, $main_gate, false, inner_circuit_main_gate_part);
-        paste!{
+        paste! {
             circuit_inner!([<$id WithLookup>], $main_gate, false,  inner_circuit_lookup_part);
         }
-        paste!{
+        paste! {
             circuit_inner!([<$id WithRescue>], $main_gate, true, inner_circuit_rescue_part);
         }
-        paste!{
+        paste! {
             circuit_inner!([<$id WithLookupAndRescue>], $main_gate, true, inner_circuit_lookup_part, inner_circuit_rescue_part);
         }
-    }
+    };
 }
 
 circuit!(DummyCircuit, Width4MainGateWithDNext);
-circuit!(
-    SelectorOptimizedDummyCircuit,
-    SelectorOptimizedWidth4MainGateWithDNext
-);
+circuit!(SelectorOptimizedDummyCircuit, SelectorOptimizedWidth4MainGateWithDNext);
 
-fn inner_circuit_main_gate_part<E: Engine, CS: ConstraintSystem<E>>(
-    cs: &mut CS,
-) -> Result<(), SynthesisError> {
+fn inner_circuit_main_gate_part<E: Engine, CS: ConstraintSystem<E>>(cs: &mut CS) -> Result<(), SynthesisError> {
     for _ in 0..32 {
         let a = Num::alloc(cs, Some(E::Fr::one()))?;
         let b = Num::alloc(cs, Some(E::Fr::zero()))?;
@@ -95,18 +87,12 @@ fn inner_circuit_main_gate_part<E: Engine, CS: ConstraintSystem<E>>(
     Ok(())
 }
 
-fn inner_circuit_lookup_part<E: Engine, CS: ConstraintSystem<E>>(
-    cs: &mut CS,
-) -> Result<(), SynthesisError> {
+fn inner_circuit_lookup_part<E: Engine, CS: ConstraintSystem<E>>(cs: &mut CS) -> Result<(), SynthesisError> {
     // add dummy lookup table queries
     let dummy = CS::get_dummy_variable();
     dbg!("HAS LOOKUP");
     // need to create a table (any)
-    let columns = vec![
-        PolyIdentifier::VariablesPolynomial(0),
-        PolyIdentifier::VariablesPolynomial(1),
-        PolyIdentifier::VariablesPolynomial(2),
-    ];
+    let columns = vec![PolyIdentifier::VariablesPolynomial(0), PolyIdentifier::VariablesPolynomial(1), PolyIdentifier::VariablesPolynomial(2)];
     let range_table = LookupTableApplication::new_range_table_of_width_3(2, columns.clone())?;
     let _range_table_name = range_table.functional_name();
 
@@ -151,9 +137,7 @@ fn inner_circuit_lookup_part<E: Engine, CS: ConstraintSystem<E>>(
     Ok(())
 }
 
-fn inner_circuit_rescue_part<E: Engine, CS: ConstraintSystem<E>>(
-    cs: &mut CS,
-) -> Result<(), SynthesisError> {
+fn inner_circuit_rescue_part<E: Engine, CS: ConstraintSystem<E>>(cs: &mut CS) -> Result<(), SynthesisError> {
     dbg!("HAS RESCUE");
     // make single rescue hash to satisfy gate requirements of declaration
     let mut params = RescueParams::default();

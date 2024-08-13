@@ -1,17 +1,11 @@
-use crate::pairing::{
-    Engine,
-    CurveAffine,
-    EncodedPoint
-};
+use crate::pairing::{CurveAffine, EncodedPoint, Engine};
 
-use crate::{
-    SynthesisError
-};
+use crate::SynthesisError;
 
 use crate::source::SourceBuilder;
+use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 use std::io::{self, Read, Write};
 use std::sync::Arc;
-use byteorder::{BigEndian, WriteBytesExt, ReadBytesExt};
 
 #[cfg(test)]
 mod tests;
@@ -28,23 +22,17 @@ pub use self::verifier::*;
 pub struct Proof<E: Engine> {
     pub a: E::G1Affine,
     pub b: E::G2Affine,
-    pub c: E::G1Affine
+    pub c: E::G1Affine,
 }
 
 impl<E: Engine> PartialEq for Proof<E> {
     fn eq(&self, other: &Self) -> bool {
-        self.a == other.a &&
-        self.b == other.b &&
-        self.c == other.c
+        self.a == other.a && self.b == other.b && self.c == other.c
     }
 }
 
 impl<E: Engine> Proof<E> {
-    pub fn write<W: Write>(
-        &self,
-        mut writer: W
-    ) -> io::Result<()>
-    {
+    pub fn write<W: Write>(&self, mut writer: W) -> io::Result<()> {
         writer.write_all(self.a.into_compressed().as_ref())?;
         writer.write_all(self.b.into_compressed().as_ref())?;
         writer.write_all(self.c.into_compressed().as_ref())?;
@@ -52,48 +40,38 @@ impl<E: Engine> Proof<E> {
         Ok(())
     }
 
-    pub fn read<R: Read>(
-        mut reader: R
-    ) -> io::Result<Self>
-    {
+    pub fn read<R: Read>(mut reader: R) -> io::Result<Self> {
         let mut g1_repr = <E::G1Affine as CurveAffine>::Compressed::empty();
         let mut g2_repr = <E::G2Affine as CurveAffine>::Compressed::empty();
 
         reader.read_exact(g1_repr.as_mut())?;
-        let a = g1_repr
-                .into_affine()
-                .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
-                .and_then(|e| if e.is_zero() {
-                    Err(io::Error::new(io::ErrorKind::InvalidData, "point at infinity"))
-                } else {
-                    Ok(e)
-                })?;
+        let a = g1_repr.into_affine().map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e)).and_then(|e| {
+            if e.is_zero() {
+                Err(io::Error::new(io::ErrorKind::InvalidData, "point at infinity"))
+            } else {
+                Ok(e)
+            }
+        })?;
 
         reader.read_exact(g2_repr.as_mut())?;
-        let b = g2_repr
-                .into_affine()
-                .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
-                .and_then(|e| if e.is_zero() {
-                    Err(io::Error::new(io::ErrorKind::InvalidData, "point at infinity"))
-                } else {
-                    Ok(e)
-                })?;
+        let b = g2_repr.into_affine().map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e)).and_then(|e| {
+            if e.is_zero() {
+                Err(io::Error::new(io::ErrorKind::InvalidData, "point at infinity"))
+            } else {
+                Ok(e)
+            }
+        })?;
 
         reader.read_exact(g1_repr.as_mut())?;
-        let c = g1_repr
-                .into_affine()
-                .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
-                .and_then(|e| if e.is_zero() {
-                    Err(io::Error::new(io::ErrorKind::InvalidData, "point at infinity"))
-                } else {
-                    Ok(e)
-                })?;
+        let c = g1_repr.into_affine().map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e)).and_then(|e| {
+            if e.is_zero() {
+                Err(io::Error::new(io::ErrorKind::InvalidData, "point at infinity"))
+            } else {
+                Ok(e)
+            }
+        })?;
 
-        Ok(Proof {
-            a: a,
-            b: b,
-            c: c
-        })
+        Ok(Proof { a: a, b: b, c: c })
     }
 }
 
@@ -122,27 +100,23 @@ pub struct VerifyingKey<E: Engine> {
     // for all public inputs. Because all public inputs have a dummy constraint,
     // this is the same size as the number of inputs, and never contains points
     // at infinity.
-    pub ic: Vec<E::G1Affine>
+    pub ic: Vec<E::G1Affine>,
 }
 
 impl<E: Engine> PartialEq for VerifyingKey<E> {
     fn eq(&self, other: &Self) -> bool {
-        self.alpha_g1 == other.alpha_g1 &&
-        self.beta_g1 == other.beta_g1 &&
-        self.beta_g2 == other.beta_g2 &&
-        self.gamma_g2 == other.gamma_g2 &&
-        self.delta_g1 == other.delta_g1 &&
-        self.delta_g2 == other.delta_g2 &&
-        self.ic == other.ic
+        self.alpha_g1 == other.alpha_g1
+            && self.beta_g1 == other.beta_g1
+            && self.beta_g2 == other.beta_g2
+            && self.gamma_g2 == other.gamma_g2
+            && self.delta_g1 == other.delta_g1
+            && self.delta_g2 == other.delta_g2
+            && self.ic == other.ic
     }
 }
 
 impl<E: Engine> VerifyingKey<E> {
-    pub fn write<W: Write>(
-        &self,
-        mut writer: W
-    ) -> io::Result<()>
-    {
+    pub fn write<W: Write>(&self, mut writer: W) -> io::Result<()> {
         writer.write_all(self.alpha_g1.into_uncompressed().as_ref())?;
         writer.write_all(self.beta_g1.into_uncompressed().as_ref())?;
         writer.write_all(self.beta_g2.into_uncompressed().as_ref())?;
@@ -157,10 +131,7 @@ impl<E: Engine> VerifyingKey<E> {
         Ok(())
     }
 
-    pub fn read<R: Read>(
-        mut reader: R
-    ) -> io::Result<Self>
-    {
+    pub fn read<R: Read>(mut reader: R) -> io::Result<Self> {
         let mut g1_repr = <E::G1Affine as CurveAffine>::Uncompressed::empty();
         let mut g2_repr = <E::G2Affine as CurveAffine>::Uncompressed::empty();
 
@@ -188,14 +159,13 @@ impl<E: Engine> VerifyingKey<E> {
 
         for _ in 0..ic_len {
             reader.read_exact(g1_repr.as_mut())?;
-            let g1 = g1_repr
-                     .into_affine()
-                     .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
-                     .and_then(|e| if e.is_zero() {
-                         Err(io::Error::new(io::ErrorKind::InvalidData, "point at infinity"))
-                     } else {
-                         Ok(e)
-                     })?;
+            let g1 = g1_repr.into_affine().map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e)).and_then(|e| {
+                if e.is_zero() {
+                    Err(io::Error::new(io::ErrorKind::InvalidData, "point at infinity"))
+                } else {
+                    Ok(e)
+                }
+            })?;
 
             ic.push(g1);
         }
@@ -207,7 +177,7 @@ impl<E: Engine> VerifyingKey<E> {
             gamma_g2: gamma_g2,
             delta_g1: delta_g1,
             delta_g2: delta_g2,
-            ic: ic
+            ic: ic,
         })
     }
 }
@@ -216,7 +186,7 @@ impl<E: Engine> VerifyingKey<E> {
 pub struct Parameters<E: Engine> {
     pub vk: VerifyingKey<E>,
 
-    // Elements of the form ((tau^i * t(tau)) / delta) for i between 0 and 
+    // Elements of the form ((tau^i * t(tau)) / delta) for i between 0 and
     // m-2 inclusive. Never contains points at infinity.
     pub h: Arc<Vec<E::G1Affine>>,
 
@@ -234,26 +204,17 @@ pub struct Parameters<E: Engine> {
     // G1 and G2 for C/B queries, respectively. Never contains points at
     // infinity for the same reason as the "A" polynomials.
     pub b_g1: Arc<Vec<E::G1Affine>>,
-    pub b_g2: Arc<Vec<E::G2Affine>>
+    pub b_g2: Arc<Vec<E::G2Affine>>,
 }
 
 impl<E: Engine> PartialEq for Parameters<E> {
     fn eq(&self, other: &Self) -> bool {
-        self.vk == other.vk &&
-        self.h == other.h &&
-        self.l == other.l &&
-        self.a == other.a &&
-        self.b_g1 == other.b_g1 &&
-        self.b_g2 == other.b_g2
+        self.vk == other.vk && self.h == other.h && self.l == other.l && self.a == other.a && self.b_g1 == other.b_g1 && self.b_g2 == other.b_g2
     }
 }
 
 impl<E: Engine> Parameters<E> {
-    pub fn write<W: Write>(
-        &self,
-        mut writer: W
-    ) -> io::Result<()>
-    {
+    pub fn write<W: Write>(&self, mut writer: W) -> io::Result<()> {
         self.vk.write(&mut writer)?;
 
         writer.write_u32::<BigEndian>(self.h.len() as u32)?;
@@ -284,47 +245,35 @@ impl<E: Engine> Parameters<E> {
         Ok(())
     }
 
-    pub fn read<R: Read>(
-        mut reader: R,
-        checked: bool
-    ) -> io::Result<Self>
-    {
+    pub fn read<R: Read>(mut reader: R, checked: bool) -> io::Result<Self> {
         let read_g1 = |reader: &mut R| -> io::Result<E::G1Affine> {
             let mut repr = <E::G1Affine as CurveAffine>::Uncompressed::empty();
             reader.read_exact(repr.as_mut())?;
 
-            if checked {
-                repr
-                .into_affine()
-            } else {
-                repr
-                .into_affine_unchecked()
-            }
-            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
-            .and_then(|e| if e.is_zero() {
-                Err(io::Error::new(io::ErrorKind::InvalidData, "point at infinity"))
-            } else {
-                Ok(e)
-            })
+            if checked { repr.into_affine() } else { repr.into_affine_unchecked() }
+                .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
+                .and_then(|e| {
+                    if e.is_zero() {
+                        Err(io::Error::new(io::ErrorKind::InvalidData, "point at infinity"))
+                    } else {
+                        Ok(e)
+                    }
+                })
         };
 
         let read_g2 = |reader: &mut R| -> io::Result<E::G2Affine> {
             let mut repr = <E::G2Affine as CurveAffine>::Uncompressed::empty();
             reader.read_exact(repr.as_mut())?;
 
-            if checked {
-                repr
-                .into_affine()
-            } else {
-                repr
-                .into_affine_unchecked()
-            }
-            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
-            .and_then(|e| if e.is_zero() {
-                Err(io::Error::new(io::ErrorKind::InvalidData, "point at infinity"))
-            } else {
-                Ok(e)
-            })
+            if checked { repr.into_affine() } else { repr.into_affine_unchecked() }
+                .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
+                .and_then(|e| {
+                    if e.is_zero() {
+                        Err(io::Error::new(io::ErrorKind::InvalidData, "point at infinity"))
+                    } else {
+                        Ok(e)
+                    }
+                })
         };
 
         let vk = VerifyingKey::<E>::read(&mut reader)?;
@@ -376,7 +325,7 @@ impl<E: Engine> Parameters<E> {
             l: Arc::new(l),
             a: Arc::new(a),
             b_g1: Arc::new(b_g1),
-            b_g2: Arc::new(b_g2)
+            b_g2: Arc::new(b_g2),
         })
     }
 }
@@ -389,94 +338,46 @@ pub struct PreparedVerifyingKey<E: Engine> {
     /// -delta in G2
     neg_delta_g2: <E::G2Affine as CurveAffine>::Prepared,
     /// Copy of IC from `VerifiyingKey`.
-    ic: Vec<E::G1Affine>
+    ic: Vec<E::G1Affine>,
 }
 
 pub trait ParameterSource<E: Engine> {
     type G1Builder: SourceBuilder<E::G1Affine>;
     type G2Builder: SourceBuilder<E::G2Affine>;
 
-    fn get_vk(
-        &mut self,
-        num_ic: usize
-    ) -> Result<VerifyingKey<E>, SynthesisError>;
-    fn get_h(
-        &mut self,
-        num_h: usize
-    ) -> Result<Self::G1Builder, SynthesisError>;
-    fn get_l(
-        &mut self,
-        num_l: usize
-    ) -> Result<Self::G1Builder, SynthesisError>;
-    fn get_a(
-        &mut self,
-        num_inputs: usize,
-        num_aux: usize
-    ) -> Result<(Self::G1Builder, Self::G1Builder), SynthesisError>;
-    fn get_b_g1(
-        &mut self,
-        num_inputs: usize,
-        num_aux: usize
-    ) -> Result<(Self::G1Builder, Self::G1Builder), SynthesisError>;
-    fn get_b_g2(
-        &mut self,
-        num_inputs: usize,
-        num_aux: usize
-    ) -> Result<(Self::G2Builder, Self::G2Builder), SynthesisError>;
+    fn get_vk(&mut self, num_ic: usize) -> Result<VerifyingKey<E>, SynthesisError>;
+    fn get_h(&mut self, num_h: usize) -> Result<Self::G1Builder, SynthesisError>;
+    fn get_l(&mut self, num_l: usize) -> Result<Self::G1Builder, SynthesisError>;
+    fn get_a(&mut self, num_inputs: usize, num_aux: usize) -> Result<(Self::G1Builder, Self::G1Builder), SynthesisError>;
+    fn get_b_g1(&mut self, num_inputs: usize, num_aux: usize) -> Result<(Self::G1Builder, Self::G1Builder), SynthesisError>;
+    fn get_b_g2(&mut self, num_inputs: usize, num_aux: usize) -> Result<(Self::G2Builder, Self::G2Builder), SynthesisError>;
 }
 
 impl<'a, E: Engine> ParameterSource<E> for &'a Parameters<E> {
     type G1Builder = (Arc<Vec<E::G1Affine>>, usize);
     type G2Builder = (Arc<Vec<E::G2Affine>>, usize);
 
-    fn get_vk(
-        &mut self,
-        _: usize
-    ) -> Result<VerifyingKey<E>, SynthesisError>
-    {
+    fn get_vk(&mut self, _: usize) -> Result<VerifyingKey<E>, SynthesisError> {
         Ok(self.vk.clone())
     }
 
-    fn get_h(
-        &mut self,
-        _: usize
-    ) -> Result<Self::G1Builder, SynthesisError>
-    {
+    fn get_h(&mut self, _: usize) -> Result<Self::G1Builder, SynthesisError> {
         Ok((self.h.clone(), 0))
     }
 
-    fn get_l(
-        &mut self,
-        _: usize
-    ) -> Result<Self::G1Builder, SynthesisError>
-    {
+    fn get_l(&mut self, _: usize) -> Result<Self::G1Builder, SynthesisError> {
         Ok((self.l.clone(), 0))
     }
 
-    fn get_a(
-        &mut self,
-        num_inputs: usize,
-        _: usize
-    ) -> Result<(Self::G1Builder, Self::G1Builder), SynthesisError>
-    {
+    fn get_a(&mut self, num_inputs: usize, _: usize) -> Result<(Self::G1Builder, Self::G1Builder), SynthesisError> {
         Ok(((self.a.clone(), 0), (self.a.clone(), num_inputs)))
     }
 
-    fn get_b_g1(
-        &mut self,
-        num_inputs: usize,
-        _: usize
-    ) -> Result<(Self::G1Builder, Self::G1Builder), SynthesisError>
-    {
+    fn get_b_g1(&mut self, num_inputs: usize, _: usize) -> Result<(Self::G1Builder, Self::G1Builder), SynthesisError> {
         Ok(((self.b_g1.clone(), 0), (self.b_g1.clone(), num_inputs)))
     }
 
-    fn get_b_g2(
-        &mut self,
-        num_inputs: usize,
-        _: usize
-    ) -> Result<(Self::G2Builder, Self::G2Builder), SynthesisError>
-    {
+    fn get_b_g2(&mut self, num_inputs: usize, _: usize) -> Result<(Self::G2Builder, Self::G2Builder), SynthesisError> {
         Ok(((self.b_g2.clone(), 0), (self.b_g2.clone(), num_inputs)))
     }
 }
@@ -484,41 +385,35 @@ impl<'a, E: Engine> ParameterSource<E> for &'a Parameters<E> {
 #[cfg(test)]
 mod test_with_bls12_381 {
     use super::*;
-    use crate::{Circuit, SynthesisError, ConstraintSystem};
+    use crate::{Circuit, ConstraintSystem, SynthesisError};
 
-    use rand::{Rand, thread_rng};
-    use crate::pairing::ff::{Field};
     use crate::pairing::bls12_381::{Bls12, Fr};
+    use crate::pairing::ff::Field;
+    use rand::{thread_rng, Rand};
 
     #[test]
     fn serialization() {
         struct MySillyCircuit<E: Engine> {
             a: Option<E::Fr>,
-            b: Option<E::Fr>
+            b: Option<E::Fr>,
         }
 
         impl<E: Engine> Circuit<E> for MySillyCircuit<E> {
-            fn synthesize<CS: ConstraintSystem<E>>(
-                self,
-                cs: &mut CS
-            ) -> Result<(), SynthesisError>
-            {
+            fn synthesize<CS: ConstraintSystem<E>>(self, cs: &mut CS) -> Result<(), SynthesisError> {
                 let a = cs.alloc(|| "a", || self.a.ok_or(SynthesisError::AssignmentMissing))?;
                 let b = cs.alloc(|| "b", || self.b.ok_or(SynthesisError::AssignmentMissing))?;
-                let c = cs.alloc_input(|| "c", || {
-                    let mut a = self.a.ok_or(SynthesisError::AssignmentMissing)?;
-                    let b = self.b.ok_or(SynthesisError::AssignmentMissing)?;
+                let c = cs.alloc_input(
+                    || "c",
+                    || {
+                        let mut a = self.a.ok_or(SynthesisError::AssignmentMissing)?;
+                        let b = self.b.ok_or(SynthesisError::AssignmentMissing)?;
 
-                    a.mul_assign(&b);
-                    Ok(a)
-                })?;
+                        a.mul_assign(&b);
+                        Ok(a)
+                    },
+                )?;
 
-                cs.enforce(
-                    || "a*b=c",
-                    |lc| lc + a,
-                    |lc| lc + b,
-                    |lc| lc + c
-                );
+                cs.enforce(|| "a*b=c", |lc| lc + a, |lc| lc + b, |lc| lc + c);
 
                 Ok(())
             }
@@ -526,10 +421,7 @@ mod test_with_bls12_381 {
 
         let rng = &mut thread_rng();
 
-        let params = generate_random_parameters::<Bls12, _, _>(
-            MySillyCircuit { a: None, b: None },
-            rng
-        ).unwrap();
+        let params = generate_random_parameters::<Bls12, _, _>(MySillyCircuit { a: None, b: None }, rng).unwrap();
 
         {
             let mut v = vec![];
@@ -552,14 +444,7 @@ mod test_with_bls12_381 {
             let mut c = a;
             c.mul_assign(&b);
 
-            let proof = create_random_proof(
-                MySillyCircuit {
-                    a: Some(a),
-                    b: Some(b)
-                },
-                &params,
-                rng
-            ).unwrap();
+            let proof = create_random_proof(MySillyCircuit { a: Some(a), b: Some(b) }, &params, rng).unwrap();
 
             let mut v = vec![];
             proof.write(&mut v).unwrap();

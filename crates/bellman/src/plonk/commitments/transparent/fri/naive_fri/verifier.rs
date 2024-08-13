@@ -1,26 +1,20 @@
+use super::super::*;
+use super::naive_fri::*;
 use crate::pairing::ff::PrimeField;
 use crate::plonk::commitments::transparent::iop::*;
-use crate::plonk::polynomials::*;
-use crate::plonk::domains::*;
-use crate::worker::*;
-use crate::SynthesisError;
 use crate::plonk::commitments::transparent::iop::*;
 use crate::plonk::commitments::transparent::utils::log2_floor;
-use super::naive_fri::*;
-use super::super::*;
+use crate::plonk::domains::*;
+use crate::plonk::polynomials::*;
+use crate::worker::*;
+use crate::SynthesisError;
 
 impl<F: PrimeField, I: IOP<F>> NaiveFriIop<F, I> {
-    pub fn verify_prototype(
-        proof: & FRIProofPrototype<F, I>,
-        leaf_values: & Polynomial<F, Values>, 
-        natural_element_index: usize
-    ) -> Result<bool, SynthesisError> {
+    pub fn verify_prototype(proof: &FRIProofPrototype<F, I>, leaf_values: &Polynomial<F, Values>, natural_element_index: usize) -> Result<bool, SynthesisError> {
         let mut two = F::one();
         two.double();
 
-        let two_inv = two.inverse().ok_or(
-            SynthesisError::DivisionByZero
-        )?;
+        let two_inv = two.inverse().ok_or(SynthesisError::DivisionByZero)?;
 
         // start from the bottom: we need to get a "pair" and calculate FRI step
 
@@ -34,9 +28,7 @@ impl<F: PrimeField, I: IOP<F>> NaiveFriIop<F, I> {
         }
 
         let mut omega = domain.generator;
-        let mut omega_inv = omega.inverse().ok_or(
-            SynthesisError::DivisionByZero
-        )?;
+        let mut omega_inv = omega.inverse().ok_or(SynthesisError::DivisionByZero)?;
 
         debug_assert_eq!(F::one(), omega_inv.pow([domain.size]));
 
@@ -44,9 +36,7 @@ impl<F: PrimeField, I: IOP<F>> NaiveFriIop<F, I> {
         let mut domain_size = domain.size as usize;
         let mut domain_idx = natural_element_index;
 
-        for (iop_values, iop_challenge) in Some(leaf_values).into_iter().chain(&proof.intermediate_values)
-                                        .zip(proof.challenges.iter()) {
-
+        for (iop_values, iop_challenge) in Some(leaf_values).into_iter().chain(&proof.intermediate_values).zip(proof.challenges.iter()) {
             let coset_values = <I::Combiner as CosetCombiner<F>>::get_coset_for_natural_index(domain_idx, domain_size);
 
             assert!(coset_values.len() == 2);
@@ -77,7 +67,7 @@ impl<F: PrimeField, I: IOP<F>> NaiveFriIop<F, I> {
             v_odd_coeffs.mul_assign(&divisor);
 
             // those can be treated as (doubled) evaluations of polynomials that
-            // are themselves made only from even or odd coefficients of original poly 
+            // are themselves made only from even or odd coefficients of original poly
             // (with reduction of degree by 2) on a domain of the size twice smaller
             // with an extra factor of "omega" in odd coefficients
 
@@ -104,7 +94,6 @@ impl<F: PrimeField, I: IOP<F>> NaiveFriIop<F, I> {
             omega_inv.square();
         }
 
-
         // finally we need to get expected value from coefficients
 
         let mut expected_value_from_coefficients = F::zero();
@@ -118,7 +107,7 @@ impl<F: PrimeField, I: IOP<F>> NaiveFriIop<F, I> {
             expected_value_from_coefficients.add_assign(&tmp);
             power.mul_assign(&evaluation_point);
         }
-        
+
         let expected_value = expected_value.expect("is some");
 
         let valid = expected_value_from_coefficients == expected_value;
@@ -129,43 +118,29 @@ impl<F: PrimeField, I: IOP<F>> NaiveFriIop<F, I> {
     // pub fn verify_proof_queries<P: Prng<F, Input = < < I::Tree as IopTree<F> >::TreeHasher as IopTreeHasher<F> >::HashOutput> >(
     //     proof: &FRIProof<F, I>,
     //     natural_element_indexes: Vec<usize>,
-    //     degree: usize, 
+    //     degree: usize,
     //     expected_value_from_oracle: F,
     //     prng: &mut P
     // ) -> Result<bool, SynthesisError> {
 
     // }
 
-    pub fn verify_proof_queries(
-        proof: &FRIProof<F, I>,
-        natural_element_indexes: Vec<usize>,
-        degree: usize, 
-        expected_values_from_oracle: &[F],
-        fri_challenges: &[F]
-    ) -> Result<bool, SynthesisError> {
+    pub fn verify_proof_queries(proof: &FRIProof<F, I>, natural_element_indexes: Vec<usize>, degree: usize, expected_values_from_oracle: &[F], fri_challenges: &[F]) -> Result<bool, SynthesisError> {
         let mut two = F::one();
         two.double();
 
-        let two_inv = two.inverse().ok_or(
-            SynthesisError::DivisionByZero
-        )?;
+        let two_inv = two.inverse().ok_or(SynthesisError::DivisionByZero)?;
 
         let domain = Domain::<F>::new_for_size((proof.initial_degree_plus_one * proof.lde_factor) as u64)?;
 
         let omega = domain.generator;
-        let omega_inv = omega.inverse().ok_or(
-            SynthesisError::DivisionByZero
-        )?;
+        let omega_inv = omega.inverse().ok_or(SynthesisError::DivisionByZero)?;
 
         assert!(fri_challenges.len() == proof.roots.len());
 
         assert!(natural_element_indexes.len() == proof.queries.len());
 
-        for ((query, natural_element_index), expected_value_from_oracle) in proof.queries.iter()
-                                                                            .zip(natural_element_indexes.into_iter())
-                                                                            .zip(expected_values_from_oracle.iter()) 
-        {
-
+        for ((query, natural_element_index), expected_value_from_oracle) in proof.queries.iter().zip(natural_element_indexes.into_iter()).zip(expected_values_from_oracle.iter()) {
             let domain_element = domain.generator.pow([natural_element_index as u64]);
 
             let el = domain_element.pow([domain.size]);
@@ -188,11 +163,7 @@ impl<F: PrimeField, I: IOP<F>> NaiveFriIop<F, I> {
                 return Err(SynthesisError::PolynomialDegreeTooLarge);
             }
 
-            for (round, ((root, queries), iop_challenge)) in proof.roots.iter()
-                                    .zip(query.chunks_exact(degree)) 
-                                    .zip(fri_challenges.iter())
-                                    .enumerate()
-            {
+            for (round, ((root, queries), iop_challenge)) in proof.roots.iter().zip(query.chunks_exact(degree)).zip(fri_challenges.iter()).enumerate() {
                 let coset_values = <I::Combiner as CosetCombiner<F>>::get_coset_for_natural_index(domain_idx, domain_size);
 
                 if coset_values.len() != <I::Combiner as CosetCombiner<F>>::COSET_SIZE {
@@ -229,7 +200,7 @@ impl<F: PrimeField, I: IOP<F>> NaiveFriIop<F, I> {
                         return Ok(false);
                     }
                 }
-                
+
                 let f_at_omega = (&queries[0]).value();
                 if let Some(value) = expected_value {
                     if !coset_values.contains(&domain_idx) {
@@ -240,7 +211,7 @@ impl<F: PrimeField, I: IOP<F>> NaiveFriIop<F, I> {
                     let q: Vec<_> = queries.iter().filter(|el| el.natural_index() == domain_idx).collect();
                     if q.len() != 1 {
                         println!("Queries containt duplicate opening for required index {}", domain_idx);
-                        return Ok(false)
+                        return Ok(false);
                     }
 
                     let supplied_value = q[0].value();
@@ -262,7 +233,7 @@ impl<F: PrimeField, I: IOP<F>> NaiveFriIop<F, I> {
                 v_odd_coeffs.mul_assign(&divisor);
 
                 // those can be treated as (doubled) evaluations of polynomials that
-                // are themselves made only from even or odd coefficients of original poly 
+                // are themselves made only from even or odd coefficients of original poly
                 // (with reduction of degree by 2) on a domain of the size twice smaller
                 // with an extra factor of "omega" in odd coefficients
 
@@ -287,7 +258,6 @@ impl<F: PrimeField, I: IOP<F>> NaiveFriIop<F, I> {
                 omega_inv.square();
             }
 
-
             // finally we need to get expected value from coefficients
 
             let mut expected_value_from_coefficients = F::zero();
@@ -301,13 +271,16 @@ impl<F: PrimeField, I: IOP<F>> NaiveFriIop<F, I> {
                 expected_value_from_coefficients.add_assign(&tmp);
                 power.mul_assign(&evaluation_point);
             }
-            
+
             let expected_value = expected_value.expect("is some");
 
             let valid = expected_value_from_coefficients == expected_value;
 
             if !valid {
-                println!("Value from supplied coefficients {} is not equal to the value from queries {} for natural index {}", expected_value_from_coefficients, expected_value, natural_element_index);
+                println!(
+                    "Value from supplied coefficients {} is not equal to the value from queries {} for natural index {}",
+                    expected_value_from_coefficients, expected_value, natural_element_index
+                );
                 println!("Final coefficients = {:?}", proof.final_coefficients);
                 return Ok(false);
             }

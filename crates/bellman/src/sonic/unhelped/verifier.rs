@@ -1,32 +1,27 @@
-use crate::pairing::ff::{Field};
-use crate::pairing::{Engine, CurveProjective};
-use std::marker::PhantomData;
+use crate::pairing::ff::Field;
+use crate::pairing::{CurveProjective, Engine};
 use rand::{Rand, Rng};
+use std::marker::PhantomData;
 
-use crate::sonic::helped::{Proof, SxyAdvice};
 use crate::sonic::helped::batch::Batch;
-use crate::sonic::helped::poly::{SxEval, SyEval};
 use crate::sonic::helped::helper::Aggregate;
-use crate::sonic::helped::parameters::{Parameters};
+use crate::sonic::helped::parameters::Parameters;
+use crate::sonic::helped::poly::{SxEval, SyEval};
+use crate::sonic::helped::{Proof, SxyAdvice};
 
 use crate::SynthesisError;
 
+use crate::sonic::cs::{Backend, SynthesisDriver};
+use crate::sonic::cs::{Circuit, Coeff, Variable};
+use crate::sonic::sonic::Preprocess;
+use crate::sonic::srs::SRS;
 use crate::sonic::transcript::{Transcript, TranscriptProtocol};
 use crate::sonic::util::*;
-use crate::sonic::cs::{Backend, SynthesisDriver};
-use crate::sonic::cs::{Circuit, Variable, Coeff};
-use crate::sonic::srs::SRS;
-use crate::sonic::sonic::Preprocess;
 
-use super::s2_proof::{S2Proof, S2Eval};
 use super::aggregate::SuccinctAggregate;
+use super::permutation_argument::{PermutationArgument, PermutationArgumentProof, PermutationProof, SpecializedSRS};
 use super::permutation_structure::create_permutation_structure;
-use super::permutation_argument::{
-    PermutationArgumentProof, 
-    PermutationProof, 
-    PermutationArgument,
-    SpecializedSRS
-};
+use super::s2_proof::{S2Eval, S2Proof};
 
 pub struct SuccinctMultiVerifier<E: Engine, C: Circuit<E>, S: SynthesisDriver, R: Rng> {
     circuit: C,
@@ -37,7 +32,7 @@ pub struct SuccinctMultiVerifier<E: Engine, C: Circuit<E>, S: SynthesisDriver, R
     n: usize,
     q: usize,
     randomness_source: R,
-    _marker: PhantomData<(E, S)>
+    _marker: PhantomData<(E, S)>,
 }
 
 impl<E: Engine, C: Circuit<E>, S: SynthesisDriver, R: Rng> SuccinctMultiVerifier<E, C, S, R> {
@@ -65,17 +60,11 @@ impl<E: Engine, C: Circuit<E>, S: SynthesisDriver, R: Rng> SuccinctMultiVerifier
             n: n,
             q: q,
             randomness_source: rng,
-            _marker: PhantomData
+            _marker: PhantomData,
         })
     }
 
-    pub fn add_aggregate(
-        &mut self,
-        proofs: &[(Proof<E>, SxyAdvice<E>)],
-        aggregate: &SuccinctAggregate<E>,
-        srs: &SRS<E>
-    )
-    {
+    pub fn add_aggregate(&mut self, proofs: &[(Proof<E>, SxyAdvice<E>)], aggregate: &SuccinctAggregate<E>, srs: &SRS<E>) {
         let mut transcript = Transcript::new(&[]);
         let mut y_values: Vec<E::Fr> = Vec::with_capacity(proofs.len());
         for &(ref proof, ref sxyadvice) in proofs {
@@ -95,7 +84,7 @@ impl<E: Engine, C: Circuit<E>, S: SynthesisDriver, R: Rng> SuccinctMultiVerifier
         let w: E::Fr = transcript.get_challenge_scalar();
 
         let szw = {
-            // prover will supply s1 and s2, need to calculate 
+            // prover will supply s1 and s2, need to calculate
             // s(z, w) = X^-(N+1) * Y^N * s1 - X^N * s2
 
             let x_n = z.pow(&[self.n as u64]);
@@ -118,7 +107,7 @@ impl<E: Engine, C: Circuit<E>, S: SynthesisDriver, R: Rng> SuccinctMultiVerifier
             {
                 let random: E::Fr = self.randomness_source.gen();
 
-                // e(C,hαx)e(C−yz,hα) = e(O,h)e(g−c,hα) that is 
+                // e(C,hαx)e(C−yz,hα) = e(O,h)e(g−c,hα) that is
                 // e(C,hαx)e(C^−yz,hα)*e(O,-h)e(g^c,hα) = 1
 
                 let mut xy = z;
@@ -127,13 +116,12 @@ impl<E: Engine, C: Circuit<E>, S: SynthesisDriver, R: Rng> SuccinctMultiVerifier
                 self.batch.add_opening(s2_proof.c_opening, random, xy);
                 self.batch.add_opening_value(random, s2_proof.c_value);
                 self.batch.add_commitment(self.s2_special_reference, random);
-
             }
 
             {
                 let random: E::Fr = self.randomness_source.gen();
 
-                // e(D,hαx)e(D−y−1z,hα) = e(O,h)e(g−d,hα) that is 
+                // e(D,hαx)e(D−y−1z,hα) = e(O,h)e(g−d,hα) that is
                 // e(D,hαx)e(D^−y-1z,hα)*e(O,-h)e(g^d,hα) = 1
 
                 let mut y_inv_by_x = z;
@@ -142,7 +130,6 @@ impl<E: Engine, C: Circuit<E>, S: SynthesisDriver, R: Rng> SuccinctMultiVerifier
                 self.batch.add_opening(s2_proof.d_opening, random, y_inv_by_x);
                 self.batch.add_opening_value(random, s2_proof.d_value);
                 self.batch.add_commitment(self.s2_special_reference, random);
-
             }
 
             // now work with s1 part
@@ -163,15 +150,14 @@ impl<E: Engine, C: Circuit<E>, S: SynthesisDriver, R: Rng> SuccinctMultiVerifier
                 // let s_prime_commitments = &aggregate.signature.s_prime_commitments;
 
                 let mut challenges = vec![];
-                for (s, s_prime) in aggregate.signature.s_commitments.iter()
-                                    .zip(aggregate.signature.s_prime_commitments.iter()) {
+                for (s, s_prime) in aggregate.signature.s_commitments.iter().zip(aggregate.signature.s_prime_commitments.iter()) {
                     transcript.commit_point(s);
                     transcript.commit_point(s_prime);
-                }     
+                }
 
                 for _ in 0..aggregate.signature.s_commitments.len() {
                     let challenge = transcript.get_challenge_scalar();
-                        challenges.push(challenge);
+                    challenges.push(challenge);
                 }
 
                 let z_prime: E::Fr = transcript.get_challenge_scalar();
@@ -182,16 +168,9 @@ impl<E: Engine, C: Circuit<E>, S: SynthesisDriver, R: Rng> SuccinctMultiVerifier
                     // e(E,hαx)e(E−z′,hα) = e(􏰇Mj=1Sj′rj,h)e(g−v,hα)
                     let perm_proof = &aggregate.signature.perm_proof;
 
-                    let s_r = multiexp(
-                        aggregate.signature.s_prime_commitments.iter(), 
-                        challenges.iter()
-                    ).into_affine();
+                    let s_r = multiexp(aggregate.signature.s_prime_commitments.iter(), challenges.iter()).into_affine();
 
-                    let p2_r = multiexp(
-                        self.s1_special_reference.p_2.iter(),
-                        challenges.iter()
-                    ).into_affine();
-
+                    let p2_r = multiexp(self.s1_special_reference.p_2.iter(), challenges.iter()).into_affine();
 
                     let value = perm_proof.v_zy;
 
@@ -200,7 +179,6 @@ impl<E: Engine, C: Circuit<E>, S: SynthesisDriver, R: Rng> SuccinctMultiVerifier
                     self.batch.add_opening(perm_proof.e_opening, random, z_prime);
                     self.batch.add_opening_value(random, value);
                     self.batch.add_commitment(s_r, random);
-
 
                     // e(F,hαx)e(F−yz′,hα) = e(􏰇Mj=1P2jrj,h)e(g−v,hα)
 
@@ -212,10 +190,9 @@ impl<E: Engine, C: Circuit<E>, S: SynthesisDriver, R: Rng> SuccinctMultiVerifier
                     self.batch.add_opening(perm_proof.f_opening, random, y_z_prime);
                     self.batch.add_opening_value(random, value);
                     self.batch.add_commitment(p2_r, random);
-
                 }
 
-                // now we can actually take an opening of S commitments and 
+                // now we can actually take an opening of S commitments and
 
                 {
                     // e(I,hαx)e(I−z,hα) = e(􏰇Mj=1 Sj,h)e(g−s,hα)
@@ -232,7 +209,6 @@ impl<E: Engine, C: Circuit<E>, S: SynthesisDriver, R: Rng> SuccinctMultiVerifier
                     self.batch.add_opening(aggregate.signature.perm_argument_proof.s_opening, random, z);
                     self.batch.add_opening_value(random, value);
                     self.batch.add_commitment(s_commitment.into_affine(), random);
-
                 }
 
                 // TODO: Add grand product argument!
@@ -253,18 +229,20 @@ impl<E: Engine, C: Circuit<E>, S: SynthesisDriver, R: Rng> SuccinctMultiVerifier
                     betas.push(beta);
                     gammas.push(gamma);
                 }
-                
+
                 let mut wellformedness_argument_commitments = vec![];
 
-                use crate::pairing::CurveAffine;
                 use crate::pairing::ff::PrimeField;
+                use crate::pairing::CurveAffine;
 
-                for (j, (((s, s_prime), beta), gamma)) in aggregate.signature.s_commitments.iter()
-                                                .zip(aggregate.signature.s_prime_commitments.iter())
-                                                .zip(betas.iter())
-                                                .zip(gammas.iter())
-                                                .enumerate()
-
+                for (j, (((s, s_prime), beta), gamma)) in aggregate
+                    .signature
+                    .s_commitments
+                    .iter()
+                    .zip(aggregate.signature.s_prime_commitments.iter())
+                    .zip(betas.iter())
+                    .zip(gammas.iter())
+                    .enumerate()
                 {
                     // Sj(P4j)β(P1j)γ
 
@@ -298,7 +276,7 @@ impl<E: Engine, C: Circuit<E>, S: SynthesisDriver, R: Rng> SuccinctMultiVerifier
                     let h_alpha_x_precomp = srs.h_positive_x_alpha[1].prepare();
                     let h_alpha_precomp = srs.h_positive_x_alpha[0].prepare();
 
-                    let mut h_x_n_plus_one_precomp = srs.h_positive_x[self.n+1];
+                    let mut h_x_n_plus_one_precomp = srs.h_positive_x[self.n + 1];
                     h_x_n_plus_one_precomp.negate();
                     let h_x_n_plus_one_precomp = h_x_n_plus_one_precomp.prepare();
 
@@ -306,17 +284,11 @@ impl<E: Engine, C: Circuit<E>, S: SynthesisDriver, R: Rng> SuccinctMultiVerifier
                     h_prep.negate();
                     let h_prep = h_prep.prepare();
 
-                    let a = multiexp(
-                        a_commitments.iter(),
-                        randomness.iter(),
-                    ).into_affine();
+                    let a = multiexp(a_commitments.iter(), randomness.iter()).into_affine();
 
                     let a = a.prepare();
 
-                    let b = multiexp(
-                        b_commitments.iter(),
-                        randomness.iter(),
-                    ).into_affine();
+                    let b = multiexp(b_commitments.iter(), randomness.iter()).into_affine();
 
                     let b = b.prepare();
 
@@ -337,10 +309,7 @@ impl<E: Engine, C: Circuit<E>, S: SynthesisDriver, R: Rng> SuccinctMultiVerifier
 
                     let value = g.mul(value.into_repr()).into_affine().prepare();
 
-                    let openings = multiexp(
-                        ops.iter(),
-                        randomness.iter(),
-                    ).into_affine();
+                    let openings = multiexp(ops.iter(), randomness.iter()).into_affine();
 
                     let openings_zy = openings.mul(yz_neg.into_repr()).into_affine().prepare();
                     let openings = openings.prepare();
@@ -348,16 +317,17 @@ impl<E: Engine, C: Circuit<E>, S: SynthesisDriver, R: Rng> SuccinctMultiVerifier
                     // e(Dj,hαx)e(D−yz,hα) = e(Aj,h)e(Bj,hxn+1)e(g−aj ,hα)
 
                     let valid = E::final_exponentiation(&E::miller_loop(&[
-                            (&openings, &h_alpha_x_precomp),
-                            (&openings_zy, &h_alpha_precomp),
-                            (&a, &h_prep),
-                            (&b, &h_x_n_plus_one_precomp),
-                            (&value, &h_alpha_precomp)
-                        ])).unwrap() == E::Fqk::one();
+                        (&openings, &h_alpha_x_precomp),
+                        (&openings_zy, &h_alpha_precomp),
+                        (&a, &h_prep),
+                        (&b, &h_x_n_plus_one_precomp),
+                        (&value, &h_alpha_precomp),
+                    ]))
+                    .unwrap()
+                        == E::Fqk::one();
 
                     // TODO
                     assert!(valid, "grand product arguments must be valid for individual commitments");
-
                 }
 
                 // Now the second part of the grand product argument
@@ -383,15 +353,16 @@ impl<E: Engine, C: Circuit<E>, S: SynthesisDriver, R: Rng> SuccinctMultiVerifier
                     let mut ry_vec = vec![];
 
                     // in grand product arguments n is not a number of gates, but 3n+1 - number of variables + 1
-                    let three_n_plus_1 = 3*self.n + 1;
+                    let three_n_plus_1 = 3 * self.n + 1;
 
-                    for ((r, commitment), (a, _)) in grand_product_challenges.iter()
-                                                    .zip(aggregate.signature.grand_product_signature.c_commitments.iter())
-                                                    .zip(aggregate.signature.grand_product_signature.grand_product_openings.iter())
+                    for ((r, commitment), (a, _)) in grand_product_challenges
+                        .iter()
+                        .zip(aggregate.signature.grand_product_signature.c_commitments.iter())
+                        .zip(aggregate.signature.grand_product_signature.grand_product_openings.iter())
                     {
                         let (c, v) = commitment;
                         commitments_points.push(*c);
-                        
+
                         // cj = ((aj + vj(yz)n+1)y + zn+2 + zn+1y − z2n+2y)z−1
                         let mut c_zy = yz.pow([(three_n_plus_1 + 1) as u64]);
                         c_zy.mul_assign(v);
@@ -433,15 +404,9 @@ impl<E: Engine, C: Circuit<E>, S: SynthesisDriver, R: Rng> SuccinctMultiVerifier
 
                     // t(z, y) is now calculated
 
-                    let c_rc = multiexp(
-                        commitments_points.iter(),
-                        rc_vec.iter(),
-                    ).into_affine();
+                    let c_rc = multiexp(commitments_points.iter(), rc_vec.iter()).into_affine();
 
-                    let c_ry = multiexp(
-                        commitments_points.iter(),
-                        ry_vec.iter(),
-                    ).into_affine();
+                    let c_ry = multiexp(commitments_points.iter(), ry_vec.iter()).into_affine();
 
                     // e(E,h^alphax)e(E^-z^-1,h^alpha) = e(\sumCj^(rj*cj),h)e(g^-e,h^alpha)
 
@@ -485,7 +450,7 @@ impl<E: Engine, C: Circuit<E>, S: SynthesisDriver, R: Rng> SuccinctMultiVerifier
                     }
 
                     let d = srs.d;
-                    let n = 3*self.n + 1; // same as for grand products
+                    let n = 3 * self.n + 1; // same as for grand products
 
                     let alpha_x_d_precomp = srs.h_positive_x_alpha[d].prepare();
                     // TODO: not strictly required
@@ -496,10 +461,7 @@ impl<E: Engine, C: Circuit<E>, S: SynthesisDriver, R: Rng> SuccinctMultiVerifier
                     h_prep.negate();
                     let h_prep = h_prep.prepare();
 
-                    let a = multiexp(
-                        wellformedness_argument_commitments.iter(),
-                        wellformedness_challenges.iter(),
-                    ).into_affine();
+                    let a = multiexp(wellformedness_argument_commitments.iter(), wellformedness_challenges.iter()).into_affine();
 
                     let r1: E::Fr = self.randomness_source.gen();
                     let r2: E::Fr = self.randomness_source.gen();
@@ -512,14 +474,15 @@ impl<E: Engine, C: Circuit<E>, S: SynthesisDriver, R: Rng> SuccinctMultiVerifier
                     let a_r = a.mul(r.into_repr()).into_affine();
 
                     let valid = E::final_exponentiation(&E::miller_loop(&[
-                            (&a_r.prepare(), &h_prep),
-                            (&l_r1.prepare(), &alpha_x_d_precomp),
-                            (&r_r2.prepare(), &alpha_x_n_minus_d_precomp)
-                        ])).unwrap() == E::Fqk::one();
+                        (&a_r.prepare(), &h_prep),
+                        (&l_r1.prepare(), &alpha_x_d_precomp),
+                        (&r_r2.prepare(), &alpha_x_n_minus_d_precomp),
+                    ]))
+                    .unwrap()
+                        == E::Fqk::one();
 
                     assert!(valid, "wellformedness argument must be valid");
                 }
-
             }
 
             szw
@@ -564,13 +527,7 @@ impl<E: Engine, C: Circuit<E>, S: SynthesisDriver, R: Rng> SuccinctMultiVerifier
     }
 
     /// Caller must ensure to add aggregate after adding a proof
-    pub fn add_proof_with_advice(
-        &mut self,
-        proof: &Proof<E>,
-        inputs: &[E::Fr],
-        advice: &SxyAdvice<E>,
-    )
-    {
+    pub fn add_proof_with_advice(&mut self, proof: &Proof<E>, inputs: &[E::Fr], advice: &SxyAdvice<E>) {
         let mut z = None;
 
         self.add_proof(proof, inputs, |_z, _y| {
@@ -592,13 +549,9 @@ impl<E: Engine, C: Circuit<E>, S: SynthesisDriver, R: Rng> SuccinctMultiVerifier
         self.batch.add_opening_value(advice.szy, random);
     }
 
-    pub fn add_proof<F>(
-        &mut self,
-        proof: &Proof<E>,
-        inputs: &[E::Fr],
-        sxy: F
-    )
-        where F: FnOnce(E::Fr, E::Fr) -> Option<E::Fr>
+    pub fn add_proof<F>(&mut self, proof: &Proof<E>, inputs: &[E::Fr], sxy: F)
+    where
+        F: FnOnce(E::Fr, E::Fr) -> Option<E::Fr>,
     {
         let mut transcript = Transcript::new(&[]);
 
@@ -690,7 +643,7 @@ impl<E: Engine, C: Circuit<E>, S: SynthesisDriver, R: Rng> SuccinctMultiVerifier
     }
 }
 
-// /// Check multiple proofs without aggregation. Verifier's work is 
+// /// Check multiple proofs without aggregation. Verifier's work is
 // /// not succint due to `S(X, Y)` evaluation
 // pub fn verify_proofs<E: Engine, C: Circuit<E>, S: SynthesisDriver, R: Rng>(
 //     proofs: &[Proof<E>],
@@ -702,7 +655,7 @@ impl<E: Engine, C: Circuit<E>, S: SynthesisDriver, R: Rng> SuccinctMultiVerifier
 //     verify_proofs_on_srs::<E, C, S, R>(proofs, inputs, circuit, rng, &params.srs)
 // }
 
-// /// Check multiple proofs without aggregation. Verifier's work is 
+// /// Check multiple proofs without aggregation. Verifier's work is
 // /// not succint due to `S(X, Y)` evaluation
 // pub fn verify_proofs_on_srs<E: Engine, C: Circuit<E>, S: SynthesisDriver, R: Rng>(
 //     proofs: &[Proof<E>],
@@ -723,7 +676,7 @@ impl<E: Engine, C: Circuit<E>, S: SynthesisDriver, R: Rng> SuccinctMultiVerifier
 //     Ok(verifier.check_all())
 // }
 
-// /// Check multiple proofs with aggregation. Verifier's work is 
+// /// Check multiple proofs with aggregation. Verifier's work is
 // /// not succint due to `S(X, Y)` evaluation
 // pub fn verify_aggregate<E: Engine, C: Circuit<E>, S: SynthesisDriver,R: Rng>(
 //     proofs: &[(Proof<E>, SxyAdvice<E>)],
@@ -736,7 +689,7 @@ impl<E: Engine, C: Circuit<E>, S: SynthesisDriver, R: Rng> SuccinctMultiVerifier
 //     verify_aggregate_on_srs::<E, C, S, R>(proofs, aggregate, inputs, circuit, rng, &params.srs)
 // }
 
-// /// Check multiple proofs with aggregation. Verifier's work is 
+// /// Check multiple proofs with aggregation. Verifier's work is
 // /// not succint due to `S(X, Y)` evaluation
 // pub fn verify_aggregate_on_srs<E: Engine, C: Circuit<E>, S: SynthesisDriver, R: Rng>(
 //     proofs: &[(Proof<E>, SxyAdvice<E>)],
@@ -758,4 +711,3 @@ impl<E: Engine, C: Circuit<E>, S: SynthesisDriver, R: Rng> SuccinctMultiVerifier
 
 //     Ok(verifier.check_all())
 // }
-

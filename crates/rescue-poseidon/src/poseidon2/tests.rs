@@ -1,18 +1,18 @@
+use crate::tests::init_cs;
+use franklin_crypto::bellman::pairing::bn256::{Bn256, Fr};
+use franklin_crypto::boojum::algebraic_props::round_function::AbsorptionModeTrait;
 use franklin_crypto::boojum::cs::implementations::pow::PoWRunner;
 use franklin_crypto::boojum::field::goldilocks::GoldilocksField;
-use franklin_crypto::bellman::pairing::bn256::{Bn256, Fr};
-use franklin_crypto::plonk::circuit::{allocated_num::Num, linear_combination::LinearCombination};
-use franklin_crypto::boojum::algebraic_props::round_function::AbsorptionModeTrait;
 use franklin_crypto::boojum::field::SmallField;
 use franklin_crypto::boojum::field::U64Representable;
 use franklin_crypto::boojum::worker::Worker;
+use franklin_crypto::plonk::circuit::{allocated_num::Num, linear_combination::LinearCombination};
 use rand::Rand;
 use rand::Rng;
-use crate::tests::init_cs;
 
+use crate::circuit::poseidon2::{circuit_poseidon2_hash, circuit_poseidon2_round_function};
 use crate::poseidon::{poseidon_hash, poseidon_round_function};
 use crate::poseidon2::{poseidon2_hash, poseidon2_round_function};
-use crate::circuit::poseidon2::{circuit_poseidon2_round_function, circuit_poseidon2_hash};
 
 use super::Poseidon2Sponge;
 
@@ -95,9 +95,7 @@ fn test_of_sponge_state() {
     let buffer1: Vec<_> = (0..num_elements).map(|_| Fr::rand(&mut rng)).collect();
 
     let mut rng = rand::thread_rng();
-    let buffer2: Vec<_> = (0..num_elements).map(|_| 
-        GoldilocksField::from_u64_unchecked(rng.gen_range(0, GoldilocksField::CHAR))
-    ).collect();
+    let buffer2: Vec<_> = (0..num_elements).map(|_| GoldilocksField::from_u64_unchecked(rng.gen_range(0, GoldilocksField::CHAR))).collect();
 
     dbg!(&buffer1, &buffer2);
 
@@ -170,11 +168,7 @@ fn test_pow_runner() {
     let mut rng = rand::thread_rng();
     let buffer: Vec<_> = (0..4).map(|_| GoldilocksField::from_u64_unchecked(rng.gen_range(0, GoldilocksField::CHAR))).collect();
 
-    let challenge = Poseidon2Sponge::<Bn256, GoldilocksField, TestingAbsorption, 2, 3>::run_from_field_elements(
-        buffer,
-        10,
-        &worker
-    );
+    let challenge = Poseidon2Sponge::<Bn256, GoldilocksField, TestingAbsorption, 2, 3>::run_from_field_elements(buffer, 10, &worker);
 
     dbg!(challenge);
 }

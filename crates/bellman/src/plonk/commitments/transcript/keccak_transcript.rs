@@ -1,6 +1,6 @@
-use tiny_keccak::Keccak;
+use crate::byteorder::{BigEndian, ByteOrder};
 use crate::pairing::ff::{PrimeField, PrimeFieldRepr};
-use crate::byteorder::{ByteOrder, BigEndian};
+use tiny_keccak::Keccak;
 
 use super::*;
 
@@ -9,18 +9,18 @@ pub struct RollingKeccakTranscript<F: PrimeField> {
     state_part_0: [u8; 32],
     state_part_1: [u8; 32],
     challenge_counter: u32,
-    _marker: std::marker::PhantomData<F>
+    _marker: std::marker::PhantomData<F>,
 }
 
 impl<F: PrimeField> RollingKeccakTranscript<F> {
     const SHAVE_BITS: u32 = 256 - F::CAPACITY;
     // const REPR_SIZE: usize = std::mem::size_of::<F::Repr>();
-    const REPR_SIZE: usize = (((F::NUM_BITS as usize)/ 64) + 1) * 8;
+    const REPR_SIZE: usize = (((F::NUM_BITS as usize) / 64) + 1) * 8;
     const DST_0_TAG: u32 = 0;
     const DST_1_TAG: u32 = 1;
     const CHALLENGE_DST_TAG: u32 = 2;
 
-    fn update(&mut self, bytes: &[u8]){
+    fn update(&mut self, bytes: &[u8]) {
         let old_state_0 = self.state_part_0;
 
         let mut input = vec![0u8; bytes.len() + 32 + 32 + 4];
@@ -72,7 +72,7 @@ impl<F: PrimeField> Prng<F> for RollingKeccakTranscript<F> {
             state_part_0: [0u8; 32],
             state_part_1: [0u8; 32],
             challenge_counter: 0,
-            _marker: std::marker::PhantomData
+            _marker: std::marker::PhantomData,
         }
     }
 
@@ -88,7 +88,7 @@ impl<F: PrimeField> Prng<F> for RollingKeccakTranscript<F> {
 
         // self.state = Keccak::new_keccak256();
         // self.state.update(&value);
-        
+
         let mut repr = F::Repr::default();
         let shaving_mask: u64 = 0xffffffffffffffff >> (Self::SHAVE_BITS % 64);
         repr.read_be(&value[..]).expect("will read");
@@ -115,7 +115,7 @@ impl<F: PrimeField> Transcript<F> for RollingKeccakTranscript<F> {
         let repr = element.into_repr();
         let mut bytes: Vec<u8> = vec![0u8; Self::REPR_SIZE];
         repr.write_be(&mut bytes[..]).expect("should write");
-        
+
         // self.state.update(&bytes[..]);
         self.update(&bytes);
     }

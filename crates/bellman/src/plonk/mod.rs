@@ -1,14 +1,14 @@
 pub mod adaptor;
 pub mod cs;
-pub mod generator;
-pub mod prover;
-pub mod verifier;
-pub mod tester;
-pub mod polynomials;
 pub mod domains;
 pub mod fft;
-pub mod utils;
+pub mod generator;
+pub mod polynomials;
+pub mod prover;
+pub mod tester;
 pub mod transparent_engine;
+pub mod utils;
+pub mod verifier;
 
 pub mod redshift;
 
@@ -20,16 +20,16 @@ pub mod better_cs;
 
 pub mod better_better_cs;
 
-pub use self::better_cs::adaptor::{TranspilationVariant, Transpiler, Adaptor, AdaptorCircuit};
-pub use self::better_cs::keys::{SetupPolynomials, SetupPolynomialsPrecomputations, VerificationKey, Proof};
+pub use self::better_cs::adaptor::{Adaptor, AdaptorCircuit, TranspilationVariant, Transpiler};
+pub use self::better_cs::keys::{Proof, SetupPolynomials, SetupPolynomialsPrecomputations, VerificationKey};
 
-use crate::pairing::Engine;
-use crate::{SynthesisError, Circuit};
-use crate::worker::Worker;
+use self::better_cs::cs::{PlonkConstraintSystemParams, PlonkCsWidth4WithNextStepParams};
 use crate::kate_commitment::*;
-use self::better_cs::cs::{PlonkCsWidth4WithNextStepParams, PlonkConstraintSystemParams};
+use crate::pairing::Engine;
 use crate::plonk::commitments::transcript::*;
 use crate::plonk::fft::cooley_tukey_ntt::*;
+use crate::worker::Worker;
+use crate::{Circuit, SynthesisError};
 
 pub fn transpile<E: Engine, C: crate::Circuit<E>>(circuit: C) -> Result<Vec<(usize, TranspilationVariant)>, SynthesisError> {
     let mut transpiler = Transpiler::<E, PlonkCsWidth4WithNextStepParams>::new();
@@ -51,10 +51,7 @@ pub fn transpile_with_gates_count<E: Engine, C: crate::Circuit<E>>(circuit: C) -
     Ok((n, hints))
 }
 
-pub fn is_satisfied<E: Engine, C: crate::Circuit<E>>(
-    circuit: C,
-    hints: &Vec<(usize, TranspilationVariant)>
-) -> Result<(), SynthesisError> {
+pub fn is_satisfied<E: Engine, C: crate::Circuit<E>>(circuit: C, hints: &Vec<(usize, TranspilationVariant)>) -> Result<(), SynthesisError> {
     use crate::plonk::better_cs::cs::Circuit;
 
     let adapted_curcuit = AdaptorCircuit::<E, PlonkCsWidth4WithNextStepParams, _>::new(circuit, &hints);
@@ -64,10 +61,7 @@ pub fn is_satisfied<E: Engine, C: crate::Circuit<E>>(
     adapted_curcuit.synthesize(&mut assembly)
 }
 
-pub fn is_satisfied_using_one_shot_check<E: Engine, C: crate::Circuit<E>>(
-    circuit: C,
-    hints: &Vec<(usize, TranspilationVariant)>
-) -> Result<(), SynthesisError> {
+pub fn is_satisfied_using_one_shot_check<E: Engine, C: crate::Circuit<E>>(circuit: C, hints: &Vec<(usize, TranspilationVariant)>) -> Result<(), SynthesisError> {
     use crate::plonk::better_cs::cs::Circuit;
 
     let adapted_curcuit = AdaptorCircuit::<E, PlonkCsWidth4WithNextStepParams, _>::new(circuit, &hints);
@@ -85,10 +79,7 @@ pub fn is_satisfied_using_one_shot_check<E: Engine, C: crate::Circuit<E>>(
     }
 }
 
-pub fn setup<E: Engine, C: crate::Circuit<E>>(
-    circuit: C,
-    hints: &Vec<(usize, TranspilationVariant)>
-) -> Result<SetupPolynomials<E, PlonkCsWidth4WithNextStepParams>, SynthesisError> {
+pub fn setup<E: Engine, C: crate::Circuit<E>>(circuit: C, hints: &Vec<(usize, TranspilationVariant)>) -> Result<SetupPolynomials<E, PlonkCsWidth4WithNextStepParams>, SynthesisError> {
     use crate::plonk::better_cs::cs::Circuit;
 
     let adapted_curcuit = AdaptorCircuit::<E, PlonkCsWidth4WithNextStepParams, _>::new(circuit, &hints);
@@ -103,30 +94,18 @@ pub fn setup<E: Engine, C: crate::Circuit<E>>(
     assembly.setup(&worker)
 }
 
-pub fn make_verification_key<E: Engine, P: PlonkConstraintSystemParams<E>>(
-    setup: &SetupPolynomials<E, P>,
-    crs: &Crs<E, CrsForMonomialForm>
-) -> Result<VerificationKey<E, P>, SynthesisError> {
+pub fn make_verification_key<E: Engine, P: PlonkConstraintSystemParams<E>>(setup: &SetupPolynomials<E, P>, crs: &Crs<E, CrsForMonomialForm>) -> Result<VerificationKey<E, P>, SynthesisError> {
     let worker = Worker::new();
 
-    let verification_key = VerificationKey::from_setup(
-        &setup, 
-        &worker, 
-        &crs
-    )?;
+    let verification_key = VerificationKey::from_setup(&setup, &worker, &crs)?;
 
     Ok(verification_key)
 }
 
-pub fn make_precomputations<E: Engine, P: PlonkConstraintSystemParams<E>>(
-    setup: &SetupPolynomials<E, P>
-) -> Result<SetupPolynomialsPrecomputations<E, P>, SynthesisError> {
+pub fn make_precomputations<E: Engine, P: PlonkConstraintSystemParams<E>>(setup: &SetupPolynomials<E, P>) -> Result<SetupPolynomialsPrecomputations<E, P>, SynthesisError> {
     let worker = Worker::new();
 
-    let precomputations = SetupPolynomialsPrecomputations::from_setup(
-        &setup, 
-        &worker, 
-    )?;
+    let precomputations = SetupPolynomialsPrecomputations::from_setup(&setup, &worker)?;
 
     Ok(precomputations)
 }
@@ -136,10 +115,10 @@ pub fn prove_native_by_steps<E: Engine, C: crate::plonk::better_cs::cs::Circuit<
     setup: &SetupPolynomials<E, PlonkCsWidth4WithNextStepParams>,
     setup_precomputations: Option<&SetupPolynomialsPrecomputations<E, PlonkCsWidth4WithNextStepParams>>,
     csr_mon_basis: &Crs<E, CrsForMonomialForm>,
-    transcript_init_params: Option< <T as Prng<E::Fr> >:: InitializationParameters>,
+    transcript_init_params: Option<<T as Prng<E::Fr>>::InitializationParameters>,
 ) -> Result<Proof<E, PlonkCsWidth4WithNextStepParams>, SynthesisError> {
-    use crate::plonk::better_cs::utils::{commit_point_as_xy};
-    use crate::plonk::better_cs::prover::prove_steps::{FirstVerifierMessage, SecondVerifierMessage, ThirdVerifierMessage, FourthVerifierMessage};
+    use crate::plonk::better_cs::prover::prove_steps::{FirstVerifierMessage, FourthVerifierMessage, SecondVerifierMessage, ThirdVerifierMessage};
+    use crate::plonk::better_cs::utils::commit_point_as_xy;
 
     use std::time::Instant;
 
@@ -156,24 +135,16 @@ pub fn prove_native_by_steps<E: Engine, C: crate::plonk::better_cs::cs::Circuit<
 
     let now = Instant::now();
 
-    let mut transcript = if let Some(p) = transcript_init_params {
-        T::new_from_params(p)
-    } else {
-        T::new()
-    };
+    let mut transcript = if let Some(p) = transcript_init_params { T::new_from_params(p) } else { T::new() };
 
-    let mut precomputed_omegas = crate::plonk::better_cs::prover::prove_steps::PrecomputedOmegas::< E::Fr, BitReversedOmegas<E::Fr> >::None;
-    let mut precomputed_omegas_inv = crate::plonk::better_cs::prover::prove_steps::PrecomputedOmegas::< E::Fr, OmegasInvBitreversed<E::Fr> >::None;
+    let mut precomputed_omegas = crate::plonk::better_cs::prover::prove_steps::PrecomputedOmegas::<E::Fr, BitReversedOmegas<E::Fr>>::None;
+    let mut precomputed_omegas_inv = crate::plonk::better_cs::prover::prove_steps::PrecomputedOmegas::<E::Fr, OmegasInvBitreversed<E::Fr>>::None;
 
     let mut proof = Proof::<E, PlonkCsWidth4WithNextStepParams>::empty();
 
     let subtime = Instant::now();
 
-    let (first_state, first_message) = assembly.first_step_with_monomial_form_key(
-        &worker,
-        csr_mon_basis,
-        &mut precomputed_omegas_inv
-    )?;
+    let (first_state, first_message) = assembly.first_step_with_monomial_form_key(&worker, csr_mon_basis, &mut precomputed_omegas_inv)?;
 
     println!("First step (witness commitment) taken {:?}", subtime.elapsed());
 
@@ -196,21 +167,13 @@ pub fn prove_native_by_steps<E: Engine, C: crate::plonk::better_cs::cs::Circuit<
     let first_verifier_message = FirstVerifierMessage::<E, PlonkCsWidth4WithNextStepParams> {
         beta,
         gamma,
-
-        _marker: std::marker::PhantomData
+        _marker: std::marker::PhantomData,
     };
 
     let subtime = Instant::now();
 
-    let (second_state, second_message) = self::better_cs::prover::ProverAssembly::second_step_from_first_step(
-        first_state,
-        first_verifier_message,
-        &setup,
-        csr_mon_basis,
-        &setup_precomputations,
-        &mut precomputed_omegas_inv,
-        &worker
-    )?;
+    let (second_state, second_message) =
+        self::better_cs::prover::ProverAssembly::second_step_from_first_step(first_state, first_verifier_message, &setup, csr_mon_basis, &setup_precomputations, &mut precomputed_omegas_inv, &worker)?;
 
     println!("Second step (grand product commitment) taken {:?}", subtime.elapsed());
 
@@ -223,8 +186,7 @@ pub fn prove_native_by_steps<E: Engine, C: crate::plonk::better_cs::cs::Circuit<
         alpha,
         beta,
         gamma,
-
-        _marker: std::marker::PhantomData
+        _marker: std::marker::PhantomData,
     };
 
     let subtime = Instant::now();
@@ -237,7 +199,7 @@ pub fn prove_native_by_steps<E: Engine, C: crate::plonk::better_cs::cs::Circuit<
         &setup_precomputations,
         &mut precomputed_omegas,
         &mut precomputed_omegas_inv,
-        &worker
+        &worker,
     )?;
 
     println!("Third step (quotient calculation and commitment) taken {:?}", subtime.elapsed());
@@ -255,18 +217,12 @@ pub fn prove_native_by_steps<E: Engine, C: crate::plonk::better_cs::cs::Circuit<
         beta,
         gamma,
         z,
-
-        _marker: std::marker::PhantomData
+        _marker: std::marker::PhantomData,
     };
 
     let subtime = Instant::now();
 
-    let (fourth_state, fourth_message) = self::better_cs::prover::ProverAssembly::fourth_step_from_third_step(
-        third_state,
-        third_verifier_message,
-        &setup,
-        &worker
-    )?;
+    let (fourth_state, fourth_message) = self::better_cs::prover::ProverAssembly::fourth_step_from_third_step(third_state, third_verifier_message, &setup, &worker)?;
 
     println!("Fourth step (openings at z) taken {:?}", subtime.elapsed());
 
@@ -301,19 +257,12 @@ pub fn prove_native_by_steps<E: Engine, C: crate::plonk::better_cs::cs::Circuit<
         gamma,
         z,
         v,
-
-        _marker: std::marker::PhantomData
+        _marker: std::marker::PhantomData,
     };
 
     let subtime = Instant::now();
 
-    let fifth_message = self::better_cs::prover::ProverAssembly::fifth_step_from_fourth_step(
-        fourth_state,
-        fourth_verifier_message,
-        &setup,
-        csr_mon_basis,
-        &worker
-    )?;
+    let fifth_message = self::better_cs::prover::ProverAssembly::fifth_step_from_fourth_step(fourth_state, fourth_verifier_message, &setup, csr_mon_basis, &worker)?;
 
     println!("Fifth step (proving opening at z) taken {:?}", subtime.elapsed());
 
@@ -331,21 +280,15 @@ pub fn prove_by_steps<E: Engine, C: crate::Circuit<E>, T: Transcript<E::Fr>>(
     setup: &SetupPolynomials<E, PlonkCsWidth4WithNextStepParams>,
     setup_precomputations: Option<&SetupPolynomialsPrecomputations<E, PlonkCsWidth4WithNextStepParams>>,
     csr_mon_basis: &Crs<E, CrsForMonomialForm>,
-    transcript_init_params: Option< <T as Prng<E::Fr> >:: InitializationParameters>,
+    transcript_init_params: Option<<T as Prng<E::Fr>>::InitializationParameters>,
 ) -> Result<Proof<E, PlonkCsWidth4WithNextStepParams>, SynthesisError> {
     use crate::plonk::better_cs::cs::Circuit;
-    use crate::plonk::better_cs::utils::{commit_point_as_xy};
-    use crate::plonk::better_cs::prover::prove_steps::{FirstVerifierMessage, SecondVerifierMessage, ThirdVerifierMessage, FourthVerifierMessage};
+    use crate::plonk::better_cs::prover::prove_steps::{FirstVerifierMessage, FourthVerifierMessage, SecondVerifierMessage, ThirdVerifierMessage};
+    use crate::plonk::better_cs::utils::commit_point_as_xy;
 
     let adapted_curcuit = AdaptorCircuit::<E, PlonkCsWidth4WithNextStepParams, _>::new(circuit, &hints);
 
-    prove_native_by_steps::<_, _, T>(
-        &adapted_curcuit, 
-        setup, 
-        setup_precomputations, 
-        csr_mon_basis,
-        transcript_init_params
-    )
+    prove_native_by_steps::<_, _, T>(&adapted_curcuit, setup, setup_precomputations, csr_mon_basis, transcript_init_params)
 }
 
 pub fn prove<E: Engine, C: crate::Circuit<E>, T: Transcript<E::Fr>>(
@@ -353,7 +296,7 @@ pub fn prove<E: Engine, C: crate::Circuit<E>, T: Transcript<E::Fr>>(
     hints: &Vec<(usize, TranspilationVariant)>,
     setup: &SetupPolynomials<E, PlonkCsWidth4WithNextStepParams>,
     csr_mon_basis: &Crs<E, CrsForMonomialForm>,
-    crs_lagrange_basis: &Crs<E, CrsForLagrangeForm>
+    crs_lagrange_basis: &Crs<E, CrsForLagrangeForm>,
 ) -> Result<Proof<E, PlonkCsWidth4WithNextStepParams>, SynthesisError> {
     use crate::plonk::better_cs::cs::Circuit;
 
@@ -372,7 +315,7 @@ pub fn prove<E: Engine, C: crate::Circuit<E>, T: Transcript<E::Fr>>(
     let worker = Worker::new();
 
     let omegas_bitreversed = BitReversedOmegas::<E::Fr>::new_for_domain_size(size.next_power_of_two());
-    let omegas_inv_bitreversed = <OmegasInvBitreversed::<E::Fr> as CTPrecomputations::<E::Fr>>::new_for_domain_size(size.next_power_of_two());
+    let omegas_inv_bitreversed = <OmegasInvBitreversed<E::Fr> as CTPrecomputations<E::Fr>>::new_for_domain_size(size.next_power_of_two());
 
     use std::time::Instant;
     let now = Instant::now();
@@ -392,14 +335,7 @@ pub fn prove<E: Engine, C: crate::Circuit<E>, T: Transcript<E::Fr>>(
     Ok(proof)
 }
 
-
-pub fn prove_from_recomputations<
-    E: Engine, 
-    C: crate::Circuit<E>, 
-    T: Transcript<E::Fr>,
-    CP: CTPrecomputations<E::Fr>,
-    CPI: CTPrecomputations<E::Fr>,
->(
+pub fn prove_from_recomputations<E: Engine, C: crate::Circuit<E>, T: Transcript<E::Fr>, CP: CTPrecomputations<E::Fr>, CPI: CTPrecomputations<E::Fr>>(
     circuit: C,
     hints: &Vec<(usize, TranspilationVariant)>,
     setup: &SetupPolynomials<E, PlonkCsWidth4WithNextStepParams>,
@@ -407,7 +343,7 @@ pub fn prove_from_recomputations<
     omegas_bitreversed: &CP,
     omegas_inv_bitreversed: &CPI,
     csr_mon_basis: &Crs<E, CrsForMonomialForm>,
-    crs_lagrange_basis: &Crs<E, CrsForLagrangeForm>
+    crs_lagrange_basis: &Crs<E, CrsForLagrangeForm>,
 ) -> Result<Proof<E, PlonkCsWidth4WithNextStepParams>, SynthesisError> {
     use crate::plonk::better_cs::cs::Circuit;
 
@@ -445,7 +381,7 @@ pub fn prove_from_recomputations<
 
 pub fn verify<E: Engine, T: Transcript<E::Fr>>(
     proof: &Proof<E, PlonkCsWidth4WithNextStepParams>,
-    verification_key: &VerificationKey<E, PlonkCsWidth4WithNextStepParams>
+    verification_key: &VerificationKey<E, PlonkCsWidth4WithNextStepParams>,
 ) -> Result<bool, SynthesisError> {
     self::better_cs::verifier::verify::<E, PlonkCsWidth4WithNextStepParams, T>(&proof, &verification_key, None)
 }

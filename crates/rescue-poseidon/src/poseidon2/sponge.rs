@@ -1,27 +1,21 @@
 use super::*;
 
 use derivative::*;
-use franklin_crypto::boojum::field::SmallField;
-use franklin_crypto::boojum::cs::oracle::TreeHasher;
 use franklin_crypto::bellman::{Engine, Field, PrimeField, PrimeFieldRepr};
 use franklin_crypto::boojum::algebraic_props::round_function::AbsorptionModeTrait;
+use franklin_crypto::boojum::cs::oracle::TreeHasher;
+use franklin_crypto::boojum::field::SmallField;
 
-use typemap_rev::{TypeMap, TypeMapKey};
 use std::sync::{Arc, RwLock};
+use typemap_rev::{TypeMap, TypeMapKey};
 
-impl<E: Engine, const RATE: usize, const WIDTH: usize> TypeMapKey for Poseidon2Params::<E, RATE, WIDTH> {
-    type Value = Arc<Poseidon2Params::<E, RATE, WIDTH>>;
+impl<E: Engine, const RATE: usize, const WIDTH: usize> TypeMapKey for Poseidon2Params<E, RATE, WIDTH> {
+    type Value = Arc<Poseidon2Params<E, RATE, WIDTH>>;
 }
 
 #[derive(Derivative)]
 #[derivative(Clone, Debug)]
-pub struct Poseidon2Sponge<
-    E: Engine,
-    F: SmallField,
-    M: AbsorptionModeTrait<E::Fr>,
-    const RATE: usize,
-    const WIDTH: usize
->{
+pub struct Poseidon2Sponge<E: Engine, F: SmallField, M: AbsorptionModeTrait<E::Fr>, const RATE: usize, const WIDTH: usize> {
     pub(crate) state: [E::Fr; WIDTH],
     pub(crate) buffer: [E::Fr; RATE],
     pub(crate) filled: usize,
@@ -30,17 +24,11 @@ pub struct Poseidon2Sponge<
     _marker: std::marker::PhantomData<(F, M)>,
 }
 
-impl<
-    E: Engine,
-    F: SmallField,
-    M: AbsorptionModeTrait<E::Fr>,
-    const RATE: usize,
-    const WIDTH: usize,
-> Poseidon2Sponge<E, F, M, RATE, WIDTH> {
+impl<E: Engine, F: SmallField, M: AbsorptionModeTrait<E::Fr>, const RATE: usize, const WIDTH: usize> Poseidon2Sponge<E, F, M, RATE, WIDTH> {
     pub fn new() -> Self {
         assert!(Self::capasity_per_element() > 0);
 
-        lazy_static::lazy_static!{
+        lazy_static::lazy_static! {
             static ref POSEIDON_PARAMS: RwLock<TypeMap> = RwLock::new(TypeMap::new());
         };
 
@@ -83,9 +71,7 @@ impl<
     }
 
     pub fn absorb_buffer_to_state(&mut self) {
-        for (dst, src) in self.state.iter_mut()
-            .zip(self.buffer.iter_mut())
-        {
+        for (dst, src) in self.state.iter_mut().zip(self.buffer.iter_mut()) {
             M::absorb(dst, src);
             *src = E::Fr::zero();
         }
@@ -121,7 +107,7 @@ impl<
             0 => {
                 self.filled += capasity_per_element;
                 self.buffer[pos] = *value;
-            },
+            }
             _ => {
                 self.filled = (pos + 1) * capasity_per_element;
 
@@ -154,7 +140,7 @@ impl<
         }
 
         if len + pos < RATE {
-            self.buffer[pos..pos+len].copy_from_slice(values);
+            self.buffer[pos..pos + len].copy_from_slice(values);
 
             self.filled += len * capasity_per_element;
 
@@ -216,13 +202,7 @@ impl<
     }
 }
 
-impl<
-    E: Engine,
-    F: SmallField,
-    M: AbsorptionModeTrait<E::Fr>,
-    const RATE: usize,
-    const WIDTH: usize,
-> TreeHasher<F> for Poseidon2Sponge<E, F, M, RATE, WIDTH> {
+impl<E: Engine, F: SmallField, M: AbsorptionModeTrait<E::Fr>, const RATE: usize, const WIDTH: usize> TreeHasher<F> for Poseidon2Sponge<E, F, M, RATE, WIDTH> {
     type Output = E::Fr;
 
     #[inline]
@@ -248,7 +228,7 @@ impl<
     #[inline]
     fn hash_into_leaf<'a, S: IntoIterator<Item = &'a F>>(source: S) -> Self::Output
     where
-        F: 'a 
+        F: 'a,
     {
         let mut hasher = Self::new();
 
@@ -270,7 +250,7 @@ impl<
 
     #[inline]
     fn hash_into_node(left: &Self::Output, right: &Self::Output, _depth: usize) -> Self::Output {
-        lazy_static::lazy_static!{
+        lazy_static::lazy_static! {
             static ref POSEIDON_PARAMS: RwLock<TypeMap> = RwLock::new(TypeMap::new());
         };
 

@@ -47,7 +47,7 @@ pub mod engine {
 
     use super::impl_macro::*;
 
-    transparent_engine_impl!{Transparent252, Fr}
+    transparent_engine_impl! {Transparent252, Fr}
 }
 
 pub use self::engine::Transparent252;
@@ -59,13 +59,13 @@ pub(crate) mod proth_engine;
 mod test {
     #[test]
     fn test_bench_proth_lde() {
-        use rand::{XorShiftRng, SeedableRng, Rand, Rng};
-        use super::Fr as FrMontNaive;
         use super::proth::Fr as FrOptimized;
-        use crate::plonk::polynomials::*;
-        use std::time::Instant;
-        use crate::worker::*;
+        use super::Fr as FrMontNaive;
         use crate::plonk::commitments::transparent::utils::*;
+        use crate::plonk::polynomials::*;
+        use crate::worker::*;
+        use rand::{Rand, Rng, SeedableRng, XorShiftRng};
+        use std::time::Instant;
 
         let poly_sizes = vec![1_000_000, 2_000_000, 4_000_000];
 
@@ -75,7 +75,7 @@ mod test {
             let res1 = {
                 let rng = &mut XorShiftRng::from_seed([0x3dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
                 let coeffs = (0..poly_size).map(|_| FrMontNaive::rand(rng)).collect::<Vec<_>>();
-            
+
                 let poly = Polynomial::<FrMontNaive, _>::from_coeffs(coeffs).unwrap();
                 let start = Instant::now();
                 let eval_result = poly.lde(&worker, 16).unwrap();
@@ -87,7 +87,7 @@ mod test {
             let res2 = {
                 let rng = &mut XorShiftRng::from_seed([0x3dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
                 let coeffs = (0..poly_size).map(|_| FrOptimized::rand(rng)).collect::<Vec<_>>();
-            
+
                 let poly = Polynomial::<FrOptimized, _>::from_coeffs(coeffs).unwrap();
                 let start = Instant::now();
                 let eval_result = poly.lde(&worker, 16).unwrap();
@@ -97,15 +97,14 @@ mod test {
             };
 
             assert_eq!(format!("{}", res1[0]), format!("{}", res2[0]));
-
         }
     }
 
     #[test]
     fn test_proth_field() {
-        use crate::ff::{Field, PrimeField, to_hex};
-        use super::Fr as FrMontNaive;
         use super::proth::Fr as FrOptimized;
+        use super::Fr as FrMontNaive;
+        use crate::ff::{to_hex, Field, PrimeField};
 
         let one_naive = FrMontNaive::from_str("1").unwrap();
         let one_optimized = FrOptimized::from_str("1").unwrap();
@@ -129,18 +128,18 @@ mod test {
 
     #[test]
     fn test_bench_precomputations_for_proth_fft() {
-        use rand::{XorShiftRng, SeedableRng, Rand, Rng};
-        use super::Fr as FrMontNaive;
         use super::proth::Fr as FrOptimized;
-        use crate::plonk::polynomials::*;
-        use std::time::Instant;
-        use crate::worker::*;
-        use crate::plonk::commitments::transparent::utils::*;
-        use crate::plonk::fft::fft::best_fft;
-        use crate::plonk::fft::with_precomputation::FftPrecomputations;
-        use crate::plonk::fft::with_precomputation::fft::best_fft as best_fft_with_precomputations;
+        use super::Fr as FrMontNaive;
         use crate::plonk::commitments::transparent::precomputations::*;
+        use crate::plonk::commitments::transparent::utils::*;
         use crate::plonk::domains::Domain;
+        use crate::plonk::fft::fft::best_fft;
+        use crate::plonk::fft::with_precomputation::fft::best_fft as best_fft_with_precomputations;
+        use crate::plonk::fft::with_precomputation::FftPrecomputations;
+        use crate::plonk::polynomials::*;
+        use crate::worker::*;
+        use rand::{Rand, Rng, SeedableRng, XorShiftRng};
+        use std::time::Instant;
         let poly_sizes = vec![32_000_000, 64_000_000];
 
         let worker = Worker::new();
@@ -174,21 +173,20 @@ mod test {
             };
 
             assert!(res1 == res2);
-
         }
     }
 
     #[test]
     fn test_bench_precomputations_for_proth_lde() {
-        use rand::{XorShiftRng, SeedableRng, Rand, Rng};
-        use super::Fr as FrMontNaive;
         use super::proth::Fr as FrOptimized;
-        use crate::plonk::polynomials::*;
-        use std::time::Instant;
-        use crate::worker::*;
+        use super::Fr as FrMontNaive;
+        use crate::plonk::commitments::transparent::precomputations::*;
         use crate::plonk::commitments::transparent::utils::*;
         use crate::plonk::fft::with_precomputation::FftPrecomputations;
-        use crate::plonk::commitments::transparent::precomputations::*;
+        use crate::plonk::polynomials::*;
+        use crate::worker::*;
+        use rand::{Rand, Rng, SeedableRng, XorShiftRng};
+        use std::time::Instant;
 
         let poly_sizes = vec![1_000_000, 2_000_000, 4_000_000];
 
@@ -198,7 +196,7 @@ mod test {
             let res1 = {
                 let rng = &mut XorShiftRng::from_seed([0x3dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
                 let coeffs = (0..poly_size).map(|_| FrMontNaive::rand(rng)).collect::<Vec<_>>();
-            
+
                 let poly = Polynomial::<FrMontNaive, _>::from_coeffs(coeffs).unwrap();
                 let start = Instant::now();
                 let eval_result = poly.lde(&worker, 16).unwrap();
@@ -210,7 +208,7 @@ mod test {
             let res2 = {
                 let rng = &mut XorShiftRng::from_seed([0x3dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
                 let coeffs = (0..poly_size).map(|_| FrOptimized::rand(rng)).collect::<Vec<_>>();
-            
+
                 let poly = Polynomial::<FrOptimized, _>::from_coeffs(coeffs).unwrap();
                 let precomp = PrecomputedOmegas::<FrOptimized>::new_for_domain_size(poly.size());
                 let start = Instant::now();
@@ -221,19 +219,18 @@ mod test {
             };
 
             assert_eq!(format!("{}", res1[0]), format!("{}", res2[0]));
-
         }
     }
 
     #[test]
     fn test_bench_ct_ploth_lde() {
-        use rand::{XorShiftRng, SeedableRng, Rand, Rng};
-        use super::proth::Fr as Fr;
-        use crate::plonk::polynomials::*;
-        use std::time::Instant;
-        use crate::worker::*;
+        use super::proth::Fr;
         use crate::plonk::commitments::transparent::utils::*;
-        use crate::plonk::fft::cooley_tukey_ntt::{CTPrecomputations, BitReversedOmegas};
+        use crate::plonk::fft::cooley_tukey_ntt::{BitReversedOmegas, CTPrecomputations};
+        use crate::plonk::polynomials::*;
+        use crate::worker::*;
+        use rand::{Rand, Rng, SeedableRng, XorShiftRng};
+        use std::time::Instant;
 
         let poly_sizes = vec![1_000_000, 2_000_000, 4_000_000];
 
@@ -247,7 +244,7 @@ mod test {
             let res1 = {
                 let rng = &mut XorShiftRng::from_seed([0x3dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
                 let coeffs = (0..poly_size).map(|_| Fr::rand(rng)).collect::<Vec<_>>();
-            
+
                 let poly = Polynomial::<Fr, _>::from_coeffs(coeffs).unwrap();
                 let start = Instant::now();
                 let eval_result = poly.lde_using_multiple_cosets(&worker, 16).unwrap();
@@ -259,7 +256,7 @@ mod test {
             let res2 = {
                 let rng = &mut XorShiftRng::from_seed([0x3dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
                 let coeffs = (0..poly_size).map(|_| Fr::rand(rng)).collect::<Vec<_>>();
-            
+
                 let poly = Polynomial::<Fr, _>::from_coeffs(coeffs).unwrap();
                 let precomp = BitReversedOmegas::<Fr>::new_for_domain_size(poly.size());
                 let start = Instant::now();
@@ -295,7 +292,7 @@ mod test {
     //         let res1 = {
     //             let rng = &mut XorShiftRng::from_seed([0x3dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
     //             let coeffs = (0..poly_size).map(|_| Fr::rand(rng)).collect::<Vec<_>>();
-            
+
     //             let poly = Polynomial::<Fr, _>::from_coeffs(coeffs).unwrap();
     //             let start = Instant::now();
     //             let eval_result = poly.lde(&worker, 16).unwrap();
@@ -307,7 +304,7 @@ mod test {
     //         let res2 = {
     //             let rng = &mut XorShiftRng::from_seed([0x3dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
     //             let coeffs = (0..poly_size).map(|_| Fr::rand(rng)).collect::<Vec<_>>();
-            
+
     //             let poly = Polynomial::<Fr, _>::from_coeffs(coeffs).unwrap();
     //             let precomp = BitReversedOmegas::<Fr>::new_for_domain_size(poly.size());
     //             let start = Instant::now();
@@ -354,16 +351,16 @@ mod test {
 
     #[test]
     fn test_bench_partial_reduction_bitreversed_lde() {
+        use super::proth::Fr;
+        use super::PartialTwoBitReductionField;
         use crate::ff::Field;
         use crate::ff::PrimeField;
-        use rand::{XorShiftRng, SeedableRng, Rand, Rng};
-        use super::proth::Fr as Fr;
-        use super::PartialTwoBitReductionField;
-        use crate::plonk::polynomials::*;
-        use std::time::Instant;
-        use crate::worker::*;
         use crate::plonk::commitments::transparent::utils::*;
-        use crate::plonk::fft::cooley_tukey_ntt::{CTPrecomputations, BitReversedOmegas};
+        use crate::plonk::fft::cooley_tukey_ntt::{BitReversedOmegas, CTPrecomputations};
+        use crate::plonk::polynomials::*;
+        use crate::worker::*;
+        use rand::{Rand, Rng, SeedableRng, XorShiftRng};
+        use std::time::Instant;
 
         let poly_sizes = vec![32, 64, 1_000_000, 2_000_000, 4_000_000];
 
@@ -375,7 +372,7 @@ mod test {
             let res1 = {
                 let rng = &mut XorShiftRng::from_seed([0x3dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
                 let coeffs = (0..poly_size).map(|_| Fr::rand(rng)).collect::<Vec<_>>();
-            
+
                 let poly = Polynomial::<Fr, _>::from_coeffs(coeffs).unwrap();
                 let start = Instant::now();
                 let eval_result = poly.lde(&worker, 16).unwrap();
@@ -387,7 +384,7 @@ mod test {
             let mut res2 = {
                 let rng = &mut XorShiftRng::from_seed([0x3dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
                 let coeffs = (0..poly_size).map(|_| Fr::rand(rng)).collect::<Vec<_>>();
-            
+
                 let poly = Polynomial::<Fr, _>::from_coeffs(coeffs).unwrap();
                 let precomp = BitReversedOmegas::<Fr>::new_for_domain_size(poly.size());
                 let start = Instant::now();
@@ -406,15 +403,15 @@ mod test {
 
     #[test]
     fn test_bench_ct_proth_fft() {
-        use rand::{XorShiftRng, SeedableRng, Rand, Rng};
-        use super::proth::Fr as Fr;
-        use crate::plonk::polynomials::*;
-        use std::time::Instant;
-        use crate::worker::*;
+        use super::proth::Fr;
         use crate::plonk::commitments::transparent::utils::*;
-        use crate::plonk::fft::cooley_tukey_ntt::{CTPrecomputations, BitReversedOmegas, best_ct_ntt};
-        use crate::plonk::fft::fft::best_fft;
         use crate::plonk::domains::Domain;
+        use crate::plonk::fft::cooley_tukey_ntt::{best_ct_ntt, BitReversedOmegas, CTPrecomputations};
+        use crate::plonk::fft::fft::best_fft;
+        use crate::plonk::polynomials::*;
+        use crate::worker::*;
+        use rand::{Rand, Rng, SeedableRng, XorShiftRng};
+        use std::time::Instant;
 
         // let poly_sizes = vec![1_000_000, 2_000_000];
         let poly_sizes = vec![1_000_000];
@@ -454,14 +451,11 @@ mod test {
                 (input, coeffs)
             };
 
-            let mut writer = std::io::BufWriter::with_capacity(
-                1<<24, 
-                std::fs::File::create("./fft_test_input.data").unwrap()  
-            );
+            let mut writer = std::io::BufWriter::with_capacity(1 << 24, std::fs::File::create("./fft_test_input.data").unwrap());
 
+            use crate::pairing::ff::PrimeFieldRepr;
             use crate::pairing::ff::{Field, PrimeField};
             use std::io::Write;
-            use crate::pairing::ff::PrimeFieldRepr;
 
             let mut scratch = vec![];
             for el in input.into_iter() {
@@ -480,7 +474,7 @@ mod test {
 
             println!("Omegas");
 
-            assert!(domain.generator.pow(&[1u64<<20]) == Fr::one());
+            assert!(domain.generator.pow(&[1u64 << 20]) == Fr::one());
 
             for i in 0..=20 {
                 let pow = 1u64 << i;
@@ -490,9 +484,4 @@ mod test {
             println!("Idenity = {}", Fr::one().into_raw_repr());
         }
     }
-    
 }
-
-
-
-

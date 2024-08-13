@@ -1,10 +1,10 @@
 use blake2_rfc::blake2b::Blake2b;
 use blake2_rfc::blake2s::Blake2s;
-use sha2::{Sha256, Digest};
+use sha2::{Digest, Sha256};
 
+use crate::plonk::circuit::multieq;
 use jubjub::{JubjubEngine, ToUniform};
 use rescue::{self, RescueEngine};
-use crate::plonk::circuit::multieq;
 
 pub fn hash_to_scalar<E: JubjubEngine>(persona: &[u8], a: &[u8], b: &[u8]) -> E::Fs {
     let mut hasher = Blake2b::with_params(64, &[], &[], persona);
@@ -31,15 +31,10 @@ pub fn sha256_hash_to_scalar<E: JubjubEngine>(persona: &[u8], a: &[u8], b: &[u8]
     E::Fs::to_uniform_32(result.as_slice())
 }
 
-pub fn rescue_hash_to_scalar<E: RescueEngine + JubjubEngine>(
-    persona: &[u8], 
-    a: &[u8], 
-    b: &[u8], 
-    params: &<E as RescueEngine>::Params
-) -> E::Fs {
+pub fn rescue_hash_to_scalar<E: RescueEngine + JubjubEngine>(persona: &[u8], a: &[u8], b: &[u8], params: &<E as RescueEngine>::Params) -> E::Fs {
     use crate::rescue::RescueHashParams;
-    use bellman::{Field, PrimeField};
     use bellman::pairing::ff::BitIterator;
+    use bellman::{Field, PrimeField};
 
     assert!(params.rate() >= 2, "we will need to squeeze twice");
 
@@ -85,6 +80,6 @@ pub fn rescue_hash_to_scalar<E: RescueEngine + JubjubEngine>(
         }
         current.double();
     }
-       
+
     scalar
 }
