@@ -1,17 +1,10 @@
-# ZKsync Cryptography Libraries
+# franklin-crypto: Gadget library for PLONK/Plookup
 
-This repository contains the cryptography libraries for ZKsync project.
+This repository contains only the gadgets for PLONK proofs system (to be used together with `dev` branch of our Bellman repo) including embedded curve/EcDSA support, RNS based field math, non-algebraic hashes via lookup tables, and base primitives.
 
-- [pairing](./crates/pairing/)
-- [bellman](./crates/bellman/)
-- [franklin-crypto](./crates/franklin-crypto/)
-- [boojum](./crates/boojum/)
-- [rescue-poseidon](./crates/rescue-poseidon/)
-- [Solidity verification contract generator](./crates/codegen) and [CLI application](./crates/codegen-bin/).
+## Security Warnings
 
-## Acknowledgements
-
-See [ACKNOWLEDGEMENTS.md](./ACKNOWLEDGEMENTS.md).
+This library is under development and has not been reviewed.
 
 ## License
 

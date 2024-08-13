@@ -1,0 +1,21 @@
+[package]
+name = "zksync_solidity_vk_codegen"
+version = "0.1.0"
+edition = "2018"
+license = "MIT OR Apache-2.0"
+description = "ZKsync solidity codegen for vks"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+handlebars = "3.5.5"
+serde = "1"
+serde_derive = "1"
+serde_json = "1"
+
+franklin-crypto = {features = ["plonk"], version = "=0.1.0" }
+rescue-poseidon = {package = "rescue_poseidon", version = "=0.4.1" }
+
+hex = "0.4.3"   
+paste = "1.0"
+ethereum-types = "=0.14.1"

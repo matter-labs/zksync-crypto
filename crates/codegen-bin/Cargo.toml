@@ -1,0 +1,17 @@
+[package]
+name = "codegen-bin"
+version = "0.1.0"
+edition = "2018"
+license = "MIT OR Apache-2.0"
+publish = false
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+zksync_solidity_vk_codegen = { path = "../codegen" }
+structopt = "0.3"
+dialoguer = "0.8"
+
+[[bin]]
+name = "generate"
+path = "src/main.rs"
