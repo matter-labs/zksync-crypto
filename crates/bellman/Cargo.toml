@@ -1,0 +1,56 @@
+[package]
+authors = ["Sean Bowe <ewillbefull@gmail.com>", "Alex Vlasov <alex.m.vlasov@gmail.com>", "Alex Gluchowski <alex@gluchowski.net"]
+description = "zk-SNARK library"
+documentation = "https://github.com/matter-labs/bellman"
+homepage = "https://github.com/matter-labs/bellman"
+license = "MIT/Apache-2.0"
+name = "bellman_ce"
+repository = "https://github.com/matter-labs/bellman"
+version = "0.8.0"
+edition = "2018"
+
+[lib]
+crate-type = ["cdylib", "lib", "staticlib"]
+
+[dependencies]
+rand = "0.4"
+bit-vec = { version = "0.6", features = ["serde"] }
+cfg-if = "1.*"
+smallvec = "1.10"
+arrayvec = "0.7"
+byteorder = "1"
+num_cpus = "1"
+serde = {version = "1", features = ["derive", "rc"]}
+
+pairing = {package = "pairing_ce", version = "=0.28.6" }
+# pairing = {package = "pairing_ce", path = "../pairing"}
+
+futures = {package = "futures", version = "0.3", default_features = false, features = ["executor"]}
+crossbeam = {version = "0.7", optional = true}
+prefetch = {version = "0.2", optional = true}
+web-sys = {version = "0.3", optional = true, features = ["console", "Performance", "Window"]}
+tiny-keccak = {version = "1.5", optional = true}
+blake2-rfc = {version = "0.2.18", optional = true}
+blake2s_simd = {version = "0.5"}
+lazy_static = {version = "1", optional = true}
+blake2s_const = {version = "=0.8.0", optional = true, path = "../blake2s_const/"}
+hex = "0.4"
+
+[features]
+default = ["multicore", "plonk"]
+multicore = ["crossbeam", "futures/thread-pool"]
+sonic = ["tiny-keccak", "blake2-rfc"]
+gm17 = []
+nolog = []
+plonk = ["lazy_static", "tiny-keccak", "blake2s_const"]
+redshift = ["multicore", "plonk"]
+marlin = ["tiny-keccak", "blake2s_const"]
+wasm = ["web-sys"]
+asm = ["pairing/asm"]
+allocator = []
+
+[profile.release]
+debug = true
+
+[profile.bench]
+debug = true

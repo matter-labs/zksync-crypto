@@ -1,0 +1,58 @@
+[package]
+authors = ["Sean Bowe <sean@z.cash>", "Alex Vlasov <alex.m.vlasov@gmail.com>", "Alex Gluchowski <alex@gluchowski.net>"]
+description = "Cryptographic library for SNARK gadgets"
+homepage = "https://github.com/matter-labs/franklin-crypto"
+license = "MIT/Apache-2.0"
+name = "franklin-crypto"
+version = "0.2.2"
+
+[lib]
+crate-type = ["lib", "staticlib"]
+
+[features]
+default = ["multicore", "plonk"]
+multicore = ["bellman/multicore"]
+plonk = ["bellman/plonk"]
+allocator = ["bellman/allocator"]
+
+[dependencies]
+derivative = "2"
+
+# boojum = {package = "boojum", path = "../boojum" }
+boojum = "=0.2.2"
+
+rand = "0.4"
+digest = "0.9"
+byteorder = "1"
+tiny-keccak = "1.4.2"
+bit-vec = "0.6"
+num-bigint = {version = "0.4", features = ["serde"]}
+sha2 = "0.9"
+sha3 = "0.9"
+num-integer = "0.1"
+num-traits = "0.2"
+itertools = "0.10"
+splitmut = "0.2"
+blake2 = "0.9"
+lazy_static = "1.4"
+serde = {version = "1", features = ["derive"]}
+num-derive = "0.2"
+indexmap = "1.9"
+smallvec = "1.10"
+
+# bellman = { package = "bellman_ce", path = "../bellman" }
+bellman = { package = "bellman_ce", version = "=0.8.0" }
+blake2-rfc_bellman_edition = "0.0.1"
+#poseidon_hash = { path = "../poseidon_hash" }
+#poseidon_hash = {git = "https://github.com/shamatar/poseidon_hash.git"}
+
+blake2s_simd = { version = "0.5" }
+hex = "0.4"
+arr_macro = { version = "0.1" }
+
+
+[dev-dependencies]
+#web3 = "0.13.0"
+hex-literal = "0.3"
+
+
