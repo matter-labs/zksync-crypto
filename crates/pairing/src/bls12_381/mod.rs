@@ -8,10 +8,7 @@ pub mod fr;
 #[cfg(test)]
 mod tests;
 
-pub use self::ec::{
-    G1, G1Affine, G1Compressed, G1Prepared, G1Uncompressed, G2, G2Affine, G2Compressed, G2Prepared,
-    G2Uncompressed,
-};
+pub use self::ec::{G1Affine, G1Compressed, G1Prepared, G1Uncompressed, G2Affine, G2Compressed, G2Prepared, G2Uncompressed, G1, G2};
 pub use self::fq::{Fq, FqRepr};
 pub use self::fq12::Fq12;
 pub use self::fq2::Fq2;
@@ -44,12 +41,7 @@ impl Engine for Bls12 {
 
     fn miller_loop<'a, I>(i: I) -> Self::Fqk
     where
-        I: IntoIterator<
-            Item = &'a (
-                &'a <Self::G1Affine as CurveAffine>::Prepared,
-                &'a <Self::G2Affine as CurveAffine>::Prepared,
-            ),
-        >,
+        I: IntoIterator<Item = &'a (&'a <Self::G1Affine as CurveAffine>::Prepared, &'a <Self::G2Affine as CurveAffine>::Prepared)>,
     {
         let mut pairs = vec![];
         for &(p, q) in i {
@@ -172,10 +164,7 @@ impl G2Prepared {
 
     pub fn from_affine(q: G2Affine) -> Self {
         if q.is_zero() {
-            return G2Prepared {
-                coeffs: vec![],
-                infinity: true,
-            };
+            return G2Prepared { coeffs: vec![], infinity: true };
         }
 
         fn doubling_step(r: &mut G2) -> (Fq2, Fq2, Fq2) {
@@ -356,10 +345,7 @@ impl G2Prepared {
 
         coeffs.push(doubling_step(&mut r));
 
-        G2Prepared {
-            coeffs,
-            infinity: false,
-        }
+        G2Prepared { coeffs, infinity: false }
     }
 }
 
@@ -370,6 +356,6 @@ fn bls12_engine_tests() {
 
 #[test]
 fn bbb() {
-    let shifting = BLS_X >>1;
+    let shifting = BLS_X >> 1;
     println!("{}", shifting);
 }

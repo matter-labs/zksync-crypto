@@ -1,27 +1,24 @@
 use crate::bellman::pairing::ff::BitIterator;
-use crate::bellman::pairing::{GenericCurveAffine, GenericCurveProjective, GroupDecodingError, EncodingBytes, GenericUncompressedEncodable, GenericCompressedEncodable};
 use crate::bellman::pairing::ff::*;
+use crate::bellman::pairing::{EncodingBytes, GenericCompressedEncodable, GenericCurveAffine, GenericCurveProjective, GenericUncompressedEncodable, GroupDecodingError};
 use rand::*;
 
-
-pub mod fr;
 pub mod fq;
+pub mod fr;
 
-use self::fr::*;
 use self::fq::*;
-
+use self::fr::*;
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub struct PointAffine {
     pub(crate) x: Fq,
     pub(crate) y: Fq,
-    pub(crate) infinity: bool
+    pub(crate) infinity: bool,
 }
 
 static NAME_STR: &'static str = "Secp256k1";
 
-impl ::std::fmt::Display for PointAffine
-{
+impl ::std::fmt::Display for PointAffine {
     fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
         if self.infinity {
             write!(f, "{}(Infinity)", NAME_STR)
@@ -35,11 +32,10 @@ impl ::std::fmt::Display for PointAffine
 pub struct PointProjective {
     pub(crate) x: Fq,
     pub(crate) y: Fq,
-    pub(crate) z: Fq
+    pub(crate) z: Fq,
 }
 
-impl ::std::fmt::Display for PointProjective
-{
+impl ::std::fmt::Display for PointProjective {
     fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
         write!(f, "{}", self.into_affine())
     }
@@ -92,7 +88,9 @@ impl PointAffine {
         let mut res = PointProjective::zero();
         for i in bits {
             res.double();
-            if i { res.add_assign_mixed(self) }
+            if i {
+                res.add_assign_mixed(self)
+            }
         }
         res
     }
@@ -115,12 +113,8 @@ impl PointAffine {
 
             PointAffine {
                 x: x,
-                y: if (y < negy) ^ greatest {
-                    y
-                } else {
-                    negy
-                },
-                infinity: false
+                y: if (y < negy) ^ greatest { y } else { negy },
+                infinity: false,
             }
         })
     }
@@ -152,7 +146,7 @@ impl GenericCurveAffine for PointAffine {
         PointAffine {
             x: Fq::zero(),
             y: Fq::one(),
-            infinity: true
+            infinity: true,
         }
     }
 
@@ -183,7 +177,7 @@ impl GenericCurveAffine for PointAffine {
     fn as_xy(&self) -> (&Self::Base, &Self::Base) {
         (&self.x, &self.y)
     }
-    
+
     #[inline(always)]
     fn into_xy_unchecked(self) -> (Self::Base, Self::Base) {
         (self.x, self.y)
@@ -192,20 +186,12 @@ impl GenericCurveAffine for PointAffine {
     #[inline(always)]
     fn from_xy_unchecked(x: Self::Base, y: Self::Base) -> Self {
         let infinity = x.is_zero() && y.is_zero();
-        Self {
-            x: x,
-            y: y,
-            infinity
-        }
+        Self { x: x, y: y, infinity }
     }
 
     fn from_xy_checked(x: Self::Base, y: Self::Base) -> Result<Self, GroupDecodingError> {
         let infinity = x.is_zero() && y.is_zero();
-        let affine = Self {
-            x: x,
-            y: y,
-            infinity
-        };
+        let affine = Self { x: x, y: y, infinity };
 
         if !affine.is_on_curve() {
             Err(GroupDecodingError::NotOnCurve)
@@ -234,7 +220,7 @@ impl GenericCurveProjective for PointProjective {
         PointProjective {
             x: Fq::zero(),
             y: Fq::one(),
-            z: Fq::zero()
+            z: Fq::zero(),
         }
     }
 
@@ -252,8 +238,7 @@ impl GenericCurveProjective for PointProjective {
         self.is_zero() || self.z == Fq::one()
     }
 
-    fn batch_normalization(v: &mut [Self])
-    {
+    fn batch_normalization(v: &mut [Self]) {
         // Montgomery’s Trick and Fast Implementation of Masked AES
         // Genelle, Prouff and Quisquater
         // Section 3.2
@@ -261,9 +246,10 @@ impl GenericCurveProjective for PointProjective {
         // First pass: compute [a, ab, abc, ...]
         let mut prod = Vec::with_capacity(v.len());
         let mut tmp = Fq::one();
-        for g in v.iter_mut()
-                    // Ignore normalized elements
-                    .filter(|g| !g.is_normalized())
+        for g in v
+            .iter_mut()
+            // Ignore normalized elements
+            .filter(|g| !g.is_normalized())
         {
             tmp.mul_assign(&g.z);
             prod.push(tmp);
@@ -273,13 +259,14 @@ impl GenericCurveProjective for PointProjective {
         tmp = tmp.inverse().unwrap(); // Guaranteed to be nonzero.
 
         // Second pass: iterate backwards to compute inverses
-        for (g, s) in v.iter_mut()
-                        // Backwards
-                        .rev()
-                        // Ignore normalized elements
-                        .filter(|g| !g.is_normalized())
-                        // Backwards, skip last element, fill in one for last term.
-                        .zip(prod.into_iter().rev().skip(1).chain(Some(Fq::one())))
+        for (g, s) in v
+            .iter_mut()
+            // Backwards
+            .rev()
+            // Ignore normalized elements
+            .filter(|g| !g.is_normalized())
+            // Backwards, skip last element, fill in one for last term.
+            .zip(prod.into_iter().rev().skip(1).chain(Some(Fq::one())))
         {
             // tmp := tmp * g.z; g.z := tmp * s = 1/z
             let mut newtmp = tmp;
@@ -290,9 +277,7 @@ impl GenericCurveProjective for PointProjective {
         }
 
         // Perform affine transformations
-        for g in v.iter_mut()
-                    .filter(|g| !g.is_normalized())
-        {
+        for g in v.iter_mut().filter(|g| !g.is_normalized()) {
             let mut z = g.z; // 1/z
             z.square(); // 1/z^2
             g.x.mul_assign(&z); // x/z^2
@@ -550,8 +535,7 @@ impl GenericCurveProjective for PointProjective {
 
         let mut found_one = false;
 
-        for i in BitIterator::new(other.into())
-        {
+        for i in BitIterator::new(other.into()) {
             if found_one {
                 res.double();
             } else {
@@ -581,17 +565,13 @@ impl GenericCurveProjective for PointProjective {
     fn as_xyz(&self) -> (&Self::Base, &Self::Base, &Self::Base) {
         (&self.x, &self.y, &self.z)
     }
-    
+
     fn into_xyz_unchecked(self) -> (Self::Base, Self::Base, Self::Base) {
         (self.x, self.y, self.z)
     }
 
     fn from_xyz_unchecked(x: Self::Base, y: Self::Base, z: Self::Base) -> Self {
-        Self {
-            x,
-            y,
-            z
-        }
+        Self { x, y, z }
     }
 
     fn from_xyz_checked(_x: Self::Base, _y: Self::Base, _z: Self::Base) -> Result<Self, GroupDecodingError> {
@@ -606,11 +586,7 @@ impl From<PointAffine> for PointProjective {
         if p.is_zero() {
             PointProjective::zero()
         } else {
-            PointProjective {
-                x: p.x,
-                y: p.y,
-                z: Fq::one()
-            }
+            PointProjective { x: p.x, y: p.y, z: Fq::one() }
         }
     }
 }
@@ -623,11 +599,7 @@ impl From<PointProjective> for PointAffine {
             PointAffine::zero()
         } else if p.z == Fq::one() {
             // If Z is one, the point is already normalized.
-            PointAffine {
-                x: p.x,
-                y: p.y,
-                infinity: false
-            }
+            PointAffine { x: p.x, y: p.y, infinity: false }
         } else {
             // Z is nonzero, so it must have an inverse in a field.
             let zinv = p.z.inverse().unwrap();
@@ -643,11 +615,7 @@ impl From<PointProjective> for PointAffine {
             zinv_powered.mul_assign(&zinv);
             y.mul_assign(&zinv_powered);
 
-            PointAffine {
-                x: x,
-                y: y,
-                infinity: false
-            }
+            PointAffine { x: x, y: y, infinity: false }
         }
     }
 }
@@ -695,7 +663,7 @@ impl PointAffine {
         Self {
             x: crate::bellman::pairing::ff::from_hex::<Fq>("0x79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798").unwrap(),
             y: crate::bellman::pairing::ff::from_hex::<Fq>("0x483ADA7726A3C4655DA4FBFC0E1108A8FD17B448A68554199C47D08FFB10D4B8").unwrap(),
-            infinity: false
+            infinity: false,
         }
     }
 }
@@ -714,8 +682,7 @@ impl PointProjective {
     }
 
     fn empirical_recommended_wnaf_for_num_scalars(num_scalars: usize) -> usize {
-        const RECOMMENDATIONS: [usize; 12] =
-            [1, 3, 7, 20, 43, 120, 273, 563, 1630, 3128, 7933, 62569];
+        const RECOMMENDATIONS: [usize; 12] = [1, 3, 7, 20, 43, 120, 273, 563, 1630, 3128, 7933, 62569];
 
         let mut ret = 4;
         for r in &RECOMMENDATIONS {
@@ -755,4 +722,3 @@ impl GenericCompressedEncodable<32> for PointAffine {
         todo!()
     }
 }
-

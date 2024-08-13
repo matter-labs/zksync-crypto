@@ -199,20 +199,12 @@ macro_rules! curve_impl {
             #[inline(always)]
             fn from_xy_unchecked(x: Self::Base, y: Self::Base) -> Self {
                 let infinity = x.is_zero() && y.is_zero();
-                Self {
-                    x: x,
-                    y: y,
-                    infinity,
-                }
+                Self { x: x, y: y, infinity }
             }
 
             fn from_xy_checked(x: Self::Base, y: Self::Base) -> Result<Self, GroupDecodingError> {
                 let infinity = x.is_zero() && y.is_zero();
-                let affine = Self {
-                    x: x,
-                    y: y,
-                    infinity,
-                };
+                let affine = Self { x: x, y: y, infinity };
 
                 if !affine.is_on_curve() {
                     Err(GroupDecodingError::NotOnCurve)
@@ -288,12 +280,7 @@ macro_rules! curve_impl {
                     // Ignore normalized elements
                     .filter(|g| !g.is_normalized())
                     // Backwards, skip last element, fill in one for last term.
-                    .zip(
-                        prod.into_iter()
-                            .rev()
-                            .skip(1)
-                            .chain(Some($basefield::one())),
-                    )
+                    .zip(prod.into_iter().rev().skip(1).chain(Some($basefield::one())))
                 {
                     // tmp := tmp * g.z; g.z := tmp * s = 1/z
                     let mut newtmp = tmp;
@@ -601,11 +588,7 @@ macro_rules! curve_impl {
                 Self { x, y, z }
             }
 
-            fn from_xyz_checked(
-                _x: Self::Base,
-                _y: Self::Base,
-                _z: Self::Base,
-            ) -> Result<Self, GroupDecodingError> {
+            fn from_xyz_checked(_x: Self::Base, _y: Self::Base, _z: Self::Base) -> Result<Self, GroupDecodingError> {
                 unimplemented!("on curve check is not implemented for BLS12-381 projective")
             }
         }
@@ -634,11 +617,7 @@ macro_rules! curve_impl {
                     $affine::zero()
                 } else if p.z == $basefield::one() {
                     // If Z is one, the point is already normalized.
-                    $affine {
-                        x: p.x,
-                        y: p.y,
-                        infinity: false,
-                    }
+                    $affine { x: p.x, y: p.y, infinity: false }
                 } else {
                     // Z is nonzero, so it must have an inverse in a field.
                     let zinv = p.z.inverse().unwrap();
@@ -654,11 +633,7 @@ macro_rules! curve_impl {
                     zinv_powered.mul_assign(&zinv);
                     y.mul_assign(&zinv_powered);
 
-                    $affine {
-                        x: x,
-                        y: y,
-                        infinity: false,
-                    }
+                    $affine { x: x, y: y, infinity: false }
                 }
             }
         }
@@ -668,24 +643,12 @@ macro_rules! curve_impl {
 pub mod g1 {
     use super::super::{Bn256, Fq, Fq12, FqRepr, Fr, FrRepr};
     use super::g2::G2Affine;
-    use crate::{
-        CurveAffine, CurveProjective, EncodedPoint, Engine, GroupDecodingError, RawEncodable,
-    };
+    use crate::{CurveAffine, CurveProjective, EncodedPoint, Engine, GroupDecodingError, RawEncodable};
     use ff::{BitIterator, Field, PrimeField, PrimeFieldRepr, SqrtField};
     use rand::{Rand, Rng};
     use std::fmt;
 
-    curve_impl!(
-        "G1",
-        G1,
-        G1Affine,
-        G1Prepared,
-        Fq,
-        Fr,
-        G1Uncompressed,
-        G1Compressed,
-        G2Affine
-    );
+    curve_impl!("G1", G1, G1Affine, G1Prepared, Fq, Fr, G1Uncompressed, G1Compressed, G2Affine);
 
     impl RawEncodable for G1Affine {
         fn into_raw_uncompressed_le(&self) -> Self::Uncompressed {
@@ -701,10 +664,7 @@ pub mod g1 {
         }
 
         /// Creates a point from raw encoded coordinates without checking on curve
-        fn from_raw_uncompressed_le_unchecked(
-            encoded: &Self::Uncompressed,
-            _infinity: bool,
-        ) -> Result<Self, GroupDecodingError> {
+        fn from_raw_uncompressed_le_unchecked(encoded: &Self::Uncompressed, _infinity: bool) -> Result<Self, GroupDecodingError> {
             let copy = encoded.0;
 
             if copy.iter().all(|b| *b == 0) {
@@ -721,18 +681,13 @@ pub mod g1 {
             }
 
             Ok(G1Affine {
-                x: Fq::from_raw_repr(x)
-                    .map_err(|e| GroupDecodingError::CoordinateDecodingError("x coordinate", e))?,
-                y: Fq::from_raw_repr(y)
-                    .map_err(|e| GroupDecodingError::CoordinateDecodingError("y coordinate", e))?,
+                x: Fq::from_raw_repr(x).map_err(|e| GroupDecodingError::CoordinateDecodingError("x coordinate", e))?,
+                y: Fq::from_raw_repr(y).map_err(|e| GroupDecodingError::CoordinateDecodingError("y coordinate", e))?,
                 infinity: false,
             })
         }
 
-        fn from_raw_uncompressed_le(
-            encoded: &Self::Uncompressed,
-            _infinity: bool,
-        ) -> Result<Self, GroupDecodingError> {
+        fn from_raw_uncompressed_le(encoded: &Self::Uncompressed, _infinity: bool) -> Result<Self, GroupDecodingError> {
             let affine = Self::from_raw_uncompressed_le_unchecked(&encoded, _infinity)?;
 
             if !affine.is_on_curve() {
@@ -858,12 +813,8 @@ pub mod g1 {
                 }
 
                 Ok(G1Affine {
-                    x: Fq::from_repr(x).map_err(|e| {
-                        GroupDecodingError::CoordinateDecodingError("x coordinate", e)
-                    })?,
-                    y: Fq::from_repr(y).map_err(|e| {
-                        GroupDecodingError::CoordinateDecodingError("y coordinate", e)
-                    })?,
+                    x: Fq::from_repr(x).map_err(|e| GroupDecodingError::CoordinateDecodingError("x coordinate", e))?,
+                    y: Fq::from_repr(y).map_err(|e| GroupDecodingError::CoordinateDecodingError("y coordinate", e))?,
                     infinity: false,
                 })
             }
@@ -961,8 +912,7 @@ pub mod g1 {
                 }
 
                 // Interpret as Fq element.
-                let x = Fq::from_repr(x)
-                    .map_err(|e| GroupDecodingError::CoordinateDecodingError("x coordinate", e))?;
+                let x = Fq::from_repr(x).map_err(|e| GroupDecodingError::CoordinateDecodingError("x coordinate", e))?;
 
                 G1Affine::get_point_from_x(x, greatest).ok_or(GroupDecodingError::NotOnCurve)
             }
@@ -1031,8 +981,7 @@ pub mod g1 {
         }
 
         fn empirical_recommended_wnaf_for_num_scalars(num_scalars: usize) -> usize {
-            const RECOMMENDATIONS: [usize; 12] =
-                [1, 3, 7, 20, 43, 120, 273, 563, 1630, 3128, 7933, 62569];
+            const RECOMMENDATIONS: [usize; 12] = [1, 3, 7, 20, 43, 120, 273, 563, 1630, 3128, 7933, 62569];
 
             let mut ret = 4;
             for r in &RECOMMENDATIONS {
@@ -1126,17 +1075,7 @@ pub mod g2 {
     use rand::{Rand, Rng};
     use std::fmt;
 
-    curve_impl!(
-        "G2",
-        G2,
-        G2Affine,
-        G2Prepared,
-        Fq2,
-        Fr,
-        G2Uncompressed,
-        G2Compressed,
-        G1Affine
-    );
+    curve_impl!("G2", G2, G2Affine, G2Prepared, Fq2, Fr, G2Uncompressed, G2Compressed, G1Affine);
 
     impl Rand for G2 {
         fn rand<R: Rng>(rng: &mut R) -> Self {
@@ -1247,20 +1186,12 @@ pub mod g2 {
 
                 Ok(G2Affine {
                     x: Fq2 {
-                        c0: Fq::from_repr(x_c0).map_err(|e| {
-                            GroupDecodingError::CoordinateDecodingError("x coordinate (c0)", e)
-                        })?,
-                        c1: Fq::from_repr(x_c1).map_err(|e| {
-                            GroupDecodingError::CoordinateDecodingError("x coordinate (c1)", e)
-                        })?,
+                        c0: Fq::from_repr(x_c0).map_err(|e| GroupDecodingError::CoordinateDecodingError("x coordinate (c0)", e))?,
+                        c1: Fq::from_repr(x_c1).map_err(|e| GroupDecodingError::CoordinateDecodingError("x coordinate (c1)", e))?,
                     },
                     y: Fq2 {
-                        c0: Fq::from_repr(y_c0).map_err(|e| {
-                            GroupDecodingError::CoordinateDecodingError("y coordinate (c0)", e)
-                        })?,
-                        c1: Fq::from_repr(y_c1).map_err(|e| {
-                            GroupDecodingError::CoordinateDecodingError("y coordinate (c1)", e)
-                        })?,
+                        c0: Fq::from_repr(y_c0).map_err(|e| GroupDecodingError::CoordinateDecodingError("y coordinate (c0)", e))?,
+                        c1: Fq::from_repr(y_c1).map_err(|e| GroupDecodingError::CoordinateDecodingError("y coordinate (c1)", e))?,
                     },
                     infinity: false,
                 })
@@ -1364,12 +1295,8 @@ pub mod g2 {
 
                 // Interpret as Fq element.
                 let x = Fq2 {
-                    c0: Fq::from_repr(x_c0).map_err(|e| {
-                        GroupDecodingError::CoordinateDecodingError("x coordinate (c0)", e)
-                    })?,
-                    c1: Fq::from_repr(x_c1).map_err(|e| {
-                        GroupDecodingError::CoordinateDecodingError("x coordinate (c1)", e)
-                    })?,
+                    c0: Fq::from_repr(x_c0).map_err(|e| GroupDecodingError::CoordinateDecodingError("x coordinate (c0)", e))?,
+                    c1: Fq::from_repr(x_c1).map_err(|e| GroupDecodingError::CoordinateDecodingError("x coordinate (c1)", e))?,
                 };
 
                 G2Affine::get_point_from_x(x, greatest).ok_or(GroupDecodingError::NotOnCurve)
@@ -1408,12 +1335,7 @@ pub mod g2 {
         pub fn scale_by_cofactor(&self) -> G2 {
             // G2 cofactor = 2p - n = 2q - r
             // 0x30644e72e131a029b85045b68181585e06ceecda572a2489345f2299c0f9fa8d
-            let cofactor = BitIterator::new([
-                0x345f2299c0f9fa8d,
-                0x06ceecda572a2489,
-                0xb85045b68181585e,
-                0x30644e72e131a029,
-            ]);
+            let cofactor = BitIterator::new([0x345f2299c0f9fa8d, 0x06ceecda572a2489, 0xb85045b68181585e, 0x30644e72e131a029]);
             self.mul_bits(cofactor)
         }
 
@@ -1458,8 +1380,7 @@ pub mod g2 {
         }
 
         fn empirical_recommended_wnaf_for_num_scalars(num_scalars: usize) -> usize {
-            const RECOMMENDATIONS: [usize; 11] =
-                [1, 3, 8, 20, 47, 126, 260, 826, 1501, 4555, 84071];
+            const RECOMMENDATIONS: [usize; 11] = [1, 3, 8, 20, 47, 126, 260, 826, 1501, 4555, 84071];
 
             let mut ret = 4;
             for r in &RECOMMENDATIONS {

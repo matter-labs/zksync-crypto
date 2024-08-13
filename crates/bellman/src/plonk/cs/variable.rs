@@ -21,5 +21,5 @@ impl Variable {
 #[derive(Copy, Clone, PartialEq, Debug, Hash, Eq, serde::Serialize, serde::Deserialize)]
 pub enum Index {
     Input(usize),
-    Aux(usize)
+    Aux(usize),
 }

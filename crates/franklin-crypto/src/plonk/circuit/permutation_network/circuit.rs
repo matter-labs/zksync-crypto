@@ -1,15 +1,8 @@
 use super::*;
 
-use super::witness::{
-    IntegerPermutation,
-    AsWaksmanTopology,
-    AsWaksmanRoute
-};
+use super::witness::{AsWaksmanRoute, AsWaksmanTopology, IntegerPermutation};
 
-pub fn order_into_switches_set<E: Engine, CS: ConstraintSystem<E>>(
-    cs: &mut CS,
-    permutation: &IntegerPermutation
-) -> Result<Vec<Vec<Boolean>>, SynthesisError> {
+pub fn order_into_switches_set<E: Engine, CS: ConstraintSystem<E>>(cs: &mut CS, permutation: &IntegerPermutation) -> Result<Vec<Vec<Boolean>>, SynthesisError> {
     let mut layers = vec![];
 
     let size = permutation.size();
@@ -36,11 +29,7 @@ pub fn order_into_switches_set<E: Engine, CS: ConstraintSystem<E>>(
             } else {
                 // validity check
                 let a = router.switches[column_idx].get(&packet_idx);
-                let b = if packet_idx > 0 {
-                    router.switches[column_idx].get(&(packet_idx - 1))
-                } else {
-                    None
-                };
+                let b = if packet_idx > 0 { router.switches[column_idx].get(&(packet_idx - 1)) } else { None };
 
                 // get value to make a witness
                 let switch_value = if a.is_some() {
@@ -74,13 +63,10 @@ pub fn order_into_switches_set<E: Engine, CS: ConstraintSystem<E>>(
                         another_idx = Some(idx);
                         break;
                     }
-                }        
+                }
                 assert!(another_idx.is_some());
 
-                let boolean_switch = Boolean::from(AllocatedBit::alloc(
-                    cs,
-                    switch_value
-                )?); 
+                let boolean_switch = Boolean::from(AllocatedBit::alloc(cs, switch_value)?);
 
                 routed_packages.insert(routed_into_straght);
                 routed_packages.insert(routed_into_cross);
@@ -102,25 +88,20 @@ pub fn order_into_switches_set<E: Engine, CS: ConstraintSystem<E>>(
         let max = prev;
 
         assert_eq!(min, 0, "permutation should start with 0");
-        assert_eq!(max, size-1, "permutation should not contain spaces");
+        assert_eq!(max, size - 1, "permutation should not contain spaces");
     }
 
     Ok(layers)
 }
 
-
 /// prove permutation by routing elements through the permutation network
-/// Topology is calculated exclusively based on the size on the network, 
+/// Topology is calculated exclusively based on the size on the network,
 /// and permuted elements can be anything. Caller be responsible for validity
 /// if elements are unique or not
-pub fn prove_permutation_using_switches_witness<E, CS>(
-    cs: &mut CS,
-    original: &[AllocatedNum<E>],
-    permuted: &[AllocatedNum<E>],
-    switches_layes: &Vec<Vec<Boolean>>,
-) -> Result<(), SynthesisError>
-    where CS: ConstraintSystem<E>,
-          E: Engine
+pub fn prove_permutation_using_switches_witness<E, CS>(cs: &mut CS, original: &[AllocatedNum<E>], permuted: &[AllocatedNum<E>], switches_layes: &Vec<Vec<Boolean>>) -> Result<(), SynthesisError>
+where
+    CS: ConstraintSystem<E>,
+    E: Engine,
 {
     assert_eq!(original.len(), permuted.len());
     // First make a topology
@@ -170,8 +151,7 @@ pub fn prove_permutation_using_switches_witness<E, CS>(
                 let routed_into_cross = topology.topology[column_idx][packet_idx].1; // this is a cross index
 
                 // may be we have already routed a pair, so quickly check
-                if result_of_this_column[routed_into_straght].is_some() || result_of_this_column[routed_into_cross].is_some()
-                {
+                if result_of_this_column[routed_into_straght].is_some() || result_of_this_column[routed_into_cross].is_some() {
                     assert!(result_of_this_column[routed_into_straght].is_some() && result_of_this_column[routed_into_cross].is_some());
                     continue;
                 }
@@ -187,7 +167,7 @@ pub fn prove_permutation_using_switches_witness<E, CS>(
                         another_idx = Some(idx);
                         break;
                     }
-                }        
+                }
                 assert!(another_idx.is_some());
                 let another_idx = another_idx.unwrap();
 
@@ -196,13 +176,8 @@ pub fn prove_permutation_using_switches_witness<E, CS>(
 
                 let boolean_switch = switches_it.next().expect("must contain a switch value");
 
-                // perform an actual switching 
-                let (next_level_straight, next_level_cross) = AllocatedNum::conditionally_reverse(
-                    cs,
-                    &previous_level_variable,
-                    &previous_level_pair,
-                    &boolean_switch
-                )?;
+                // perform an actual switching
+                let (next_level_straight, next_level_cross) = AllocatedNum::conditionally_reverse(cs, &previous_level_variable, &previous_level_pair, &boolean_switch)?;
                 switch_count += 1;
 
                 result_of_this_column[routed_into_straght] = Some(next_level_straight);
@@ -215,7 +190,7 @@ pub fn prove_permutation_using_switches_witness<E, CS>(
     }
 
     // we have routed the "original" into some "permutation", so we check that
-    // "permutation" is equal to the claimed "permuted" value 
+    // "permutation" is equal to the claimed "permuted" value
     for (claimed, routed) in permuted.iter().zip(permutation.into_iter()) {
         let routed = routed.expect("must be some");
         routed.enforce_equal(cs, &claimed)?;
@@ -223,24 +198,17 @@ pub fn prove_permutation_using_switches_witness<E, CS>(
 
     println!("switch count: {}", switch_count);
 
-
     Ok(())
 }
 
-
-
 /// prove permutation by routing elements through the permutation network
-/// Topology is calculated exclusively based on the size on the network, 
+/// Topology is calculated exclusively based on the size on the network,
 /// and permuted elements can be anything. Caller be responsible for validity
 /// if elements are unique or not
-pub fn prove_permutation_of_nums_using_switches_witness<E, CS>(
-    cs: &mut CS,
-    original: &[Num<E>],
-    permuted: &[Num<E>],
-    switches_layes: &Vec<Vec<Boolean>>,
-) -> Result<(), SynthesisError>
-    where CS: ConstraintSystem<E>,
-          E: Engine
+pub fn prove_permutation_of_nums_using_switches_witness<E, CS>(cs: &mut CS, original: &[Num<E>], permuted: &[Num<E>], switches_layes: &Vec<Vec<Boolean>>) -> Result<(), SynthesisError>
+where
+    CS: ConstraintSystem<E>,
+    E: Engine,
 {
     // it's a code dumplication until we introduce traits and reworks
     assert_eq!(original.len(), permuted.len());
@@ -278,8 +246,7 @@ pub fn prove_permutation_of_nums_using_switches_witness<E, CS>(
                 let routed_into_cross = topology.topology[column_idx][packet_idx].1; // this is a cross index
 
                 // may be we have already routed a pair, so quickly check
-                if result_of_this_column[routed_into_straght].is_some() || result_of_this_column[routed_into_cross].is_some()
-                {
+                if result_of_this_column[routed_into_straght].is_some() || result_of_this_column[routed_into_cross].is_some() {
                     assert!(result_of_this_column[routed_into_straght].is_some() && result_of_this_column[routed_into_cross].is_some());
                     continue;
                 }
@@ -295,7 +262,7 @@ pub fn prove_permutation_of_nums_using_switches_witness<E, CS>(
                         another_idx = Some(idx);
                         break;
                     }
-                }        
+                }
                 assert!(another_idx.is_some());
                 let another_idx = another_idx.unwrap();
 
@@ -304,13 +271,8 @@ pub fn prove_permutation_of_nums_using_switches_witness<E, CS>(
 
                 let boolean_switch = switches_it.next().expect("must contain a switch value");
 
-                // perform an actual switching 
-                let (next_level_straight, next_level_cross) = Num::conditionally_reverse(
-                    cs,
-                    &previous_level_variable,
-                    &previous_level_pair,
-                    &boolean_switch
-                )?;
+                // perform an actual switching
+                let (next_level_straight, next_level_cross) = Num::conditionally_reverse(cs, &previous_level_variable, &previous_level_pair, &boolean_switch)?;
 
                 result_of_this_column[routed_into_straght] = Some(next_level_straight);
                 result_of_this_column[routed_into_cross] = Some(next_level_cross);
@@ -322,28 +284,23 @@ pub fn prove_permutation_of_nums_using_switches_witness<E, CS>(
     }
 
     // we have routed the "original" into some "permutation", so we check that
-    // "permutation" is equal to the claimed "permuted" value 
+    // "permutation" is equal to the claimed "permuted" value
     for (claimed, routed) in permuted.iter().zip(permutation.into_iter()) {
         let routed = routed.expect("must be some");
         routed.enforce_equal(cs, &claimed)?;
     }
 
-
     Ok(())
 }
 
 /// prove permutation by routing elements through the permutation network
-/// Topology is calculated exclusively based on the size on the network, 
+/// Topology is calculated exclusively based on the size on the network,
 /// and permuted elements can be anything. Caller be responsible for validity
 /// if elements are unique or not
-pub fn prove_shuffle<E, CS>(
-    cs: &mut CS,
-    original: &[AllocatedNum<E>],
-    permuted: &[AllocatedNum<E>],
-    permuted_order: &IntegerPermutation,
-) -> Result<(), SynthesisError>
-    where CS: ConstraintSystem<E>,
-          E: Engine
+pub fn prove_shuffle<E, CS>(cs: &mut CS, original: &[AllocatedNum<E>], permuted: &[AllocatedNum<E>], permuted_order: &IntegerPermutation) -> Result<(), SynthesisError>
+where
+    CS: ConstraintSystem<E>,
+    E: Engine,
 {
     assert_eq!(original.len(), permuted.len());
     assert_eq!(original.len(), permuted_order.size());
@@ -431,7 +388,7 @@ pub fn prove_shuffle<E, CS>(
     //                     another_idx = Some(idx);
     //                     break;
     //                 }
-    //             }        
+    //             }
     //             assert!(another_idx.is_some());
     //             let another_idx = another_idx.unwrap();
 
@@ -441,7 +398,7 @@ pub fn prove_shuffle<E, CS>(
     //             let boolean_switch = Boolean::from(AllocatedBit::alloc(
     //                 cs,
     //                 switch_value
-    //             )?); 
+    //             )?);
 
     //             let cross_value = AllocatedNum::alloc(
     //                 cs,
@@ -459,7 +416,7 @@ pub fn prove_shuffle<E, CS>(
     //                 Ok(value)
     //             })?;
 
-    //             // perform an actual switching 
+    //             // perform an actual switching
     //             let (next_level_straight, next_level_cross) = AllocatedNum::conditionally_reverse(
     //                 cs,
     //                 &straight_value,
@@ -483,7 +440,6 @@ pub fn prove_shuffle<E, CS>(
     //     variable.enforce_equal(cs, &permuted)?;
     // }
 
-
     // Ok(())
 }
 
@@ -491,11 +447,11 @@ pub fn prove_shuffle<E, CS>(
 mod test {
     use super::*;
     use crate::bellman::plonk::better_better_cs::cs::*;
-    use rand::{XorShiftRng, SeedableRng, Rand, Rng};
     use bellman::pairing::bn256::{Bn256, Fr};
     use bellman::pairing::ff::{BitIterator, Field, PrimeField};
+    use rand::{Rand, Rng, SeedableRng, XorShiftRng};
 
-    use super::{AsWaksmanRoute, AsWaksmanTopology, IntegerPermutation, prove_shuffle};
+    use super::{prove_shuffle, AsWaksmanRoute, AsWaksmanTopology, IntegerPermutation};
 
     #[test]
     fn test_permutation_positive() {
@@ -519,23 +475,15 @@ mod test {
                 let mut original = vec![];
                 let mut permuted = vec![];
 
-                for(_i, (o, p)) in original_vector.into_iter().zip(permuted_vector.into_iter()).enumerate() {
-                    let o = AllocatedNum::alloc(&mut cs, 
-                        || Ok(o)
-                    ).unwrap();
-                    let p = AllocatedNum::alloc(&mut cs, 
-                        || Ok(p)
-                    ).unwrap();
+                for (_i, (o, p)) in original_vector.into_iter().zip(permuted_vector.into_iter()).enumerate() {
+                    let o = AllocatedNum::alloc(&mut cs, || Ok(o)).unwrap();
+                    let p = AllocatedNum::alloc(&mut cs, || Ok(p)).unwrap();
 
                     original.push(o);
                     permuted.push(p);
                 }
 
-                prove_shuffle(&mut cs, 
-                    &original, 
-                    &permuted, 
-                    &permutation
-                ).unwrap();
+                prove_shuffle(&mut cs, &original, &permuted, &permutation).unwrap();
 
                 assert!(cs.is_satisfied());
             }
@@ -550,7 +498,7 @@ mod test {
             println!("Size = {}", size);
             for _ in 0..10 {
                 let mut cs = TrivialAssembly::<Bn256, PlonkCsWidth4WithNextStepParams, Width4MainGateWithDNext>::new();
-                
+
                 let mut permutation = IntegerPermutation::new(size);
                 permutation.make_permutation(rng);
 
@@ -571,23 +519,15 @@ mod test {
                 let mut original = vec![];
                 let mut permuted = vec![];
 
-                for(_i, (o, p)) in original_vector.into_iter().zip(permuted_vector.into_iter()).enumerate() {
-                    let o = AllocatedNum::alloc(&mut cs, 
-                        || Ok(o)
-                    ).unwrap();
-                    let p = AllocatedNum::alloc(&mut cs, 
-                        || Ok(p)
-                    ).unwrap();
+                for (_i, (o, p)) in original_vector.into_iter().zip(permuted_vector.into_iter()).enumerate() {
+                    let o = AllocatedNum::alloc(&mut cs, || Ok(o)).unwrap();
+                    let p = AllocatedNum::alloc(&mut cs, || Ok(p)).unwrap();
 
                     original.push(o);
                     permuted.push(p);
                 }
 
-                prove_shuffle(&mut cs, 
-                    &original, 
-                    &permuted, 
-                    &another_permutation
-                ).unwrap();
+                prove_shuffle(&mut cs, &original, &permuted, &another_permutation).unwrap();
 
                 assert!(!cs.is_satisfied());
             }

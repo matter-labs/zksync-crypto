@@ -1,12 +1,12 @@
 use crate::pairing::ff::{Field, PrimeField};
-use crate::pairing::{Engine};
+use crate::pairing::Engine;
 
 use crate::SynthesisError;
 
-use crate::plonk::cs::gates::Gate;
 use crate::plonk::cs::gates::Coeff;
-use crate::plonk::cs::gates::Variable as PlonkVariable;
+use crate::plonk::cs::gates::Gate;
 use crate::plonk::cs::gates::Index as PlonkIndex;
+use crate::plonk::cs::gates::Variable as PlonkVariable;
 
 use crate::plonk::cs::Circuit as PlonkCircuit;
 use crate::plonk::cs::ConstraintSystem as PlonkConstraintSystem;
@@ -73,7 +73,7 @@ pub mod alternative;
 //         LB: FnOnce(crate::LinearCombination<E>) -> crate::LinearCombination<E>,
 //         LC: FnOnce(crate::LinearCombination<E>) -> crate::LinearCombination<E>,
 //     {
-        
+
 //         /// Represents either a "true" variable or a constant
 //         /// auxillary variable.
 //         #[derive(Copy, Clone, PartialEq, Debug, Hash, Eq)]
@@ -82,7 +82,7 @@ pub mod alternative;
 //             InputVar(PlonkVariable),
 //             ConstVar
 //         }
-        
+
 //         fn convert<E: Engine>(lc: crate::LinearCombination<E>) -> Vec<(E::Fr, Var)> {
 //             let mut ret = Vec::with_capacity(lc.as_ref().len());
 
@@ -104,11 +104,11 @@ pub mod alternative;
 //         let c_terms = convert(c(crate::LinearCombination::zero()));
 
 //         ///first check if we are dealing with a boolean constraint
-//         ///we use the following euristics: 
-//         ///analyse comment string 
+//         ///we use the following euristics:
+//         ///analyse comment string
 //         ///calculate the number of arguments in each linear combination - in boolean constraint length of each lc is at most 2
 //         /// this function returns true in the case of boolean constraint
-        
+
 //         fn handle_boolean_constraint<A, AR, E: Engine>(
 //             la: &Vec<(E::Fr, Var)>,
 //             lb: &Vec<(E::Fr, Var)>,
@@ -120,7 +120,6 @@ pub mod alternative;
 //         {
 //             return true;
 //         }
-        
 
 //         fn eval_lc_short<E: Engine, CS: PlonkConstraintSystem<E>>(
 //             term1: (E::Fr, PlonkVariable),
@@ -147,14 +146,13 @@ pub mod alternative;
 //             Some(extra_value)
 //         }
 
-
 //         fn allocate_new_lc_var<E: Engine, CS: PlonkConstraintSystem<E>>(
 //             term1: (E::Fr, PlonkVariable),
 //             term2: (E::Fr, PlonkVariable),
 //             cs: &mut CS,
 //         ) -> PlonkVariable
 //         {
-            
+
 //             let extra_value = eval_lc_short(term1, term2, &*cs);
 //             let extra_variable = cs.alloc(||
 //                 {
@@ -165,17 +163,16 @@ pub mod alternative;
 //                     }
 //                 }
 //                 ).expect("must allocate");
-            
+
 //             cs.enforce_mul_3((term1.1, term2.1, extra_variable)).expect("must allocate");
 //             extra_variable
 //         }
 
-
 //         fn allocate_lc_intermediate_variables<E: Engine, CS: PlonkConstraintSystem<E>>(
-//             terms: Vec<(E::Fr, Var)>, 
+//             terms: Vec<(E::Fr, Var)>,
 //             cs: &mut CS,
 //         ) -> (PlonkVariable, Option<E::Fr>) {
-            
+
 //             debug_assert!(terms.len() > 2);
 //             let mut const_var_found = false;
 //             let mut const_coeff = E::Fr::zero();
@@ -198,7 +195,7 @@ pub mod alternative;
 //                                 Some((E::Fr::one(), new_val))
 //                             }
 //                         }
-//                     }                  
+//                     }
 //                 }
 
 //             }
@@ -213,13 +210,12 @@ pub mod alternative;
 //                 true => Some(const_coeff)
 //             } ;
 
-//             return (var, coef)         
+//             return (var, coef)
 //         }
 
-                    
-//         /// after parsing we should return on of three possible results: 
+//         /// after parsing we should return on of three possible results:
 //         /// variable, constant or sum variable + constant
-        
+
 //         fn parse_lc<E: Engine, CS: PlonkConstraintSystem<E>>(
 //             terms: Vec<(E::Fr, Var)>,
 //             cs: &mut CS,
@@ -244,7 +240,7 @@ pub mod alternative;
 //                 2 => {
 //                     let (c_0, v_0) = terms[0];
 //                     let (c_1, v_1) = terms[1];
-                    
+
 //                     //check of one of v_0, v_1 is constant and the other is variable or vice versa
 //                     //the case of two constants is impossible in real cs!
 //                     let result = match (v_0, v_1) {
@@ -252,7 +248,7 @@ pub mod alternative;
 //                         (Var::ConstVar, Var::InputVar(pv)) => (Some((c_1, pv)), Some(c_0)),
 //                         (Var::InputVar(pv0), Var::InputVar(pv1)) => {
 //                             let extra_variable = allocate_new_lc_var((c_0, pv0), (c_1, pv1), cs);
-//                             (Some((E::Fr::one(), extra_variable)), None)    
+//                             (Some((E::Fr::one(), extra_variable)), None)
 //                             }
 //                         (Var::ConstVar, Var::ConstVar) => unreachable!(),
 //                     };
@@ -263,15 +259,14 @@ pub mod alternative;
 //                 _ => {
 //                     // here we need to allocate intermediate variables and output the last one
 //                     let last_vars = allocate_lc_intermediate_variables(terms, cs);
-//                     return (Some((E::Fr::one(), last_vars.0)), last_vars.1);                
-//                 }                  
+//                     return (Some((E::Fr::one(), last_vars.0)), last_vars.1);
+//                 }
 //             }
 //         }
 
 //         let a_var = parse_lc(a_terms, self.cs);
 //         let b_var = parse_lc(b_terms, self.cs);
 //         let c_var = parse_lc(c_terms, self.cs);
-
 
 //         /// parse result and return expr of the form: coeff * var + constant
 
@@ -281,11 +276,11 @@ pub mod alternative;
 //             cs: &mut CS,
 //         ) -> (E::Fr, PlonkVariable, E::Fr)
 //         {
-            
+
 //             let result = match var {
 //                 (Some((coeff, var)), Some(constant)) => (coeff, var, constant),
 //                 (Some((coeff, var)), None) => (coeff, var, E::Fr::zero()),
-//                 (None, Some(constant)) => (E::Fr::zero(), stub, constant), 
+//                 (None, Some(constant)) => (E::Fr::zero(), stub, constant),
 //                 _ => unreachable!(),
 //             };
 
@@ -294,9 +289,8 @@ pub mod alternative;
 
 //         // our final equation is of the following form
 //         // (x a_var + c_1) (y b_var + c_2) = (z c_var + c_3)
-//         // we can convert it to standard PLONK form: 
+//         // we can convert it to standard PLONK form:
 //         // (xy) a_var + b_var + (x c_2) a_var + (y c_1) b_var - z c_var + (c_1 c_2 - c_3) */
-
 //         let (mut x, a_var, mut c_1) : (E::Fr, PlonkVariable, E::Fr) = unfold_var(a_var, CS::ZERO, self.cs);
 //         let (mut y, b_var, c_2) : (E::Fr, PlonkVariable, E::Fr) = unfold_var(b_var, CS::ZERO, self.cs);
 //         let (mut z, c_var, mut c_3) : (E::Fr, PlonkVariable, E::Fr) = unfold_var(c_var, CS::ZERO, self.cs);
@@ -311,7 +305,7 @@ pub mod alternative;
 //         c_3.negate();
 //         c_1.add_assign(&c_3);
 
-//         self.cs.new_gate((a_var, b_var, c_var), (a_coef, x, y, z, c_1));    
+//         self.cs.new_gate((a_var, b_var, c_var), (a_coef, x, y, z, c_1));
 //     }
 
 //     fn push_namespace<NR, N>(&mut self, _: N)

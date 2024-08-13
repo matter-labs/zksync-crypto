@@ -20,9 +20,7 @@ pub struct Poseidon2Params<E: Engine, const RATE: usize, const WIDTH: usize> {
     pub(crate) custom_gate: CustomGate,
 }
 
-impl<E: Engine, const RATE: usize, const WIDTH: usize> PartialEq
-    for Poseidon2Params<E, RATE, WIDTH>
-{
+impl<E: Engine, const RATE: usize, const WIDTH: usize> PartialEq for Poseidon2Params<E, RATE, WIDTH> {
     fn eq(&self, other: &Self) -> bool {
         self.hash_family() == other.hash_family()
     }
@@ -69,9 +67,7 @@ impl<E: Engine, const RATE: usize, const WIDTH: usize> Default for Poseidon2Para
     }
 }
 
-impl<E: Engine, const RATE: usize, const WIDTH: usize> HashParams<E, RATE, WIDTH>
-    for Poseidon2Params<E, RATE, WIDTH>
-{
+impl<E: Engine, const RATE: usize, const WIDTH: usize> HashParams<E, RATE, WIDTH> for Poseidon2Params<E, RATE, WIDTH> {
     fn hash_family(&self) -> HashFamily {
         HashFamily::Poseidon2
     }
@@ -133,7 +129,7 @@ fn poseidon2_external_matrix<E: Engine, const WIDTH: usize>() -> [[E::Fr; WIDTH]
             result[0][1] = one;
             result[1][0] = one;
             result[1][1] = two;
-        },
+        }
         3 => {
             // circ(2, 1, 1)
             result[0][0] = two;
@@ -145,7 +141,7 @@ fn poseidon2_external_matrix<E: Engine, const WIDTH: usize>() -> [[E::Fr; WIDTH]
             result[2][0] = one;
             result[2][1] = one;
             result[2][2] = two;
-        },
+        }
         _ => {
             assert!(WIDTH > 0 && WIDTH % 4 == 0);
 
@@ -159,18 +155,13 @@ fn poseidon2_external_matrix<E: Engine, const WIDTH: usize>() -> [[E::Fr; WIDTH]
             let six = E::Fr::from_str("6").unwrap();
             let seven = E::Fr::from_str("7").unwrap();
 
-            let m_4_mds_matrix = [
-                [five, seven, one, three],
-                [four, six, one, one],
-                [one, three, five, seven],
-                [one, one, four, six],
-            ];
+            let m_4_mds_matrix = [[five, seven, one, three], [four, six, one, one], [one, three, five, seven], [one, one, four, six]];
 
             // circ(2*M4, M4, ..., M4)
             for i in 0..WIDTH {
                 for j in 0..WIDTH {
                     result[i][j] = m_4_mds_matrix[i % 4][j % 4];
-                    if i/4 == j/4 {
+                    if i / 4 == j / 4 {
                         result[i][j].mul_assign(&two);
                     }
                 }
@@ -191,7 +182,7 @@ fn poseidon2_internal_matrix<E: Engine, const WIDTH: usize>() -> [E::Fr; WIDTH] 
             result[0] = two;
             result[1] = two;
             result[2] = three;
-        },
+        }
         _ => todo!("poseidon_2_internal_matrix for WIDTH == {}", WIDTH),
     };
 

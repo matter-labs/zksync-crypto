@@ -2,73 +2,47 @@ use rand::Rng;
 
 use std::sync::Arc;
 
-use crate::pairing::{
-    Engine,
-    Wnaf,
-    CurveProjective,
-    CurveAffine
-};
+use crate::pairing::{CurveAffine, CurveProjective, Engine, Wnaf};
 
-use crate::pairing::ff::{    
-    PrimeField,
-    Field
-};
+use crate::pairing::ff::{Field, PrimeField};
 
-use super::{
-    Parameters,
-    VerifyingKey
-};
+use super::{Parameters, VerifyingKey};
 
-use crate::{
-    SynthesisError,
-    Circuit,
-    ConstraintSystem,
-    LinearCombination,
-    Variable,
-    Index
-};
+use crate::{Circuit, ConstraintSystem, Index, LinearCombination, SynthesisError, Variable};
 
-use crate::domain::{
-    Scalar
-};
+use crate::domain::Scalar;
 
-use crate::worker::{
-    Worker
-};
+use crate::worker::Worker;
 
 use std::marker::PhantomData;
 
-use crate::sonic::cs::{Backend, SynthesisDriver};
-use crate::sonic::srs::SRS;
-use crate::sonic::cs::LinearCombination as SonicLinearCombination;
-use crate::sonic::cs::Circuit as SonicCircuit;
-use crate::sonic::cs::ConstraintSystem as SonicConstraintSystem;
-use crate::sonic::cs::Variable as SonicVariable;
-use crate::sonic::cs::Coeff;
-use crate::sonic::sonic::{AdaptorCircuit};
 use super::parameters::NUM_BLINDINGS;
+use crate::sonic::cs::Circuit as SonicCircuit;
+use crate::sonic::cs::Coeff;
+use crate::sonic::cs::ConstraintSystem as SonicConstraintSystem;
+use crate::sonic::cs::LinearCombination as SonicLinearCombination;
+use crate::sonic::cs::Variable as SonicVariable;
+use crate::sonic::cs::{Backend, SynthesisDriver};
+use crate::sonic::sonic::AdaptorCircuit;
 use crate::sonic::sonic::NonassigningSynthesizer;
 use crate::sonic::sonic::PermutationSynthesizer;
 use crate::sonic::sonic::{Basic, Preprocess};
+use crate::sonic::srs::SRS;
 
 use crate::verbose_flag;
 
 /// Generates a random common reference string for
 /// a circuit.
-pub fn generate_random_parameters<E, C, R>(
-    circuit: C,
-    rng: &mut R
-) -> Result<Parameters<E>, SynthesisError>
-    where E: Engine, C: Circuit<E>, R: Rng
+pub fn generate_random_parameters<E, C, R>(circuit: C, rng: &mut R) -> Result<Parameters<E>, SynthesisError>
+where
+    E: Engine,
+    C: Circuit<E>,
+    R: Rng,
 {
     let alpha = rng.gen();
     let x = rng.gen();
 
-    generate_parameters::<E, C>(
-        circuit,
-        alpha,
-        x
-    )
+    generate_parameters::<E, C>(circuit, alpha, x)
 }
 
 /// This is our assembly structure that we'll use to synthesize the
@@ -81,7 +55,7 @@ pub struct CircuitParameters<E: Engine> {
     pub k_map: Vec<usize>,
     pub n: usize,
     pub q: usize,
-    _marker: PhantomData<E>
+    _marker: PhantomData<E>,
 }
 
 /// This is our assembly structure that we'll use to synthesize the
@@ -91,12 +65,10 @@ struct GeneratorAssembly<'a, E: Engine, CS: SonicConstraintSystem<E> + 'a> {
     num_inputs: usize,
     num_aux: usize,
     num_constraints: usize,
-    _marker: PhantomData<E>
+    _marker: PhantomData<E>,
 }
 
-impl<'a, E: Engine, CS: SonicConstraintSystem<E> + 'a> crate::ConstraintSystem<E>
-    for GeneratorAssembly<'a, E, CS>
-{
+impl<'a, E: Engine, CS: SonicConstraintSystem<E> + 'a> crate::ConstraintSystem<E> for GeneratorAssembly<'a, E, CS> {
     type Root = Self;
 
     // this is an important change
@@ -112,9 +84,10 @@ impl<'a, E: Engine, CS: SonicConstraintSystem<E> + 'a> crate::ConstraintSystem<E
     {
         self.num_aux += 1;
 
-        let var = self.cs.alloc(|| {
-            f().map_err(|_| crate::SynthesisError::AssignmentMissing)
-        }).map_err(|_| crate::SynthesisError::AssignmentMissing)?;
+        let var = self
+            .cs
+            .alloc(|| f().map_err(|_| crate::SynthesisError::AssignmentMissing))
+            .map_err(|_| crate::SynthesisError::AssignmentMissing)?;
 
         Ok(match var {
             SonicVariable::A(index) => crate::Variable::new_unchecked(crate::Index::Input(index)),
@@ -123,11 +96,7 @@ impl<'a, E: Engine, CS: SonicConstraintSystem<E> + 'a> crate::ConstraintSystem<E
         })
     }
 
-    fn alloc_input<F, A, AR>(
-        &mut self,
-        _: A,
-        f: F,
-    ) -> Result<crate::Variable, crate::SynthesisError>
+    fn alloc_input<F, A, AR>(&mut self, _: A, f: F) -> Result<crate::Variable, crate::SynthesisError>
     where
         F: FnOnce() -> Result<E::Fr, crate::SynthesisError>,
         A: FnOnce() -> AR,
@@ -135,9 +104,10 @@ impl<'a, E: Engine, CS: SonicConstraintSystem<E> + 'a> crate::ConstraintSystem<E
     {
         self.num_inputs += 1;
 
-        let var = self.cs.alloc_input(|| {
-            f().map_err(|_| crate::SynthesisError::AssignmentMissing)
-        }).map_err(|_| crate::SynthesisError::AssignmentMissing)?;
+        let var = self
+            .cs
+            .alloc_input(|| f().map_err(|_| crate::SynthesisError::AssignmentMissing))
+            .map_err(|_| crate::SynthesisError::AssignmentMissing)?;
 
         Ok(match var {
             SonicVariable::A(index) => crate::Variable::new_unchecked(crate::Index::Input(index)),
@@ -169,10 +139,7 @@ impl<'a, E: Engine, CS: SonicConstraintSystem<E> + 'a> crate::ConstraintSystem<E
             ret
         }
 
-        fn eval<E: Engine, CS: SonicConstraintSystem<E>>(
-            lc: &SonicLinearCombination<E>,
-            cs: &CS,
-        ) -> Option<E::Fr> {
+        fn eval<E: Engine, CS: SonicConstraintSystem<E>>(lc: &SonicLinearCombination<E>, cs: &CS) -> Option<E::Fr> {
             let mut ret = E::Fr::zero();
 
             for &(v, coeff) in lc.as_ref().iter() {
@@ -196,10 +163,7 @@ impl<'a, E: Engine, CS: SonicConstraintSystem<E> + 'a> crate::ConstraintSystem<E
         let c_lc = convert(c(crate::LinearCombination::zero()));
         let c_value = eval(&c_lc, &*self.cs);
 
-        let (a, b, c) = self
-            .cs
-            .multiply(|| Ok((a_value.unwrap(), b_value.unwrap(), c_value.unwrap())))
-            .unwrap();
+        let (a, b, c) = self.cs.multiply(|| Ok((a_value.unwrap(), b_value.unwrap(), c_value.unwrap()))).unwrap();
 
         self.cs.enforce_zero(a_lc - a);
         self.cs.enforce_zero(b_lc - b);
@@ -223,28 +187,24 @@ impl<'a, E: Engine, CS: SonicConstraintSystem<E> + 'a> crate::ConstraintSystem<E
     }
 }
 
-
-
-/// Get circuit information such as number of input, variables, 
+/// Get circuit information such as number of input, variables,
 /// constraints, and the corresponding SONIC parameters
 /// k_map, n, q
-pub fn get_circuit_parameters<E, C>(
-    circuit: C,
-) -> Result<CircuitParameters<E>, SynthesisError>
-    where E: Engine, C: Circuit<E>
-
+pub fn get_circuit_parameters<E, C>(circuit: C) -> Result<CircuitParameters<E>, SynthesisError>
+where
+    E: Engine,
+    C: Circuit<E>,
 {
     let mut preprocess = Preprocess::new();
 
     let (num_inputs, num_aux, num_constraints) = {
-
         let mut cs: NonassigningSynthesizer<E, &'_ mut Preprocess<E>> = NonassigningSynthesizer::new(&mut preprocess);
 
         let one = cs.alloc_input(|| Ok(E::Fr::one())).expect("should have no issues");
 
         match (one, <NonassigningSynthesizer<E, &'_ mut Preprocess<E>> as SonicConstraintSystem<E>>::ONE) {
-            (SonicVariable::A(1), SonicVariable::A(1)) => {},
-            _ => return Err(SynthesisError::UnconstrainedVariable)
+            (SonicVariable::A(1), SonicVariable::A(1)) => {}
+            _ => return Err(SynthesisError::UnconstrainedVariable),
         }
 
         let mut assembly = GeneratorAssembly::<'_, E, _> {
@@ -252,7 +212,7 @@ pub fn get_circuit_parameters<E, C>(
             num_inputs: 0,
             num_aux: 0,
             num_constraints: 0,
-            _marker: PhantomData
+            _marker: PhantomData,
         };
 
         circuit.synthesize(&mut assembly)?;
@@ -267,30 +227,28 @@ pub fn get_circuit_parameters<E, C>(
         k_map: preprocess.k_map,
         n: preprocess.n,
         q: preprocess.q,
-        _marker: PhantomData
+        _marker: PhantomData,
     })
 }
 
-/// Get circuit information such as number of input, variables, 
+/// Get circuit information such as number of input, variables,
 /// constraints, and the corresponding SONIC parameters
 /// k_map, n, q
-pub fn get_circuit_parameters_for_succinct_sonic<E, C>(
-    circuit: C,
-) -> Result<CircuitParameters<E>, SynthesisError>
-    where E: Engine, C: Circuit<E>
-
+pub fn get_circuit_parameters_for_succinct_sonic<E, C>(circuit: C) -> Result<CircuitParameters<E>, SynthesisError>
+where
+    E: Engine,
+    C: Circuit<E>,
 {
     let mut preprocess = Preprocess::new();
 
     let (num_inputs, num_aux, num_constraints) = {
-
         let mut cs: PermutationSynthesizer<E, &'_ mut Preprocess<E>> = PermutationSynthesizer::new(&mut preprocess);
 
         let one = cs.alloc_input(|| Ok(E::Fr::one())).expect("should have no issues");
 
         match (one, <PermutationSynthesizer<E, &'_ mut Preprocess<E>> as SonicConstraintSystem<E>>::ONE) {
-            (SonicVariable::A(1), SonicVariable::A(1)) => {},
-            _ => return Err(SynthesisError::UnconstrainedVariable)
+            (SonicVariable::A(1), SonicVariable::A(1)) => {}
+            _ => return Err(SynthesisError::UnconstrainedVariable),
         }
 
         let mut assembly = GeneratorAssembly::<'_, E, _> {
@@ -298,7 +256,7 @@ pub fn get_circuit_parameters_for_succinct_sonic<E, C>(
             num_inputs: 0,
             num_aux: 0,
             num_constraints: 0,
-            _marker: PhantomData
+            _marker: PhantomData,
         };
 
         circuit.synthesize(&mut assembly)?;
@@ -313,19 +271,17 @@ pub fn get_circuit_parameters_for_succinct_sonic<E, C>(
         k_map: preprocess.k_map,
         n: preprocess.n,
         q: preprocess.q,
-        _marker: PhantomData
+        _marker: PhantomData,
     })
 }
 
-pub fn generate_parameters<E, C>(
-    circuit: C,
-    alpha: E::Fr,
-    x: E::Fr
-) -> Result<Parameters<E>, SynthesisError>
-    where E: Engine, C: Circuit<E> 
+pub fn generate_parameters<E, C>(circuit: C, alpha: E::Fr, x: E::Fr) -> Result<Parameters<E>, SynthesisError>
+where
+    E: Engine,
+    C: Circuit<E>,
 {
-    let circuit_parameters = get_circuit_parameters::<E, C>(circuit)?; 
-    let min_d = circuit_parameters.n * 4 + 2*NUM_BLINDINGS;
+    let circuit_parameters = get_circuit_parameters::<E, C>(circuit)?;
+    let min_d = circuit_parameters.n * 4 + 2 * NUM_BLINDINGS;
 
     let srs = generate_srs(alpha, x, min_d)?;
 
@@ -334,11 +290,10 @@ pub fn generate_parameters<E, C>(
     Ok(parameters)
 }
 
-pub fn generate_parameters_on_srs<E, C>(
-    circuit: C,
-    srs: &SRS<E>,
-) -> Result<Parameters<E>, SynthesisError>
-    where E: Engine, C: Circuit<E> 
+pub fn generate_parameters_on_srs<E, C>(circuit: C, srs: &SRS<E>) -> Result<Parameters<E>, SynthesisError>
+where
+    E: Engine,
+    C: Circuit<E>,
 {
     let circuit_parameters = get_circuit_parameters::<E, C>(circuit)?;
     let parameters = generate_parameters_on_srs_and_information(&srs, circuit_parameters)?;
@@ -346,28 +301,23 @@ pub fn generate_parameters_on_srs<E, C>(
     Ok(parameters)
 }
 
-pub fn generate_parameters_on_srs_and_information<E: Engine>(
-    srs: &SRS<E>,
-    information: CircuitParameters<E>
-) -> Result<Parameters<E>, SynthesisError>
-{
-    assert!(srs.d >= information.n * 4 + 2*NUM_BLINDINGS);
-    let min_d = information.n * 4 + 2*NUM_BLINDINGS;
+pub fn generate_parameters_on_srs_and_information<E: Engine>(srs: &SRS<E>, information: CircuitParameters<E>) -> Result<Parameters<E>, SynthesisError> {
+    assert!(srs.d >= information.n * 4 + 2 * NUM_BLINDINGS);
+    let min_d = information.n * 4 + 2 * NUM_BLINDINGS;
 
     let trimmed_srs: SRS<E> = SRS {
         d: min_d,
-        g_negative_x: srs.g_negative_x[0..min_d+1].to_vec(),
-        g_positive_x: srs.g_positive_x[0..min_d+1].to_vec().clone(),
+        g_negative_x: srs.g_negative_x[0..min_d + 1].to_vec(),
+        g_positive_x: srs.g_positive_x[0..min_d + 1].to_vec().clone(),
 
-        h_negative_x: srs.h_negative_x[0..min_d+1].to_vec(),
-        h_positive_x: srs.h_positive_x[0..min_d+1].to_vec(),
+        h_negative_x: srs.h_negative_x[0..min_d + 1].to_vec(),
+        h_positive_x: srs.h_positive_x[0..min_d + 1].to_vec(),
 
         g_negative_x_alpha: srs.g_negative_x_alpha[0..min_d].to_vec(),
         g_positive_x_alpha: srs.g_positive_x_alpha[0..min_d].to_vec(),
 
-        h_negative_x_alpha: srs.h_negative_x_alpha[0..min_d+1].to_vec(),
-        h_positive_x_alpha: srs.h_positive_x_alpha[0..min_d+1].to_vec(),
-
+        h_negative_x_alpha: srs.h_negative_x_alpha[0..min_d + 1].to_vec(),
+        h_positive_x_alpha: srs.h_positive_x_alpha[0..min_d + 1].to_vec(),
     };
 
     let vk = VerifyingKey {
@@ -391,20 +341,13 @@ pub fn generate_parameters_on_srs_and_information<E: Engine>(
 
         k_map: information.k_map,
         n: information.n,
-        q: information.q
+        q: information.q,
     };
 
-    Ok(Parameters{
-        vk: vk,
-        srs: trimmed_srs
-    })
+    Ok(Parameters { vk: vk, srs: trimmed_srs })
 }
 
-pub fn generate_srs<E: Engine>(
-    alpha: E::Fr,
-    x: E::Fr,
-    d: usize
-) -> Result<SRS<E>, SynthesisError> {
+pub fn generate_srs<E: Engine>(alpha: E::Fr, x: E::Fr, d: usize) -> Result<SRS<E>, SynthesisError> {
     let verbose = verbose_flag();
 
     let g1 = E::G1Affine::one().into_projective();
@@ -412,11 +355,11 @@ pub fn generate_srs<E: Engine>(
 
     // Compute G1 window table
     let mut g1_wnaf = Wnaf::new();
-    let g1_wnaf = g1_wnaf.base(g1, 4*d);
+    let g1_wnaf = g1_wnaf.base(g1, 4 * d);
 
     // Compute G2 window table
     let mut g2_wnaf = Wnaf::new();
-    let g2_wnaf = g2_wnaf.base(g2, 4*d);
+    let g2_wnaf = g2_wnaf.base(g2, 4 * d);
 
     let x_inverse = x.inverse().ok_or(SynthesisError::UnexpectedIdentity)?;
 
@@ -426,16 +369,17 @@ pub fn generate_srs<E: Engine>(
     let mut x_powers_negative = vec![Scalar::<E>(E::Fr::zero()); d];
     {
         // Compute powers of tau
-        if verbose {eprintln!("computing powers of x...")};
+        if verbose {
+            eprintln!("computing powers of x...")
+        };
 
         let start = std::time::Instant::now();
 
         {
             worker.scope(d, |scope, chunk| {
-                for (i, x_powers) in x_powers_positive.chunks_mut(chunk).enumerate()
-                {
+                for (i, x_powers) in x_powers_positive.chunks_mut(chunk).enumerate() {
                     scope.spawn(move |_| {
-                        let mut current_power = x.pow(&[(i*chunk + 1) as u64]);
+                        let mut current_power = x.pow(&[(i * chunk + 1) as u64]);
 
                         for p in x_powers {
                             p.0 = current_power;
@@ -447,10 +391,9 @@ pub fn generate_srs<E: Engine>(
         }
         {
             worker.scope(d, |scope, chunk| {
-                for (i, x_powers) in x_powers_negative.chunks_mut(chunk).enumerate()
-                {
+                for (i, x_powers) in x_powers_negative.chunks_mut(chunk).enumerate() {
                     scope.spawn(move |_| {
-                        let mut current_power = x_inverse.pow(&[(i*chunk + 1) as u64]);
+                        let mut current_power = x_inverse.pow(&[(i * chunk + 1) as u64]);
 
                         for p in x_powers {
                             p.0 = current_power;
@@ -460,7 +403,9 @@ pub fn generate_srs<E: Engine>(
                 }
             });
         }
-        if verbose {eprintln!("powers of x done in {} s", start.elapsed().as_millis() as f64 / 1000.0);};
+        if verbose {
+            eprintln!("powers of x done in {} s", start.elapsed().as_millis() as f64 / 1000.0);
+        };
     }
 
     // we will later add zero powers to g_x, h_x, h_x_alpha
@@ -492,10 +437,8 @@ pub fn generate_srs<E: Engine>(
         alpha: &E::Fr,
 
         // Worker
-        worker: &Worker
-    )
-
-    {
+        worker: &Worker,
+    ) {
         // Sanity check
         assert_eq!(g_x.len(), powers_of_x.len());
         assert_eq!(g_x.len(), g_x_alpha.len());
@@ -504,22 +447,18 @@ pub fn generate_srs<E: Engine>(
 
         // Evaluate polynomials in multiple threads
         worker.scope(g_x.len(), |scope, chunk| {
-            for ((((x, g_x),  g_x_alpha), h_x), h_x_alpha) in powers_of_x.chunks(chunk)
-                                                               .zip(g_x.chunks_mut(chunk))
-                                                               .zip(g_x_alpha.chunks_mut(chunk))
-                                                               .zip(h_x.chunks_mut(chunk))
-                                                               .zip(h_x_alpha.chunks_mut(chunk))
+            for ((((x, g_x), g_x_alpha), h_x), h_x_alpha) in powers_of_x
+                .chunks(chunk)
+                .zip(g_x.chunks_mut(chunk))
+                .zip(g_x_alpha.chunks_mut(chunk))
+                .zip(h_x.chunks_mut(chunk))
+                .zip(h_x_alpha.chunks_mut(chunk))
             {
                 let mut g1_wnaf = g1_wnaf.shared();
                 let mut g2_wnaf = g2_wnaf.shared();
 
                 scope.spawn(move |_| {
-                    for ((((x, g_x),  g_x_alpha), h_x), h_x_alpha) in x.iter()
-                                                                       .zip(g_x.iter_mut())
-                                                                       .zip(g_x_alpha.iter_mut())
-                                                                       .zip(h_x.iter_mut())
-                                                                       .zip(h_x_alpha.iter_mut())
-                    {
+                    for ((((x, g_x), g_x_alpha), h_x), h_x_alpha) in x.iter().zip(g_x.iter_mut()).zip(g_x_alpha.iter_mut()).zip(h_x.iter_mut()).zip(h_x_alpha.iter_mut()) {
                         let mut x_alpha = x.0;
                         x_alpha.mul_assign(&alpha);
 
@@ -536,7 +475,7 @@ pub fn generate_srs<E: Engine>(
                     E::G2::batch_normalization(h_x);
                     E::G2::batch_normalization(h_x_alpha);
                 });
-            };
+            }
         });
     }
 
@@ -552,7 +491,7 @@ pub fn generate_srs<E: Engine>(
         &mut h_positive_x[..],
         &mut h_positive_x_alpha[..],
         &alpha,
-        &worker
+        &worker,
     );
 
     // Evaluate for negative powers
@@ -565,10 +504,12 @@ pub fn generate_srs<E: Engine>(
         &mut h_negative_x[..],
         &mut h_negative_x_alpha[..],
         &alpha,
-        &worker
+        &worker,
     );
 
-    if verbose {eprintln!("evaluating points done in {} s", start.elapsed().as_millis() as f64 / 1000.0);};
+    if verbose {
+        eprintln!("evaluating points done in {} s", start.elapsed().as_millis() as f64 / 1000.0);
+    };
 
     let g1 = g1.into_affine();
     let g2 = g2.into_affine();
@@ -618,18 +559,17 @@ pub fn generate_srs<E: Engine>(
     };
 
     Ok(SRS {
-            d: d,
-            g_negative_x: g_negative_x,
-            g_positive_x: g_positive_x,
+        d: d,
+        g_negative_x: g_negative_x,
+        g_positive_x: g_positive_x,
 
-            h_negative_x: h_negative_x,
-            h_positive_x: h_positive_x,
+        h_negative_x: h_negative_x,
+        h_positive_x: h_positive_x,
 
-            g_negative_x_alpha: g_negative_x_alpha,
-            g_positive_x_alpha: g_positive_x_alpha,
+        g_negative_x_alpha: g_negative_x_alpha,
+        g_positive_x_alpha: g_positive_x_alpha,
 
-            h_negative_x_alpha: h_negative_x_alpha,
-            h_positive_x_alpha: h_positive_x_alpha,
-        }
-    )
+        h_negative_x_alpha: h_negative_x_alpha,
+        h_positive_x_alpha: h_positive_x_alpha,
+    })
 }

@@ -1,7 +1,7 @@
 use super::cs::*;
 
 use crate::pairing::ff::{Field, PrimeField};
-use crate::pairing::{Engine, CurveAffine, EncodedPoint};
+use crate::pairing::{CurveAffine, EncodedPoint, Engine};
 
 use crate::plonk::domains::*;
 use crate::plonk::polynomials::*;
@@ -30,9 +30,8 @@ use crate::byteorder::ReadBytesExt;
 use crate::byteorder::WriteBytesExt;
 use std::io::{Read, Write};
 
-
 // pub trait EngineDataSerializationRead: Sized {
-//     fn read<R: Read>(reader: R) -> std::io::Result<Self>; 
+//     fn read<R: Read>(reader: R) -> std::io::Result<Self>;
 // }
 
 // pub trait EngineDataSerializationWrite<E: Engine>: Sized {
@@ -76,9 +75,7 @@ pub fn read_curve_affine<G: CurveAffine, R: Read>(mut reader: R) -> std::io::Res
     let mut repr = G::Uncompressed::empty();
     reader.read_exact(repr.as_mut())?;
 
-    let e = repr
-        .into_affine()
-        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
+    let e = repr.into_affine().map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
 
     Ok(e)
 }
@@ -215,7 +212,7 @@ pub fn read_optional_flag<R: Read>(mut reader: R) -> std::io::Result<bool> {
     } else if value == 0 {
         return Ok(false);
     }
-    
+
     panic!("invalid encoding of optional flag");
 }
 
@@ -225,7 +222,7 @@ pub fn write_optional_flag<W: Write>(is_some: bool, mut writer: W) -> std::io::R
     } else {
         writer.write_u64::<BigEndian>(0u64)?;
     }
-    
+
     Ok(())
 }
 
@@ -383,8 +380,7 @@ impl<E: Engine, P: PlonkConstraintSystemParams<E>> SetupPolynomials<E, P> {
 
 pub struct SetupPolynomialsPrecomputations<E: Engine, P: PlonkConstraintSystemParams<E>> {
     pub selector_polynomials_on_coset_of_size_4n_bitreversed: Vec<Polynomial<E::Fr, Values>>,
-    pub next_step_selector_polynomials_on_coset_of_size_4n_bitreversed:
-        Vec<Polynomial<E::Fr, Values>>,
+    pub next_step_selector_polynomials_on_coset_of_size_4n_bitreversed: Vec<Polynomial<E::Fr, Values>>,
     pub permutation_polynomials_on_coset_of_size_4n_bitreversed: Vec<Polynomial<E::Fr, Values>>,
     pub permutation_polynomials_values_of_size_n_minus_one: Vec<Polynomial<E::Fr, Values>>,
     pub inverse_divisor_on_coset_of_size_4n_bitreversed: Polynomial<E::Fr, Values>,
@@ -396,20 +392,13 @@ pub struct SetupPolynomialsPrecomputations<E: Engine, P: PlonkConstraintSystemPa
 use crate::plonk::fft::cooley_tukey_ntt::{BitReversedOmegas, CTPrecomputations};
 
 impl<E: Engine, P: PlonkConstraintSystemParams<E>> SetupPolynomialsPrecomputations<E, P> {
-    pub fn from_setup_and_precomputations<CP: CTPrecomputations<E::Fr>>(
-        setup: &SetupPolynomials<E, P>,
-        worker: &Worker,
-        omegas_bitreversed: &CP,
-    ) -> Result<Self, SynthesisError> {
+    pub fn from_setup_and_precomputations<CP: CTPrecomputations<E::Fr>>(setup: &SetupPolynomials<E, P>, worker: &Worker, omegas_bitreversed: &CP) -> Result<Self, SynthesisError> {
         let mut new = Self {
             selector_polynomials_on_coset_of_size_4n_bitreversed: vec![],
             next_step_selector_polynomials_on_coset_of_size_4n_bitreversed: vec![],
             permutation_polynomials_on_coset_of_size_4n_bitreversed: vec![],
             permutation_polynomials_values_of_size_n_minus_one: vec![],
-            inverse_divisor_on_coset_of_size_4n_bitreversed: Polynomial::from_values(vec![
-                E::Fr::one(),
-            ])
-            .unwrap(),
+            inverse_divisor_on_coset_of_size_4n_bitreversed: Polynomial::from_values(vec![E::Fr::one()]).unwrap(),
             x_on_coset_of_size_4n_bitreversed: Polynomial::from_values(vec![E::Fr::one()]).unwrap(),
 
             _marker: std::marker::PhantomData,
@@ -424,71 +413,39 @@ impl<E: Engine, P: PlonkConstraintSystemParams<E>> SetupPolynomialsPrecomputatio
 
         // we do not precompute q_const as we need to use it for public inputs;
         for p in setup.selector_polynomials[0..(setup.selector_polynomials.len() - 1)].iter() {
-            let ext = p.clone().bitreversed_lde_using_bitreversed_ntt(
-                &worker,
-                LDE_FACTOR,
-                omegas_bitreversed,
-                &coset_generator,
-            )?;
+            let ext = p.clone().bitreversed_lde_using_bitreversed_ntt(&worker, LDE_FACTOR, omegas_bitreversed, &coset_generator)?;
 
-            new.selector_polynomials_on_coset_of_size_4n_bitreversed
-                .push(ext);
+            new.selector_polynomials_on_coset_of_size_4n_bitreversed.push(ext);
         }
 
         for p in setup.next_step_selector_polynomials.iter() {
-            let ext = p.clone().bitreversed_lde_using_bitreversed_ntt(
-                &worker,
-                LDE_FACTOR,
-                omegas_bitreversed,
-                &coset_generator,
-            )?;
+            let ext = p.clone().bitreversed_lde_using_bitreversed_ntt(&worker, LDE_FACTOR, omegas_bitreversed, &coset_generator)?;
 
-            new.next_step_selector_polynomials_on_coset_of_size_4n_bitreversed
-                .push(ext);
+            new.next_step_selector_polynomials_on_coset_of_size_4n_bitreversed.push(ext);
         }
 
         for p in setup.permutation_polynomials.iter() {
-            let lde = p.clone().bitreversed_lde_using_bitreversed_ntt(
-                &worker,
-                LDE_FACTOR,
-                omegas_bitreversed,
-                &coset_generator,
-            )?;
-            new.permutation_polynomials_on_coset_of_size_4n_bitreversed
-                .push(lde);
+            let lde = p.clone().bitreversed_lde_using_bitreversed_ntt(&worker, LDE_FACTOR, omegas_bitreversed, &coset_generator)?;
+            new.permutation_polynomials_on_coset_of_size_4n_bitreversed.push(lde);
 
             let as_values = p.clone().fft(&worker);
             let mut as_values = as_values.into_coeffs();
-            as_values
-                .pop()
-                .expect("must shorted permutation polynomial values by one");
+            as_values.pop().expect("must shorted permutation polynomial values by one");
 
             let p = Polynomial::from_values_unpadded(as_values)?;
 
-            new.permutation_polynomials_values_of_size_n_minus_one
-                .push(p);
+            new.permutation_polynomials_values_of_size_n_minus_one.push(p);
         }
 
         let mut vanishing_poly_inverse_bitreversed =
-            evaluate_vanishing_polynomial_of_degree_on_domain_size::<E::Fr>(
-                required_domain_size as u64,
-                &E::Fr::multiplicative_generator(),
-                (required_domain_size * LDE_FACTOR) as u64,
-                &worker,
-            )?;
+            evaluate_vanishing_polynomial_of_degree_on_domain_size::<E::Fr>(required_domain_size as u64, &E::Fr::multiplicative_generator(), (required_domain_size * LDE_FACTOR) as u64, &worker)?;
         vanishing_poly_inverse_bitreversed.batch_inversion(&worker)?;
         vanishing_poly_inverse_bitreversed.bitreverse_enumeration(&worker);
 
-        assert_eq!(
-            vanishing_poly_inverse_bitreversed.size(),
-            required_domain_size * LDE_FACTOR
-        );
+        assert_eq!(vanishing_poly_inverse_bitreversed.size(), required_domain_size * LDE_FACTOR);
 
         // evaluate polynomial X on the coset
-        let mut x_poly = Polynomial::from_values(vec![
-            coset_generator;
-            vanishing_poly_inverse_bitreversed.size()
-        ])?;
+        let mut x_poly = Polynomial::from_values(vec![coset_generator; vanishing_poly_inverse_bitreversed.size()])?;
         x_poly.distribute_powers(&worker, x_poly.omega);
         x_poly.bitreverse_enumeration(&worker);
 
@@ -500,16 +457,11 @@ impl<E: Engine, P: PlonkConstraintSystemParams<E>> SetupPolynomialsPrecomputatio
         Ok(new)
     }
 
-    pub fn from_setup(
-        setup: &SetupPolynomials<E, P>,
-        worker: &Worker,
-    ) -> Result<Self, SynthesisError> {
-        let precomps =
-            BitReversedOmegas::new_for_domain_size(setup.permutation_polynomials[0].size());
+    pub fn from_setup(setup: &SetupPolynomials<E, P>, worker: &Worker) -> Result<Self, SynthesisError> {
+        let precomps = BitReversedOmegas::new_for_domain_size(setup.permutation_polynomials[0].size());
 
         Self::from_setup_and_precomputations(setup, worker, &precomps)
     }
-
 
     pub fn write<W: Write>(&self, mut writer: W) -> std::io::Result<()> {
         writer.write_u64::<BigEndian>(self.selector_polynomials_on_coset_of_size_4n_bitreversed.len() as u64)?;
@@ -535,24 +487,21 @@ impl<E: Engine, P: PlonkConstraintSystemParams<E>> SetupPolynomialsPrecomputatio
 
     pub fn read<R: Read>(mut reader: R) -> std::io::Result<Self> {
         let num_selectors = reader.read_u64::<BigEndian>()?;
-        let mut selector_polynomials_on_coset_of_size_4n_bitreversed =
-            Vec::with_capacity(num_selectors as usize);
+        let mut selector_polynomials_on_coset_of_size_4n_bitreversed = Vec::with_capacity(num_selectors as usize);
         for _ in 0..num_selectors {
             let poly = read_polynomial_values_unpadded(&mut reader)?;
             selector_polynomials_on_coset_of_size_4n_bitreversed.push(poly);
         }
 
         let num_next_step_selectors = reader.read_u64::<BigEndian>()?;
-        let mut next_step_selector_polynomials_on_coset_of_size_4n_bitreversed =
-            Vec::with_capacity(num_next_step_selectors as usize);
+        let mut next_step_selector_polynomials_on_coset_of_size_4n_bitreversed = Vec::with_capacity(num_next_step_selectors as usize);
         for _ in 0..num_next_step_selectors {
             let poly = read_polynomial_values_unpadded(&mut reader)?;
             next_step_selector_polynomials_on_coset_of_size_4n_bitreversed.push(poly);
         }
 
         let num_permutation_polys = reader.read_u64::<BigEndian>()?;
-        let mut permutation_polynomials_on_coset_of_size_4n_bitreversed =
-            Vec::with_capacity(num_permutation_polys as usize);
+        let mut permutation_polynomials_on_coset_of_size_4n_bitreversed = Vec::with_capacity(num_permutation_polys as usize);
         for _ in 0..num_permutation_polys {
             let poly = read_polynomial_values_unpadded(&mut reader)?;
             permutation_polynomials_on_coset_of_size_4n_bitreversed.push(poly);
@@ -688,9 +637,7 @@ impl<E: Engine, P: PlonkConstraintSystemParams<E>> Proof<E, P> {
             let mut repr = <E::G1Affine as CurveAffine>::Uncompressed::empty();
             reader.read_exact(repr.as_mut())?;
 
-            let e = repr
-                .into_affine()
-                .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
+            let e = repr.into_affine().map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
 
             Ok(e)
         };
@@ -784,11 +731,7 @@ pub struct VerificationKey<E: Engine, P: PlonkConstraintSystemParams<E>> {
 }
 
 impl<E: Engine, P: PlonkConstraintSystemParams<E>> VerificationKey<E, P> {
-    pub fn from_setup(
-        setup: &SetupPolynomials<E, P>,
-        worker: &Worker,
-        crs: &Crs<E, CrsForMonomialForm>,
-    ) -> Result<Self, SynthesisError> {
+    pub fn from_setup(setup: &SetupPolynomials<E, P>, worker: &Worker, crs: &Crs<E, CrsForMonomialForm>) -> Result<Self, SynthesisError> {
         assert_eq!(setup.selector_polynomials.len(), P::STATE_WIDTH + 2);
         if P::CAN_ACCESS_NEXT_TRACE_STEP == false {
             assert_eq!(setup.next_step_selector_polynomials.len(), 0);
@@ -823,8 +766,7 @@ impl<E: Engine, P: PlonkConstraintSystemParams<E>> VerificationKey<E, P> {
             new.permutation_commitments.push(commitment);
         }
 
-        new.non_residues
-            .extend(super::utils::make_non_residues::<E::Fr>(P::STATE_WIDTH - 1));
+        new.non_residues.extend(super::utils::make_non_residues::<E::Fr>(P::STATE_WIDTH - 1));
 
         Ok(new)
     }
@@ -872,9 +814,7 @@ impl<E: Engine, P: PlonkConstraintSystemParams<E>> VerificationKey<E, P> {
             let mut repr = <E::G1Affine as CurveAffine>::Uncompressed::empty();
             reader.read_exact(repr.as_mut())?;
 
-            let e = repr
-                .into_affine()
-                .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
+            let e = repr.into_affine().map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
 
             Ok(e)
         };
@@ -883,19 +823,13 @@ impl<E: Engine, P: PlonkConstraintSystemParams<E>> VerificationKey<E, P> {
             let mut repr = <E::G2Affine as CurveAffine>::Uncompressed::empty();
             reader.read_exact(repr.as_mut())?;
 
-            let e = repr
-                .into_affine()
-                .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))
-                .and_then(|e| {
-                    if e.is_zero() {
-                        Err(std::io::Error::new(
-                            std::io::ErrorKind::InvalidData,
-                            "point at infinity",
-                        ))?
-                    } else {
-                        Ok(e)
-                    }
-                });
+            let e = repr.into_affine().map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e)).and_then(|e| {
+                if e.is_zero() {
+                    Err(std::io::Error::new(std::io::ErrorKind::InvalidData, "point at infinity"))?
+                } else {
+                    Ok(e)
+                }
+            });
 
             e
         };
@@ -928,10 +862,7 @@ impl<E: Engine, P: PlonkConstraintSystemParams<E>> VerificationKey<E, P> {
             non_residues.push(p);
         }
 
-        let g2_points = [
-            read_g2_not_zero(&mut reader)?,
-            read_g2_not_zero(&mut reader)?,
-        ];
+        let g2_points = [read_g2_not_zero(&mut reader)?, read_g2_not_zero(&mut reader)?];
 
         let new = Self {
             n: n as usize,

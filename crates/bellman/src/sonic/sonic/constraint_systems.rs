@@ -1,12 +1,12 @@
-use crate::pairing::{Engine};
+use crate::pairing::Engine;
 use crate::sonic::cs::Backend;
-use std::marker::PhantomData;
 use std::iter::Peekable;
+use std::marker::PhantomData;
 
-use crate::SynthesisError;
 use crate::sonic::cs::SynthesisDriver;
+use crate::SynthesisError;
 
-use crate::sonic::cs::{Circuit, ConstraintSystem, Variable, LinearCombination, Coeff};
+use crate::sonic::cs::{Circuit, Coeff, ConstraintSystem, LinearCombination, Variable};
 
 use crate::pairing::ff::Field;
 
@@ -20,7 +20,7 @@ pub struct NonassigningSynthesizer<E: Engine, B: Backend<E>> {
     n: usize,
 }
 
-impl<E: Engine, B: Backend<E>>NonassigningSynthesizer<E, B> {
+impl<E: Engine, B: Backend<E>> NonassigningSynthesizer<E, B> {
     pub fn new(backend: B) -> Self {
         Self {
             backend: backend,
@@ -37,7 +37,7 @@ impl<E: Engine, B: Backend<E>> ConstraintSystem<E> for NonassigningSynthesizer<E
 
     fn alloc<F>(&mut self, _value: F) -> Result<Variable, SynthesisError>
     where
-        F: FnOnce() -> Result<E::Fr, SynthesisError>
+        F: FnOnce() -> Result<E::Fr, SynthesisError>,
     {
         match self.current_variable.take() {
             Some(index) => {
@@ -46,7 +46,7 @@ impl<E: Engine, B: Backend<E>> ConstraintSystem<E> for NonassigningSynthesizer<E
                 self.current_variable = None;
 
                 Ok(var_b)
-            },
+            }
             None => {
                 self.n += 1;
                 let index = self.n;
@@ -63,7 +63,7 @@ impl<E: Engine, B: Backend<E>> ConstraintSystem<E> for NonassigningSynthesizer<E
 
     fn alloc_input<F>(&mut self, value: F) -> Result<Variable, SynthesisError>
     where
-        F: FnOnce() -> Result<E::Fr, SynthesisError>
+        F: FnOnce() -> Result<E::Fr, SynthesisError>,
     {
         let input_var = self.alloc(value)?;
 
@@ -73,8 +73,7 @@ impl<E: Engine, B: Backend<E>> ConstraintSystem<E> for NonassigningSynthesizer<E
         Ok(input_var)
     }
 
-    fn enforce_zero(&mut self, lc: LinearCombination<E>)
-    {
+    fn enforce_zero(&mut self, lc: LinearCombination<E>) {
         self.q += 1;
         let y = self.backend.new_linear_constraint();
 
@@ -85,7 +84,7 @@ impl<E: Engine, B: Backend<E>> ConstraintSystem<E> for NonassigningSynthesizer<E
 
     fn multiply<F>(&mut self, _values: F) -> Result<(Variable, Variable, Variable), SynthesisError>
     where
-        F: FnOnce() -> Result<(E::Fr, E::Fr, E::Fr), SynthesisError>
+        F: FnOnce() -> Result<(E::Fr, E::Fr, E::Fr), SynthesisError>,
     {
         self.n += 1;
         let index = self.n;
@@ -116,7 +115,7 @@ impl<E: Engine, B: Backend<E>> ConstraintSystem<E> for Synthesizer<E, B> {
 
     fn alloc<F>(&mut self, value: F) -> Result<Variable, SynthesisError>
     where
-        F: FnOnce() -> Result<E::Fr, SynthesisError>
+        F: FnOnce() -> Result<E::Fr, SynthesisError>,
     {
         match self.current_variable.take() {
             Some(index) => {
@@ -136,14 +135,12 @@ impl<E: Engine, B: Backend<E>> ConstraintSystem<E> for Synthesizer<E, B> {
                     Ok(value_b)
                 })?;
 
-                self.backend.set_var(var_c, || {
-                    product.ok_or(SynthesisError::AssignmentMissing)
-                })?;
+                self.backend.set_var(var_c, || product.ok_or(SynthesisError::AssignmentMissing))?;
 
                 self.current_variable = None;
 
                 Ok(var_b)
-            },
+            }
             None => {
                 self.n += 1;
                 let index = self.n;
@@ -162,7 +159,7 @@ impl<E: Engine, B: Backend<E>> ConstraintSystem<E> for Synthesizer<E, B> {
 
     fn alloc_input<F>(&mut self, value: F) -> Result<Variable, SynthesisError>
     where
-        F: FnOnce() -> Result<E::Fr, SynthesisError>
+        F: FnOnce() -> Result<E::Fr, SynthesisError>,
     {
         let input_var = self.alloc(value)?;
 
@@ -172,8 +169,7 @@ impl<E: Engine, B: Backend<E>> ConstraintSystem<E> for Synthesizer<E, B> {
         Ok(input_var)
     }
 
-    fn enforce_zero(&mut self, lc: LinearCombination<E>)
-    {
+    fn enforce_zero(&mut self, lc: LinearCombination<E>) {
         self.q += 1;
         let y = self.backend.new_linear_constraint();
 
@@ -184,7 +180,7 @@ impl<E: Engine, B: Backend<E>> ConstraintSystem<E> for Synthesizer<E, B> {
 
     fn multiply<F>(&mut self, values: F) -> Result<(Variable, Variable, Variable), SynthesisError>
     where
-        F: FnOnce() -> Result<(E::Fr, E::Fr, E::Fr), SynthesisError>
+        F: FnOnce() -> Result<(E::Fr, E::Fr, E::Fr), SynthesisError>,
     {
         self.n += 1;
         let index = self.n;
@@ -206,13 +202,9 @@ impl<E: Engine, B: Backend<E>> ConstraintSystem<E> for Synthesizer<E, B> {
             Ok(a)
         })?;
 
-        self.backend.set_var(b, || {
-            b_val.ok_or(SynthesisError::AssignmentMissing)
-        })?;
+        self.backend.set_var(b, || b_val.ok_or(SynthesisError::AssignmentMissing))?;
 
-        self.backend.set_var(c, || {
-            c_val.ok_or(SynthesisError::AssignmentMissing)
-        })?;
+        self.backend.set_var(c, || c_val.ok_or(SynthesisError::AssignmentMissing))?;
 
         Ok((a, b, c))
     }
@@ -222,7 +214,7 @@ impl<E: Engine, B: Backend<E>> ConstraintSystem<E> for Synthesizer<E, B> {
     }
 }
 
-impl<E: Engine, B: Backend<E>>Synthesizer<E, B> {
+impl<E: Engine, B: Backend<E>> Synthesizer<E, B> {
     pub fn new(backend: B) -> Self {
         Self {
             backend: backend,
@@ -255,7 +247,7 @@ impl<E: Engine, B: Backend<E>> ConstraintSystem<E> for PermutationSynthesizer<E,
 
     fn alloc<F>(&mut self, value: F) -> Result<Variable, SynthesisError>
     where
-        F: FnOnce() -> Result<E::Fr, SynthesisError>
+        F: FnOnce() -> Result<E::Fr, SynthesisError>,
     {
         match self.current_variable.take() {
             Some(index) => {
@@ -275,14 +267,12 @@ impl<E: Engine, B: Backend<E>> ConstraintSystem<E> for PermutationSynthesizer<E,
                     Ok(value_b)
                 })?;
 
-                self.backend.set_var(var_c, || {
-                    product.ok_or(SynthesisError::AssignmentMissing)
-                })?;
+                self.backend.set_var(var_c, || product.ok_or(SynthesisError::AssignmentMissing))?;
 
                 self.current_variable = None;
 
                 Ok(var_b)
-            },
+            }
             None => {
                 self.n += 1;
                 let index = self.n;
@@ -306,7 +296,7 @@ impl<E: Engine, B: Backend<E>> ConstraintSystem<E> for PermutationSynthesizer<E,
 
     fn alloc_input<F>(&mut self, value: F) -> Result<Variable, SynthesisError>
     where
-        F: FnOnce() -> Result<E::Fr, SynthesisError>
+        F: FnOnce() -> Result<E::Fr, SynthesisError>,
     {
         let input_var = self.alloc(value)?;
 
@@ -318,8 +308,7 @@ impl<E: Engine, B: Backend<E>> ConstraintSystem<E> for PermutationSynthesizer<E,
         Ok(input_var)
     }
 
-    fn enforce_zero(&mut self, lc: LinearCombination<E>)
-    {
+    fn enforce_zero(&mut self, lc: LinearCombination<E>) {
         // We just redirect things into the (recursing) enforce_equals method which
         // does the actual work. Annoyingly, we need to use dynamic dispatch on the
         // underlying iterator because once you've taken a Peekable<I> you can't get
@@ -327,7 +316,7 @@ impl<E: Engine, B: Backend<E>> ConstraintSystem<E> for PermutationSynthesizer<E,
         // at each depth of recursion we'd end up with a new type, which is
         // impossible for the compiler to reason about.
         let lc = lc.as_ref();
-        let lc: &mut Iterator<Item=&(Variable, Coeff<E>)> = &mut lc.into_iter();
+        let lc: &mut Iterator<Item = &(Variable, Coeff<E>)> = &mut lc.into_iter();
         let lc = lc.peekable();
 
         self.enforce_equals(lc, None);
@@ -335,7 +324,7 @@ impl<E: Engine, B: Backend<E>> ConstraintSystem<E> for PermutationSynthesizer<E,
 
     fn multiply<F>(&mut self, values: F) -> Result<(Variable, Variable, Variable), SynthesisError>
     where
-        F: FnOnce() -> Result<(E::Fr, E::Fr, E::Fr), SynthesisError>
+        F: FnOnce() -> Result<(E::Fr, E::Fr, E::Fr), SynthesisError>,
     {
         self.n += 1;
         let index = self.n;
@@ -362,13 +351,9 @@ impl<E: Engine, B: Backend<E>> ConstraintSystem<E> for PermutationSynthesizer<E,
             Ok(a)
         })?;
 
-        self.backend.set_var(b, || {
-            b_val.ok_or(SynthesisError::AssignmentMissing)
-        })?;
+        self.backend.set_var(b, || b_val.ok_or(SynthesisError::AssignmentMissing))?;
 
-        self.backend.set_var(c, || {
-            c_val.ok_or(SynthesisError::AssignmentMissing)
-        })?;
+        self.backend.set_var(c, || c_val.ok_or(SynthesisError::AssignmentMissing))?;
 
         Ok((a, b, c))
     }
@@ -386,7 +371,7 @@ impl<E: Engine, B: Backend<E>> PermutationSynthesizer<E, B> {
             _marker: PhantomData,
             q: 0,
             n: 0,
-            
+
             a: vec![],
             b: vec![],
             c: vec![],
@@ -397,12 +382,7 @@ impl<E: Engine, B: Backend<E>> PermutationSynthesizer<E, B> {
     // of `rhs`, returning the value of the left hand side
     // as determined by the assignment. If rhs is none, it
     // is interpreted to be zero.
-    fn enforce_equals<'a>(
-        &mut self,
-        mut lhs: Peekable<&mut Iterator<Item=&'a (Variable, Coeff<E>)>>,
-        rhs: Option<Variable>
-    ) -> Option<E::Fr>
-    {
+    fn enforce_equals<'a>(&mut self, mut lhs: Peekable<&mut Iterator<Item = &'a (Variable, Coeff<E>)>>, rhs: Option<Variable>) -> Option<E::Fr> {
         // First, let's create a new linear constraint. We'll save its y value
         // for the backend and q as well.
         self.q += 1;
@@ -442,13 +422,13 @@ impl<E: Engine, B: Backend<E>> PermutationSynthesizer<E, B> {
                     // duplicated; otherwise, the duplicate variable will have a value of zero
                     // and we'd have to somehow track all of the duplicates when we later assign.
                     let mut iter = Some(term).into_iter().chain(lhs);
-                    let iter: &mut Iterator<Item=&(Variable, Coeff<E>)> = &mut iter;
+                    let iter: &mut Iterator<Item = &(Variable, Coeff<E>)> = &mut iter;
                     let value = self.enforce_equals(iter.peekable(), Some(ephemeral));
 
                     // Set the correct ephemeral value right away
-                    self.backend.set_var(ephemeral, || {
-                        value.ok_or(SynthesisError::AssignmentMissing)
-                    }).expect("assignment is provided so this should not fail");
+                    self.backend
+                        .set_var(ephemeral, || value.ok_or(SynthesisError::AssignmentMissing))
+                        .expect("assignment is provided so this should not fail");
 
                     // Fix the underlying assignment -- the c-wire value will change if the ephemeral
                     // value was a b-wire.
@@ -461,7 +441,7 @@ impl<E: Engine, B: Backend<E>> PermutationSynthesizer<E, B> {
                     match (&mut current_value, &value) {
                         (Some(ref mut current_value), Some(ref value)) => {
                             current_value.add_assign(&value);
-                        },
+                        }
                         _ => {
                             current_value = None;
                         }
@@ -479,7 +459,7 @@ impl<E: Engine, B: Backend<E>> PermutationSynthesizer<E, B> {
                         (Some(ref mut current_value), Some(mut value)) => {
                             term.1.multiply(&mut value);
                             current_value.add_assign(&value);
-                        },
+                        }
                         _ => {
                             current_value = None;
                         }
@@ -495,8 +475,7 @@ impl<E: Engine, B: Backend<E>> PermutationSynthesizer<E, B> {
     // This takes a variable and coefficient and places it into a linear combination,
     // given a set of slots that are available, and updates the slot availability to
     // reflect which slot was chosen.
-    fn emplace_variable(&mut self, slots_available: &mut [bool; M], y: &B::LinearConstraintIndex, var: Variable, coeff: Coeff<E>, q: usize)
-    {
+    fn emplace_variable(&mut self, slots_available: &mut [bool; M], y: &B::LinearConstraintIndex, var: Variable, coeff: Coeff<E>, q: usize) {
         // Get the slots for this wire.
         let wire_slots = self.get_wire_slots(var);
 
@@ -521,9 +500,9 @@ impl<E: Engine, B: Backend<E>> PermutationSynthesizer<E, B> {
         // combination; clearly, it is not available for the wire. In order
         // to rectify this, we will create a new wire with the same value.
         let ephemeral_value = self.backend.get_var(var);
-        let ephemeral = self.alloc(|| {
-            ephemeral_value.ok_or(SynthesisError::AssignmentMissing)
-        }).expect("assignment is provided so this should not fail");
+        let ephemeral = self
+            .alloc(|| ephemeral_value.ok_or(SynthesisError::AssignmentMissing))
+            .expect("assignment is provided so this should not fail");
 
         // Now, we'll emplace the slot for _this_ variable.
         self.emplace_slot(ephemeral, available_i, coeff, y, q);
@@ -543,7 +522,7 @@ impl<E: Engine, B: Backend<E>> PermutationSynthesizer<E, B> {
         // original.
         let iter = [(var, Coeff::One), (ephemeral, Coeff::NegativeOne)];
         let mut iter = iter.into_iter();
-        let iter: &mut Iterator<Item=&(Variable, Coeff<E>)> = &mut iter;
+        let iter: &mut Iterator<Item = &(Variable, Coeff<E>)> = &mut iter;
         self.enforce_equals(iter.peekable(), None);
     }
 
@@ -571,7 +550,7 @@ impl<E: Engine, B: Backend<E>> PermutationSynthesizer<E, B> {
         let y = self.backend.get_for_q(slot_val.1);
 
         self.backend.insert_coefficient(from, -slot_val.0, &y); // Negate coefficient to undo
-        
+
         {
             let to_vals = match to {
                 Variable::A(index) => &mut self.a[index - 1],
@@ -585,8 +564,7 @@ impl<E: Engine, B: Backend<E>> PermutationSynthesizer<E, B> {
     }
 
     // Place a coefficient in a slot
-    fn emplace_slot(&mut self, var: Variable, slot_index: usize, coeff: Coeff<E>, y: &B::LinearConstraintIndex, q: usize)
-    {
+    fn emplace_slot(&mut self, var: Variable, slot_index: usize, coeff: Coeff<E>, y: &B::LinearConstraintIndex, q: usize) {
         let vals = match var {
             Variable::A(index) => &mut self.a[index - 1],
             Variable::B(index) => &mut self.b[index - 1],
@@ -627,12 +605,12 @@ impl<E: Engine, B: Backend<E>> PermutationSynthesizer<E, B> {
             (Some(mut a), Some(b)) => {
                 a.mul_assign(&b);
                 Some(a)
-            },
-            _ => { None }
+            }
+            _ => None,
         };
 
-        self.backend.set_var(Variable::C(index), || {
-            c_value.ok_or(SynthesisError::AssignmentMissing)
-        }).expect("assignment exists if the closure is called");
+        self.backend
+            .set_var(Variable::C(index), || c_value.ok_or(SynthesisError::AssignmentMissing))
+            .expect("assignment exists if the closure is called");
     }
 }

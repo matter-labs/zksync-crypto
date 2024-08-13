@@ -4,33 +4,32 @@
 //! crossbeam but may be extended in the future to
 //! allow for various parallelism strategies.
 
-extern crate num_cpus;
-extern crate futures;
 extern crate crossbeam;
+extern crate futures;
+extern crate num_cpus;
 
-use std::future::{Future};
+use std::future::Future;
+use std::pin::Pin;
 use std::task::{Context, Poll};
-use std::pin::{Pin};
 
-use self::crossbeam::thread::{Scope};
+use self::crossbeam::thread::Scope;
 
-use self::futures::future::{lazy};
-use self::futures::channel::oneshot::{channel, Sender, Receiver};
-use self::futures::executor::{block_on};
-use self::futures::executor::{ThreadPool};
+use self::futures::channel::oneshot::{channel, Receiver, Sender};
+use self::futures::executor::block_on;
+use self::futures::executor::ThreadPool;
+use self::futures::future::lazy;
 
 #[derive(Clone)]
 pub struct Worker {
     pub(crate) cpus: usize,
-    pool: ThreadPool
+    pool: ThreadPool,
 }
-
 
 impl Worker {
     // We don't expose this outside the library so that
     // all `Worker` instances have the same number of
     // CPUs configured.
-    
+
     pub fn new_with_cpus(cpus: usize) -> Worker {
         Worker {
             cpus: cpus,
@@ -50,67 +49,52 @@ impl Worker {
     pub fn split_at(&self, at: usize) -> (Self, Self) {
         assert!(0 < at && at < self.cpus);
 
-        let first = Self {
-            cpus: at,
-            pool: self.pool.clone()
-        };
+        let first = Self { cpus: at, pool: self.pool.clone() };
 
         let second = Self {
             cpus: self.cpus - at,
-            pool: self.pool.clone()
+            pool: self.pool.clone(),
         };
 
         (first, second)
     }
 
-
     pub fn log_num_cpus(&self) -> u32 {
         log2_floor(self.cpus)
     }
 
-    pub fn compute<F, T, E>(
-        &self, f: F
-    ) -> WorkerFuture<T, E>
-        where F: FnOnce() -> Result<T, E> + Send + 'static,
-              T: Send + 'static,
-              E: Send + 'static
+    pub fn compute<F, T, E>(&self, f: F) -> WorkerFuture<T, E>
+    where
+        F: FnOnce() -> Result<T, E> + Send + 'static,
+        T: Send + 'static,
+        E: Send + 'static,
     {
         let (sender, receiver) = channel();
         let lazy_future = lazy(move |_| {
-            let res = f(); 
+            let res = f();
 
             if !sender.is_canceled() {
                 let _ = sender.send(res);
             }
         });
 
-        let worker_future = WorkerFuture {
-            receiver
-        };
+        let worker_future = WorkerFuture { receiver };
 
         self.pool.spawn_ok(lazy_future);
 
         worker_future
     }
 
-    pub fn scope<'a, F, R>(
-        &self,
-        elements: usize,
-        f: F
-    ) -> R
-        where F: FnOnce(&Scope<'a>, usize) -> R
+    pub fn scope<'a, F, R>(&self, elements: usize, f: F) -> R
+    where
+        F: FnOnce(&Scope<'a>, usize) -> R,
     {
         let chunk_size = self.get_chunk_size(elements);
 
-        crossbeam::scope(|scope| {
-            f(scope, chunk_size)
-        }).expect("must run")
+        crossbeam::scope(|scope| f(scope, chunk_size)).expect("must run")
     }
 
-    pub fn get_chunk_size(
-        &self,
-        elements: usize
-    ) -> usize {
+    pub fn get_chunk_size(&self, elements: usize) -> usize {
         let chunk_size = if elements <= self.cpus {
             1
         } else {
@@ -120,10 +104,7 @@ impl Worker {
         chunk_size
     }
 
-    pub fn get_num_spawned_threads(
-        &self,
-        elements: usize
-    ) -> usize {
+    pub fn get_num_spawned_threads(&self, elements: usize) -> usize {
         let num_spawned = if elements <= self.cpus {
             elements
         } else {
@@ -132,7 +113,7 @@ impl Worker {
             if spawned * chunk < elements {
                 spawned += 1;
             }
-            assert!(spawned <= 2*self.cpus);
+            assert!(spawned <= 2 * self.cpus);
 
             spawned
         };
@@ -151,23 +132,22 @@ impl Worker {
 }
 
 pub struct WorkerFuture<T, E> {
-    receiver: Receiver<Result<T, E>>
+    receiver: Receiver<Result<T, E>>,
 }
 
 impl<T: Send + 'static, E: Send + 'static> Future for WorkerFuture<T, E> {
     type Output = Result<T, E>;
 
-    fn poll(self: Pin<&mut Self>, cx: &mut Context) -> Poll<Self::Output>
-    {
+    fn poll(self: Pin<&mut Self>, cx: &mut Context) -> Poll<Self::Output> {
         let rec = unsafe { self.map_unchecked_mut(|s| &mut s.receiver) };
         match rec.poll(cx) {
             Poll::Ready(v) => {
                 if let Ok(v) = v {
-                    return Poll::Ready(v)
+                    return Poll::Ready(v);
                 } else {
                     panic!("Worker future can not have canceled sender");
                 }
-            },
+            }
             Poll::Pending => {
                 return Poll::Pending;
             }
@@ -186,7 +166,7 @@ fn log2_floor(num: usize) -> u32 {
 
     let mut pow = 0;
 
-    while (1 << (pow+1)) <= num {
+    while (1 << (pow + 1)) <= num {
         pow += 1;
     }
 

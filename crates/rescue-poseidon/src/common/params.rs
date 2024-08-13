@@ -18,7 +18,6 @@ pub struct InnerHashParameters<E: Engine, const RATE: usize, const WIDTH: usize>
     pub mds_matrix: [[E::Fr; WIDTH]; WIDTH],
 }
 
-
 type H = BlakeHasher;
 
 impl<E: Engine, const RATE: usize, const WIDTH: usize> InnerHashParameters<E, RATE, WIDTH> {
@@ -48,16 +47,14 @@ impl<E: Engine, const RATE: usize, const WIDTH: usize> InnerHashParameters<E, RA
     }
 
     pub(crate) fn compute_round_constants(&mut self, number_of_rounds: usize, tag: &[u8]) {
-        let total_round_constants = WIDTH * number_of_rounds; 
+        let total_round_constants = WIDTH * number_of_rounds;
 
         let mut round_constants = Vec::with_capacity(total_round_constants);
         let mut nonce = 0u32;
         let mut nonce_bytes = [0u8; 4];
 
         loop {
-            (&mut nonce_bytes[0..4])
-                .write_u32::<BigEndian>(nonce)
-                .unwrap();
+            (&mut nonce_bytes[0..4]).write_u32::<BigEndian>(nonce).unwrap();
             let mut h = H::new(&tag[..]);
             h.update(constants::GH_FIRST_BLOCK);
             h.update(&nonce_bytes[..]);
@@ -83,22 +80,18 @@ impl<E: Engine, const RATE: usize, const WIDTH: usize> InnerHashParameters<E, RA
         round_constants
             .chunks_exact(WIDTH)
             .zip(self.round_constants.iter_mut())
-            .for_each(|(values, constants)| {
-                *constants = values.try_into().expect("round constants in const")
-            });
+            .for_each(|(values, constants)| *constants = values.try_into().expect("round constants in const"));
     }
 
     pub(crate) fn compute_round_constants_with_prefixed_blake2s(&mut self, number_of_rounds: usize, tag: &[u8]) {
-        let total_round_constants = WIDTH * number_of_rounds; 
+        let total_round_constants = WIDTH * number_of_rounds;
         let round_constants = get_random_field_elements_from_seed::<E>(total_round_constants, tag);
 
         self.round_constants = vec![[E::Fr::zero(); WIDTH]; number_of_rounds];
         round_constants
             .chunks_exact(WIDTH)
             .zip(self.round_constants.iter_mut())
-            .for_each(|(values, constants)| {
-                *constants = values.try_into().expect("round constants in const")
-            });
+            .for_each(|(values, constants)| *constants = values.try_into().expect("round constants in const"));
     }
 
     pub(crate) fn compute_mds_matrix_for_poseidon(&mut self) {
@@ -116,11 +109,7 @@ impl<E: Engine, const RATE: usize, const WIDTH: usize> InnerHashParameters<E, RA
         let one = E::Fr::one();
         let mut two = one;
         two.double();
-        let tmp = [
-            [two, one, one],
-            [one, two, one],
-            [one, one, two]
-        ];
+        let tmp = [[two, one, one], [one, two, one], [one, one, two]];
 
         for (dst_row, src_row) in self.mds_matrix.iter_mut().zip(tmp.iter()) {
             for (dst, src) in dst_row.iter_mut().zip(src_row.iter()) {
@@ -142,9 +131,7 @@ fn init_rng_for_rescue() -> ChaChaRng {
     assert!(h.len() == 32);
     let mut seed = [0u32; 8];
     for i in 0..8 {
-        seed[i] = (&h[..])
-            .read_u32::<BigEndian>()
-            .expect("digest is large enough for this to work");
+        seed[i] = (&h[..]).read_u32::<BigEndian>().expect("digest is large enough for this to work");
     }
 
     ChaChaRng::from_seed(&seed)
@@ -159,14 +146,11 @@ fn init_rng_for_poseidon() -> ChaChaRng {
     let mut seed = [0u32; 8];
 
     for (i, chunk) in h.chunks_exact(4).enumerate() {
-        seed[i] = (&chunk[..])
-            .read_u32::<BigEndian>()
-            .expect("digest is large enough for this to work");
+        seed[i] = (&chunk[..]).read_u32::<BigEndian>().expect("digest is large enough for this to work");
     }
 
     ChaChaRng::from_seed(&seed)
 }
-
 
 pub(crate) fn get_random_field_elements_from_seed<E: Engine>(num_elements: usize, tag: &[u8]) -> Vec<E::Fr> {
     let mut round_constants = Vec::with_capacity(num_elements);
@@ -176,9 +160,7 @@ pub(crate) fn get_random_field_elements_from_seed<E: Engine>(num_elements: usize
     assert!((E::Fr::NUM_BITS + 7) / 8 <= 32);
 
     loop {
-        (&mut nonce_bytes[0..4])
-            .write_u32::<BigEndian>(nonce)
-            .unwrap();
+        (&mut nonce_bytes[0..4]).write_u32::<BigEndian>(nonce).unwrap();
         use blake2::Digest;
         let mut h = blake2::Blake2s256::new();
         h.update(tag);

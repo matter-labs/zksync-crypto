@@ -1,23 +1,16 @@
 use super::*;
 
-use franklin_crypto::boojum::{worker::Worker, pairing::bls12_381::Fr};
 use franklin_crypto::boojum::algebraic_props::round_function::AbsorptionModeTrait;
-use franklin_crypto::boojum::field::SmallField;
 use franklin_crypto::boojum::cs::implementations::pow::PoWRunner;
+use franklin_crypto::boojum::field::SmallField;
+use franklin_crypto::boojum::{pairing::bls12_381::Fr, worker::Worker};
 
 use franklin_crypto::bellman::{Engine, Field, PrimeField, PrimeFieldRepr};
-
 
 const BN256_POSEIDON2_NO_RESULT: u64 = u64::MAX;
 const BN256_POSEIDON2_ROUNDS_PER_INVOCAITON: usize = 1 << 16u32;
 
-impl<
-    E: Engine,
-    F: SmallField,
-    M: AbsorptionModeTrait<E::Fr>,
-    const RATE: usize,
-    const WIDTH: usize,
-> PoWRunner for Poseidon2Sponge<E, F, M, RATE, WIDTH> {
+impl<E: Engine, F: SmallField, M: AbsorptionModeTrait<E::Fr>, const RATE: usize, const WIDTH: usize> PoWRunner for Poseidon2Sponge<E, F, M, RATE, WIDTH> {
     fn run_from_bytes(_seed: Vec<u8>, _pow_bits: u32, _worker: &Worker) -> u64 {
         unimplemented!()
     }
@@ -34,9 +27,7 @@ impl<
         // We expect that F == FF == Goldilocks
         if F::CHAR >= FF::CHAR {
             for el in seed.iter() {
-                base_transcript.absorb_single_small_field(
-                    &F::from_u64(el.as_u64_reduced()).expect("Should be in range")
-                );
+                base_transcript.absorb_single_small_field(&F::from_u64(el.as_u64_reduced()).expect("Should be in range"));
             }
         } else {
             unimplemented!()
@@ -77,9 +68,7 @@ impl<
                 let base_transcript = base_transcript.clone();
                 let result = std::sync::Arc::clone(&result);
                 scope.spawn(move |_| {
-                    for i in
-                        0..((BN256_POSEIDON2_NO_RESULT - 1) / num_workers / pow_rounds_per_invocation)
-                    {
+                    for i in 0..((BN256_POSEIDON2_NO_RESULT - 1) / num_workers / pow_rounds_per_invocation) {
                         let base = (worker_idx + i * num_workers) * pow_rounds_per_invocation;
                         let current_flag = result.load(Ordering::Relaxed);
                         if current_flag == BN256_POSEIDON2_NO_RESULT {
@@ -96,12 +85,7 @@ impl<
                                 new_transcript.absorb_single_small_field(&high);
 
                                 if new_transcript.finalize()[0].into_repr().as_ref()[0].trailing_zeros() >= pow_bits {
-                                    let _ = result.compare_exchange(
-                                        BN256_POSEIDON2_NO_RESULT,
-                                        challenge_u64,
-                                        Ordering::Acquire,
-                                        Ordering::Relaxed,
-                                    );
+                                    let _ = result.compare_exchange(BN256_POSEIDON2_NO_RESULT, challenge_u64, Ordering::Acquire, Ordering::Relaxed);
 
                                     break;
                                 }
@@ -120,21 +104,15 @@ impl<
 
         challenge_u64
     }
-    
-    fn verify_from_field_elements<FF: SmallField>(
-        seed: Vec<FF>,
-        pow_bits: u32,
-        challenge: u64,
-    ) -> bool {
+
+    fn verify_from_field_elements<FF: SmallField>(seed: Vec<FF>, pow_bits: u32, challenge: u64) -> bool {
         assert!(pow_bits <= 32);
         let mut base_transcript = Self::new();
 
         // We expect that F == FF == Goldilocks
         if F::CHAR >= FF::CHAR {
             for el in seed.iter() {
-                base_transcript.absorb_single_small_field(
-                    &F::from_u64(el.as_u64_reduced()).expect("Should be in range")
-                );
+                base_transcript.absorb_single_small_field(&F::from_u64(el.as_u64_reduced()).expect("Should be in range"));
             }
         } else {
             unimplemented!()
@@ -146,7 +124,7 @@ impl<
 
         base_transcript.absorb_single_small_field(&low);
         base_transcript.absorb_single_small_field(&high);
-        
+
         base_transcript.finalize()[0].into_repr().as_ref()[0].trailing_zeros() >= pow_bits
     }
 }

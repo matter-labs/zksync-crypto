@@ -1,16 +1,16 @@
 use crate::pairing::ff::{Field, PrimeField};
-use crate::pairing::{Engine};
+use crate::pairing::Engine;
 
-use crate::{SynthesisError};
+use crate::plonk::domains::*;
 use crate::plonk::polynomials::*;
 use crate::worker::Worker;
-use crate::plonk::domains::*;
+use crate::SynthesisError;
 
 use std::marker::PhantomData;
 
 use super::cs::*;
 use super::keys::SetupPolynomials;
-pub use super::utils::{make_non_residues};
+pub use super::utils::make_non_residues;
 
 #[derive(Debug, Clone)]
 pub struct GeneratorAssembly<E: Engine, P: PlonkConstraintSystemParams<E>> {
@@ -24,16 +24,15 @@ pub struct GeneratorAssembly<E: Engine, P: PlonkConstraintSystemParams<E>> {
 
     inputs_map: Vec<usize>,
 
-    is_finalized: bool
+    is_finalized: bool,
 }
 
 impl<E: Engine, P: PlonkConstraintSystemParams<E>> ConstraintSystem<E, P> for GeneratorAssembly<E, P> {
     // allocate a variable
     fn alloc<F>(&mut self, _value: F) -> Result<Variable, SynthesisError>
     where
-        F: FnOnce() -> Result<E::Fr, SynthesisError> 
+        F: FnOnce() -> Result<E::Fr, SynthesisError>,
     {
-
         self.num_aux += 1;
         let index = self.num_aux;
 
@@ -43,9 +42,8 @@ impl<E: Engine, P: PlonkConstraintSystemParams<E>> ConstraintSystem<E, P> for Ge
     // allocate an input variable
     fn alloc_input<F>(&mut self, _value: F) -> Result<Variable, SynthesisError>
     where
-        F: FnOnce() -> Result<E::Fr, SynthesisError> 
+        F: FnOnce() -> Result<E::Fr, SynthesisError>,
     {
-
         self.num_inputs += 1;
         let index = self.num_inputs;
 
@@ -65,12 +63,7 @@ impl<E: Engine, P: PlonkConstraintSystemParams<E>> ConstraintSystem<E, P> for Ge
     }
 
     // allocate an abstract gate
-    fn new_gate(&mut self, 
-        variables: P::StateVariables, 
-        this_step_coeffs: P::ThisTraceStepCoefficients,
-        next_step_coeffs: P::NextTraceStepCoefficients
-    ) -> Result<(), SynthesisError>
-    {
+    fn new_gate(&mut self, variables: P::StateVariables, this_step_coeffs: P::ThisTraceStepCoefficients, next_step_coeffs: P::NextTraceStepCoefficients) -> Result<(), SynthesisError> {
         self.aux_gates.push((variables, this_step_coeffs, next_step_coeffs));
         self.n += 1;
 
@@ -138,7 +131,7 @@ impl<E: Engine, P: PlonkConstraintSystemParams<E>> GeneratorAssembly<E, P> {
         }
 
         let n = self.input_gates.len() + self.aux_gates.len();
-        if (n+1).is_power_of_two() {
+        if (n + 1).is_power_of_two() {
             self.is_finalized = true;
             return;
         }
@@ -151,12 +144,12 @@ impl<E: Engine, P: PlonkConstraintSystemParams<E>> GeneratorAssembly<E, P> {
 
         let empty_gate = (vars, this_step_coeffs, next_step_coeffs);
 
-        let new_aux_len = (n+1).next_power_of_two() - 1 - self.input_gates.len();
+        let new_aux_len = (n + 1).next_power_of_two() - 1 - self.input_gates.len();
 
         self.aux_gates.resize(new_aux_len, empty_gate);
 
         let n = self.input_gates.len() + self.aux_gates.len();
-        assert!((n+1).is_power_of_two());
+        assert!((n + 1).is_power_of_two());
         self.n = n;
 
         self.is_finalized = true;
@@ -170,13 +163,7 @@ pub type GeneratorAssembly3WithNextStep<E> = GeneratorAssembly<E, PlonkCsWidth3W
 pub type GeneratorAssembly4WithNextStep<E> = GeneratorAssembly<E, PlonkCsWidth4WithNextStepParams>;
 
 impl<E: Engine> GeneratorAssembly4WithNextStep<E> {
-    pub fn make_selector_polynomials(
-        &self, 
-        worker: &Worker
-    ) -> Result<
-    ([Polynomial::<E::Fr, Values>; 6], [Polynomial::<E::Fr, Values>; 1]), 
-    SynthesisError
-    > {
+    pub fn make_selector_polynomials(&self, worker: &Worker) -> Result<([Polynomial<E::Fr, Values>; 6], [Polynomial<E::Fr, Values>; 1]), SynthesisError> {
         assert!(self.is_finalized);
         let total_num_gates = self.input_gates.len() + self.aux_gates.len();
         let mut q_a = vec![E::Fr::zero(); total_num_gates];
@@ -189,9 +176,7 @@ impl<E: Engine> GeneratorAssembly4WithNextStep<E> {
         let mut q_d_next = vec![E::Fr::zero(); total_num_gates];
 
         // expect a small number of inputs
-        for (gate, q_a) in self.input_gates.iter()
-                                            .zip(q_a.iter_mut())
-        {
+        for (gate, q_a) in self.input_gates.iter().zip(q_a.iter_mut()) {
             let mut tmp = gate.1[0];
             tmp.negate();
             // -a + const = 0, where const will come from verifier
@@ -214,36 +199,37 @@ impl<E: Engine> GeneratorAssembly4WithNextStep<E> {
         debug_assert!(self.aux_gates.len() == q_a_aux.len());
 
         worker.scope(self.aux_gates.len(), |scope, chunk| {
-            for (((((((gate, q_a), q_b), q_c), q_d), q_m), q_const), q_d_next) 
-                in self.aux_gates.chunks(chunk)
-                    .zip(q_a_aux.chunks_mut(chunk))
-                    .zip(q_b_aux.chunks_mut(chunk))
-                    .zip(q_c_aux.chunks_mut(chunk))
-                    .zip(q_d_aux.chunks_mut(chunk))
-                    .zip(q_m_aux.chunks_mut(chunk))
-                    .zip(q_const_aux.chunks_mut(chunk))
-                    .zip(q_d_next_aux.chunks_mut(chunk))
+            for (((((((gate, q_a), q_b), q_c), q_d), q_m), q_const), q_d_next) in self
+                .aux_gates
+                .chunks(chunk)
+                .zip(q_a_aux.chunks_mut(chunk))
+                .zip(q_b_aux.chunks_mut(chunk))
+                .zip(q_c_aux.chunks_mut(chunk))
+                .zip(q_d_aux.chunks_mut(chunk))
+                .zip(q_m_aux.chunks_mut(chunk))
+                .zip(q_const_aux.chunks_mut(chunk))
+                .zip(q_d_next_aux.chunks_mut(chunk))
             {
                 scope.spawn(move |_| {
-                    for (((((((gate, q_a), q_b), q_c), q_d), q_m), q_const), q_d_next) 
-                    in gate.iter()
-                            .zip(q_a.iter_mut())
-                            .zip(q_b.iter_mut())
-                            .zip(q_c.iter_mut())
-                            .zip(q_d.iter_mut())
-                            .zip(q_m.iter_mut())
-                            .zip(q_const.iter_mut())
-                            .zip(q_d_next.iter_mut())
-                        {
-                            *q_a = gate.1[0];
-                            *q_b = gate.1[1];
-                            *q_c = gate.1[2];
-                            *q_d = gate.1[3];
-                            *q_m = gate.1[4];
-                            *q_const = gate.1[5];
+                    for (((((((gate, q_a), q_b), q_c), q_d), q_m), q_const), q_d_next) in gate
+                        .iter()
+                        .zip(q_a.iter_mut())
+                        .zip(q_b.iter_mut())
+                        .zip(q_c.iter_mut())
+                        .zip(q_d.iter_mut())
+                        .zip(q_m.iter_mut())
+                        .zip(q_const.iter_mut())
+                        .zip(q_d_next.iter_mut())
+                    {
+                        *q_a = gate.1[0];
+                        *q_b = gate.1[1];
+                        *q_c = gate.1[2];
+                        *q_d = gate.1[3];
+                        *q_m = gate.1[4];
+                        *q_const = gate.1[5];
 
-                            *q_d_next = gate.2[0];
-                        }
+                        *q_d_next = gate.2[0];
+                    }
                 });
             }
         });
@@ -260,7 +246,7 @@ impl<E: Engine> GeneratorAssembly4WithNextStep<E> {
         Ok(([q_a, q_b, q_c, q_d, q_m, q_const], [q_d_next]))
     }
 
-    pub(crate) fn make_permutations(&self, worker: &Worker) -> [Polynomial::<E::Fr, Values>; 4] {
+    pub(crate) fn make_permutations(&self, worker: &Worker) -> [Polynomial<E::Fr, Values>; 4] {
         assert!(self.is_finalized);
 
         let num_gates = self.input_gates.len() + self.aux_gates.len();
@@ -270,24 +256,23 @@ impl<E: Engine> GeneratorAssembly4WithNextStep<E> {
         let mut partitions = vec![vec![]; num_partitions + 1];
 
         // gate_idx is zero-enumerated here
-        for (gate_idx, (vars, _, _)) in self.input_gates.iter().chain(&self.aux_gates).enumerate()
-        {
+        for (gate_idx, (vars, _, _)) in self.input_gates.iter().chain(&self.aux_gates).enumerate() {
             for (var_index_in_gate, v) in vars.iter().enumerate() {
                 match v {
                     Variable(Index::Aux(0)) => {
                         // Dummy variables do not participate in the permutation
-                    },
+                    }
                     Variable(Index::Input(0)) => {
                         unreachable!("There must be no input with index 0");
-                    },
+                    }
                     Variable(Index::Input(index)) => {
                         let i = *index; // inputs are [1, num_inputs]
-                        partitions[i].push((var_index_in_gate, gate_idx+1));
-                    },
+                        partitions[i].push((var_index_in_gate, gate_idx + 1));
+                    }
                     Variable(Index::Aux(index)) => {
                         let i = index + num_inputs; // aux are [num_inputs + 1, ..]
-                        partitions[i].push((var_index_in_gate, gate_idx+1));
-                    },
+                        partitions[i].push((var_index_in_gate, gate_idx + 1));
+                    }
                 }
             }
         }
@@ -298,14 +283,12 @@ impl<E: Engine> GeneratorAssembly4WithNextStep<E> {
         let domain = Domain::new_for_size(num_gates as u64).expect("must have enough roots of unity to fit the circuit");
 
         // now we need to make root at it's cosets
-        let domain_elements = materialize_domain_elements_with_natural_enumeration(
-            &domain, &worker
-        );
+        let domain_elements = materialize_domain_elements_with_natural_enumeration(&domain, &worker);
 
         // domain_elements.pop().unwrap();
 
-        use crate::ff::SqrtField;
         use crate::ff::LegendreSymbol;
+        use crate::ff::SqrtField;
 
         let mut non_residues = vec![];
         non_residues.push(E::Fr::one());
@@ -349,9 +332,7 @@ impl<E: Engine> GeneratorAssembly4WithNextStep<E> {
             // let permutation = partition.clone();
             // permutations[i] = permutation;
 
-            for (original, new) in partition.into_iter()
-                                    .zip(permutation.into_iter()) 
-            {
+            for (original, new) in partition.into_iter().zip(permutation.into_iter()) {
                 // (column_idx, trace_step_idx)
                 let new_zero_enumerated = new.1 - 1;
                 let mut new_value = domain_elements[new_zero_enumerated];
@@ -363,18 +344,10 @@ impl<E: Engine> GeneratorAssembly4WithNextStep<E> {
 
                 // check to what witness polynomial the variable belongs
                 let place_into = match original.0 {
-                    0 => {
-                        sigma_1.as_mut()
-                    },
-                    1 => {
-                        sigma_2.as_mut()
-                    },
-                    2 => {
-                        sigma_3.as_mut()
-                    },
-                    3 => {
-                        sigma_4.as_mut()
-                    },
+                    0 => sigma_1.as_mut(),
+                    1 => sigma_2.as_mut(),
+                    2 => sigma_3.as_mut(),
+                    3 => sigma_4.as_mut(),
                     _ => {
                         unreachable!()
                     }
@@ -401,8 +374,7 @@ impl<E: Engine> GeneratorAssembly4WithNextStep<E> {
 
         let [sigma_1, sigma_2, sigma_3, sigma_4] = self.make_permutations(&worker);
 
-        let ([q_a, q_b, q_c, q_d, q_m, q_const],
-            [q_d_next]) = self.make_selector_polynomials(&worker)?;
+        let ([q_a, q_b, q_c, q_d, q_m, q_const], [q_d_next]) = self.make_selector_polynomials(&worker)?;
 
         drop(self);
 
@@ -426,8 +398,8 @@ impl<E: Engine> GeneratorAssembly4WithNextStep<E> {
             selector_polynomials: vec![q_a, q_b, q_c, q_d, q_m, q_const],
             next_step_selector_polynomials: vec![q_d_next],
             permutation_polynomials: vec![sigma_1, sigma_2, sigma_3, sigma_4],
-        
-            _marker: std::marker::PhantomData
+
+            _marker: std::marker::PhantomData,
         };
 
         Ok(setup)
@@ -463,33 +435,25 @@ mod test {
 
     use crate::pairing::Engine;
 
-    struct TestCircuit4<E:Engine>{
-        _marker: PhantomData<E>
+    struct TestCircuit4<E: Engine> {
+        _marker: PhantomData<E>,
     }
 
     impl<E: Engine> Circuit<E, PlonkCsWidth4WithNextStepParams> for TestCircuit4<E> {
-        fn synthesize<CS: ConstraintSystem<E, PlonkCsWidth4WithNextStepParams> >(&self, cs: &mut CS) -> Result<(), SynthesisError> {
-            let a = cs.alloc(|| {
-                Ok(E::Fr::from_str("10").unwrap())
-            })?;
+        fn synthesize<CS: ConstraintSystem<E, PlonkCsWidth4WithNextStepParams>>(&self, cs: &mut CS) -> Result<(), SynthesisError> {
+            let a = cs.alloc(|| Ok(E::Fr::from_str("10").unwrap()))?;
 
             println!("A = {:?}", a);
 
-            let b = cs.alloc(|| {
-                Ok(E::Fr::from_str("20").unwrap())
-            })?;
+            let b = cs.alloc(|| Ok(E::Fr::from_str("20").unwrap()))?;
 
             println!("B = {:?}", b);
 
-            let c = cs.alloc(|| {
-                Ok(E::Fr::from_str("200").unwrap())
-            })?;
+            let c = cs.alloc(|| Ok(E::Fr::from_str("200").unwrap()))?;
 
             println!("C = {:?}", c);
 
-            let d = cs.alloc(|| {
-                Ok(E::Fr::from_str("100").unwrap())
-            })?;
+            let d = cs.alloc(|| Ok(E::Fr::from_str("100").unwrap()))?;
 
             println!("D = {:?}", d);
 
@@ -506,37 +470,20 @@ mod test {
             let dummy = cs.get_dummy_variable();
 
             // 2a - b == 0
-            cs.new_gate(
-                [a, b, dummy, dummy], 
-                [two, negative_one, zero, zero, zero, zero],
-                [zero]
-            )?;
+            cs.new_gate([a, b, dummy, dummy], [two, negative_one, zero, zero, zero, zero], [zero])?;
 
             // 10b - c = 0
             let ten = E::Fr::from_str("10").unwrap();
 
-            cs.new_gate(
-                [b, c, dummy, dummy], 
-                [ten, negative_one, zero, zero, zero, zero],
-                [zero]
-            )?;
+            cs.new_gate([b, c, dummy, dummy], [ten, negative_one, zero, zero, zero, zero], [zero])?;
 
-            // c - a*b == 0 
+            // c - a*b == 0
 
-            cs.new_gate(
-                [a, b, dummy, c], 
-                [zero, zero, zero, negative_one, one, zero],
-                [zero]
-            )?;
+            cs.new_gate([a, b, dummy, c], [zero, zero, zero, negative_one, one, zero], [zero])?;
 
             // 10a + 10b - c - d == 0
 
-            cs.new_gate(
-                [a, b, c, d], 
-                [ten, ten, negative_one, negative_one, zero, zero],
-                [zero]
-            )?;
-
+            cs.new_gate([a, b, c, d], [ten, ten, negative_one, negative_one, zero, zero], [zero])?;
 
             Ok(())
         }
@@ -549,9 +496,7 @@ mod test {
 
         let mut assembly = GeneratorAssembly4WithNextStep::<Bn256>::new();
 
-        let circuit = TestCircuit4::<Bn256> {
-            _marker: PhantomData
-        };
+        let circuit = TestCircuit4::<Bn256> { _marker: PhantomData };
 
         circuit.synthesize(&mut assembly).expect("must work");
 
@@ -591,19 +536,12 @@ mod test {
         let mut non_res = vec![Fr::one()];
         non_res.extend(make_non_residues::<Fr>(3));
 
-        let p = vec![
-            (a, sigma_1, non_res[0]),
-            (b, sigma_2, non_res[1]),
-            (c, sigma_3, non_res[2]),
-            (d, sigma_4, non_res[3]),
-        ];
+        let p = vec![(a, sigma_1, non_res[0]), (b, sigma_2, non_res[1]), (c, sigma_3, non_res[2]), (d, sigma_4, non_res[3])];
 
         let mut subproducts: Vec<Vec<Fr>> = vec![vec![]; 4];
         let mut permuted_subproducts: Vec<Vec<Fr>> = vec![vec![]; 4];
 
-        for (((wit, perm, non_res), subprod), permuted_subprod) in p.into_iter()
-                                .zip(subproducts.iter_mut())
-                                .zip(permuted_subproducts.iter_mut()) {
+        for (((wit, perm, non_res), subprod), permuted_subprod) in p.into_iter().zip(subproducts.iter_mut()).zip(permuted_subproducts.iter_mut()) {
             let mut current = non_res; // omega^0 * k
             for (el, sig) in wit.iter().zip(perm.as_ref().iter()) {
                 let mut tmp = current;

@@ -20,36 +20,39 @@ fn test_pairing_result_against_relic() {
     0F41E58663BF08CF 068672CBD01A7EC7 3BACA4D72CA93544 DEFF686BFD6DF543 D48EAA24AFE47E1E FDE449383B676631
     */
 
-    assert_eq!(Bls12::pairing(<G1 as CurveProjective>::one(), <G2 as CurveProjective>::one()), Fq12 {
-        c0: Fq6 {
-            c0: Fq2 {
-                c0: Fq::from_str("2819105605953691245277803056322684086884703000473961065716485506033588504203831029066448642358042597501014294104502").unwrap(),
-                c1: Fq::from_str("1323968232986996742571315206151405965104242542339680722164220900812303524334628370163366153839984196298685227734799").unwrap()
+    assert_eq!(
+        Bls12::pairing(<G1 as CurveProjective>::one(), <G2 as CurveProjective>::one()),
+        Fq12 {
+            c0: Fq6 {
+                c0: Fq2 {
+                    c0: Fq::from_str("2819105605953691245277803056322684086884703000473961065716485506033588504203831029066448642358042597501014294104502").unwrap(),
+                    c1: Fq::from_str("1323968232986996742571315206151405965104242542339680722164220900812303524334628370163366153839984196298685227734799").unwrap()
+                },
+                c1: Fq2 {
+                    c0: Fq::from_str("2987335049721312504428602988447616328830341722376962214011674875969052835043875658579425548512925634040144704192135").unwrap(),
+                    c1: Fq::from_str("3879723582452552452538684314479081967502111497413076598816163759028842927668327542875108457755966417881797966271311").unwrap()
+                },
+                c2: Fq2 {
+                    c0: Fq::from_str("261508182517997003171385743374653339186059518494239543139839025878870012614975302676296704930880982238308326681253").unwrap(),
+                    c1: Fq::from_str("231488992246460459663813598342448669854473942105054381511346786719005883340876032043606739070883099647773793170614").unwrap()
+                }
             },
-            c1: Fq2 {
-                c0: Fq::from_str("2987335049721312504428602988447616328830341722376962214011674875969052835043875658579425548512925634040144704192135").unwrap(),
-                c1: Fq::from_str("3879723582452552452538684314479081967502111497413076598816163759028842927668327542875108457755966417881797966271311").unwrap()
-            },
-            c2: Fq2 {
-                c0: Fq::from_str("261508182517997003171385743374653339186059518494239543139839025878870012614975302676296704930880982238308326681253").unwrap(),
-                c1: Fq::from_str("231488992246460459663813598342448669854473942105054381511346786719005883340876032043606739070883099647773793170614").unwrap()
-            }
-        },
-        c1: Fq6 {
-            c0: Fq2 {
-                c0: Fq::from_str("3993582095516422658773669068931361134188738159766715576187490305611759126554796569868053818105850661142222948198557").unwrap(),
-                c1: Fq::from_str("1074773511698422344502264006159859710502164045911412750831641680783012525555872467108249271286757399121183508900634").unwrap()
-            },
-            c1: Fq2 {
-                c0: Fq::from_str("2727588299083545686739024317998512740561167011046940249988557419323068809019137624943703910267790601287073339193943").unwrap(),
-                c1: Fq::from_str("493643299814437640914745677854369670041080344349607504656543355799077485536288866009245028091988146107059514546594").unwrap()
-            },
-            c2: Fq2 {
-                c0: Fq::from_str("734401332196641441839439105942623141234148957972407782257355060229193854324927417865401895596108124443575283868655").unwrap(),
-                c1: Fq::from_str("2348330098288556420918672502923664952620152483128593484301759394583320358354186482723629999370241674973832318248497").unwrap()
+            c1: Fq6 {
+                c0: Fq2 {
+                    c0: Fq::from_str("3993582095516422658773669068931361134188738159766715576187490305611759126554796569868053818105850661142222948198557").unwrap(),
+                    c1: Fq::from_str("1074773511698422344502264006159859710502164045911412750831641680783012525555872467108249271286757399121183508900634").unwrap()
+                },
+                c1: Fq2 {
+                    c0: Fq::from_str("2727588299083545686739024317998512740561167011046940249988557419323068809019137624943703910267790601287073339193943").unwrap(),
+                    c1: Fq::from_str("493643299814437640914745677854369670041080344349607504656543355799077485536288866009245028091988146107059514546594").unwrap()
+                },
+                c2: Fq2 {
+                    c0: Fq::from_str("734401332196641441839439105942623141234148957972407782257355060229193854324927417865401895596108124443575283868655").unwrap(),
+                    c1: Fq::from_str("2348330098288556420918672502923664952620152483128593484301759394583320358354186482723629999370241674973832318248497").unwrap()
+                }
             }
         }
-    });
+    );
 }
 
 fn test_vectors<G: CurveProjective, E: EncodedPoint<Affine = G::Affine>>(expected: &[u8]) {
@@ -199,9 +202,7 @@ fn test_g1_uncompressed_invalid_vectors() {
                 if let Err(GroupDecodingError::NotInSubgroup) = o.into_affine() {
                     break;
                 } else {
-                    panic!(
-                        "should have rejected the point because it isn't in the correct subgroup"
-                    )
+                    panic!("should have rejected the point because it isn't in the correct subgroup")
                 }
             } else {
                 x.add_assign(&Fq::one());
@@ -341,9 +342,7 @@ fn test_g2_uncompressed_invalid_vectors() {
                 if let Err(GroupDecodingError::NotInSubgroup) = o.into_affine() {
                     break;
                 } else {
-                    panic!(
-                        "should have rejected the point because it isn't in the correct subgroup"
-                    )
+                    panic!("should have rejected the point because it isn't in the correct subgroup")
                 }
             } else {
                 x.add_assign(&Fq2::one());
@@ -457,9 +456,7 @@ fn test_g1_compressed_invalid_vectors() {
                 if let Err(GroupDecodingError::NotInSubgroup) = o.into_affine() {
                     break;
                 } else {
-                    panic!(
-                        "should have rejected the point because it isn't in the correct subgroup"
-                    )
+                    panic!("should have rejected the point because it isn't in the correct subgroup")
                 }
             } else {
                 x.add_assign(&Fq::one());
@@ -544,10 +541,7 @@ fn test_g2_compressed_invalid_vectors() {
 
     {
         let mut o = o;
-        let mut x = Fq2 {
-            c0: Fq::one(),
-            c1: Fq::one(),
-        };
+        let mut x = Fq2 { c0: Fq::one(), c1: Fq::one() };
 
         loop {
             let mut x3b = x;
@@ -576,10 +570,7 @@ fn test_g2_compressed_invalid_vectors() {
 
     {
         let mut o = o;
-        let mut x = Fq2 {
-            c0: Fq::one(),
-            c1: Fq::one(),
-        };
+        let mut x = Fq2 { c0: Fq::one(), c1: Fq::one() };
 
         loop {
             let mut x3b = x;
@@ -599,9 +590,7 @@ fn test_g2_compressed_invalid_vectors() {
                 if let Err(GroupDecodingError::NotInSubgroup) = o.into_affine() {
                     break;
                 } else {
-                    panic!(
-                        "should have rejected the point because it isn't in the correct subgroup"
-                    )
+                    panic!("should have rejected the point because it isn't in the correct subgroup")
                 }
             } else {
                 x.add_assign(&Fq2::one());

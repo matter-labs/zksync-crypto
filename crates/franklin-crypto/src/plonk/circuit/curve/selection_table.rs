@@ -1,50 +1,24 @@
-use crate::bellman::pairing::{
-    Engine,
-    GenericCurveAffine,
-    GenericCurveProjective
-};
+use crate::bellman::pairing::{Engine, GenericCurveAffine, GenericCurveProjective};
 
-use crate::bellman::pairing::ff::{
-    Field,
-    PrimeField,
-    PrimeFieldRepr,
-    BitIterator,
-    ScalarEngine
-};
+use crate::bellman::pairing::ff::{BitIterator, Field, PrimeField, PrimeFieldRepr, ScalarEngine};
 
-use crate::bellman::{
-    SynthesisError,
-};
+use crate::bellman::SynthesisError;
 
 use crate::bellman::plonk::better_better_cs::cs::{
-    Variable, 
-    ConstraintSystem,
-    ArithmeticTerm,
-    MainGateTerm,
-    Width4MainGateWithDNext,
-    MainGate,
-    GateInternal,
-    Gate,
-    LinearCombinationOfTerms,
-    PolynomialMultiplicativeTerm,
-    PolynomialInConstraint,
-    TimeDilation,
-    Coefficient,
-    PlonkConstraintSystemParams,
-    TrivialAssembly,
-    PlonkCsWidth4WithNextStepParams,
+    ArithmeticTerm, Coefficient, ConstraintSystem, Gate, GateInternal, LinearCombinationOfTerms, MainGate, MainGateTerm, PlonkConstraintSystemParams, PlonkCsWidth4WithNextStepParams,
+    PolynomialInConstraint, PolynomialMultiplicativeTerm, TimeDilation, TrivialAssembly, Variable, Width4MainGateWithDNext,
 };
 
 use super::super::allocated_num::{AllocatedNum, Num};
+use super::super::boolean::{AllocatedBit, Boolean};
 use super::super::linear_combination::LinearCombination;
 use super::super::simple_term::Term;
-use super::super::boolean::{Boolean, AllocatedBit};
 
 use num_bigint::BigUint;
 use num_integer::Integer;
 
-use super::super::bigint::field::*;
 use super::super::bigint::bigint::*;
+use super::super::bigint::field::*;
 
 use super::sw_affine::*;
 
@@ -65,7 +39,6 @@ pub trait TableSelectable<E: Engine>: Sized + Clone {
     fn fma<CS: ConstraintSystem<E>>(cs: &mut CS, mul_a: Self, mul_b: Self, add_c: Self) -> Result<Self, SynthesisError>;
     fn from_bit(bit: &Boolean) -> Self;
 }
-
 
 impl<E: Engine> TableSelectable<E> for Term<E> {
     fn add<CS: ConstraintSystem<E>>(cs: &mut CS, first: Self, second: Self) -> Result<Self, SynthesisError> {
@@ -152,14 +125,11 @@ impl<E: Engine> TableSelectable<E> for Term<E> {
 #[derive(Clone, Debug)]
 pub struct SelectorTable<E: Engine, T: TableSelectable<E>> {
     entries: Vec<T>,
-    _marker: std::marker::PhantomData<E>
+    _marker: std::marker::PhantomData<E>,
 }
 
 impl<E: Engine, T: TableSelectable<E>> SelectorTable<E, T> {
-    pub fn new_from_entries<CS: ConstraintSystem<E>>(
-        cs: &mut CS,
-        entries: &[T]
-    ) -> Result<Self, SynthesisError> {
+    pub fn new_from_entries<CS: ConstraintSystem<E>>(cs: &mut CS, entries: &[T]) -> Result<Self, SynthesisError> {
         match entries.len() {
             0 => {
                 panic!("empty table!");
@@ -168,17 +138,17 @@ impl<E: Engine, T: TableSelectable<E>> SelectorTable<E, T> {
                 let new = Self::new_one_bit_table(entries);
 
                 Ok(new)
-            },
+            }
             4 => {
                 let new = Self::new_two_bit_table(cs, entries)?;
 
                 Ok(new)
-            },
+            }
             8 => {
                 let new = Self::new_three_bit_table(cs, entries)?;
 
                 Ok(new)
-            },
+            }
             l @ _ => {
                 unimplemented!("large table length is not supported, or length {} is invalid", l);
             }
@@ -188,14 +158,11 @@ impl<E: Engine, T: TableSelectable<E>> SelectorTable<E, T> {
     fn new_one_bit_table(entries: &[T]) -> Self {
         Self {
             entries: entries.to_vec(),
-            _marker: std::marker::PhantomData
+            _marker: std::marker::PhantomData,
         }
     }
 
-    fn new_two_bit_table<CS: ConstraintSystem<E>>(
-        cs: &mut CS,
-        entries: &[T]
-    ) -> Result<Self, SynthesisError> {
+    fn new_two_bit_table<CS: ConstraintSystem<E>>(cs: &mut CS, entries: &[T]) -> Result<Self, SynthesisError> {
         assert_eq!(entries.len(), 4);
         // make a table of linear combinations
 
@@ -215,16 +182,13 @@ impl<E: Engine, T: TableSelectable<E>> SelectorTable<E, T> {
 
         let new = Self {
             entries: vec![entry_0, entry_1, entry_2, entry_3],
-            _marker: std::marker::PhantomData
+            _marker: std::marker::PhantomData,
         };
 
         Ok(new)
     }
 
-    fn new_three_bit_table<CS: ConstraintSystem<E>>(
-        cs: &mut CS,
-        entries: &[T]
-    ) -> Result<Self, SynthesisError> {
+    fn new_three_bit_table<CS: ConstraintSystem<E>>(cs: &mut CS, entries: &[T]) -> Result<Self, SynthesisError> {
         assert_eq!(entries.len(), 8);
         // make a table of linear combinations
 
@@ -256,17 +220,13 @@ impl<E: Engine, T: TableSelectable<E>> SelectorTable<E, T> {
 
         let new = Self {
             entries: vec![entry_0, entry_1, entry_2, entry_3, entry_4, entry_5, entry_6, entry_7],
-            _marker: std::marker::PhantomData
+            _marker: std::marker::PhantomData,
         };
 
         Ok(new)
     }
 
-    pub fn select<CS: ConstraintSystem<E>>(
-        &self,
-        cs: &mut CS,
-        bits: &[Boolean]
-    ) -> Result<T, SynthesisError> {
+    pub fn select<CS: ConstraintSystem<E>>(&self, cs: &mut CS, bits: &[Boolean]) -> Result<T, SynthesisError> {
         match bits.len() {
             0 => {
                 panic!("empty table!");
@@ -275,28 +235,24 @@ impl<E: Engine, T: TableSelectable<E>> SelectorTable<E, T> {
                 let result = self.select_one_bit(cs, bits)?;
 
                 Ok(result)
-            },
+            }
             2 => {
                 let result = self.select_two_bits(cs, bits)?;
 
                 Ok(result)
-            },
+            }
             3 => {
                 let result = self.select_three_bits(cs, bits)?;
 
                 Ok(result)
-            },
+            }
             _ => {
                 unimplemented!("large table length is not supported");
             }
         }
     }
 
-    fn select_one_bit<CS: ConstraintSystem<E>>(
-        &self,
-        cs: &mut CS,
-        bits: &[Boolean]
-    ) -> Result<T, SynthesisError> {
+    fn select_one_bit<CS: ConstraintSystem<E>>(&self, cs: &mut CS, bits: &[Boolean]) -> Result<T, SynthesisError> {
         assert_eq!(bits.len(), 1);
         assert_eq!(self.entries.len(), 2);
 
@@ -305,11 +261,7 @@ impl<E: Engine, T: TableSelectable<E>> SelectorTable<E, T> {
         Ok(result)
     }
 
-    fn select_two_bits<CS: ConstraintSystem<E>>(
-        &self,
-        cs: &mut CS,
-        bits: &[Boolean]
-    ) -> Result<T, SynthesisError> {
+    fn select_two_bits<CS: ConstraintSystem<E>>(&self, cs: &mut CS, bits: &[Boolean]) -> Result<T, SynthesisError> {
         assert_eq!(bits.len(), 2);
         assert_eq!(self.entries.len(), 4);
 
@@ -334,11 +286,7 @@ impl<E: Engine, T: TableSelectable<E>> SelectorTable<E, T> {
         Ok(s2)
     }
 
-    fn select_three_bits<CS: ConstraintSystem<E>>(
-        &self,
-        cs: &mut CS,
-        bits: &[Boolean]
-    ) -> Result<T, SynthesisError> {
+    fn select_three_bits<CS: ConstraintSystem<E>>(&self, cs: &mut CS, bits: &[Boolean]) -> Result<T, SynthesisError> {
         assert_eq!(bits.len(), 3);
         assert_eq!(self.entries.len(), 8);
 
@@ -363,11 +311,11 @@ impl<E: Engine, T: TableSelectable<E>> SelectorTable<E, T> {
 mod test {
     use super::*;
 
-    use crate::bellman::pairing::bn256::{Fq, Bn256, Fr, G1Affine};
+    use crate::bellman::pairing::bn256::{Bn256, Fq, Fr, G1Affine};
 
     #[test]
-    fn test_one_bit_table(){
-        use rand::{XorShiftRng, SeedableRng, Rng};
+    fn test_one_bit_table() {
+        use rand::{Rng, SeedableRng, XorShiftRng};
         let rng = &mut XorShiftRng::from_seed([0x3dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
         for _i in 0..10 {
@@ -377,12 +325,7 @@ mod test {
 
             let mut terms = vec![];
             for i in input.iter() {
-                let n = AllocatedNum::alloc(
-                    &mut cs,
-                    || {
-                        Ok(*i)
-                    }
-                ).unwrap();
+                let n = AllocatedNum::alloc(&mut cs, || Ok(*i)).unwrap();
                 let t = Term::<Bn256>::from_allocated_num(n);
                 terms.push(t);
             }
@@ -401,8 +344,8 @@ mod test {
     }
 
     #[test]
-    fn test_two_bit_table(){
-        use rand::{XorShiftRng, SeedableRng, Rng};
+    fn test_two_bit_table() {
+        use rand::{Rng, SeedableRng, XorShiftRng};
         let rng = &mut XorShiftRng::from_seed([0x3dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
         for _i in 0..10 {
@@ -412,12 +355,7 @@ mod test {
 
             let mut terms = vec![];
             for i in input.iter() {
-                let n = AllocatedNum::alloc(
-                    &mut cs,
-                    || {
-                        Ok(*i)
-                    }
-                ).unwrap();
+                let n = AllocatedNum::alloc(&mut cs, || Ok(*i)).unwrap();
                 let t = Term::<Bn256>::from_allocated_num(n);
                 terms.push(t);
             }
@@ -458,8 +396,8 @@ mod test {
     }
 
     #[test]
-    fn test_three_bit_table(){
-        use rand::{XorShiftRng, SeedableRng, Rng};
+    fn test_three_bit_table() {
+        use rand::{Rng, SeedableRng, XorShiftRng};
         let rng = &mut XorShiftRng::from_seed([0x3dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
         for _i in 0..10 {
@@ -469,12 +407,7 @@ mod test {
 
             let mut terms = vec![];
             for i in input.iter() {
-                let n = AllocatedNum::alloc(
-                    &mut cs,
-                    || {
-                        Ok(*i)
-                    }
-                ).unwrap();
+                let n = AllocatedNum::alloc(&mut cs, || Ok(*i)).unwrap();
                 let t = Term::<Bn256>::from_allocated_num(n);
                 terms.push(t);
             }

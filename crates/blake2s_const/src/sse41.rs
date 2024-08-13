@@ -3,10 +3,7 @@ use core::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use core::arch::x86_64::*;
 
-use crate::guts::{
-    assemble_count, count_high, count_low, final_block, flag_word, input_debug_asserts, Finalize,
-    Job, LastNode, Stride,
-};
+use crate::guts::{assemble_count, count_high, count_low, final_block, flag_word, input_debug_asserts, Finalize, Job, LastNode, Stride};
 use crate::{Count, Word, BLOCKBYTES, IV, SIGMA};
 use arrayref::{array_refs, mut_array_refs};
 use core::cmp;
@@ -69,10 +66,7 @@ unsafe fn rot7(a: __m128i) -> __m128i {
 
 #[inline(always)]
 unsafe fn rot8(a: __m128i) -> __m128i {
-    _mm_shuffle_epi8(
-        a,
-        _mm_set_epi8(12, 15, 14, 13, 8, 11, 10, 9, 4, 7, 6, 5, 0, 3, 2, 1),
-    )
+    _mm_shuffle_epi8(a, _mm_set_epi8(12, 15, 14, 13, 8, 11, 10, 9, 4, 7, 6, 5, 0, 3, 2, 1))
 }
 
 #[inline(always)]
@@ -82,20 +76,11 @@ unsafe fn rot12(a: __m128i) -> __m128i {
 
 #[inline(always)]
 unsafe fn rot16(a: __m128i) -> __m128i {
-    _mm_shuffle_epi8(
-        a,
-        _mm_set_epi8(13, 12, 15, 14, 9, 8, 11, 10, 5, 4, 7, 6, 1, 0, 3, 2),
-    )
+    _mm_shuffle_epi8(a, _mm_set_epi8(13, 12, 15, 14, 9, 8, 11, 10, 5, 4, 7, 6, 1, 0, 3, 2))
 }
 
 #[inline(always)]
-unsafe fn g1(
-    row1: &mut __m128i,
-    row2: &mut __m128i,
-    row3: &mut __m128i,
-    row4: &mut __m128i,
-    m: __m128i,
-) {
+unsafe fn g1(row1: &mut __m128i, row2: &mut __m128i, row3: &mut __m128i, row4: &mut __m128i, m: __m128i) {
     *row1 = add(add(*row1, m), *row2);
     *row4 = xor(*row4, *row1);
     *row4 = rot16(*row4);
@@ -105,13 +90,7 @@ unsafe fn g1(
 }
 
 #[inline(always)]
-unsafe fn g2(
-    row1: &mut __m128i,
-    row2: &mut __m128i,
-    row3: &mut __m128i,
-    row4: &mut __m128i,
-    m: __m128i,
-) {
+unsafe fn g2(row1: &mut __m128i, row2: &mut __m128i, row3: &mut __m128i, row4: &mut __m128i, m: __m128i) {
     *row1 = add(add(*row1, m), *row2);
     *row4 = xor(*row4, *row1);
     *row4 = rot8(*row4);
@@ -145,23 +124,14 @@ unsafe fn undiagonalize(row1: &mut __m128i, row3: &mut __m128i, row4: &mut __m12
 }
 
 #[inline(always)]
-pub unsafe fn compress_block(
-    block: &[u8; BLOCKBYTES],
-    words: &mut [Word; 8],
-    count: Count,
-    last_block: Word,
-    last_node: Word,
-) {
+pub unsafe fn compress_block(block: &[u8; BLOCKBYTES], words: &mut [Word; 8], count: Count, last_block: Word, last_node: Word) {
     let (words_low, words_high) = mut_array_refs!(words, DEGREE, DEGREE);
     let (iv_low, iv_high) = array_refs!(&IV, DEGREE, DEGREE);
 
     let row1 = &mut loadu(words_low);
     let row2 = &mut loadu(words_high);
     let row3 = &mut loadu(iv_low);
-    let row4 = &mut xor(
-        loadu(iv_high),
-        set4(count_low(count), count_high(count), last_block, last_node),
-    );
+    let row4 = &mut xor(loadu(iv_high), set4(count_low(count), count_high(count), last_block, last_node));
 
     let msg_ptr = block.as_ptr() as *const [Word; DEGREE];
     let m0 = loadu(msg_ptr.add(0));
@@ -170,17 +140,9 @@ pub unsafe fn compress_block(
     let m3 = loadu(msg_ptr.add(3));
 
     // round 1
-    let buf = _mm_castps_si128(_mm_shuffle_ps(
-        _mm_castsi128_ps(m0),
-        _mm_castsi128_ps(m1),
-        _MM_SHUFFLE!(2, 0, 2, 0),
-    ));
+    let buf = _mm_castps_si128(_mm_shuffle_ps(_mm_castsi128_ps(m0), _mm_castsi128_ps(m1), _MM_SHUFFLE!(2, 0, 2, 0)));
     g1(row1, row2, row3, row4, buf);
-    let buf = _mm_castps_si128(_mm_shuffle_ps(
-        _mm_castsi128_ps(m0),
-        _mm_castsi128_ps(m1),
-        _MM_SHUFFLE!(3, 1, 3, 1),
-    ));
+    let buf = _mm_castps_si128(_mm_shuffle_ps(_mm_castsi128_ps(m0), _mm_castsi128_ps(m1), _MM_SHUFFLE!(3, 1, 3, 1)));
     g2(row1, row2, row3, row4, buf);
     diagonalize(row1, row3, row4);
     let t0 = _mm_shuffle_epi32(m2, _MM_SHUFFLE!(3, 2, 0, 1));
@@ -399,14 +361,7 @@ pub unsafe fn compress_block(
 }
 
 #[target_feature(enable = "sse4.1")]
-pub unsafe fn compress1_loop(
-    input: &[u8],
-    words: &mut [Word; 8],
-    mut count: Count,
-    last_node: LastNode,
-    finalize: Finalize,
-    stride: Stride,
-) {
+pub unsafe fn compress1_loop(input: &[u8], words: &mut [Word; 8], mut count: Count, last_node: LastNode, finalize: Finalize, stride: Stride) {
     input_debug_asserts(input, finalize);
 
     let mut local_words = *words;
@@ -630,12 +585,7 @@ macro_rules! compress4_transposed {
 }
 
 #[inline(always)]
-unsafe fn transpose_vecs(
-    vec_a: __m128i,
-    vec_b: __m128i,
-    vec_c: __m128i,
-    vec_d: __m128i,
-) -> [__m128i; 4] {
+unsafe fn transpose_vecs(vec_a: __m128i, vec_b: __m128i, vec_c: __m128i, vec_d: __m128i) -> [__m128i; 4] {
     // Interleave 32-bit lates. The low unpack is lanes 00/11 and the high is
     // 22/33. Note that this doesn't split the vector into two lanes, as the
     // AVX2 counterparts do.
@@ -662,18 +612,8 @@ unsafe fn transpose_state_vecs(jobs: &[Job; DEGREE]) -> [__m128i; 8] {
     let words1 = array_refs!(&jobs[1].words, DEGREE, DEGREE);
     let words2 = array_refs!(&jobs[2].words, DEGREE, DEGREE);
     let words3 = array_refs!(&jobs[3].words, DEGREE, DEGREE);
-    let [h0, h1, h2, h3] = transpose_vecs(
-        loadu(words0.0),
-        loadu(words1.0),
-        loadu(words2.0),
-        loadu(words3.0),
-    );
-    let [h4, h5, h6, h7] = transpose_vecs(
-        loadu(words0.1),
-        loadu(words1.1),
-        loadu(words2.1),
-        loadu(words3.1),
-    );
+    let [h0, h1, h2, h3] = transpose_vecs(loadu(words0.0), loadu(words1.0), loadu(words2.0), loadu(words3.0));
+    let [h4, h5, h6, h7] = transpose_vecs(loadu(words0.1), loadu(words1.1), loadu(words2.1), loadu(words3.1));
     [h0, h1, h2, h3, h4, h5, h6, h7]
 }
 
@@ -706,50 +646,18 @@ unsafe fn transpose_msg_vecs(blocks: [*const [u8; BLOCKBYTES]; DEGREE]) -> [__m1
     let block1 = blocks[1] as *const [Word; DEGREE];
     let block2 = blocks[2] as *const [Word; DEGREE];
     let block3 = blocks[3] as *const [Word; DEGREE];
-    let [m0, m1, m2, m3] = transpose_vecs(
-        loadu(block0.add(0)),
-        loadu(block1.add(0)),
-        loadu(block2.add(0)),
-        loadu(block3.add(0)),
-    );
-    let [m4, m5, m6, m7] = transpose_vecs(
-        loadu(block0.add(1)),
-        loadu(block1.add(1)),
-        loadu(block2.add(1)),
-        loadu(block3.add(1)),
-    );
-    let [m8, m9, m10, m11] = transpose_vecs(
-        loadu(block0.add(2)),
-        loadu(block1.add(2)),
-        loadu(block2.add(2)),
-        loadu(block3.add(2)),
-    );
-    let [m12, m13, m14, m15] = transpose_vecs(
-        loadu(block0.add(3)),
-        loadu(block1.add(3)),
-        loadu(block2.add(3)),
-        loadu(block3.add(3)),
-    );
-    [
-        m0, m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12, m13, m14, m15,
-    ]
+    let [m0, m1, m2, m3] = transpose_vecs(loadu(block0.add(0)), loadu(block1.add(0)), loadu(block2.add(0)), loadu(block3.add(0)));
+    let [m4, m5, m6, m7] = transpose_vecs(loadu(block0.add(1)), loadu(block1.add(1)), loadu(block2.add(1)), loadu(block3.add(1)));
+    let [m8, m9, m10, m11] = transpose_vecs(loadu(block0.add(2)), loadu(block1.add(2)), loadu(block2.add(2)), loadu(block3.add(2)));
+    let [m12, m13, m14, m15] = transpose_vecs(loadu(block0.add(3)), loadu(block1.add(3)), loadu(block2.add(3)), loadu(block3.add(3)));
+    [m0, m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12, m13, m14, m15]
 }
 
 #[inline(always)]
 unsafe fn load_counts(jobs: &[Job; DEGREE]) -> (__m128i, __m128i) {
     (
-        set4(
-            count_low(jobs[0].count),
-            count_low(jobs[1].count),
-            count_low(jobs[2].count),
-            count_low(jobs[3].count),
-        ),
-        set4(
-            count_high(jobs[0].count),
-            count_high(jobs[1].count),
-            count_high(jobs[2].count),
-            count_high(jobs[3].count),
-        ),
+        set4(count_low(jobs[0].count), count_low(jobs[1].count), count_low(jobs[2].count), count_low(jobs[3].count)),
+        set4(count_high(jobs[0].count), count_high(jobs[1].count), count_high(jobs[2].count), count_high(jobs[3].count)),
     )
 }
 
@@ -775,12 +683,7 @@ unsafe fn add_to_counts(lo: &mut __m128i, hi: &mut __m128i, delta: __m128i) {
 
 #[inline(always)]
 unsafe fn flags_vec(flags: [bool; DEGREE]) -> __m128i {
-    set4(
-        flag_word(flags[0]),
-        flag_word(flags[1]),
-        flag_word(flags[2]),
-        flag_word(flags[3]),
-    )
+    set4(flag_word(flags[0]), flag_word(flags[1]), flag_word(flags[2]), flag_word(flags[3]))
 }
 
 #[target_feature(enable = "sse4.1")]
@@ -790,12 +693,7 @@ pub unsafe fn compress4_loop(jobs: &mut [Job; DEGREE], finalize: Finalize, strid
         input_debug_asserts(job.input, finalize);
     }
 
-    let msg_ptrs = [
-        jobs[0].input.as_ptr(),
-        jobs[1].input.as_ptr(),
-        jobs[2].input.as_ptr(),
-        jobs[3].input.as_ptr(),
-    ];
+    let msg_ptrs = [jobs[0].input.as_ptr(), jobs[1].input.as_ptr(), jobs[2].input.as_ptr(), jobs[3].input.as_ptr()];
     let mut h_vecs = transpose_state_vecs(&jobs);
     let (mut counts_lo, mut counts_hi) = load_counts(&jobs);
 
@@ -857,14 +755,7 @@ pub unsafe fn compress4_loop(jobs: &mut [Job; DEGREE], finalize: Finalize, strid
 
         let m_vecs = transpose_msg_vecs(blocks);
         add_to_counts(&mut counts_lo, &mut counts_hi, counts_delta);
-        compress4_transposed!(
-            &mut h_vecs,
-            &m_vecs,
-            counts_lo,
-            counts_hi,
-            last_block,
-            last_node,
-        );
+        compress4_transposed!(&mut h_vecs, &m_vecs, counts_lo, counts_hi, last_block, last_node,);
 
         // Check for termination before bumping the offset, to avoid overflow.
         if offset == fin_offset {

@@ -62,9 +62,7 @@ pub(crate) fn scalar_product<E: Engine>(a: &[E::Fr], b: &[E::Fr]) -> E::Fr {
 }
 
 // Construct MDS matrix which required by lineary layer of permutation function.
-pub(crate) fn construct_mds_matrix<E: Engine, R: Rng, const S: usize>(
-    rng: &mut R,
-) -> [[E::Fr; S]; S] {
+pub(crate) fn construct_mds_matrix<E: Engine, R: Rng, const S: usize>(rng: &mut R) -> [[E::Fr; S]; S] {
     let width = S;
 
     loop {
@@ -180,7 +178,6 @@ pub(crate) fn compute_gcd_biguint<E: Engine>(n: u64) -> Option<BigUint> {
     assert!(gcd.is_one());
     if y < BigInt::zero() {
         y += p_minus_one_signed;
-        
     }
 
     y.to_biguint()
@@ -212,4 +209,3 @@ pub(crate) fn biguint_to_u64_vec(mut v: BigUint) -> Vec<u64> {
     assert!(v.is_zero());
     ret
 }
-

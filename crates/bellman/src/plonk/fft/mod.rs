@@ -1,17 +1,17 @@
+pub mod cooley_tukey_ntt;
 pub(crate) mod fft;
 pub(crate) mod lde;
 pub(crate) mod radix_4;
 pub(crate) mod with_precomputation;
-pub mod cooley_tukey_ntt;
 
 use cfg_if;
 
 #[cfg(feature = "nightly")]
-mod prefetch_lde;
+mod prefetch;
 #[cfg(feature = "nightly")]
 mod prefetch_fft;
 #[cfg(feature = "nightly")]
-mod prefetch;
+mod prefetch_lde;
 
 use crate::pairing::ff::PrimeField;
 use crate::worker::Worker;
@@ -45,11 +45,10 @@ cfg_if! {
         pub(crate) fn serial_fft<F: PrimeField>(a: &mut [F], omega: &F, log_n: u32) {
             self::fft::serial_fft(a, omega, log_n)
         }
-    }  
+    }
 }
 
-pub fn distribute_powers<F: PrimeField>(coeffs: &mut [F], worker: &Worker, g: F)
-{
+pub fn distribute_powers<F: PrimeField>(coeffs: &mut [F], worker: &Worker, g: F) {
     worker.scope(coeffs.len(), |scope, chunk| {
         for (i, v) in coeffs.chunks_mut(chunk).enumerate() {
             scope.spawn(move |_| {
@@ -63,8 +62,7 @@ pub fn distribute_powers<F: PrimeField>(coeffs: &mut [F], worker: &Worker, g: F)
     });
 }
 
-pub fn distribute_powers_with_num_cpus<F: PrimeField>(coeffs: &mut [F], worker: &Worker, g: F, cpus: usize)
-{
+pub fn distribute_powers_with_num_cpus<F: PrimeField>(coeffs: &mut [F], worker: &Worker, g: F, cpus: usize) {
     assert!(cpus > 0);
     let chunk = Worker::chunk_size_for_num_spawned_threads(coeffs.len(), cpus);
     worker.scope(0, |scope, _| {
@@ -80,8 +78,7 @@ pub fn distribute_powers_with_num_cpus<F: PrimeField>(coeffs: &mut [F], worker: 
     });
 }
 
-pub fn distribute_powers_serial<F: PrimeField>(coeffs: &mut [F], g: F)
-{
+pub fn distribute_powers_serial<F: PrimeField>(coeffs: &mut [F], g: F) {
     let mut u = F::one();
     for v in coeffs.iter_mut() {
         v.mul_assign(&u);

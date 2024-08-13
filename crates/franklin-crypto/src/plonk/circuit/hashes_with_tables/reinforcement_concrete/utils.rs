@@ -1,7 +1,6 @@
 use crate::bellman::pairing::ff::*;
 use crate::bellman::pairing::ff::{PrimeField, PrimeFieldRepr};
-use sha3::{digest::ExtendableOutput, digest::Update, Sha3XofReader, Shake128, digest::XofReader};
-
+use sha3::{digest::ExtendableOutput, digest::Update, digest::XofReader, Sha3XofReader, Shake128};
 
 pub fn from_u64<F: PrimeField>(val: u64) -> F {
     F::from_repr(F::Repr::from(val)).unwrap()
@@ -50,11 +49,7 @@ fn div_mod_word_by_short(hi: u64, lo: u64, y: u16) -> (u64, u64) {
 }
 
 #[inline(always)]
-pub fn divide_long_decomp<F: PrimeField>(
-    a: &F::Repr,
-    divisor: u16,
-    offset: &mut usize,
-) -> (F::Repr, u16) {
+pub fn divide_long_decomp<F: PrimeField>(a: &F::Repr, divisor: u16, offset: &mut usize) -> (F::Repr, u16) {
     let mut result = F::Repr::default();
 
     let a_ref = a.as_ref();
@@ -72,16 +67,11 @@ pub fn divide_long_decomp<F: PrimeField>(
     result_mut[start_index] = a_ref[start_index] / (divisor as u64);
     let mut r = a_ref[start_index] % (divisor as u64);
 
-    result_mut
-        .iter_mut()
-        .zip(a_ref.iter())
-        .rev()
-        .skip(*offset + 1)
-        .for_each(|(res, a_)| {
-            let (q, m) = div_mod_word_by_short(r, *a_, divisor);
-            *res = q;
-            r = m;
-        });
+    result_mut.iter_mut().zip(a_ref.iter()).rev().skip(*offset + 1).for_each(|(res, a_)| {
+        let (q, m) = div_mod_word_by_short(r, *a_, divisor);
+        *res = q;
+        r = m;
+    });
 
     (result, r as u16)
 }
@@ -98,16 +88,11 @@ pub fn divide_long<F: PrimeField>(a: &F::Repr, divisor: u16) -> (F::Repr, u16) {
     result_mut[len - 1] = a_ref[len - 1] / (divisor as u64);
     let mut r = a.as_ref()[len - 1] % (divisor as u64);
 
-    result_mut
-        .iter_mut()
-        .zip(a_ref.iter())
-        .rev()
-        .skip(1)
-        .for_each(|(res, a_)| {
-            let (q, m) = div_mod_word_by_short(r, *a_, divisor);
-            *res = q;
-            r = m;
-        });
+    result_mut.iter_mut().zip(a_ref.iter()).rev().skip(1).for_each(|(res, a_)| {
+        let (q, m) = div_mod_word_by_short(r, *a_, divisor);
+        *res = q;
+        r = m;
+    });
 
     (result, r as u16)
 }
@@ -130,12 +115,7 @@ const fn split(a: u128) -> (u64, u64) {
 }
 
 #[inline(always)]
-const fn div_mod_word_by_short_normalized(
-    u1: u64,
-    u0: u64,
-    divisor: u64,
-    recip: u64,
-) -> (u64, u64) {
+const fn div_mod_word_by_short_normalized(u1: u64, u0: u64, divisor: u64, recip: u64) -> (u64, u64) {
     let qq = (u1 as u128) * (recip as u128);
     let qq = qq + ((u1 as u128) << 64) + (u0 as u128);
     let (q1, q0) = split(qq);
@@ -154,25 +134,15 @@ const fn div_mod_word_by_short_normalized(
 }
 
 #[inline(always)]
-pub fn divide_long_using_recip<F: PrimeField>(
-    a: &F::Repr,
-    divisor: u64,
-    recip: u64,
-    norm_shift: u32,
-) -> (F::Repr, u16) {
+pub fn divide_long_using_recip<F: PrimeField>(a: &F::Repr, divisor: u64, recip: u64, norm_shift: u32) -> (F::Repr, u16) {
     let mut result = F::Repr::default();
     let (repr, mut limb) = full_shl::<F>(&a, norm_shift);
 
-    result
-        .as_mut()
-        .iter_mut()
-        .zip(repr.as_ref().iter())
-        .rev()
-        .for_each(|(r, rep)| {
-            let (q, m) = div_mod_word_by_short_normalized(limb, *rep, divisor, recip);
-            *r = q;
-            limb = m;
-        });
+    result.as_mut().iter_mut().zip(repr.as_ref().iter()).rev().for_each(|(r, rep)| {
+        let (q, m) = div_mod_word_by_short_normalized(limb, *rep, divisor, recip);
+        *r = q;
+        limb = m;
+    });
 
     (result, (limb >> norm_shift) as u16)
 }
@@ -212,14 +182,10 @@ pub fn mul_by_single_word<F: PrimeField>(u: &F::Repr, w: u64) -> F::Repr {
 
     let mut tmp = (u_ref[0] as u128) * w_;
     res_mut[0] = tmp as u64;
-    res_mut
-        .iter_mut()
-        .zip(u_ref.iter())
-        .skip(1)
-        .for_each(|(r, u_)| {
-            tmp = (*u_ as u128) * w_ + (tmp >> 64);
-            *r = tmp as u64;
-        });
+    res_mut.iter_mut().zip(u_ref.iter()).skip(1).for_each(|(r, u_)| {
+        tmp = (*u_ as u128) * w_ + (tmp >> 64);
+        *r = tmp as u64;
+    });
     res
 }
 
@@ -235,10 +201,7 @@ pub fn full_shr<F: PrimeField>(u: &F::Repr, shift: u32) -> F::Repr {
 
     let len = res_mut.len();
 
-    res_mut
-        .iter_mut()
-        .zip(u_ref.iter())
-        .for_each(|(r, u_)| *r = *u_ >> shift);
+    res_mut.iter_mut().zip(u_ref.iter()).for_each(|(r, u_)| *r = *u_ >> shift);
 
     for index in 0..len - 1 {
         res_mut[index] |= u_ref[index + 1] << (64u32 - shift);
@@ -282,9 +245,6 @@ pub fn partial_shl<F: PrimeField>(u: &F::Repr, shift: u32) -> F::Repr {
         res_mut[index + 1] = u_ref[index] >> (64u32 - shift);
     }
 
-    res_mut
-        .iter_mut()
-        .zip(u_ref.iter())
-        .for_each(|(r, u_)| *r |= *u_ << shift);
+    res_mut.iter_mut().zip(u_ref.iter()).for_each(|(r, u_)| *r |= *u_ << shift);
     res
 }

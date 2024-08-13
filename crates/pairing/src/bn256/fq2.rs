@@ -1,4 +1,4 @@
-use super::fq::{FROBENIUS_COEFF_FQ2_C1, Fq, NEGATIVE_ONE};
+use super::fq::{Fq, FROBENIUS_COEFF_FQ2_C1, NEGATIVE_ONE};
 use ff::{Field, SqrtField};
 use rand::{Rand, Rng};
 
@@ -102,26 +102,17 @@ impl Fq2 {
 
 impl Rand for Fq2 {
     fn rand<R: Rng>(rng: &mut R) -> Self {
-        Fq2 {
-            c0: rng.gen(),
-            c1: rng.gen(),
-        }
+        Fq2 { c0: rng.gen(), c1: rng.gen() }
     }
 }
 
 impl Field for Fq2 {
     fn zero() -> Self {
-        Fq2 {
-            c0: Fq::zero(),
-            c1: Fq::zero(),
-        }
+        Fq2 { c0: Fq::zero(), c1: Fq::zero() }
     }
 
     fn one() -> Self {
-        Fq2 {
-            c0: Fq::one(),
-            c1: Fq::zero(),
-        }
+        Fq2 { c0: Fq::one(), c1: Fq::zero() }
     }
 
     fn is_zero(&self) -> bool {
@@ -186,10 +177,7 @@ impl Field for Fq2 {
         t0.square();
         t0.add_assign(&t1);
         t0.inverse().map(|t| {
-            let mut tmp = Fq2 {
-                c0: self.c0,
-                c1: self.c1,
-            };
+            let mut tmp = Fq2 { c0: self.c0, c1: self.c1 };
             tmp.c0.mul_assign(&t);
             tmp.c1.mul_assign(&t);
             tmp.c1.negate();
@@ -215,12 +203,7 @@ impl SqrtField for Fq2 {
             Some(Self::zero())
         } else {
             // a1 = self^((q - 3) / 4)
-            let mut a1 = self.pow([
-                0x4f082305b61f3f51,
-                0x65e05aa45a1c72a3,
-                0x6e14116da0605617,
-                0x0c19139cb84c680a,
-            ]);
+            let mut a1 = self.pow([0x4f082305b61f3f51, 0x65e05aa45a1c72a3, 0x6e14116da0605617, 0x0c19139cb84c680a]);
             let mut alpha = a1;
             alpha.square();
             alpha.mul_assign(self);
@@ -228,10 +211,7 @@ impl SqrtField for Fq2 {
             a0.frobenius_map(1);
             a0.mul_assign(&alpha);
 
-            let neg1 = Fq2 {
-                c0: NEGATIVE_ONE,
-                c1: Fq::zero(),
-            };
+            let neg1 = Fq2 { c0: NEGATIVE_ONE, c1: Fq::zero() };
 
             if a0 == neg1 {
                 None
@@ -239,19 +219,11 @@ impl SqrtField for Fq2 {
                 a1.mul_assign(self);
 
                 if alpha == neg1 {
-                    a1.mul_assign(&Fq2 {
-                        c0: Fq::zero(),
-                        c1: Fq::one(),
-                    });
+                    a1.mul_assign(&Fq2 { c0: Fq::zero(), c1: Fq::one() });
                 } else {
                     alpha.add_assign(&Fq2::one());
                     // alpha = alpha^((q - 1) / 2)
-                    alpha = alpha.pow([
-                        0x9e10460b6c3e7ea3,
-                        0xcbc0b548b438e546,
-                        0xdc2822db40c0ac2e,
-                        0x183227397098d014,
-                    ]);
+                    alpha = alpha.pow([0x9e10460b6c3e7ea3, 0xcbc0b548b438e546, 0xdc2822db40c0ac2e, 0x183227397098d014]);
                     a1.mul_assign(&alpha);
                 }
 
@@ -282,14 +254,9 @@ fn test_fq2_frobc1() {
     let mut a = Fq2::one();
     a.mul_by_nonresidue();
 
-    let res1 = a.pow([
-        0x69602eb24829a9c2,
-        0xdd2b2385cd7b4384,
-        0xe81ac1e7808072c9,
-        0x10216f7ba065e00d,
-    ]);
+    let res1 = a.pow([0x69602eb24829a9c2, 0xdd2b2385cd7b4384, 0xe81ac1e7808072c9, 0x10216f7ba065e00d]);
     print!("Frob1 = {}\n", res1);
-    
+
     let res2 = a.pow([
         0x691c1d8b62747890,
         0x8cab57b9adf8eb00,
@@ -299,7 +266,7 @@ fn test_fq2_frobc1() {
         0xe5592c705cbd1cac,
         0x1dde2529566d9b5e,
         0x030c96e827699534,
-            ]);
+    ]);
     print!("Frob2 = {}\n", res2);
 
     let res3 = a.pow([
@@ -315,7 +282,7 @@ fn test_fq2_frobc1() {
         0x7806da9ba1f6d7fb,
         0x110a40708107d53a,
         0x00938e25ae57c88f,
-        ]);
+    ]);
     print!("Frob3 = {}\n", res3);
 
     let res4 = a.pow([
@@ -335,7 +302,7 @@ fn test_fq2_frobc1() {
         0x1cba0005b295d5bc,
         0x319c8e7f94b31729,
         0x001be477ceef2455,
-        ]);
+    ]);
     print!("Frob4 = {}\n", res4);
 
     let res5 = a.pow([
@@ -359,7 +326,7 @@ fn test_fq2_frobc1() {
         0x06f8a7579371f67f,
         0xa94a371ceb68884c,
         0x000545c441ba73d6,
-        ]);
+    ]);
     print!("Frob5 = {}\n", res5);
 
     let res6 = a.pow([
@@ -387,7 +354,7 @@ fn test_fq2_frobc1() {
         0xfb508020969bab31,
         0xb8b71e4e258cf968,
         0x0000ff25aa9c2350,
-        ]);
+    ]);
     print!("Frob6 = {}\n", res6);
 }
 
@@ -398,14 +365,9 @@ fn test_fq2_frobc2() {
     let mut a = Fq2::one();
     a.mul_by_nonresidue();
 
-    let res1 = a.pow([
-        0xd2c05d6490535384,
-        0xba56470b9af68708,
-        0xd03583cf0100e593,
-        0x2042def740cbc01b,
-    ]);
+    let res1 = a.pow([0xd2c05d6490535384, 0xba56470b9af68708, 0xd03583cf0100e593, 0x2042def740cbc01b]);
     print!("Frob1 = {}\n", res1);
-    
+
     let res2 = a.pow([
         0xd2383b16c4e8f120,
         0x1956af735bf1d600,
@@ -415,7 +377,7 @@ fn test_fq2_frobc2() {
         0xcab258e0b97a3959,
         0x3bbc4a52acdb36bd,
         0x06192dd04ed32a68,
-            ]);
+    ]);
     print!("Frob2 = {}\n", res2);
 
     let res3 = a.pow([
@@ -431,7 +393,7 @@ fn test_fq2_frobc2() {
         0xf00db53743edaff6,
         0x221480e1020faa74,
         0x01271c4b5caf911e,
-        ]);
+    ]);
     print!("Frob3 = {}\n", res3);
 
     let res4 = a.pow([
@@ -451,7 +413,7 @@ fn test_fq2_frobc2() {
         0x3974000b652bab79,
         0x63391cff29662e52,
         0x0037c8ef9dde48aa,
-        ]);
+    ]);
     print!("Frob4 = {}\n", res4);
 
     let res5 = a.pow([
@@ -475,7 +437,7 @@ fn test_fq2_frobc2() {
         0x0df14eaf26e3ecff,
         0x52946e39d6d11098,
         0x000a8b888374e7ad,
-        ]);
+    ]);
     print!("Frob5 = {}\n", res5);
 
     let res6 = a.pow([
@@ -503,7 +465,7 @@ fn test_fq2_frobc2() {
         0xf6a100412d375662,
         0x716e3c9c4b19f2d1,
         0x0001fe4b553846a1,
-        ]);
+    ]);
     print!("Frob6 = {}\n", res6);
 }
 
@@ -514,14 +476,9 @@ fn test_fq2_frob12() {
     let mut a = Fq2::one();
     a.mul_by_nonresidue();
 
-    let res1 = a.pow([
-        0x34b017592414d4e1,
-        0xee9591c2e6bda1c2,
-        0xf40d60f3c0403964,
-        0x0810b7bdd032f006,
-    ]);
+    let res1 = a.pow([0x34b017592414d4e1, 0xee9591c2e6bda1c2, 0xf40d60f3c0403964, 0x0810b7bdd032f006]);
     print!("Frob1 = {}\n", res1);
-    
+
     let res2 = a.pow([
         0x348e0ec5b13a3c48,
         0xc655abdcd6fc7580,
@@ -531,7 +488,7 @@ fn test_fq2_frob12() {
         0x72ac96382e5e8e56,
         0x0eef1294ab36cdaf,
         0x01864b7413b4ca9a,
-            ]);
+    ]);
     print!("Frob2 = {}\n", res2);
 
     let res3 = a.pow([
@@ -547,7 +504,7 @@ fn test_fq2_frob12() {
         0x3c036d4dd0fb6bfd,
         0x888520384083ea9d,
         0x0049c712d72be447,
-        ]);
+    ]);
     print!("Frob3 = {}\n", res3);
 
     let res4 = a.pow([
@@ -567,7 +524,7 @@ fn test_fq2_frob12() {
         0x8e5d0002d94aeade,
         0x98ce473fca598b94,
         0x000df23be777922a,
-        ]);
+    ]);
     print!("Frob4 = {}\n", res4);
 
     let res5 = a.pow([
@@ -591,7 +548,7 @@ fn test_fq2_frob12() {
         0x037c53abc9b8fb3f,
         0x54a51b8e75b44426,
         0x0002a2e220dd39eb,
-        ]);
+    ]);
     print!("Frob5 = {}\n", res5);
 
     let res6 = a.pow([
@@ -619,7 +576,7 @@ fn test_fq2_frob12() {
         0x7da840104b4dd598,
         0x5c5b8f2712c67cb4,
         0x00007f92d54e11a8,
-        ]);
+    ]);
     print!("Frob6 = {}\n", res6);
 
     let res7 = a.pow([
@@ -651,7 +608,7 @@ fn test_fq2_frob12() {
         0xd055177a2fbfcd94,
         0x059f68dd1e0cb392,
         0x0000181d8471f268,
-        ]);
+    ]);
     print!("Frob7 = {}\n", res7);
 
     let res8 = a.pow([
@@ -687,139 +644,145 @@ fn test_fq2_frob12() {
         0x516ac4b20d800019,
         0x826e9ab28689a4d3,
         0x0000048efbc0eaac,
-        ]);
+    ]);
     print!("Frob8 = {}\n", res8);
 
-    let res9 = a.pow(&[
-        0x64984dce4c07e3c1,
-        0x2e2096f441339496,
-        0xd50c9bd49d279670,
-        0xd52ead3ce3a93422,
-        0x426dad5fc6a6779a,
-        0x3f9dd6b6f19bc638,
-        0x6be503d3981b0db5,
-        0x0b222e7512412d2c,
-        0x484bd275e77ff0bf,
-        0xb357542fb851205b,
-        0xd8c995246bf492ff,
-        0xc6b92fc3bf2887bc,
-        0xcd27cfd0d4499277,
-        0x967aa0012f40dcf9,
-        0x312baab0f5bc64e3,
-        0xe465b3c98a822e05,
-        0x3133d12c8828f7b8,
-        0x357a20a6a8a244ca,
-        0xd40b61719905e5b9,
-        0xcc4f1d5e2aed7a75,
-        0x7895032e16409563,
-        0x536db2a17eb54630,
-        0xdd66ae0d2d5ac57e,
-        0xe150b5a7f229f541,
-        0xd882dbabee789616,
-        0x1f380eb8775416ca,
-        0x73eca6c1c0abcd02,
-        0x8bd4f78c2fe1861e,
-        0xc53f421003b18ea2,
-        0xcae3f7b5d0591ecb,
-        0xbebe6ab21737113e,
-        0x838f0df2a5f7f26d,
-        0xbc2aa2593b06d88f,
-        0x0cb02b95a74a8a0a,
-        0x74bd9a7b50725838,
-        0x000000dc98741fbf,
-        ][..]);
+    let res9 = a.pow(
+        &[
+            0x64984dce4c07e3c1,
+            0x2e2096f441339496,
+            0xd50c9bd49d279670,
+            0xd52ead3ce3a93422,
+            0x426dad5fc6a6779a,
+            0x3f9dd6b6f19bc638,
+            0x6be503d3981b0db5,
+            0x0b222e7512412d2c,
+            0x484bd275e77ff0bf,
+            0xb357542fb851205b,
+            0xd8c995246bf492ff,
+            0xc6b92fc3bf2887bc,
+            0xcd27cfd0d4499277,
+            0x967aa0012f40dcf9,
+            0x312baab0f5bc64e3,
+            0xe465b3c98a822e05,
+            0x3133d12c8828f7b8,
+            0x357a20a6a8a244ca,
+            0xd40b61719905e5b9,
+            0xcc4f1d5e2aed7a75,
+            0x7895032e16409563,
+            0x536db2a17eb54630,
+            0xdd66ae0d2d5ac57e,
+            0xe150b5a7f229f541,
+            0xd882dbabee789616,
+            0x1f380eb8775416ca,
+            0x73eca6c1c0abcd02,
+            0x8bd4f78c2fe1861e,
+            0xc53f421003b18ea2,
+            0xcae3f7b5d0591ecb,
+            0xbebe6ab21737113e,
+            0x838f0df2a5f7f26d,
+            0xbc2aa2593b06d88f,
+            0x0cb02b95a74a8a0a,
+            0x74bd9a7b50725838,
+            0x000000dc98741fbf,
+        ][..],
+    );
     print!("Frob9 = {}\n", res9);
 
-    let res10 = a.pow(&[
-        0xed4127472fd6bc68,
-        0x72748872e11c4b47,
-        0x9c84e64776edc3f8,
-        0x008119b96d78b386,
-        0xfb0fbff1c5556968,
-        0x5009c51f998020be,
-        0xd6e688613527a368,
-        0xbe4f27942823152c,
-        0xd0f09d15c45fe09e,
-        0x7eb531158d2bbea5,
-        0x51bbe8e71be2cfd1,
-        0xbab37561b8c0c7c4,
-        0xd9173b5ab551b267,
-        0x05fafd9be4c78781,
-        0x61883bc8a78540ee,
-        0x7fe7aee3dcb694fb,
-        0x0e4e85b12b4ac8a8,
-        0x9a0aa13a9ab47a86,
-        0xd5a3bd591ae12d4b,
-        0x5865cbfabbe53b4d,
-        0xf98188a9b0cd490f,
-        0x3985ef4af715da43,
-        0x573661cd006ced38,
-        0x95853a6aaa77d5c1,
-        0x165d538f0628b55e,
-        0x583e75f890f32cac,
-        0x5becf43a08a490b9,
-        0x63ed4071c1a8087a,
-        0x151d41c7701faa25,
-        0x1c661c8e4900b051,
-        0x581aa0f552590875,
-        0x31bf39ff43375aca,
-        0xe27c0f3d11310329,
-        0x04071459ef3a42c2,
-        0x59a2b029be2d6a1f,
-        0x30ef71f271cdbf61,
-        0xf3774b177f326e78,
-        0x976d79b23e8501c5,
-        0x9ed0e138633123c9,
-        0x00000029b304ecc1,
-        ][..]);
+    let res10 = a.pow(
+        &[
+            0xed4127472fd6bc68,
+            0x72748872e11c4b47,
+            0x9c84e64776edc3f8,
+            0x008119b96d78b386,
+            0xfb0fbff1c5556968,
+            0x5009c51f998020be,
+            0xd6e688613527a368,
+            0xbe4f27942823152c,
+            0xd0f09d15c45fe09e,
+            0x7eb531158d2bbea5,
+            0x51bbe8e71be2cfd1,
+            0xbab37561b8c0c7c4,
+            0xd9173b5ab551b267,
+            0x05fafd9be4c78781,
+            0x61883bc8a78540ee,
+            0x7fe7aee3dcb694fb,
+            0x0e4e85b12b4ac8a8,
+            0x9a0aa13a9ab47a86,
+            0xd5a3bd591ae12d4b,
+            0x5865cbfabbe53b4d,
+            0xf98188a9b0cd490f,
+            0x3985ef4af715da43,
+            0x573661cd006ced38,
+            0x95853a6aaa77d5c1,
+            0x165d538f0628b55e,
+            0x583e75f890f32cac,
+            0x5becf43a08a490b9,
+            0x63ed4071c1a8087a,
+            0x151d41c7701faa25,
+            0x1c661c8e4900b051,
+            0x581aa0f552590875,
+            0x31bf39ff43375aca,
+            0xe27c0f3d11310329,
+            0x04071459ef3a42c2,
+            0x59a2b029be2d6a1f,
+            0x30ef71f271cdbf61,
+            0xf3774b177f326e78,
+            0x976d79b23e8501c5,
+            0x9ed0e138633123c9,
+            0x00000029b304ecc1,
+        ][..],
+    );
     print!("Frob10 = {}\n", res10);
 
-    let res11 = a.pow(&[
-        0xf4e8c249a335ddb9,
-        0x965085c9440aef70,
-        0xc16d84a741174aef,
-        0xbe1a366b81fe0680,
-        0x1c65508409269d2f,
-        0x185861e9cd07fb21,
-        0x26b682d951220b7a,
-        0x09f189f5a7b75876,
-        0x0f7133ab3ecff7f0,
-        0xbf7d1ada5df0b2fd,
-        0x4b0df5207414a4b6,
-        0xbf6a6941b58966d3,
-        0x6a15cc7b6bb0483a,
-        0xc338843b8a236597,
-        0xc8d724986bc0856f,
-        0x1dcb8b084e928e52,
-        0x3645ba97c4af9161,
-        0x7d257d1abed180d3,
-        0x0a66e85068416bdb,
-        0x8b745a2aeb2bd27e,
-        0xe34f87ec4949ec06,
-        0x6ba47fa06f902fd6,
-        0x225cd33864121ed2,
-        0xea5d91e41a3b068b,
-        0x35d2fbc8b7a05f5c,
-        0xe5b1e22f3dcbc837,
-        0xa9f7bdbee44d8301,
-        0xbb7a57512450e143,
-        0x2e2ca4188fd4eb5b,
-        0x9d512b5d1e158636,
-        0xdd18753b03f38ee8,
-        0xbbe44db3214b380e,
-        0x4534f7b060cca3d2,
-        0xcbb0309736f9df06,
-        0xfcb01aba828f0678,
-        0xe2e4d5dac5cc7917,
-        0x6631e85c4224e136,
-        0xb6c334bbd109d480,
-        0x2608e9c50edc2cdf,
-        0x959dba8288258d16,
-        0x00d895fc73e207c8,
-        0x6b5ce08dc4a7bf13,
-        0xb02a4f252d6a301f,
-        0x00000007e1e7a192,
-        ][..]);
+    let res11 = a.pow(
+        &[
+            0xf4e8c249a335ddb9,
+            0x965085c9440aef70,
+            0xc16d84a741174aef,
+            0xbe1a366b81fe0680,
+            0x1c65508409269d2f,
+            0x185861e9cd07fb21,
+            0x26b682d951220b7a,
+            0x09f189f5a7b75876,
+            0x0f7133ab3ecff7f0,
+            0xbf7d1ada5df0b2fd,
+            0x4b0df5207414a4b6,
+            0xbf6a6941b58966d3,
+            0x6a15cc7b6bb0483a,
+            0xc338843b8a236597,
+            0xc8d724986bc0856f,
+            0x1dcb8b084e928e52,
+            0x3645ba97c4af9161,
+            0x7d257d1abed180d3,
+            0x0a66e85068416bdb,
+            0x8b745a2aeb2bd27e,
+            0xe34f87ec4949ec06,
+            0x6ba47fa06f902fd6,
+            0x225cd33864121ed2,
+            0xea5d91e41a3b068b,
+            0x35d2fbc8b7a05f5c,
+            0xe5b1e22f3dcbc837,
+            0xa9f7bdbee44d8301,
+            0xbb7a57512450e143,
+            0x2e2ca4188fd4eb5b,
+            0x9d512b5d1e158636,
+            0xdd18753b03f38ee8,
+            0xbbe44db3214b380e,
+            0x4534f7b060cca3d2,
+            0xcbb0309736f9df06,
+            0xfcb01aba828f0678,
+            0xe2e4d5dac5cc7917,
+            0x6631e85c4224e136,
+            0xb6c334bbd109d480,
+            0x2608e9c50edc2cdf,
+            0x959dba8288258d16,
+            0x00d895fc73e207c8,
+            0x6b5ce08dc4a7bf13,
+            0xb02a4f252d6a301f,
+            0x00000007e1e7a192,
+        ][..],
+    );
     print!("Frob11 = {}\n", res11);
 }
 
@@ -829,16 +792,13 @@ fn test_calculate_frob_1() {
     a.mul_by_nonresidue();
 
     // Fq2(u + 9)**(((q^1) - 1) / 3)
-    
+
     print!("(i + 9) = {}\n", a);
 }
 
 #[test]
 fn test_fq2_ordering() {
-    let mut a = Fq2 {
-        c0: Fq::zero(),
-        c1: Fq::zero(),
-    };
+    let mut a = Fq2 { c0: Fq::zero(), c1: Fq::zero() };
 
     let mut b = a.clone();
 
@@ -859,28 +819,11 @@ fn test_fq2_ordering() {
 
 #[test]
 fn test_fq2_basics() {
-    assert_eq!(
-        Fq2 {
-            c0: Fq::zero(),
-            c1: Fq::zero(),
-        },
-        Fq2::zero()
-    );
-    assert_eq!(
-        Fq2 {
-            c0: Fq::one(),
-            c1: Fq::zero(),
-        },
-        Fq2::one()
-    );
+    assert_eq!(Fq2 { c0: Fq::zero(), c1: Fq::zero() }, Fq2::zero());
+    assert_eq!(Fq2 { c0: Fq::one(), c1: Fq::zero() }, Fq2::one());
     assert!(Fq2::zero().is_zero());
     assert!(!Fq2::one().is_zero());
-    assert!(
-        !Fq2 {
-            c0: Fq::zero(),
-            c1: Fq::one(),
-        }.is_zero()
-    );
+    assert!(!Fq2 { c0: Fq::zero(), c1: Fq::one() }.is_zero());
 }
 
 #[test]
@@ -888,33 +831,23 @@ fn test_fq2_squaring() {
     use super::fq::FqRepr;
     use ff::PrimeField;
 
-    let mut a = Fq2 {
-        c0: Fq::one(),
-        c1: Fq::one(),
-    }; // u + 1
+    let mut a = Fq2 { c0: Fq::one(), c1: Fq::one() }; // u + 1
     a.square();
     assert_eq!(
         a,
         Fq2 {
             c0: Fq::zero(),
-            c1: Fq::from_repr(FqRepr::from(2)).unwrap(),
+            c1: Fq::from_repr(FqRepr::from(2)).unwrap()
         }
     ); // 2u
 
-    let mut a = Fq2 {
-        c0: Fq::zero(),
-        c1: Fq::one(),
-    }; // u
+    let mut a = Fq2 { c0: Fq::zero(), c1: Fq::one() }; // u
     a.square();
     assert_eq!(a, {
         let mut neg1 = Fq::one();
         neg1.negate();
-        Fq2 {
-            c0: neg1,
-            c1: Fq::zero(),
-        }
+        Fq2 { c0: neg1, c1: Fq::zero() }
     }); // -1
-
 }
 
 #[test]
@@ -941,10 +874,7 @@ fn test_fq2_mul_nonresidue() {
     nine.double();
     nine.double();
     nine.add_assign(&Fq::one());
-    let nqr = Fq2 {
-        c0: nine,
-        c1: Fq::one(),
-    };
+    let nqr = Fq2 { c0: nine, c1: Fq::one() };
 
     for _ in 0..1000 {
         let mut a = Fq2::rand(&mut rng);

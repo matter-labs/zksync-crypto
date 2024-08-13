@@ -1,6 +1,6 @@
-use crate::pairing::ff::{Field};
-use crate::pairing::{Engine};
-use std::ops::{Add, Sub, Neg};
+use crate::pairing::ff::Field;
+use crate::pairing::Engine;
+use std::ops::{Add, Neg, Sub};
 
 /// This represents a linear combination of some variables, with coefficients
 /// in the scalar field of a pairing-friendly elliptic curve group.
@@ -113,11 +113,11 @@ impl<E: Engine> Coeff<E> {
         match self {
             Coeff::Zero => {
                 *with = E::Fr::zero();
-            },
-            Coeff::One => {},
+            }
+            Coeff::One => {}
             Coeff::NegativeOne => {
                 with.negate();
-            },
+            }
             Coeff::Full(val) => {
                 with.mul_assign(val);
             }

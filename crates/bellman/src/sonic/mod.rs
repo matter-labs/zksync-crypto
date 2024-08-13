@@ -1,15 +1,13 @@
-pub use crate::{SynthesisError};
+pub use crate::SynthesisError;
 
+pub mod cs;
+pub mod helped;
 pub mod sonic;
 pub mod srs;
-pub mod util;
-pub mod helped;
-pub mod cs;
 pub mod unhelped;
+pub mod util;
 
 mod transcript;
 
 #[cfg(test)]
 mod tests;
-
-

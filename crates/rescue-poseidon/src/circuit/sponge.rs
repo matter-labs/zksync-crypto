@@ -1,10 +1,9 @@
 use crate::{
     common::domain_strategy::DomainStrategy,
-    traits::{HashFamily, HashParams}, poseidon2::Poseidon2Params,
+    poseidon2::Poseidon2Params,
+    traits::{HashFamily, HashParams},
 };
-use franklin_crypto::{
-    bellman::plonk::better_better_cs::cs::ConstraintSystem, plonk::circuit::allocated_num::Num,
-};
+use franklin_crypto::{bellman::plonk::better_better_cs::cs::ConstraintSystem, plonk::circuit::allocated_num::Num};
 use franklin_crypto::{bellman::Field, plonk::circuit::boolean::Boolean};
 use franklin_crypto::{
     bellman::{Engine, SynthesisError},
@@ -12,14 +11,7 @@ use franklin_crypto::{
 };
 use std::convert::TryInto;
 
-pub fn circuit_generic_hash<
-    E: Engine,
-    CS: ConstraintSystem<E>,
-    P: HashParams<E, RATE, WIDTH>,
-    const RATE: usize,
-    const WIDTH: usize,
-    const LENGTH: usize,
->(
+pub fn circuit_generic_hash<E: Engine, CS: ConstraintSystem<E>, P: HashParams<E, RATE, WIDTH>, const RATE: usize, const WIDTH: usize, const LENGTH: usize>(
     cs: &mut CS,
     input: &[Num<E>; LENGTH],
     params: &P,
@@ -28,14 +20,7 @@ pub fn circuit_generic_hash<
     CircuitGenericSponge::hash(cs, input, params, domain_strategy)
 }
 
-pub fn circuit_generic_hash_num<
-    E: Engine,
-    CS: ConstraintSystem<E>,
-    P: HashParams<E, RATE, WIDTH>,
-    const RATE: usize,
-    const WIDTH: usize,
-    const LENGTH: usize,
->(
+pub fn circuit_generic_hash_num<E: Engine, CS: ConstraintSystem<E>, P: HashParams<E, RATE, WIDTH>, const RATE: usize, const WIDTH: usize, const LENGTH: usize>(
     cs: &mut CS,
     input: &[Num<E>; LENGTH],
     params: &P,
@@ -67,11 +52,7 @@ impl<'a, E: Engine, const RATE: usize, const WIDTH: usize> CircuitGenericSponge<
             DomainStrategy::CustomVariableLength | DomainStrategy::VariableLength => (),
             _ => panic!("only variable length domain strategies allowed"),
         }
-        let state = (0..WIDTH)
-            .map(|_| LinearCombination::zero())
-            .collect::<Vec<_>>()
-            .try_into()
-            .expect("constant array");
+        let state = (0..WIDTH).map(|_| LinearCombination::zero()).collect::<Vec<_>>().try_into().expect("constant array");
         Self {
             state,
             mode: SpongeMode::Absorb([None; RATE]),
@@ -99,13 +80,8 @@ impl<'a, E: Engine, const RATE: usize, const WIDTH: usize> CircuitGenericSponge<
 
         let domain_strategy = DomainStrategy::CustomFixedLength;
         // specialize capacity
-        let capacity_value = domain_strategy
-            .compute_capacity::<E>(input.len(), RATE)
-            .unwrap_or(E::Fr::zero());
-        state
-            .last_mut()
-            .expect("last element")
-            .add_assign_constant(capacity_value);
+        let capacity_value = domain_strategy.compute_capacity::<E>(input.len(), RATE).unwrap_or(E::Fr::zero());
+        state.last_mut().expect("last element").add_assign_constant(capacity_value);
 
         // compute padding values
         let padding_values = domain_strategy
@@ -123,12 +99,7 @@ impl<'a, E: Engine, const RATE: usize, const WIDTH: usize> CircuitGenericSponge<
 
         // process each chunk of input
         for values in padded_input.chunks_exact(RATE) {
-            absorb(
-                cs,
-                &mut state,
-                values.try_into().expect("constant array"),
-                params,
-            )?;
+            absorb(cs, &mut state, values.try_into().expect("constant array"), params)?;
         }
 
         // prepare output
@@ -144,7 +115,7 @@ impl<'a, E: Engine, const RATE: usize, const WIDTH: usize> CircuitGenericSponge<
         cs: &mut CS,
         input: &[Num<E>],
         params: &P,
-        domain_strategy: Option<DomainStrategy>
+        domain_strategy: Option<DomainStrategy>,
     ) -> Result<[Num<E>; RATE], SynthesisError> {
         let result = Self::hash(cs, input, params, domain_strategy)?;
         // prepare output
@@ -156,12 +127,7 @@ impl<'a, E: Engine, const RATE: usize, const WIDTH: usize> CircuitGenericSponge<
         Ok(output)
     }
 
-    pub fn absorb_multiple<CS: ConstraintSystem<E>, P: HashParams<E, RATE, WIDTH>>(
-        &mut self,
-        cs: &mut CS,
-        input: &[Num<E>],
-        params: &P,
-    ) -> Result<(), SynthesisError> {
+    pub fn absorb_multiple<CS: ConstraintSystem<E>, P: HashParams<E, RATE, WIDTH>>(&mut self, cs: &mut CS, input: &[Num<E>], params: &P) -> Result<(), SynthesisError> {
         for inp in input.into_iter() {
             self.absorb(cs, *inp, params)?
         }
@@ -169,12 +135,7 @@ impl<'a, E: Engine, const RATE: usize, const WIDTH: usize> CircuitGenericSponge<
         Ok(())
     }
 
-    pub fn absorb<CS: ConstraintSystem<E>, P: HashParams<E, RATE, WIDTH>>(
-        &mut self,
-        cs: &mut CS,
-        input: Num<E>,
-        params: &P,
-    ) -> Result<(), SynthesisError> {
+    pub fn absorb<CS: ConstraintSystem<E>, P: HashParams<E, RATE, WIDTH>>(&mut self, cs: &mut CS, input: Num<E>, params: &P) -> Result<(), SynthesisError> {
         match self.mode {
             SpongeMode::Absorb(ref mut buf) => {
                 // push value into buffer
@@ -219,8 +180,7 @@ impl<'a, E: Engine, const RATE: usize, const WIDTH: usize> CircuitGenericSponge<
                 let unwrapped_buffer_len = buf.iter().filter(|el| el.is_some()).count();
                 // compute padding values
                 let padding_strategy = DomainStrategy::CustomVariableLength;
-                let padding_values =
-                    padding_strategy.generate_padding_values::<E>(unwrapped_buffer_len, RATE);
+                let padding_values = padding_strategy.generate_padding_values::<E>(unwrapped_buffer_len, RATE);
                 let mut padding_values_it = padding_values.iter().cloned();
 
                 for b in buf {
@@ -234,11 +194,7 @@ impl<'a, E: Engine, const RATE: usize, const WIDTH: usize> CircuitGenericSponge<
         }
     }
 
-    pub fn squeeze<CS: ConstraintSystem<E>, P: HashParams<E, RATE, WIDTH>>(
-        &mut self,
-        cs: &mut CS,
-        params: &P,
-    ) -> Result<Option<LinearCombination<E>>, SynthesisError> {
+    pub fn squeeze<CS: ConstraintSystem<E>, P: HashParams<E, RATE, WIDTH>>(&mut self, cs: &mut CS, params: &P) -> Result<Option<LinearCombination<E>>, SynthesisError> {
         loop {
             match self.mode {
                 SpongeMode::Absorb(ref mut buf) => {
@@ -283,11 +239,7 @@ impl<'a, E: Engine, const RATE: usize, const WIDTH: usize> CircuitGenericSponge<
         }
     }
 
-    pub fn squeeze_num<CS: ConstraintSystem<E>, P: HashParams<E, RATE, WIDTH>>(
-        &mut self,
-        cs: &mut CS,
-        params: &P,
-    ) -> Result<Option<Num<E>>, SynthesisError> {
+    pub fn squeeze_num<CS: ConstraintSystem<E>, P: HashParams<E, RATE, WIDTH>>(&mut self, cs: &mut CS, params: &P) -> Result<Option<Num<E>>, SynthesisError> {
         if let Some(value) = self.squeeze(cs, params)? {
             Ok(Some(value.into_num(cs)?))
         } else {
@@ -296,13 +248,7 @@ impl<'a, E: Engine, const RATE: usize, const WIDTH: usize> CircuitGenericSponge<
     }
 }
 
-fn absorb<
-    E: Engine,
-    CS: ConstraintSystem<E>,
-    P: HashParams<E, RATE, WIDTH>,
-    const RATE: usize,
-    const WIDTH: usize,
->(
+fn absorb<E: Engine, CS: ConstraintSystem<E>, P: HashParams<E, RATE, WIDTH>, const RATE: usize, const WIDTH: usize>(
     cs: &mut CS,
     state: &mut [LinearCombination<E>; WIDTH],
     input: &[Num<E>; RATE],
@@ -314,13 +260,7 @@ fn absorb<
     circuit_generic_round_function(cs, state, params)
 }
 
-pub fn circuit_generic_round_function<
-    E: Engine,
-    CS: ConstraintSystem<E>,
-    P: HashParams<E, RATE, WIDTH>,
-    const RATE: usize,
-    const WIDTH: usize,
->(
+pub fn circuit_generic_round_function<E: Engine, CS: ConstraintSystem<E>, P: HashParams<E, RATE, WIDTH>, const RATE: usize, const WIDTH: usize>(
     cs: &mut CS,
     state: &mut [LinearCombination<E>; WIDTH],
     params: &P,
@@ -328,26 +268,12 @@ pub fn circuit_generic_round_function<
     match params.hash_family() {
         HashFamily::Rescue => super::rescue::circuit_rescue_round_function(cs, params, state),
         HashFamily::Poseidon => super::poseidon::circuit_poseidon_round_function(cs, params, state),
-        HashFamily::RescuePrime => {
-            super::rescue_prime::gadget_rescue_prime_round_function(cs, params, state)
-        }
-        HashFamily::Poseidon2 => {
-            super::poseidon2::circuit_poseidon2_round_function(
-                cs, 
-                params.try_to_poseidon2_params().unwrap(), 
-                state
-            )
-        }
+        HashFamily::RescuePrime => super::rescue_prime::gadget_rescue_prime_round_function(cs, params, state),
+        HashFamily::Poseidon2 => super::poseidon2::circuit_poseidon2_round_function(cs, params.try_to_poseidon2_params().unwrap(), state),
     }
 }
 
-pub fn circuit_generic_round_function_conditional<
-    E: Engine,
-    CS: ConstraintSystem<E>,
-    P: HashParams<E, RATE, WIDTH>,
-    const RATE: usize,
-    const WIDTH: usize,
->(
+pub fn circuit_generic_round_function_conditional<E: Engine, CS: ConstraintSystem<E>, P: HashParams<E, RATE, WIDTH>, const RATE: usize, const WIDTH: usize>(
     cs: &mut CS,
     state: &mut [LinearCombination<E>; WIDTH],
     execute: &Boolean,
@@ -360,16 +286,8 @@ pub fn circuit_generic_round_function_conditional<
     let tmp = match params.hash_family() {
         HashFamily::Rescue => super::rescue::circuit_rescue_round_function(cs, params, state),
         HashFamily::Poseidon => super::poseidon::circuit_poseidon_round_function(cs, params, state),
-        HashFamily::RescuePrime => {
-            super::rescue_prime::gadget_rescue_prime_round_function(cs, params, state)
-        }
-        HashFamily::Poseidon2 => {
-            super::poseidon2::circuit_poseidon2_round_function(
-                cs, 
-                params.try_to_poseidon2_params().unwrap(), 
-                state
-            )
-        }
+        HashFamily::RescuePrime => super::rescue_prime::gadget_rescue_prime_round_function(cs, params, state),
+        HashFamily::Poseidon2 => super::poseidon2::circuit_poseidon2_round_function(cs, params.try_to_poseidon2_params().unwrap(), state),
     };
 
     let _ = tmp?;

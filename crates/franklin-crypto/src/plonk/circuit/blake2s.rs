@@ -1,49 +1,21 @@
-use crate::bellman::pairing::{
-    Engine,
-};
+use crate::bellman::pairing::Engine;
 
-use crate::bellman::pairing::ff::{
-    Field,
-    PrimeField,
-    PrimeFieldRepr,
-    BitIterator
-};
+use crate::bellman::pairing::ff::{BitIterator, Field, PrimeField, PrimeFieldRepr};
 
-use crate::bellman::{
-    SynthesisError,
-};
+use crate::bellman::SynthesisError;
 
 use crate::bellman::plonk::better_better_cs::cs::{
-    Variable, 
-    ConstraintSystem,
-    ArithmeticTerm,
-    MainGateTerm,
+    ArithmeticTerm, Coefficient, ConstraintSystem, Gate, GateInternal, LinearCombinationOfTerms, MainGate, MainGateTerm, PolynomialInConstraint, PolynomialMultiplicativeTerm, TimeDilation, Variable,
     Width4MainGateWithDNext,
-    MainGate,
-    GateInternal,
-    Gate,
-    LinearCombinationOfTerms,
-    PolynomialMultiplicativeTerm,
-    PolynomialInConstraint,
-    TimeDilation,
-    Coefficient,
 };
-
 
 use crate::plonk::circuit::Assignment;
 
-use super::allocated_num::{
-    AllocatedNum
-};
+use super::allocated_num::AllocatedNum;
 
-use super::linear_combination::{
-    LinearCombination
-};
+use super::linear_combination::LinearCombination;
 
-use super::boolean::{
-    AllocatedBit,
-    Boolean
-};
+use super::boolean::{AllocatedBit, Boolean};
 
 use super::multieq::MultiEq;
 use super::uint32::UInt32;
@@ -96,7 +68,7 @@ const SIGMA: [[usize; 16]; 10] = [
     [12, 5, 1, 15, 14, 13, 4, 10, 0, 7, 6, 3, 9, 2, 8, 11],
     [13, 11, 7, 14, 12, 1, 3, 9, 5, 0, 15, 4, 8, 6, 2, 10],
     [6, 15, 14, 9, 11, 3, 0, 8, 12, 2, 13, 7, 1, 4, 10, 5],
-    [10, 2, 8, 4, 7, 6, 1, 5, 15, 11, 9, 14, 3, 12, 13, 0]
+    [10, 2, 8, 4, 7, 6, 1, 5, 15, 11, 9, 14, 3, 12, 13, 0],
 ];
 
 /*
@@ -121,17 +93,7 @@ const SIGMA: [[usize; 16]; 10] = [
        END FUNCTION.
 */
 
-fn mixing_g<E: Engine, CS: ConstraintSystem<E>>(
-    cs: &mut CS,
-    v: &mut [UInt32],
-    a: usize,
-    b: usize,
-    c: usize,
-    d: usize,
-    x: &UInt32,
-    y: &UInt32
-) -> Result<(), SynthesisError>
-{
+fn mixing_g<E: Engine, CS: ConstraintSystem<E>>(cs: &mut CS, v: &mut [UInt32], a: usize, b: usize, c: usize, d: usize, x: &UInt32, y: &UInt32) -> Result<(), SynthesisError> {
     v[a] = UInt32::addmany(cs, &[v[a].clone(), v[b].clone(), x.clone()])?;
     v[d] = v[d].xor(cs, &v[a])?.rotr(R1);
     v[c] = UInt32::addmany(cs, &[v[c].clone(), v[d].clone()])?;
@@ -192,15 +154,7 @@ fn mixing_g<E: Engine, CS: ConstraintSystem<E>>(
        END FUNCTION.
 */
 
-
-fn blake2s_compression<E: Engine, CS: ConstraintSystem<E>>(
-    cs: &mut CS,
-    h: &mut [UInt32],
-    m: &[UInt32],
-    t: u64,
-    f: bool
-) -> Result<(), SynthesisError>
-{
+fn blake2s_compression<E: Engine, CS: ConstraintSystem<E>>(cs: &mut CS, h: &mut [UInt32], m: &[UInt32], t: u64, f: bool) -> Result<(), SynthesisError> {
     assert_eq!(h.len(), 8);
     assert_eq!(m.len(), 16);
 
@@ -240,15 +194,15 @@ fn blake2s_compression<E: Engine, CS: ConstraintSystem<E>>(
 
             let s = SIGMA[i % 10];
 
-            mixing_g(cs, &mut v, 0, 4,  8, 12, &m[s[ 0]], &m[s[ 1]])?;
-            mixing_g(cs, &mut v, 1, 5,  9, 13, &m[s[ 2]], &m[s[ 3]])?;
-            mixing_g(cs, &mut v, 2, 6, 10, 14, &m[s[ 4]], &m[s[ 5]])?;
-            mixing_g(cs, &mut v, 3, 7, 11, 15, &m[s[ 6]], &m[s[ 7]])?;
+            mixing_g(cs, &mut v, 0, 4, 8, 12, &m[s[0]], &m[s[1]])?;
+            mixing_g(cs, &mut v, 1, 5, 9, 13, &m[s[2]], &m[s[3]])?;
+            mixing_g(cs, &mut v, 2, 6, 10, 14, &m[s[4]], &m[s[5]])?;
+            mixing_g(cs, &mut v, 3, 7, 11, 15, &m[s[6]], &m[s[7]])?;
 
-            mixing_g(cs, &mut v, 0, 5, 10, 15, &m[s[ 8]], &m[s[ 9]])?;
+            mixing_g(cs, &mut v, 0, 5, 10, 15, &m[s[8]], &m[s[9]])?;
             mixing_g(cs, &mut v, 1, 6, 11, 12, &m[s[10]], &m[s[11]])?;
-            mixing_g(cs, &mut v, 2, 7,  8, 13, &m[s[12]], &m[s[13]])?;
-            mixing_g(cs, &mut v, 3, 4,  9, 14, &m[s[14]], &m[s[15]])?;
+            mixing_g(cs, &mut v, 2, 7, 8, 13, &m[s[12]], &m[s[13]])?;
+            mixing_g(cs, &mut v, 3, 4, 9, 14, &m[s[14]], &m[s[15]])?;
         }
     }
 
@@ -287,12 +241,7 @@ fn blake2s_compression<E: Engine, CS: ConstraintSystem<E>>(
         END FUNCTION.
 */
 
-pub fn blake2s<E: Engine, CS: ConstraintSystem<E>>(
-    cs: &mut CS,
-    input: &[Boolean],
-    personalization: &[u8]
-) -> Result<Vec<Boolean>, SynthesisError>
-{
+pub fn blake2s<E: Engine, CS: ConstraintSystem<E>>(cs: &mut CS, input: &[Boolean], personalization: &[u8]) -> Result<Vec<Boolean>, SynthesisError> {
     use byteorder::{ByteOrder, LittleEndian};
 
     assert_eq!(personalization.len(), 8);
@@ -345,7 +294,7 @@ pub fn blake2s<E: Engine, CS: ConstraintSystem<E>>(
 #[cfg(test)]
 mod test {
     use super::*;
-    use rand::{XorShiftRng, SeedableRng, Rng};
+    use rand::{Rng, SeedableRng, XorShiftRng};
 
     use bellman::pairing::bn256::{Bn256, Fr};
     use bellman::pairing::ff::{Field, PrimeField};
@@ -394,10 +343,9 @@ mod test {
         let mut cs = TrivialAssembly::<Bn256, PlonkCsWidth4WithNextStepParams, Width4MainGateWithDNext>::new();
         let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
         let input_bits: Vec<_> = (0..512)
-          .map(|_| Boolean::constant(rng.gen()))
-          .chain((0..512)
-                        .map(|_i| AllocatedBit::alloc(&mut cs, Some(true)).unwrap().into()))
-          .collect();
+            .map(|_| Boolean::constant(rng.gen()))
+            .chain((0..512).map(|_i| AllocatedBit::alloc(&mut cs, Some(true)).unwrap().into()))
+            .collect();
         blake2s(&mut cs, &input_bits, b"12345678").unwrap();
         assert!(cs.is_satisfied());
         assert_eq!(cs.n(), 33348);
@@ -416,8 +364,7 @@ mod test {
     fn test_blake2s() {
         let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
-        for input_len in (0..32).chain((32..256).filter(|a| a % 8 == 0))
-        {
+        for input_len in (0..32).chain((32..256).filter(|a| a % 8 == 0)) {
             let mut h = Blake2s::with_params(32, &[], &[], b"12345678");
 
             let data: Vec<u8> = (0..input_len).map(|_| rng.gen()).collect();
@@ -440,17 +387,16 @@ mod test {
 
             assert!(cs.is_satisfied());
 
-            let mut s = hash_result.as_ref().iter()
-                                            .flat_map(|&byte| (0..8).map(move |i| (byte >> i) & 1u8 == 1u8));
+            let mut s = hash_result.as_ref().iter().flat_map(|&byte| (0..8).map(move |i| (byte >> i) & 1u8 == 1u8));
 
             for b in r {
                 match b {
                     Boolean::Is(b) => {
                         assert!(s.next().unwrap() == b.get_value().unwrap());
-                    },
+                    }
                     Boolean::Not(b) => {
                         assert!(s.next().unwrap() != b.get_value().unwrap());
-                    },
+                    }
                     Boolean::Constant(b) => {
                         assert!(input_len == 0);
                         assert!(s.next().unwrap() == b);

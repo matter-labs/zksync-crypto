@@ -1,8 +1,8 @@
+use super::params::PoseidonParams;
 use crate::common::{matrix::mmul_assign, sbox::sbox};
-use crate::sponge::{generic_hash};
+use crate::sponge::generic_hash;
 use crate::traits::{HashFamily, HashParams};
 use franklin_crypto::bellman::{Engine, Field};
-use super::params::PoseidonParams;
 
 /// Receives inputs whose length `known` prior(fixed-length).
 /// Also uses custom domain strategy which basically sets value of capacity element to
@@ -16,15 +16,7 @@ pub fn poseidon_hash<E: Engine, const L: usize>(input: &[E::Fr; L]) -> [E::Fr; 2
     generic_hash(&params, input, None)
 }
 
-pub(crate) fn poseidon_round_function<
-    E: Engine,
-    P: HashParams<E, RATE, WIDTH>,
-    const RATE: usize,
-    const WIDTH: usize,
->(
-    params: &P,
-    state: &mut [E::Fr; WIDTH]
-) {
+pub(crate) fn poseidon_round_function<E: Engine, P: HashParams<E, RATE, WIDTH>, const RATE: usize, const WIDTH: usize>(params: &P, state: &mut [E::Fr; WIDTH]) {
     assert_eq!(params.hash_family(), HashFamily::Poseidon, "Incorrect hash family!");
     debug_assert!(params.number_of_full_rounds() & 1 == 0);
     let half_of_full_rounds = params.number_of_full_rounds() / 2;
@@ -50,15 +42,11 @@ pub(crate) fn poseidon_round_function<
     // - first, use M' instead of sbox and matrix multiplication for other elements of state(not first element)
     // - second, instead of multiplication by original MDS matrix, multiply by M"(M" is a sparse matrix form)
 
-    state
-        .iter_mut()
-        .zip(optimized_round_constants[half_of_full_rounds].iter())
-        .for_each(|(s, c)| s.add_assign(c));
+    state.iter_mut().zip(optimized_round_constants[half_of_full_rounds].iter()).for_each(|(s, c)| s.add_assign(c));
     mmul_assign::<E, WIDTH>(&sparse_matrixes.0, state);
 
     // this is an unrolled version of partial rounds
-    for (round_constants, sparse_matrix) in optimized_round_constants
-        [half_of_full_rounds + 1..half_of_full_rounds + params.number_of_partial_rounds()]
+    for (round_constants, sparse_matrix) in optimized_round_constants[half_of_full_rounds + 1..half_of_full_rounds + params.number_of_partial_rounds()]
         .iter()
         .chain(&[[E::Fr::zero(); WIDTH]])
         .zip(sparse_matrixes.1.iter())
@@ -91,9 +79,7 @@ pub(crate) fn poseidon_round_function<
     }
 
     // full rounds
-    for round in (params.number_of_partial_rounds() + half_of_full_rounds)
-        ..(params.number_of_partial_rounds() + params.number_of_full_rounds())
-    {
+    for round in (params.number_of_partial_rounds() + half_of_full_rounds)..(params.number_of_partial_rounds() + params.number_of_full_rounds()) {
         // add round constants
         for (s, c) in state.iter_mut().zip(&optimized_round_constants[round]) {
             s.add_assign(c);

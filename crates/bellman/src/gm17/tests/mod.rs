@@ -1,22 +1,13 @@
-use crate::pairing::{
-    Engine
-};
+use crate::pairing::Engine;
 
-use crate::pairing::ff:: {
-    Field,
-    PrimeField,
-};
+use crate::pairing::ff::{Field, PrimeField};
 
 use super::super::tests::dummy_engine::*;
 use super::super::tests::XORDemo;
 
 use std::marker::PhantomData;
 
-use crate::{
-    Circuit,
-    ConstraintSystem,
-    SynthesisError
-};
+use crate::{Circuit, ConstraintSystem, SynthesisError};
 
 use super::{
     generate_parameters,
@@ -39,18 +30,10 @@ fn test_gm17_xordemo() {
         let c = XORDemo::<DummyEngine> {
             a: None,
             b: None,
-            _marker: PhantomData
+            _marker: PhantomData,
         };
 
-        generate_parameters(
-            c,
-            g1,
-            g2,
-            alpha,
-            beta,
-            gamma,
-            tau
-        ).unwrap()
+        generate_parameters(c, g1, g2, alpha, beta, gamma, tau).unwrap()
     };
 
     // // This will synthesize the constraint system:

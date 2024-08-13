@@ -2,11 +2,11 @@
 //! See section 5.4.6 of the Sapling protocol specification.
 
 use bellman::pairing::ff::{Field, PrimeField, PrimeFieldRepr};
-use rand::{Rng, Rand};
+use rand::{Rand, Rng};
 use std::io::{self, Read, Write};
 
-use jubjub::{FixedGenerators, JubjubEngine, JubjubParams, Unknown, edwards::Point};
-use util::{hash_to_scalar};
+use jubjub::{edwards::Point, FixedGenerators, JubjubEngine, JubjubParams, Unknown};
+use util::hash_to_scalar;
 
 fn read_scalar<E: JubjubEngine, R: Read>(reader: R) -> io::Result<E::Fs> {
     let mut s_repr = <E::Fs as PrimeField>::Repr::default();
@@ -14,10 +14,7 @@ fn read_scalar<E: JubjubEngine, R: Read>(reader: R) -> io::Result<E::Fs> {
 
     match E::Fs::from_repr(s_repr) {
         Ok(s) => Ok(s),
-        Err(_) => Err(io::Error::new(
-            io::ErrorKind::InvalidInput,
-            "scalar is not in field",
-        )),
+        Err(_) => Err(io::Error::new(io::ErrorKind::InvalidInput, "scalar is not in field")),
     }
 }
 
@@ -71,13 +68,7 @@ impl<E: JubjubEngine> PrivateKey<E> {
         write_scalar::<E, W>(&self.0, writer)
     }
 
-    pub fn sign<R: Rng>(
-        &self,
-        msg: &[u8],
-        rng: &mut R,
-        p_g: FixedGenerators,
-        params: &E::Params,
-    ) -> Signature {
+    pub fn sign<R: Rng>(&self, msg: &[u8], rng: &mut R, p_g: FixedGenerators, params: &E::Params) -> Signature {
         // T = (l_H + 128) bits of randomness
         // For H*, l_H = 512 bits
         let mut t = [0u8; 80];
@@ -89,16 +80,14 @@ impl<E: JubjubEngine> PrivateKey<E> {
         // R = r . P_G
         let r_g = params.generator(p_g).mul(r, params);
         let mut rbar = [0u8; 32];
-        r_g.write(&mut rbar[..])
-            .expect("Jubjub points should serialize to 32 bytes");
+        r_g.write(&mut rbar[..]).expect("Jubjub points should serialize to 32 bytes");
 
         // S = r + H*(Rbar || M) . sk
         let mut s = h_star::<E>(&rbar[..], msg);
         s.mul_assign(&self.0);
         s.add_assign(&r);
         let mut sbar = [0u8; 32];
-        write_scalar::<E, &mut [u8]>(&s, &mut sbar[..])
-            .expect("Jubjub scalars should serialize to 32 bytes");
+        write_scalar::<E, &mut [u8]>(&s, &mut sbar[..]).expect("Jubjub scalars should serialize to 32 bytes");
 
         Signature { rbar, sbar }
     }
@@ -125,13 +114,7 @@ impl<E: JubjubEngine> PublicKey<E> {
         self.0.write(writer)
     }
 
-    pub fn verify(
-        &self,
-        msg: &[u8],
-        sig: &Signature,
-        p_g: FixedGenerators,
-        params: &E::Params,
-    ) -> bool {
+    pub fn verify(&self, msg: &[u8], sig: &Signature, p_g: FixedGenerators, params: &E::Params) -> bool {
         // c = H*(Rbar || M)
         let c = h_star::<E>(&sig.rbar[..], msg);
 
@@ -148,10 +131,12 @@ impl<E: JubjubEngine> PublicKey<E> {
             Err(_) => return false,
         };
         // 0 = h_G(-S . P_G + R + c . vk)
-        self.0.mul(c, params).add(&r, params).add(
-            &params.generator(p_g).mul(s, params).negate().into(),
-            params
-        ).mul_by_cofactor(params).eq(&Point::zero())
+        self.0
+            .mul(c, params)
+            .add(&r, params)
+            .add(&params.generator(p_g).mul(s, params).negate().into(), params)
+            .mul_by_cofactor(params)
+            .eq(&Point::zero())
     }
 }
 
@@ -163,13 +148,7 @@ pub struct BatchEntry<'a, E: JubjubEngine> {
 
 // TODO: #82: This is a naive implementation currently,
 // and doesn't use multiexp.
-pub fn batch_verify<'a, E: JubjubEngine, R: Rng>(
-    rng: &mut R,
-    batch: &[BatchEntry<'a, E>],
-    p_g: FixedGenerators,
-    params: &E::Params,
-) -> bool
-{
+pub fn batch_verify<'a, E: JubjubEngine, R: Rng>(rng: &mut R, batch: &[BatchEntry<'a, E>], p_g: FixedGenerators, params: &E::Params) -> bool {
     let mut acc = Point::<E, Unknown>::zero();
 
     for entry in batch {
@@ -208,7 +187,7 @@ mod tests {
     use bellman::pairing::bls12_381::Bls12;
     use rand::thread_rng;
 
-    use jubjub::{JubjubBls12, fs::Fs, edwards};
+    use jubjub::{edwards, fs::Fs, JubjubBls12};
 
     use super::*;
 
@@ -230,10 +209,7 @@ mod tests {
         let sig2 = sk2.sign(msg2, rng, p_g, params);
         assert!(vk2.verify(msg2, &sig2, p_g, params));
 
-        let mut batch = vec![
-            BatchEntry { vk: vk1, msg: msg1, sig: sig1 },
-            BatchEntry { vk: vk2, msg: msg2, sig: sig2 }
-        ];
+        let mut batch = vec![BatchEntry { vk: vk1, msg: msg1, sig: sig1 }, BatchEntry { vk: vk2, msg: msg2, sig: sig2 }];
 
         assert!(batch_verify(rng, &batch, p_g, params));
 
@@ -348,7 +324,7 @@ mod baby_tests {
     use bellman::pairing::bn256::Bn256;
     use rand::thread_rng;
 
-    use alt_babyjubjub::{AltJubjubBn256, fs::Fs, edwards, FixedGenerators};
+    use alt_babyjubjub::{edwards, fs::Fs, AltJubjubBn256, FixedGenerators};
 
     use super::*;
 
@@ -370,10 +346,7 @@ mod baby_tests {
         let sig2 = sk2.sign(msg2, rng, p_g, params);
         assert!(vk2.verify(msg2, &sig2, p_g, params));
 
-        let mut batch = vec![
-            BatchEntry { vk: vk1, msg: msg1, sig: sig1 },
-            BatchEntry { vk: vk2, msg: msg2, sig: sig2 }
-        ];
+        let mut batch = vec![BatchEntry { vk: vk1, msg: msg1, sig: sig1 }, BatchEntry { vk: vk2, msg: msg2, sig: sig2 }];
 
         assert!(batch_verify(rng, &batch, p_g, params));
 

@@ -4,17 +4,17 @@ use std::io;
 
 mod hasher;
 
-use self::hasher::{Hasher, Keccak256Hasher, BlakeHasher};
+use self::hasher::{BlakeHasher, Hasher, Keccak256Hasher};
 
 #[derive(Clone)]
 pub struct Transcript {
-    transcriptor: RollingHashTranscript<Keccak256Hasher>
+    transcriptor: RollingHashTranscript<Keccak256Hasher>,
 }
 
 impl Transcript {
     pub fn new(personalization: &[u8]) -> Self {
         Self {
-            transcriptor: RollingHashTranscript::new(personalization)
+            transcriptor: RollingHashTranscript::new(personalization),
         }
     }
 }
@@ -40,7 +40,7 @@ pub struct RollingHashTranscript<H: Hasher> {
     buffer: Vec<u8>,
     last_finalized_value: Vec<u8>,
     repeated_request_nonce: u32,
-    _marker: PhantomData<H>
+    _marker: PhantomData<H>,
 }
 
 impl<H: Hasher> RollingHashTranscript<H> {
@@ -52,7 +52,7 @@ impl<H: Hasher> RollingHashTranscript<H> {
             buffer: buffer,
             last_finalized_value: vec![],
             repeated_request_nonce: 0u32,
-            _marker: PhantomData
+            _marker: PhantomData,
         }
     }
 
@@ -84,7 +84,7 @@ pub trait TranscriptProtocol {
     fn get_challenge_scalar<F: PrimeField>(&mut self) -> F;
 }
 
-impl<H:Hasher> TranscriptProtocol for RollingHashTranscript<H> {
+impl<H: Hasher> TranscriptProtocol for RollingHashTranscript<H> {
     fn commit_point<G: CurveAffine>(&mut self, point: &G) {
         self.commit_bytes(b"point", point.into_uncompressed().as_ref());
         // self.commit_bytes(b"point", point.into_compressed().as_ref());

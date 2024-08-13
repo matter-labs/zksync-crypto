@@ -1,26 +1,15 @@
 use crate::pairing::ff::PrimeField;
-use crate::worker::*;
 use crate::plonk::domains::*;
 use crate::plonk::transparent_engine::PartialTwoBitReductionField;
+use crate::worker::*;
 
-use super::CTPrecomputations;
 use super::log2_floor;
+use super::CTPrecomputations;
 
-pub(crate) fn best_ct_ntt_partial_reduction<F: PartialTwoBitReductionField, P: CTPrecomputations<F>>(
-    a: &mut [F], 
-    worker: &Worker, 
-    log_n: u32, 
-    use_cpus_hint: Option<usize>, 
-    precomputed_omegas: &P
-)
-{
+pub(crate) fn best_ct_ntt_partial_reduction<F: PartialTwoBitReductionField, P: CTPrecomputations<F>>(a: &mut [F], worker: &Worker, log_n: u32, use_cpus_hint: Option<usize>, precomputed_omegas: &P) {
     let log_cpus = if let Some(hint) = use_cpus_hint {
         assert!(hint <= worker.cpus);
-        let hint = if hint > 0 {
-            log2_floor(hint)
-        } else {
-            0
-        };
+        let hint = if hint > 0 { log2_floor(hint) } else { 0 };
 
         hint
     } else {
@@ -34,14 +23,9 @@ pub(crate) fn best_ct_ntt_partial_reduction<F: PartialTwoBitReductionField, P: C
     }
 }
 
-pub(crate) fn serial_ct_ntt_partial_reduction<F: PartialTwoBitReductionField, P: CTPrecomputations<F>>(
-    a: &mut [F],
-    log_n: u32,
-    precomputed_omegas: &P
-)
-{
+pub(crate) fn serial_ct_ntt_partial_reduction<F: PartialTwoBitReductionField, P: CTPrecomputations<F>>(a: &mut [F], log_n: u32, precomputed_omegas: &P) {
     assert_eq!(a.len(), precomputed_omegas.domain_size(), "precomputation size is invalid for ntt");
-    assert_eq!(a.len(), (1<<log_n) as usize);
+    assert_eq!(a.len(), (1 << log_n) as usize);
     assert!(64 - (F::NUM_BITS % 64) >= 2);
 
     let n = a.len();
@@ -64,16 +48,16 @@ pub(crate) fn serial_ct_ntt_partial_reduction<F: PartialTwoBitReductionField, P:
 
         for j in idx_1..idx_2 {
             let u = a[j];
-            let v = a[j+distance];
+            let v = a[j + distance];
 
             let mut tmp = u;
             tmp.sub_assign_unreduced(&v);
 
-            a[j+distance] = tmp;
+            a[j + distance] = tmp;
             a[j].add_assign_unreduced(&v);
 
             debug_assert!(a[j].overflow_factor() < 2);
-            debug_assert!(a[j+distance].overflow_factor() < 2);
+            debug_assert!(a[j + distance].overflow_factor() < 2);
         }
 
         pairs_per_group /= 2;
@@ -92,7 +76,7 @@ pub(crate) fn serial_ct_ntt_partial_reduction<F: PartialTwoBitReductionField, P:
 
             for j in idx_1..idx_2 {
                 let mut u = a[j];
-                let mut v = a[j+distance];
+                let mut v = a[j + distance];
 
                 debug_assert!(u.overflow_factor() < 4, "factor is {} for num groups {}", u.overflow_factor(), num_groups);
                 u.reduce_twice();
@@ -110,7 +94,7 @@ pub(crate) fn serial_ct_ntt_partial_reduction<F: PartialTwoBitReductionField, P:
                 debug_assert!(tmp_u.overflow_factor() < 4, "factor is {} for num groups {}", tmp_u.overflow_factor(), num_groups);
                 debug_assert!(tmp_v.overflow_factor() < 4, "factor is {} for num groups {}", tmp_v.overflow_factor(), num_groups);
 
-                a[j+distance] = tmp_v;
+                a[j + distance] = tmp_v;
                 a[j] = tmp_u;
             }
         }
@@ -131,7 +115,7 @@ pub(crate) fn serial_ct_ntt_partial_reduction<F: PartialTwoBitReductionField, P:
 
             for j in idx_1..idx_2 {
                 let mut u = a[j];
-                let mut v = a[j+distance];
+                let mut v = a[j + distance];
 
                 debug_assert!(u.overflow_factor() < 4, "factor is {} for num groups {}", u.overflow_factor(), num_groups);
                 u.reduce_twice();
@@ -153,21 +137,14 @@ pub(crate) fn serial_ct_ntt_partial_reduction<F: PartialTwoBitReductionField, P:
                 debug_assert!(tmp_u.overflow_factor() < 1, "factor is {} for num groups {}", tmp_u.overflow_factor(), num_groups);
                 debug_assert!(tmp_v.overflow_factor() < 1, "factor is {} for num groups {}", tmp_v.overflow_factor(), num_groups);
 
-                a[j+distance] = tmp_v;
+                a[j + distance] = tmp_v;
                 a[j] = tmp_u;
             }
         }
     }
 }
 
-pub(crate) fn parallel_ct_ntt_partial_reduction<F: PartialTwoBitReductionField, P: CTPrecomputations<F>>(
-    a: &mut [F],
-    worker: &Worker,
-    log_n: u32,
-    log_cpus: u32,
-    precomputed_omegas: &P
-)
-{
+pub(crate) fn parallel_ct_ntt_partial_reduction<F: PartialTwoBitReductionField, P: CTPrecomputations<F>>(a: &mut [F], worker: &Worker, log_n: u32, log_cpus: u32, precomputed_omegas: &P) {
     assert!(log_n >= log_cpus);
     assert_eq!(a.len(), precomputed_omegas.domain_size(), "precomputation size is invalid for ntt");
     assert!(64 - (F::NUM_BITS % 64) >= 2);
@@ -203,7 +180,7 @@ pub(crate) fn parallel_ct_ntt_partial_reduction<F: PartialTwoBitReductionField, 
 
     worker.scope(0, |scope, _| {
         for thread_id in 0..to_spawn {
-            let a = unsafe {&mut *a};
+            let a = unsafe { &mut *a };
             let mut pairs_per_group = pairs_per_group;
             let mut num_groups = num_groups;
             let mut distance = distance;
@@ -220,15 +197,11 @@ pub(crate) fn parallel_ct_ntt_partial_reduction<F: PartialTwoBitReductionField, 
                     let chunk = Worker::chunk_size_for_num_spawned_threads(group_size, to_spawn);
 
                     let start = group_start_idx + thread_id * chunk;
-                    let end = if start + chunk <= group_end_idx {
-                        start + chunk
-                    } else {
-                        group_end_idx
-                    };
+                    let end = if start + chunk <= group_end_idx { start + chunk } else { group_end_idx };
 
                     for j in start..end {
                         let u = unsafe { *a.get_unchecked(j) };
-                        let v = unsafe { *a.get_unchecked(j+distance) };
+                        let v = unsafe { *a.get_unchecked(j + distance) };
 
                         // let u = a[j];
                         // let v = a[j+distance];
@@ -236,8 +209,8 @@ pub(crate) fn parallel_ct_ntt_partial_reduction<F: PartialTwoBitReductionField, 
                         let mut tmp = u;
                         tmp.sub_assign_unreduced(&v);
 
-                        unsafe { 
-                            *a.get_unchecked_mut(j+distance) = tmp;
+                        unsafe {
+                            *a.get_unchecked_mut(j + distance) = tmp;
                             a.get_unchecked_mut(j).add_assign_unreduced(&v);
                         };
 
@@ -267,11 +240,7 @@ pub(crate) fn parallel_ct_ntt_partial_reduction<F: PartialTwoBitReductionField, 
 
                         let chunk = Worker::chunk_size_for_num_spawned_threads(num_groups, to_spawn);
                         let start = thread_id * chunk;
-                        let end = if start + chunk <= num_groups {
-                            start + chunk
-                        } else {
-                            num_groups
-                        };
+                        let end = if start + chunk <= num_groups { start + chunk } else { num_groups };
 
                         for k in start..end {
                             let group_start_idx = k * pairs_per_group * 2;
@@ -280,7 +249,7 @@ pub(crate) fn parallel_ct_ntt_partial_reduction<F: PartialTwoBitReductionField, 
 
                             for j in group_start_idx..group_end_idx {
                                 let mut u = unsafe { *a.get_unchecked(j) };
-                                let mut v = unsafe { *a.get_unchecked(j+distance) };
+                                let mut v = unsafe { *a.get_unchecked(j + distance) };
 
                                 // let mut u = a[j];
                                 // let mut v = a[j+distance];
@@ -294,8 +263,8 @@ pub(crate) fn parallel_ct_ntt_partial_reduction<F: PartialTwoBitReductionField, 
                                 tmp_u.add_assign_unreduced(&v);
                                 tmp_v.sub_assign_twice_unreduced(&v);
 
-                                unsafe { 
-                                    *a.get_unchecked_mut(j+distance) = tmp_v;
+                                unsafe {
+                                    *a.get_unchecked_mut(j + distance) = tmp_v;
                                     *a.get_unchecked_mut(j) = tmp_u;
                                 };
 
@@ -321,15 +290,11 @@ pub(crate) fn parallel_ct_ntt_partial_reduction<F: PartialTwoBitReductionField, 
                             let chunk = Worker::chunk_size_for_num_spawned_threads(group_size, to_spawn);
 
                             let start = group_start_idx + thread_id * chunk;
-                            let end = if start + chunk <= group_end_idx {
-                                start + chunk
-                            } else {
-                                group_end_idx
-                            };
+                            let end = if start + chunk <= group_end_idx { start + chunk } else { group_end_idx };
 
                             for j in start..end {
                                 let mut u = unsafe { *a.get_unchecked(j) };
-                                let mut v = unsafe { *a.get_unchecked(j+distance) };
+                                let mut v = unsafe { *a.get_unchecked(j + distance) };
 
                                 // let mut u = a[j];
                                 // let mut v = a[j+distance];
@@ -343,8 +308,8 @@ pub(crate) fn parallel_ct_ntt_partial_reduction<F: PartialTwoBitReductionField, 
                                 tmp_u.add_assign_unreduced(&v);
                                 tmp_v.sub_assign_twice_unreduced(&v);
 
-                                unsafe { 
-                                    *a.get_unchecked_mut(j+distance) = tmp_v;
+                                unsafe {
+                                    *a.get_unchecked_mut(j + distance) = tmp_v;
                                     *a.get_unchecked_mut(j) = tmp_u;
                                 };
 
@@ -377,11 +342,7 @@ pub(crate) fn parallel_ct_ntt_partial_reduction<F: PartialTwoBitReductionField, 
 
                         let chunk = Worker::chunk_size_for_num_spawned_threads(num_groups, to_spawn);
                         let start = thread_id * chunk;
-                        let end = if start + chunk <= num_groups {
-                            start + chunk
-                        } else {
-                            num_groups
-                        };
+                        let end = if start + chunk <= num_groups { start + chunk } else { num_groups };
 
                         for k in start..end {
                             let group_start_idx = k * pairs_per_group * 2;
@@ -390,11 +351,11 @@ pub(crate) fn parallel_ct_ntt_partial_reduction<F: PartialTwoBitReductionField, 
 
                             for j in group_start_idx..group_end_idx {
                                 let mut u = unsafe { *a.get_unchecked(j) };
-                                let mut v = unsafe { *a.get_unchecked(j+distance) };
+                                let mut v = unsafe { *a.get_unchecked(j + distance) };
 
                                 // let mut u = a[j];
                                 // let mut v = a[j+distance];
-                                
+
                                 u.reduce_twice();
                                 v.mul_assign_unreduced(&s);
 
@@ -407,8 +368,8 @@ pub(crate) fn parallel_ct_ntt_partial_reduction<F: PartialTwoBitReductionField, 
                                 tmp_v.sub_assign_twice_unreduced(&v);
                                 PartialTwoBitReductionField::reduce_completely(&mut tmp_v);
 
-                                unsafe { 
-                                    *a.get_unchecked_mut(j+distance) = tmp_v;
+                                unsafe {
+                                    *a.get_unchecked_mut(j + distance) = tmp_v;
                                     *a.get_unchecked_mut(j) = tmp_u;
                                 };
 
@@ -434,15 +395,11 @@ pub(crate) fn parallel_ct_ntt_partial_reduction<F: PartialTwoBitReductionField, 
                             let chunk = Worker::chunk_size_for_num_spawned_threads(group_size, to_spawn);
 
                             let start = group_start_idx + thread_id * chunk;
-                            let end = if start + chunk <= group_end_idx {
-                                start + chunk
-                            } else {
-                                group_end_idx
-                            };
+                            let end = if start + chunk <= group_end_idx { start + chunk } else { group_end_idx };
 
                             for j in start..end {
                                 let mut u = unsafe { *a.get_unchecked(j) };
-                                let mut v = unsafe { *a.get_unchecked(j+distance) };
+                                let mut v = unsafe { *a.get_unchecked(j + distance) };
 
                                 // let mut u = a[j];
                                 // let mut v = a[j+distance];
@@ -459,8 +416,8 @@ pub(crate) fn parallel_ct_ntt_partial_reduction<F: PartialTwoBitReductionField, 
                                 tmp_v.sub_assign_twice_unreduced(&v);
                                 PartialTwoBitReductionField::reduce_completely(&mut tmp_v);
 
-                                unsafe { 
-                                    *a.get_unchecked_mut(j+distance) = tmp_v;
+                                unsafe {
+                                    *a.get_unchecked_mut(j + distance) = tmp_v;
                                     *a.get_unchecked_mut(j) = tmp_u;
                                 };
 
@@ -478,31 +435,25 @@ pub(crate) fn parallel_ct_ntt_partial_reduction<F: PartialTwoBitReductionField, 
     });
 }
 
-
-
 #[cfg(test)]
 mod test {
     use crate::plonk::fft::cooley_tukey_ntt::*;
 
     #[test]
     fn test_bench_ct_serial_fft() {
-        use rand::{XorShiftRng, SeedableRng, Rand, Rng};
-        use crate::plonk::transparent_engine::proth::Fr;
-        use crate::plonk::polynomials::*;
-        use std::time::Instant;
-        use super::*;
-        use crate::worker::*;
-        use crate::plonk::commitments::transparent::utils::*;
-        use crate::plonk::fft::fft::serial_fft;
-        use super::CTPrecomputations;
         use super::super::BitReversedOmegas;
+        use super::CTPrecomputations;
+        use super::*;
+        use crate::plonk::commitments::transparent::utils::*;
         use crate::plonk::domains::Domain;
+        use crate::plonk::fft::fft::serial_fft;
+        use crate::plonk::polynomials::*;
+        use crate::plonk::transparent_engine::proth::Fr;
+        use crate::worker::*;
+        use rand::{Rand, Rng, SeedableRng, XorShiftRng};
+        use std::time::Instant;
 
-        let poly_sizes = if cfg!(debug_assertions) {
-            vec![10_000]
-        } else {
-            vec![1_000_000, 2_000_000, 4_000_000, 8_000_000]
-        };
+        let poly_sizes = if cfg!(debug_assertions) { vec![10_000] } else { vec![1_000_000, 2_000_000, 4_000_000, 8_000_000] };
         // let poly_sizes = vec![8];
 
         fn check_permutation<F: PrimeField>(one: &[F], two: &[F]) -> (bool, Vec<usize>) {
@@ -615,7 +566,7 @@ mod test {
             let ntt_time = (elapsed2 + elapsed5).div_f32(2.);
             let diff_pr = ntt_time.checked_sub(elapsed3);
             if let Some(diff) = diff_pr {
-                println!("Partial reduction: speed up is {}%.", diff.as_nanos()*100/ntt_time.as_nanos());
+                println!("Partial reduction: speed up is {}%.", diff.as_nanos() * 100 / ntt_time.as_nanos());
             } else {
                 println!("Partial reduction: no speed up.");
             }
@@ -628,17 +579,17 @@ mod test {
 
     #[test]
     fn test_bench_ct_parallel_fft() {
-        use rand::{XorShiftRng, SeedableRng, Rand, Rng};
-        use crate::plonk::transparent_engine::proth::Fr;
-        use crate::plonk::polynomials::*;
-        use std::time::Instant;
-        use super::*;
-        use crate::worker::*;
-        use crate::plonk::commitments::transparent::utils::*;
-        use crate::plonk::fft::fft::parallel_fft;
-        use super::CTPrecomputations;
         use super::super::BitReversedOmegas;
+        use super::CTPrecomputations;
+        use super::*;
+        use crate::plonk::commitments::transparent::utils::*;
         use crate::plonk::domains::Domain;
+        use crate::plonk::fft::fft::parallel_fft;
+        use crate::plonk::polynomials::*;
+        use crate::plonk::transparent_engine::proth::Fr;
+        use crate::worker::*;
+        use rand::{Rand, Rng, SeedableRng, XorShiftRng};
+        use std::time::Instant;
 
         let poly_sizes = if cfg!(debug_assertions) {
             vec![10_000]
@@ -710,7 +661,7 @@ mod test {
             let ntt_time = elapsed2;
             let diff_pr = ntt_time.checked_sub(elapsed3);
             if let Some(diff) = diff_pr {
-                println!("Partial reduction: speed up is {}%.", diff.as_nanos()*100/ntt_time.as_nanos());
+                println!("Partial reduction: speed up is {}%.", diff.as_nanos() * 100 / ntt_time.as_nanos());
             } else {
                 println!("Partial reduction: no speed up.");
             }

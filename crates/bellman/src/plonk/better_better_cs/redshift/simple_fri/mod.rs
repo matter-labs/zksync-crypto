@@ -3,19 +3,19 @@
 // pub mod verifier;
 // pub mod precomputation;
 
-use crate::SynthesisError;
-use crate::worker::Worker;
 use crate::pairing::ff::{Field, PrimeField};
 use crate::pairing::Engine;
 use crate::plonk::commitments::transcript::*;
+use crate::worker::Worker;
+use crate::SynthesisError;
 
 use crate::plonk::better_better_cs::redshift::binary_tree::*;
 use crate::plonk::better_better_cs::redshift::tree_hash::*;
-use crate::plonk::polynomials::*;
 use crate::plonk::commitments::transcript::Prng;
 use crate::plonk::fft::cooley_tukey_ntt::*;
+use crate::plonk::polynomials::*;
 
-pub struct FriCombiner<E:Engine, H: BinaryTreeHasher<E::Fr>> {
+pub struct FriCombiner<E: Engine, H: BinaryTreeHasher<E::Fr>> {
     precomputations: OmegasInvBitreversed<E::Fr>,
     fri_domain_size: usize,
     lde_factor: usize,
@@ -26,23 +26,16 @@ pub struct FriCombiner<E:Engine, H: BinaryTreeHasher<E::Fr>> {
     coset_factor: E::Fr,
 }
 
-pub struct FriOraclesSet<E:Engine, H: BinaryTreeHasher<E::Fr>> {
+pub struct FriOraclesSet<E: Engine, H: BinaryTreeHasher<E::Fr>> {
     pub intermediate_oracles: Vec<BinaryTree<E, H>>,
     pub intermediate_roots: Vec<H::Output>,
     pub intermediate_leaf_values: Vec<Vec<E::Fr>>,
     pub intermediate_challenges: Vec<Vec<E::Fr>>,
-    pub final_coefficients: Vec<E::Fr>
+    pub final_coefficients: Vec<E::Fr>,
 }
 
 impl<E: Engine, H: BinaryTreeHasher<E::Fr>> FriCombiner<E, H> {
-    pub fn initialize_for_domain_size(
-        size: usize, 
-        lde_factor: usize,
-        output_coeffs_at_degree_plus_one: usize,
-        coset_factor: E::Fr,
-        optimal_values_per_leaf: usize,
-        hasher: H
-    ) -> Self {
+    pub fn initialize_for_domain_size(size: usize, lde_factor: usize, output_coeffs_at_degree_plus_one: usize, coset_factor: E::Fr, optimal_values_per_leaf: usize, hasher: H) -> Self {
         assert!(output_coeffs_at_degree_plus_one.is_power_of_two());
         assert!(lde_factor.is_power_of_two());
 
@@ -74,16 +67,11 @@ impl<E: Engine, H: BinaryTreeHasher<E::Fr>> FriCombiner<E, H> {
             folding_schedule: schedule,
             tree_hasher: hasher,
             optimal_values_per_leaf,
-            coset_factor
+            coset_factor,
         }
     }
 
-    pub fn perform_fri_assuming_bitreversed<P: Prng<E::Fr, Input = H::Output>>(
-        &self,
-        lde_values: &[E::Fr],
-        prng: &mut P,
-        worker: &Worker,
-    ) -> Result<FriOraclesSet<E, H>, SynthesisError> {
+    pub fn perform_fri_assuming_bitreversed<P: Prng<E::Fr, Input = H::Output>>(&self, lde_values: &[E::Fr], prng: &mut P, worker: &Worker) -> Result<FriOraclesSet<E, H>, SynthesisError> {
         let mut coset_schedule_index = 0;
         let coset_factor = self.folding_schedule[coset_schedule_index];
 
@@ -102,9 +90,15 @@ impl<E: Engine, H: BinaryTreeHasher<E::Fr>> FriCombiner<E, H> {
         let two_inv = two.inverse().expect("should exist");
 
         let initial_degree_plus_one = initial_domain_size / self.lde_factor;
-        assert_eq!(initial_degree_plus_one / total_wrap_factor, self.output_coeffs_at_degree_plus_one, 
-            "number of FRI round does not match the ouput degree: initial degree+1 =  {}, wrapping factor {}, output at degree+1 = {}",
-             initial_degree_plus_one, total_wrap_factor, self.output_coeffs_at_degree_plus_one);
+        assert_eq!(
+            initial_degree_plus_one / total_wrap_factor,
+            self.output_coeffs_at_degree_plus_one,
+            "number of FRI round does not match the ouput degree: \
+            initial degree+1 =  {}, wrapping factor {}, output at degree+1 = {}",
+            initial_degree_plus_one,
+            total_wrap_factor,
+            self.output_coeffs_at_degree_plus_one
+        );
 
         let mut intermediate_oracles = vec![];
         let mut intermediate_values = vec![];
@@ -141,7 +135,7 @@ impl<E: Engine, H: BinaryTreeHasher<E::Fr>> FriCombiner<E, H> {
         let num_steps = self.folding_schedule.len();
 
         // we do NOT need to make the first (largest) tree cause it's values are simulated
-        // so we will cover the first step later on separately  
+        // so we will cover the first step later on separately
         for (fri_step, coset_factor) in self.folding_schedule.iter().enumerate() {
             let coset_factor = *coset_factor;
             let wrapping_factor = 1 << coset_factor;
@@ -154,12 +148,12 @@ impl<E: Engine, H: BinaryTreeHasher<E::Fr>> FriCombiner<E, H> {
             //    intermediate(omega*)       intermediate(-omega*)
             //    /           \                   /            \
             // this(omega)   this(-omega)     this(omega')    this(-omega')
-            // 
+            //
             // so omega* = omega^2i. omega' = sqrt(-omega^2i) = sqrt(omega^(N/2 + 2i)) = omega^N/4 + i
-            // 
+            //
             // we expect values to come bitreversed, so this(omega) and this(-omega) are always adjustent to each other
             // because in normal emumeration it would be elements b0XYZ and b1XYZ, and now it's bZYX0 and bZYX1
-            // 
+            //
             // this(omega^(N/4 + i)) for b00YZ has a form b01YZ, so bitreversed it's bZY00 and bZY10
             // this(-omega^(N/4 + i)) obviously has bZY11, so they are all near in initial values
 
@@ -167,12 +161,12 @@ impl<E: Engine, H: BinaryTreeHasher<E::Fr>> FriCombiner<E, H> {
                 for (i, v) in next_values.chunks_mut(chunk).enumerate() {
                     let next_domain_challenges = next_domain_challenges.clone();
                     scope.spawn(move |_| {
-                        let initial_k = i*chunk;
+                        let initial_k = i * chunk;
                         let mut this_level_values = Vec::with_capacity(wrapping_factor);
                         let mut next_level_values = vec![E::Fr::zero(); wrapping_factor];
                         for (j, v) in v.iter_mut().enumerate() {
                             let batch_id = initial_k + j;
-                            let values_offset = batch_id*wrapping_factor;
+                            let values_offset = batch_id * wrapping_factor;
                             for (wrapping_step, challenge) in next_domain_challenges.iter().enumerate() {
                                 let base_omega_idx = (batch_id * wrapping_factor) >> (1 + wrapping_step);
                                 let expected_this_level_values = wrapping_factor >> wrapping_step;
@@ -235,15 +229,9 @@ impl<E: Engine, H: BinaryTreeHasher<E::Fr>> FriCombiner<E, H> {
                 this_domain_size = next_domain_size;
                 let coset_factor = self.folding_schedule[coset_schedule_index];
 
-                let tree_params = BinaryTreeParams {
-                    values_per_leaf: (1 << coset_factor)
-                };
+                let tree_params = BinaryTreeParams { values_per_leaf: (1 << coset_factor) };
 
-                let intermediate_oracle = BinaryTree::create(
-                    &next_values, 
-                    self.tree_hasher.clone(), 
-                    &tree_params
-                );
+                let intermediate_oracle = BinaryTree::create(&next_values, self.tree_hasher.clone(), &tree_params);
 
                 let root = intermediate_oracle.get_commitment();
                 let num_challenges = coset_factor;
@@ -260,16 +248,16 @@ impl<E: Engine, H: BinaryTreeHasher<E::Fr>> FriCombiner<E, H> {
                 challenges.push(next_domain_challenges.clone());
                 intermediate_roots.push(root);
                 intermediate_oracles.push(intermediate_oracle);
-            } 
+            }
 
             intermediate_values.push(next_values);
 
-            values_slice = intermediate_values.last().expect("is something").as_ref();      
+            values_slice = intermediate_values.last().expect("is something").as_ref();
         }
 
         assert_eq!(challenges.len(), num_steps);
-        assert_eq!(intermediate_roots.len(), num_steps-1);
-        assert_eq!(intermediate_oracles.len(), num_steps-1);
+        assert_eq!(intermediate_roots.len(), num_steps - 1);
+        assert_eq!(intermediate_oracles.len(), num_steps - 1);
         assert_eq!(intermediate_values.len(), num_steps);
 
         let mut final_poly_values = Polynomial::from_values(values_slice.to_vec())?;
@@ -287,7 +275,7 @@ impl<E: Engine, H: BinaryTreeHasher<E::Fr>> FriCombiner<E, H> {
             if c.is_zero() {
                 degree -= 1;
             } else {
-                break
+                break;
             }
         }
 
@@ -300,7 +288,7 @@ impl<E: Engine, H: BinaryTreeHasher<E::Fr>> FriCombiner<E, H> {
             intermediate_roots,
             intermediate_leaf_values: intermediate_values,
             intermediate_challenges: challenges,
-            final_coefficients: final_poly_coeffs
+            final_coefficients: final_poly_coeffs,
         };
 
         Ok(set)

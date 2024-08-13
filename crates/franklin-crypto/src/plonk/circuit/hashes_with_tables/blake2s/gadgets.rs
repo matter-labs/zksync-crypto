@@ -1,53 +1,45 @@
 use itertools::Itertools;
 
+use crate::bellman::pairing::ff::*;
+use crate::bellman::pairing::ff::{PrimeField, PrimeFieldRepr};
 use crate::bellman::plonk::better_better_cs::cs::*;
 use crate::bellman::plonk::better_better_cs::lookup_tables::*;
 use crate::bellman::plonk::better_better_cs::utils;
-use crate::bellman::pairing::ff::*;
-use crate::bellman::pairing::ff::{PrimeField, PrimeFieldRepr};
-use crate::bellman::SynthesisError;
 use crate::bellman::Engine;
-use crate::plonk::circuit::allocated_num::{
-    AllocatedNum,
-    Num,
-};
+use crate::bellman::SynthesisError;
+use crate::plonk::circuit::allocated_num::{AllocatedNum, Num};
+use crate::plonk::circuit::assignment::Assignment;
+use crate::plonk::circuit::bigint_new::bigint::split_some_into_fixed_number_of_limbs;
+use crate::plonk::circuit::bigint_new::range_checks::enforce_range_check_using_bitop_table;
 use crate::plonk::circuit::bigint_new::*;
 use crate::plonk::circuit::boolean::*;
-use crate::plonk::circuit::byte::{
-    Byte,
-};
-use crate::plonk::circuit::assignment::{
-    Assignment
-};
-use crate::plonk::circuit::bigint_new::range_checks::enforce_range_check_using_bitop_table;
-use crate::plonk::circuit::bigint_new::bigint::split_some_into_fixed_number_of_limbs;
+use crate::plonk::circuit::byte::Byte;
 
-use super::tables::*;
-use super::super::utils::*;
 use super::super::tables::*;
-use super::super::{NumExtension, AllocatedNumExtension};
+use super::super::utils::*;
+use super::super::{AllocatedNumExtension, NumExtension};
+use super::tables::*;
 
-use std::collections::BTreeMap;
-use std::sync::Arc;
 use crate::splitmut::SplitMut;
-use std::{ iter, mem };
-use std::collections::HashMap;
 use std::cell::RefCell;
+use std::collections::BTreeMap;
+use std::collections::HashMap;
 use std::ops::Index;
+use std::sync::Arc;
+use std::{iter, mem};
 
 type Result<T> = std::result::Result<T, SynthesisError>;
 
-const CHUNK_SIZE : usize = 8; 
-const REG_WIDTH : usize = 32;
-const SHIFT4 : usize = 4;
-const SHIFT7 : usize = 7; 
-const BLAKE2S_STATE_WIDTH : usize = 16;
-const CS_WIDTH : usize = 4;
-const BLAKE2S_NUM_ROUNDS : usize = 10;
-
+const CHUNK_SIZE: usize = 8;
+const REG_WIDTH: usize = 32;
+const SHIFT4: usize = 4;
+const SHIFT7: usize = 7;
+const BLAKE2S_STATE_WIDTH: usize = 16;
+const CS_WIDTH: usize = 4;
+const BLAKE2S_NUM_ROUNDS: usize = 10;
 
 #[derive(Clone)]
-pub struct DecomposedNum<E : Engine> {
+pub struct DecomposedNum<E: Engine> {
     pub r0: Num<E>,
     pub r1: Num<E>,
     pub r2: Num<E>,
@@ -57,9 +49,9 @@ pub struct DecomposedNum<E : Engine> {
 impl<E: Engine> Default for DecomposedNum<E> {
     fn default() -> Self {
         DecomposedNum {
-            r0: Num::default(), 
-            r1: Num::default(), 
-            r2: Num::default(), 
+            r0: Num::default(),
+            r1: Num::default(),
+            r2: Num::default(),
             r3: Num::default(),
         }
     }
@@ -79,7 +71,6 @@ impl<E: Engine> Index<usize> for DecomposedNum<E> {
     }
 }
 
-
 #[derive(Clone)]
 pub struct Reg<E: Engine> {
     full: Num<E>,
@@ -89,7 +80,7 @@ pub struct Reg<E: Engine> {
 impl<E: Engine> Default for Reg<E> {
     fn default() -> Self {
         Reg {
-            full : Num::default(),
+            full: Num::default(),
             decomposed: DecomposedNum::default(),
         }
     }
@@ -105,16 +96,14 @@ impl<E: Engine> Reg<E> {
     }
 }
 
-
 #[derive(Clone, Default)]
 pub struct HashState<E: Engine>(Vec<Reg<E>>);
-
 
 // the purpose of this (and the following) struct is explained in the comments of the main text
 // all linear variables are represented in the form (bool, coef, var)
 // where the boolean flag asserts that variable was actually assigned a value (for self-test and debugging assistance)
 #[derive(Clone)]
-pub struct GateVarHelper<E: Engine>{
+pub struct GateVarHelper<E: Engine> {
     is_assigned: bool,
     coef: E::Fr,
     val: Num<E>,
@@ -137,7 +126,7 @@ pub struct GateAllocHelper<E: Engine> {
 
     cnst_sel: E::Fr,
     d_next_sel: E::Fr,
-    table: Option<Arc<LookupTableApplication<E>>>  
+    table: Option<Arc<LookupTableApplication<E>>>,
 }
 
 impl<E: Engine> Default for GateAllocHelper<E> {
@@ -146,7 +135,7 @@ impl<E: Engine> Default for GateAllocHelper<E> {
             vars: <[GateVarHelper<E>; CS_WIDTH]>::default(),
             cnst_sel: E::Fr::zero(),
             d_next_sel: E::Fr::zero(),
-            table: None, 
+            table: None,
         }
     }
 }
@@ -157,8 +146,7 @@ impl<E: Engine> GateAllocHelper<E> {
     }
 
     // force variable - checks that the variable is indeed AllocatedVar and not constant
-    pub fn set_var(&mut self, idx: usize, coef: E::Fr, input: Num<E>, force_allocated: bool)
-    {
+    pub fn set_var(&mut self, idx: usize, coef: E::Fr, input: Num<E>, force_allocated: bool) {
         assert!(idx < CS_WIDTH);
         if force_allocated && input.is_constant() {
             panic!("The variable should be actually allocated.")
@@ -182,35 +170,33 @@ impl<E: Engine> GateAllocHelper<E> {
 
     pub fn is_prepared(&self) -> bool {
         self.vars.iter().all(|x| x.is_assigned)
-    }    
+    }
 }
-
 
 #[derive(Clone)]
 pub struct XorRotOutput<E: Engine> {
     pub z: Reg<E>,
-    pub qs : [Num<E>; 4],
+    pub qs: [Num<E>; 4],
     pub ws: [Num<E>; 3],
     pub q_ch_rots: Option<(Num<E>, Num<E>)>,
     pub shifts: [usize; 4],
     pub start_idx: usize,
 }
 
-
 pub struct Blake2sGadget<E: Engine> {
     use_additional_tables: bool,
     xor_table: Arc<LookupTableApplication<E>>,
-    
+
     xor_rotate4_table: Option<Arc<LookupTableApplication<E>>>,
     xor_rotate7_table: Option<Arc<LookupTableApplication<E>>>,
     compound_rot4_7_table: Option<Arc<LookupTableApplication<E>>>,
-    
+
     iv: [u64; 8],
     iv0_twist: u64,
-    sigmas : [[usize; 16]; 10],
+    sigmas: [[usize; 16]; 10],
 
     declared_cnsts: RefCell<BTreeMap<<E::Fr as PrimeField>::Repr, AllocatedNum<E>>>,
-    allocated_cnsts : RefCell<BTreeMap<<E::Fr as PrimeField>::Repr, AllocatedNum<E>>>,
+    allocated_cnsts: RefCell<BTreeMap<<E::Fr as PrimeField>::Repr, AllocatedNum<E>>>,
 
     // constants heavily used
     zero: E::Fr,
@@ -227,8 +213,8 @@ impl<E: Engine> Blake2sGadget<E> {
         let r3 = Num::Constant(u64_to_ff((n >> (3 * CHUNK_SIZE)) & 0xff));
 
         Reg {
-            full, 
-            decomposed: DecomposedNum { r0, r1, r2, r3}
+            full,
+            decomposed: DecomposedNum { r0, r1, r2, r3 },
         }
     }
 
@@ -240,37 +226,38 @@ impl<E: Engine> Blake2sGadget<E> {
                 let x = enforce_range_check_using_bitop_table(cs, &var, 32, table, false)?;
                 let dcmps = x.get_vars();
                 Reg {
-                    full: num.clone(), 
-                    decomposed: DecomposedNum { 
-                        r0: Num::Variable(dcmps[0].clone()), r1: Num::Variable(dcmps[1].clone()), 
-                        r2: Num::Variable(dcmps[2].clone()), r3: Num::Variable(dcmps[3].clone())
-                    }
+                    full: num.clone(),
+                    decomposed: DecomposedNum {
+                        r0: Num::Variable(dcmps[0].clone()),
+                        r1: Num::Variable(dcmps[1].clone()),
+                        r2: Num::Variable(dcmps[2].clone()),
+                        r3: Num::Variable(dcmps[3].clone()),
+                    },
                 }
-            },
+            }
         };
-        
+
         Ok(res)
     }
 
-    fn decompose_total_len_var<CS: ConstraintSystem<E>>(
-        &self, cs: &mut CS, var: &AllocatedNum<E>, max_total_len: u64
-    ) -> Result<(Reg<E>, Reg<E>)> 
-    {
+    fn decompose_total_len_var<CS: ConstraintSystem<E>>(&self, cs: &mut CS, var: &AllocatedNum<E>, max_total_len: u64) -> Result<(Reg<E>, Reg<E>)> {
         let val = some_fe_to_biguint(&var.get_value());
         let table = self.xor_table.clone();
         let max_low_val = max_total_len & ((1 << REG_WIDTH) - 1);
         let max_high_val = max_total_len >> REG_WIDTH;
         let bitlens = [num_bits::<u64>(max_low_val), num_bits::<u64>(max_high_val)];
-        
+
         if bitlens[1] == 0 {
             let x = enforce_range_check_using_bitop_table(cs, &var, bitlens[0], table.clone(), false)?;
             let dcmps = x.get_vars();
             let low = Reg {
-                full: Num::Variable(var.clone()), 
-                decomposed: DecomposedNum { 
-                    r0: Num::Variable(dcmps[0].clone()), r1: Num::Variable(dcmps[1].clone()), 
-                    r2: Num::Variable(dcmps[2].clone()), r3: Num::Variable(dcmps[3].clone())
-                }
+                full: Num::Variable(var.clone()),
+                decomposed: DecomposedNum {
+                    r0: Num::Variable(dcmps[0].clone()),
+                    r1: Num::Variable(dcmps[1].clone()),
+                    r2: Num::Variable(dcmps[2].clone()),
+                    r3: Num::Variable(dcmps[3].clone()),
+                },
             };
             return Ok((low, Reg::default()));
         }
@@ -287,27 +274,27 @@ impl<E: Engine> Blake2sGadget<E> {
                 let dcmps = x.get_vars();
 
                 let reg = Reg {
-                    full: Num::Variable(var), 
-                    decomposed: DecomposedNum { 
-                        r0: Num::Variable(dcmps[0].clone()), r1: Num::Variable(dcmps[1].clone()), 
-                        r2: Num::Variable(dcmps[2].clone()), r3: Num::Variable(dcmps[3].clone())
-                    }
+                    full: Num::Variable(var),
+                    decomposed: DecomposedNum {
+                        r0: Num::Variable(dcmps[0].clone()),
+                        r1: Num::Variable(dcmps[1].clone()),
+                        r2: Num::Variable(dcmps[2].clone()),
+                        r3: Num::Variable(dcmps[3].clone()),
+                    },
                 };
                 *out = reg;
             };
-        };
+        }
 
         let mut shift = E::Fr::one();
         for _ in 0..REG_WIDTH {
             shift.double();
         }
-        
+
         let low_term = ArithmeticTerm::from_variable(regs[0].full.get_variable().get_variable());
-        let high_term = ArithmeticTerm::from_variable_and_coeff(
-            regs[1].full.get_variable().get_variable(), shift
-        );
+        let high_term = ArithmeticTerm::from_variable_and_coeff(regs[1].full.get_variable().get_variable(), shift);
         let total_term = ArithmeticTerm::from_variable(var.get_variable());
-        
+
         let mut gate = MainGateTerm::new();
         gate.add_assign(low_term);
         gate.add_assign(high_term);
@@ -318,30 +305,30 @@ impl<E: Engine> Blake2sGadget<E> {
     }
 
     fn alloc_num_from_u64<CS: ConstraintSystem<E>>(&self, cs: &mut CS, n: Option<u64>) -> Result<Num<E>> {
-        let val = n.map(|num| { u64_to_ff(num) });
-        let new_var = AllocatedNum::alloc(cs, || {val.grab()})?;
+        let val = n.map(|num| u64_to_ff(num));
+        let new_var = AllocatedNum::alloc(cs, || val.grab())?;
         Ok(Num::Variable(new_var))
     }
 
     fn alloc_reg_from_u64<CS: ConstraintSystem<E>>(&self, cs: &mut CS, n: Option<u64>) -> Result<Reg<E>> {
-        let full_val = n.map(|num| { u64_to_ff(num) });
-        let full = Num::Variable(AllocatedNum::alloc(cs, || {full_val.grab()})?);
-        
-        let r0_val = n.map(|num| { u64_to_ff(num & 0xff) });
-        let r0 = Num::Variable(AllocatedNum::alloc(cs, || {r0_val.grab()})?);
+        let full_val = n.map(|num| u64_to_ff(num));
+        let full = Num::Variable(AllocatedNum::alloc(cs, || full_val.grab())?);
 
-        let r1_val = n.map(|num| { u64_to_ff((num >> CHUNK_SIZE) & 0xff) });
-        let r1 = Num::Variable(AllocatedNum::alloc(cs, || {r1_val.grab()})?);
+        let r0_val = n.map(|num| u64_to_ff(num & 0xff));
+        let r0 = Num::Variable(AllocatedNum::alloc(cs, || r0_val.grab())?);
 
-        let r2_val = n.map(|num| { u64_to_ff((num >> (2 * CHUNK_SIZE)) & 0xff) });
-        let r2 = Num::Variable(AllocatedNum::alloc(cs, || {r2_val.grab()})?);
+        let r1_val = n.map(|num| u64_to_ff((num >> CHUNK_SIZE) & 0xff));
+        let r1 = Num::Variable(AllocatedNum::alloc(cs, || r1_val.grab())?);
 
-        let r3_val = n.map(|num| { u64_to_ff((num >> (3 * CHUNK_SIZE)) & 0xff) });
-        let r3 = Num::Variable(AllocatedNum::alloc(cs, || {r3_val.grab()})?);
+        let r2_val = n.map(|num| u64_to_ff((num >> (2 * CHUNK_SIZE)) & 0xff));
+        let r2 = Num::Variable(AllocatedNum::alloc(cs, || r2_val.grab())?);
+
+        let r3_val = n.map(|num| u64_to_ff((num >> (3 * CHUNK_SIZE)) & 0xff));
+        let r3 = Num::Variable(AllocatedNum::alloc(cs, || r3_val.grab())?);
 
         let res = Reg {
-            full, 
-            decomposed: DecomposedNum { r0, r1, r2, r3}
+            full,
+            decomposed: DecomposedNum { r0, r1, r2, r3 },
         };
         Ok(res)
     }
@@ -352,86 +339,52 @@ impl<E: Engine> Blake2sGadget<E> {
             _ => panic!("should be allocated"),
         }
     }
-   
+
     pub fn new<CS: ConstraintSystem<E>>(cs: &mut CS, use_additional_tables: bool) -> Result<Self> {
-        let columns3 = vec![
-            PolyIdentifier::VariablesPolynomial(0), 
-            PolyIdentifier::VariablesPolynomial(1), 
-            PolyIdentifier::VariablesPolynomial(2)
-        ];
+        let columns3 = vec![PolyIdentifier::VariablesPolynomial(0), PolyIdentifier::VariablesPolynomial(1), PolyIdentifier::VariablesPolynomial(2)];
 
         let name1: &'static str = "xor_table";
-        let xor_table = LookupTableApplication::new(
-            name1,
-            XorRotateTable::new(CHUNK_SIZE, 0, name1),
-            columns3.clone(),
-            None,
-            true
-        );
+        let xor_table = LookupTableApplication::new(name1, XorRotateTable::new(CHUNK_SIZE, 0, name1), columns3.clone(), None, true);
         let xor_table = add_table_once(cs, xor_table)?;
 
         let xor_rotate4_table = if use_additional_tables {
-            let name2 : &'static str = "xor_rotate4_table";
-            let xor_rotate4_table = LookupTableApplication::new(
-                name2,
-                XorRotateTable::new(CHUNK_SIZE, SHIFT4 as u32, name2),
-                columns3.clone(),
-                None,
-                true
-            );
+            let name2: &'static str = "xor_rotate4_table";
+            let xor_rotate4_table = LookupTableApplication::new(name2, XorRotateTable::new(CHUNK_SIZE, SHIFT4 as u32, name2), columns3.clone(), None, true);
             Some(add_table_once(cs, xor_rotate4_table)?)
-        }
-        else {
+        } else {
             None
         };
 
         let xor_rotate7_table = if use_additional_tables {
-            let name3 : &'static str = "xor_rotate7_table";
-            let xor_rotate7_table = LookupTableApplication::new(
-                name3,
-                XorRotateTable::new(CHUNK_SIZE, SHIFT7 as u32, name3),
-                columns3.clone(),
-                None,
-                true
-            );
+            let name3: &'static str = "xor_rotate7_table";
+            let xor_rotate7_table = LookupTableApplication::new(name3, XorRotateTable::new(CHUNK_SIZE, SHIFT7 as u32, name3), columns3.clone(), None, true);
             Some(add_table_once(cs, xor_rotate7_table)?)
-        }
-        else {
+        } else {
             None
         };
 
         let compound_rot4_7_table = if !use_additional_tables {
-            let name4 : &'static str = "compound_rot4_7_table";
-            let compound_rot4_7_table = LookupTableApplication::new(
-                name4,
-                CompoundRotTable::new(CHUNK_SIZE, SHIFT4, SHIFT7, name4),
-                columns3.clone(),
-                None,
-                true
-            );
+            let name4: &'static str = "compound_rot4_7_table";
+            let compound_rot4_7_table = LookupTableApplication::new(name4, CompoundRotTable::new(CHUNK_SIZE, SHIFT4, SHIFT7, name4), columns3.clone(), None, true);
             Some(add_table_once(cs, compound_rot4_7_table)?)
-        }
-        else {
+        } else {
             None
         };
-        
-        let iv = [
-            0x6A09E667, 0xBB67AE85, 0x3C6EF372, 0xA54FF53A,
-            0x510E527F, 0x9B05688C, 0x1F83D9AB, 0x5BE0CD19,
-        ];
-        let iv0_twist =  0x6A09E667 ^ 0x01010000 ^ 32;
+
+        let iv = [0x6A09E667, 0xBB67AE85, 0x3C6EF372, 0xA54FF53A, 0x510E527F, 0x9B05688C, 0x1F83D9AB, 0x5BE0CD19];
+        let iv0_twist = 0x6A09E667 ^ 0x01010000 ^ 32;
 
         let sigmas: [[usize; 16]; 10] = [
-            [ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 ],
-            [ 14, 10, 4, 8, 9, 15, 13, 6, 1, 12, 0, 2, 11, 7, 5, 3 ],
-            [ 11, 8, 12, 0, 5, 2, 15, 13, 10, 14, 3, 6, 7, 1, 9, 4 ],
-            [ 7, 9, 3, 1, 13, 12, 11, 14, 2, 6, 5, 10, 4, 0, 15, 8 ],
-            [ 9, 0, 5, 7, 2, 4, 10, 15, 14, 1, 11, 12, 6, 8, 3, 13 ],
-            [ 2, 12, 6, 10, 0, 11, 8, 3, 4, 13, 7, 5, 15, 14, 1, 9 ],
-            [ 12, 5, 1, 15, 14, 13, 4, 10, 0, 7, 6, 3, 9, 2, 8, 11 ],
-            [ 13, 11, 7, 14, 12, 1, 3, 9, 5, 0, 15, 4, 8, 6, 2, 10 ],
-            [ 6, 15, 14, 9, 11, 3, 0, 8, 12, 2, 13, 7, 1, 4, 10, 5 ],
-            [ 10, 2, 8, 4, 7, 6, 1, 5, 15, 11, 9, 14, 3, 12, 13, 0 ]
+            [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+            [14, 10, 4, 8, 9, 15, 13, 6, 1, 12, 0, 2, 11, 7, 5, 3],
+            [11, 8, 12, 0, 5, 2, 15, 13, 10, 14, 3, 6, 7, 1, 9, 4],
+            [7, 9, 3, 1, 13, 12, 11, 14, 2, 6, 5, 10, 4, 0, 15, 8],
+            [9, 0, 5, 7, 2, 4, 10, 15, 14, 1, 11, 12, 6, 8, 3, 13],
+            [2, 12, 6, 10, 0, 11, 8, 3, 4, 13, 7, 5, 15, 14, 1, 9],
+            [12, 5, 1, 15, 14, 13, 4, 10, 0, 7, 6, 3, 9, 2, 8, 11],
+            [13, 11, 7, 14, 12, 1, 3, 9, 5, 0, 15, 4, 8, 6, 2, 10],
+            [6, 15, 14, 9, 11, 3, 0, 8, 12, 2, 13, 7, 1, 4, 10, 5],
+            [10, 2, 8, 4, 7, 6, 1, 5, 15, 11, 9, 14, 3, 12, 13, 0],
         ];
 
         let declared_cnsts = RefCell::new(BTreeMap::new());
@@ -440,7 +393,7 @@ impl<E: Engine> Blake2sGadget<E> {
         let zero = E::Fr::zero();
         let one = E::Fr::one();
         let mut minus_one = E::Fr::one();
-        minus_one.negate(); 
+        minus_one.negate();
 
         Ok(Blake2sGadget {
             use_additional_tables,
@@ -476,7 +429,7 @@ impl<E: Engine> Blake2sGadget<E> {
         let gate_term = MainGateTerm::new();
         let (mut vars, mut coefs) = CS::MainGate::format_term(gate_term, dummy)?;
 
-        let mut cnst = gate_alloc_helper.cnst_sel; 
+        let mut cnst = gate_alloc_helper.cnst_sel;
 
         // plug-in all linear terms
         for (pos, idx) in range_of_linear_terms.zip(0..CS_WIDTH) {
@@ -484,12 +437,12 @@ impl<E: Engine> Blake2sGadget<E> {
                 Num::Variable(var) => {
                     vars[idx] = var.get_variable();
                     coefs[pos] = gate_alloc_helper.vars[idx].coef;
-                },
+                }
                 Num::Constant(fr) => {
                     let mut tmp = fr;
                     tmp.mul_assign(&gate_alloc_helper.vars[idx].coef);
                     cnst.add_assign(&tmp);
-                },
+                }
             }
         }
 
@@ -507,22 +460,23 @@ impl<E: Engine> Blake2sGadget<E> {
         }
 
         cs.begin_gates_batch_for_step()?;
-        
+
         // apply table lookup if we have one
         if let Some(table) = gate_alloc_helper.table {
             cs.apply_single_lookup_gate(&vars[..table.width()], table.clone())?;
         }
 
-        // apply main gate        
+        // apply main gate
         let mg = CS::MainGate::default();
         cs.new_gate_in_batch(&mg, &coefs, &vars, &[])?;
         cs.end_gates_batch_for_step()?;
-        
+
         Ok(())
     }
 
     fn xor_rot<CS>(&self, cs: &mut CS, a: &Num<E>, b: &Num<E>, rot: usize) -> Result<AllocatedNum<E>>
-    where CS: ConstraintSystem<E>
+    where
+        CS: ConstraintSystem<E>,
     {
         AllocatedNum::alloc(cs, || {
             let a = a.get_value().grab()?;
@@ -538,28 +492,28 @@ impl<E: Engine> Blake2sGadget<E> {
         })
     }
 
-    fn xor<CS: ConstraintSystem<E>>(&self, cs: &mut CS, a: &Num<E>, b: &Num<E>) -> Result<AllocatedNum<E>>
-    {
+    fn xor<CS: ConstraintSystem<E>>(&self, cs: &mut CS, a: &Num<E>, b: &Num<E>) -> Result<AllocatedNum<E>> {
         self.xor_rot(cs, a, b, 0)
     }
 
     fn rot<CS: ConstraintSystem<E>>(&self, cs: &mut CS, a: &Num<E>, rot: usize) -> Result<AllocatedNum<E>>
-    where CS: ConstraintSystem<E>
+    where
+        CS: ConstraintSystem<E>,
     {
         let dummy = Num::Variable(AllocatedNum::zero(cs));
         self.xor_rot(cs, a, &dummy, rot)
     }
 
     fn constraint_all_allocated_cnsts<CS: ConstraintSystem<E>>(&self, cs: &mut CS) -> Result<()> {
-        let mut allocated_cnsts_dict = self.allocated_cnsts.borrow_mut(); 
+        let mut allocated_cnsts_dict = self.allocated_cnsts.borrow_mut();
         let declared_cnsts_dict = std::mem::replace(&mut *self.declared_cnsts.borrow_mut(), BTreeMap::new());
         for (fr_repr, variable) in declared_cnsts_dict {
-        // for fr in keys.into_iter() {
+            // for fr in keys.into_iter() {
             // let variable = declared_cnsts_dict.remove(&fr).unwrap();
             let self_term = ArithmeticTerm::from_variable(variable.get_variable());
             let fr = E::Fr::from_repr(fr_repr).unwrap();
             let other_term = ArithmeticTerm::constant(fr);
-        
+
             let mut term = MainGateTerm::new();
             term.add_assign(self_term);
             term.sub_assign(other_term);
@@ -578,8 +532,7 @@ impl<E: Engine> Blake2sGadget<E> {
             Num::Constant(fr) => {
                 if fr.is_zero() {
                     Num::Variable(AllocatedNum::zero(cs))
-                }
-                else {
+                } else {
                     let allocated_map = self.allocated_cnsts.borrow();
                     let mut declared_map = self.declared_cnsts.borrow_mut();
                     let fr_repr = fr.into_repr();
@@ -587,19 +540,19 @@ impl<E: Engine> Blake2sGadget<E> {
                         Some(entry) => entry.clone(),
                         None => {
                             if let Some(var) = declared_map.get(&fr_repr).cloned() {
-                                var 
+                                var
                             } else {
                                 let var = AllocatedNum::alloc(cs, || Ok(*fr))?;
                                 let prev = declared_map.insert(fr_repr, var);
                                 assert!(prev.is_none());
-    
+
                                 var
                             }
-                        },
+                        }
                     };
                     Num::Variable(var)
                 }
-            },
+            }
         };
 
         Ok(res)
@@ -630,31 +583,32 @@ impl<E: Engine> Blake2sGadget<E> {
     // no constraints will be allocated, just return the new constant (NB: what if t will be a variable)
 
     // 2) all of a, b, x are variables: there will be 3 rows:
-    // [y0, y1, y2, y3] - decomposed parts of resulted y: y = y0 + 2^8 * y1 + 2^16 * y2 + 2^24 * y3: 
+    // [y0, y1, y2, y3] - decomposed parts of resulted y: y = y0 + 2^8 * y1 + 2^16 * y2 + 2^24 * y3:
     // [a, b, x, y] - where y = a + b + x - 2^32 * of (using of via d_next selector)
     // [of, t, of ^ t, of] - range check for of and t
 
     // 3) if we are in between these two corner cases we are going to use the sceme as in case (2), the only difference is that
     // we are going to replace all instances of costant variables with dummy placeholders and push them instead into constant selector
     // e.g: assume thta a - is variable (AllocatedVar) and b, x - are constants : than in any case y, of, y0, y1, y2, y3 -a re variables
-    // and the second row will be replaced by: 
+    // and the second row will be replaced by:
     // [a, dummy, dummy, y], and constant selector will contain the value of x + y
     // this identical approach to handling constant and variables is hidden under the GateAllocHelper facade
-    
+
     // NB: there is inversion in computation: we first precompute the value of y and split it into corresponding
-    // chunks y0, y1, y2, y3 BEFORE allocating contraint defining y itself! this inversion will be a recurring pattern 
+    // chunks y0, y1, y2, y3 BEFORE allocating contraint defining y itself! this inversion will be a recurring pattern
     // in our optimization
     // also - there is a place for additional 8-bit variable t on the last row, so there is a possibility to multiplex two
     // oveflow checks on the same row: for current of and (yet unknown) t
     // and yes, we are going to explot the inversion trick again: we take t from overflow check of step 3!
 
-    // due to such an extended use of inversion trick we have to split all equation generations it two phases: 
+    // due to such an extended use of inversion trick we have to split all equation generations it two phases:
     // setup - where we aforehead define all variables and compute their values
     // and actual gate allocation
 
     // setup of first step: given a, b, x - return [y, of] (in that order)
     fn g_ternary_additon_setup<CS>(&self, cs: &mut CS, a: &Reg<E>, b: &Reg<E>, x: &Num<E>) -> Result<(Reg<E>, Num<E>)>
-    where CS: ConstraintSystem<E> 
+    where
+        CS: ConstraintSystem<E>,
     {
         let (y, of) = match (&a.full, &b.full, &x) {
             (Num::Constant(fr1), Num::Constant(fr2), Num::Constant(fr3)) => {
@@ -664,7 +618,7 @@ impl<E: Engine> Blake2sGadget<E> {
                 let f_repr = temp.into_repr();
                 let y = f_repr.as_ref()[0] & ((1 << REG_WIDTH) - 1);
                 (self.u64_to_reg(y), Num::default())
-            },
+            }
             (_, _, _) => {
                 let fr1 = a.get_value();
                 let fr2 = b.get_value();
@@ -678,34 +632,38 @@ impl<E: Engine> Blake2sGadget<E> {
                         let y = f_repr.as_ref()[0] & ((1 << REG_WIDTH) - 1);
                         let of = f_repr.as_ref()[0] >> REG_WIDTH;
                         (Some(y), Some(of))
-                    },
-                    (_, _, _) => (None, None)
+                    }
+                    (_, _, _) => (None, None),
                 };
-                
+
                 let y = self.alloc_reg_from_u64(cs, y_val)?;
                 let of = self.alloc_num_from_u64(cs, of_val)?;
                 (y, of)
-            },
+            }
         };
         Ok((y, of))
     }
 
     fn g_ternary_addition_process<CS: ConstraintSystem<E>>(
-        &self, cs: &mut CS, 
-        a: &Reg<E>, b: &Reg<E>, x: &Num<E>, // known in advance 
-        y: &Reg<E>, of: &Num<E>, t: &Num<E>, // generated during setup phase
-    ) -> Result<()>
-    {
+        &self,
+        cs: &mut CS,
+        a: &Reg<E>,
+        b: &Reg<E>,
+        x: &Num<E>, // known in advance
+        y: &Reg<E>,
+        of: &Num<E>,
+        t: &Num<E>, // generated during setup phase
+    ) -> Result<()> {
         if a.is_const() && b.is_const() && x.is_constant() {
             assert!(t.is_constant());
-            return Ok(())
+            return Ok(());
         }
 
         let zero = self.zero.clone();
         let one = self.one.clone();
         let minus_one = self.minus_one.clone();
 
-        // [y0, y1, y2, y3] - decomposed parts of resulted y: y = y0 + 2^8 * y1 + 2^16 * y2 + 2^24 * y3: 
+        // [y0, y1, y2, y3] - decomposed parts of resulted y: y = y0 + 2^8 * y1 + 2^16 * y2 + 2^24 * y3:
         // [a, b, x, y] - where y = a + b + x - 2^32 * of (using of via d_next selector)
         // [of, t, of ^ t, of] - range check for of and t
 
@@ -721,7 +679,7 @@ impl<E: Engine> Blake2sGadget<E> {
         second_row.set_var(1, one.clone(), b.full.clone(), false);
         second_row.set_var(2, one.clone(), x.clone(), false);
         second_row.set_var(3, minus_one.clone(), y.full.clone(), true);
-        let mut coef : E::Fr = u64_to_ff(1u64 << REG_WIDTH);
+        let mut coef: E::Fr = u64_to_ff(1u64 << REG_WIDTH);
         coef.negate();
         second_row.link_with_next_row(coef);
 
@@ -761,8 +719,9 @@ impl<E: Engine> Blake2sGadget<E> {
     // when a, b are varibles we have only one equation of the form:
     // [y, a, b, of], y = a + b - 2^32 * of
     // and range check of of is multiplexed with range check for ternary addition (here where t there comes from!)
-    fn g_binary_addition_setup<CS>(&self, cs: &mut CS, a: &Reg<E>, b: &Reg<E>) -> Result<(Reg<E>, Num<E>)> 
-    where CS: ConstraintSystem<E>
+    fn g_binary_addition_setup<CS>(&self, cs: &mut CS, a: &Reg<E>, b: &Reg<E>) -> Result<(Reg<E>, Num<E>)>
+    where
+        CS: ConstraintSystem<E>,
     {
         let (y, of) = match (&a.full, &b.full) {
             (Num::Constant(fr1), Num::Constant(fr2)) => {
@@ -771,7 +730,7 @@ impl<E: Engine> Blake2sGadget<E> {
                 let f_repr = temp.into_repr();
                 let y = f_repr.as_ref()[0] & ((1 << REG_WIDTH) - 1);
                 (self.u64_to_reg(y), Num::default())
-            },
+            }
             (_, _) => {
                 let fr1 = a.get_value();
                 let fr2 = b.get_value();
@@ -783,23 +742,24 @@ impl<E: Engine> Blake2sGadget<E> {
                         let y = f_repr.as_ref()[0] & ((1 << REG_WIDTH) - 1);
                         let of = f_repr.as_ref()[0] >> REG_WIDTH;
                         (Some(y), Some(of))
-                    },
-                    (_, _) => (None, None)
+                    }
+                    (_, _) => (None, None),
                 };
-                
+
                 let y = self.alloc_reg_from_u64(cs, y_val)?;
                 let of = self.alloc_num_from_u64(cs, of_val)?;
                 (y, of)
-            },
+            }
         };
         Ok((y, of))
     }
 
     fn g_binary_addition_process<CS>(&self, cs: &mut CS, a: &Reg<E>, b: &Reg<E>, y: &Reg<E>, of: &Num<E>) -> Result<()>
-    where CS: ConstraintSystem<E>
+    where
+        CS: ConstraintSystem<E>,
     {
         if a.is_const() && b.is_const() {
-            return Ok(())
+            return Ok(());
         }
 
         // [y, a, b, of], y = a + b - 2^32 * of
@@ -813,14 +773,14 @@ impl<E: Engine> Blake2sGadget<E> {
         row.set_var(1, minus_one.clone(), a.full.clone(), false);
         row.set_var(2, minus_one.clone(), b.full.clone(), false);
         row.set_var(3, u64_to_ff(1 << REG_WIDTH), of.clone(), true);
-        
+
         self.allocate_gate(cs, row)?;
         Ok(())
-    }  
+    }
 
     // rotate step is of the form: z = (x ^ y) >>> R
     // there are two possibilities: R is multiple of CHUNK_SIZE = 8 or not
-    
+
     // if R is multiple of CHUNKS_SIZE
     // we will always have the following 4 rows (in case any of (x, y) is actually a variable)
     // z = /sum z[idx_k] * 8^[idx_k] ([idx_k] is permuted array of [0, 1, 2, 3])
@@ -828,19 +788,20 @@ impl<E: Engine> Blake2sGadget<E> {
     // [x[1], y[1], z[idx_1], z - z[idx_0] * 8^[idx_0] = w0
     // x[2], y[2], z[idx_2], z - z[idx_0] * 8^[idx_0] - z[idx_1] * 8^[idx_1] = w1
     // x[3], y[3], z[idx_3], z - z[idx_0] * 8^[idx_0] - z[idx_1] * 8^[idx_1] - z[idx_2] * 8^[idx_2] = w2
-    
+
     // on the first 3 rows we have the link to the next row via d_next
     // on the last row we need only to check that c * 8^[idx_3] = d
-    // when R is a multiple of CHUNK_LEN = 8 ( R is 8 or 16) z is already decomposed into chunks 
+    // when R is a multiple of CHUNK_LEN = 8 ( R is 8 or 16) z is already decomposed into chunks
     // (just take [z_idx] in the right order), so no additional decomposition constraints are needed
     fn g_xor_rot_setup_impl_rot_8_16<CS>(&self, cs: &mut CS, a: &Reg<E>, b: &Reg<E>, rot: usize) -> Result<XorRotOutput<E>>
-    where CS: ConstraintSystem<E>
+    where
+        CS: ConstraintSystem<E>,
     {
         let q0 = Num::Variable(self.xor(cs, &a.decomposed.r0, &b.decomposed.r0)?);
         let q1 = Num::Variable(self.xor(cs, &a.decomposed.r1, &b.decomposed.r1)?);
         let q2 = Num::Variable(self.xor(cs, &a.decomposed.r2, &b.decomposed.r2)?);
         let q3 = Num::Variable(self.xor(cs, &a.decomposed.r3, &b.decomposed.r3)?);
-               
+
         let fr1 = a.get_value();
         let fr2 = b.get_value();
         let z_full_val = match (fr1, fr2) {
@@ -850,27 +811,36 @@ impl<E: Engine> Blake2sGadget<E> {
                 let n_xor_m = (n ^ m) as u32;
                 let tmp = n_xor_m.rotate_right(rot as u32);
                 Some(tmp as u64)
-                
-            },
+            }
             (_, _) => None,
         };
         let z_full = self.alloc_num_from_u64(cs, z_full_val)?;
 
-        let (z, shifts) = match rot {            
+        let (z, shifts) = match rot {
             8 => {
                 let reg = Reg {
                     full: z_full,
-                    decomposed : DecomposedNum { r0: q1.clone(), r1: q2.clone(), r2: q3.clone(), r3: q0.clone() }
+                    decomposed: DecomposedNum {
+                        r0: q1.clone(),
+                        r1: q2.clone(),
+                        r2: q3.clone(),
+                        r3: q0.clone(),
+                    },
                 };
                 (reg, [24, 0, 8, 16])
-            },
+            }
             16 => {
                 let reg = Reg {
                     full: z_full,
-                    decomposed : DecomposedNum { r0: q2.clone(), r1: q3.clone(), r2: q0.clone(), r3: q1.clone() }
+                    decomposed: DecomposedNum {
+                        r0: q2.clone(),
+                        r1: q3.clone(),
+                        r2: q0.clone(),
+                        r3: q1.clone(),
+                    },
                 };
                 (reg, [16, 24, 0, 8])
-            },
+            }
             _ => unreachable!(),
         };
 
@@ -886,14 +856,14 @@ impl<E: Engine> Blake2sGadget<E> {
                 let mut tmp_val = q.get_value().grab()?;
                 tmp_val.mul_assign(&coef);
                 cur_val.sub_assign(&tmp_val);
-                
+
                 Ok(cur_val)
             })?;
-            
+
             *w = Num::Variable(new_var);
             cur = w;
         }
-        
+
         let res = XorRotOutput {
             z,
             qs,
@@ -908,11 +878,11 @@ impl<E: Engine> Blake2sGadget<E> {
 
     // when R is not a multiple of CHUNK_LEN = 8 ( R is 8 or 16)
     // we extend previous constraints with decomposition of z into z[0], z[1], z[2], z[3]
-    
+
     // if we don't use any additional tables, then the rows will be the following:
     // x[i0], y[i0], q[i0], allocated_zero (NB: room for small optimization here as d register is unused)
     // z[0], z[1], z[2], z[3] - decomposition of z into chunks (exploting d_next)
-    // q[i0], q[i0]_rot4, q[i0]_rot7, z, 
+    // q[i0], q[i0]_rot4, q[i0]_rot7, z,
     // x[i1], y[i1], q[i1], z - q[i0] * 8^[i0] = w0
     // x[i2], y[i2], z[i2], z - q[i0] * 8^[i0] - q[i1] * 8^[i1] = w1
     // x[i3], y[i3], z[i3], z - q[i0] * 8^[i0] - q[i1] * 8^[i1] - q[i2] * 8^[i2] = w2
@@ -924,30 +894,27 @@ impl<E: Engine> Blake2sGadget<E> {
     // x[i2], y[i2], z[i2], z - q[i0] * 8^[i0] - q[i1] * 8^[i1] = w1
     // x[i3], y[i3], z[i3], z - q[i0] * 8^[i0] - q[i1] * 8^[i1] - q[i2] * 8^[i2] = w2
     fn g_xor_rot_setup_impl_rot_7_12<CS>(&self, cs: &mut CS, a: &Reg<E>, b: &Reg<E>, rot: usize) -> Result<XorRotOutput<E>>
-    where CS: ConstraintSystem<E>
+    where
+        CS: ConstraintSystem<E>,
     {
-        let mut start_idx = if rot == 7 {0} else {1};
+        let mut start_idx = if rot == 7 { 0 } else { 1 };
         let (q_i0, q_ch_rots) = if self.use_additional_tables {
             let q_i0 = Num::Variable(self.xor_rot(cs, &a.decomposed[start_idx], &b.decomposed[start_idx], rot % CHUNK_SIZE)?);
             (q_i0, None)
-        }
-        else {
+        } else {
             let q_i0 = Num::Variable(self.xor(cs, &a.decomposed[start_idx], &b.decomposed[start_idx])?);
-            let q_ch_rots = (
-                Num::Variable(self.rot(cs, &q_i0, 4)?),
-                Num::Variable(self.rot(cs, &q_i0, 7)?),
-            );
+            let q_ch_rots = (Num::Variable(self.rot(cs, &q_i0, 4)?), Num::Variable(self.rot(cs, &q_i0, 7)?));
             (q_i0, Some(q_ch_rots))
         };
         start_idx = (start_idx + 1) % 4;
-        
+
         let q_i1 = Num::Variable(self.xor(cs, &a.decomposed[start_idx], &b.decomposed[start_idx])?);
         start_idx = (start_idx + 1) % 4;
         let q_i2 = Num::Variable(self.xor(cs, &a.decomposed[start_idx], &b.decomposed[start_idx])?);
         start_idx = (start_idx + 1) % 4;
         let q_i3 = Num::Variable(self.xor(cs, &a.decomposed[start_idx], &b.decomposed[start_idx])?);
         start_idx = (start_idx + 1) % 4;
-               
+
         let fr1 = a.get_value();
         let fr2 = b.get_value();
         let z_full_val = match (fr1, fr2) {
@@ -957,15 +924,14 @@ impl<E: Engine> Blake2sGadget<E> {
                 let n_xor_m = (n ^ m) as u32;
                 let tmp = n_xor_m.rotate_right(rot as u32);
                 Some(tmp as u64)
-                
-            },
+            }
             (_, _) => None,
         };
         let z = self.alloc_reg_from_u64(cs, z_full_val)?;
 
-        let shifts = match rot { 
-            7 => [0, 1, 9, 17],    
-            12 => [0, 4, 12, 20],       
+        let shifts = match rot {
+            7 => [0, 1, 9, 17],
+            12 => [0, 4, 12, 20],
             _ => unreachable!(),
         };
 
@@ -989,14 +955,14 @@ impl<E: Engine> Blake2sGadget<E> {
                 let mut tmp_val = q.get_value().grab()?;
                 tmp_val.mul_assign(&coef);
                 cur_val.sub_assign(&tmp_val);
-                
+
                 Ok(cur_val)
             })?;
-            
+
             *w = Num::Variable(new_var);
             cur = w;
         }
-        
+
         let res = XorRotOutput {
             z,
             qs,
@@ -1010,7 +976,8 @@ impl<E: Engine> Blake2sGadget<E> {
     }
 
     fn g_xor_rot_setup<CS>(&self, cs: &mut CS, a: &Reg<E>, b: &Reg<E>, rot: usize) -> Result<XorRotOutput<E>>
-    where CS: ConstraintSystem<E>
+    where
+        CS: ConstraintSystem<E>,
     {
         let res = match (&a.full, &b.full) {
             (Num::Constant(fr1), Num::Constant(fr2)) => {
@@ -1028,12 +995,11 @@ impl<E: Engine> Blake2sGadget<E> {
                     shifts: [0, 0, 0, 0],
                     start_idx: 0,
                 }
-            },
+            }
             (_, _) => match rot {
                 8 | 16 => self.g_xor_rot_setup_impl_rot_8_16(cs, a, b, rot)?,
                 7 | 12 => self.g_xor_rot_setup_impl_rot_7_12(cs, a, b, rot)?,
                 _ => unreachable!(),
-
             },
         };
 
@@ -1041,16 +1007,17 @@ impl<E: Engine> Blake2sGadget<E> {
     }
 
     fn g_xor_rot_process<CS>(&self, cs: &mut CS, x: &Reg<E>, y: &Reg<E>, xor_rot_data: XorRotOutput<E>, rot: usize) -> Result<()>
-    where CS: ConstraintSystem<E>
+    where
+        CS: ConstraintSystem<E>,
     {
         if x.is_const() && y.is_const() {
-            return Ok(())
+            return Ok(());
         }
 
         let zero = self.zero.clone();
         let one = self.one.clone();
         let minus_one = self.minus_one.clone();
-        let needs_decomposition : bool = (rot % CHUNK_SIZE) != 0;
+        let needs_decomposition: bool = (rot % CHUNK_SIZE) != 0;
 
         let z = xor_rot_data.z;
         let qs = xor_rot_data.qs;
@@ -1068,22 +1035,21 @@ impl<E: Engine> Blake2sGadget<E> {
             let (d, cnst_sel) = match is_empty_flag {
                 true => (Num::Variable(AllocatedNum::zero(cs)), E::Fr::zero()),
                 false => {
-
                     let mut output_dict = self.allocated_cnsts.borrow_mut();
                     let mut input_dict = self.declared_cnsts.borrow_mut();
 
                     let key = input_dict.keys().next().unwrap().clone();
                     let val = input_dict.remove(&key).unwrap();
-                    
+
                     let d = Num::Variable(val.clone());
                     let mut cnst_sel = E::Fr::from_repr(key).unwrap();
                     cnst_sel.negate();
 
                     let prev = output_dict.insert(key, val);
                     assert!(prev.is_none());
-                    
+
                     (d, cnst_sel)
-                },
+                }
             };
 
             let mut row = GateAllocHelper::default();
@@ -1096,7 +1062,7 @@ impl<E: Engine> Blake2sGadget<E> {
             let table = self.xor_table.clone();
             row.set_table(table);
             self.allocate_gate(cs, row)?;
-        } 
+        }
 
         if needs_decomposition {
             // [y0, y1, y2, y3]
@@ -1123,20 +1089,18 @@ impl<E: Engine> Blake2sGadget<E> {
             if rot == 12 {
                 row.set_var(1, coef, b, true);
                 row.set_var(2, zero.clone(), c, true);
-            }
-            else {
+            } else {
                 row.set_var(1, zero.clone(), b, true);
                 row.set_var(2, coef, c, true);
             }
             row.set_var(3, minus_one.clone(), d, true);
-            
+
             row.link_with_next_row(one.clone());
 
             let table = self.compound_rot4_7_table.as_ref().unwrap().clone();
             row.set_table(table);
             self.allocate_gate(cs, row)?;
-        }
-        else {
+        } else {
             // x[i0], y[i0], z[i0], z, - here the xor_rot_table is called
             let a = self.to_allocated(cs, &x.decomposed[start_idx])?;
             let b = self.to_allocated(cs, &y.decomposed[start_idx])?;
@@ -1149,7 +1113,7 @@ impl<E: Engine> Blake2sGadget<E> {
             row.set_var(1, zero.clone(), b, true);
             row.set_var(2, coef, c, true);
             row.set_var(3, minus_one.clone(), d, true);
-            
+
             row.link_with_next_row(one.clone());
             let table = self.choose_table_by_rot(rot);
             row.set_table(table);
@@ -1161,7 +1125,7 @@ impl<E: Engine> Blake2sGadget<E> {
             let a = self.to_allocated(cs, &x.decomposed[start_idx])?;
             let b = self.to_allocated(cs, &y.decomposed[start_idx])?;
             let c = qs[i].clone();
-            let d = ws[i-1].clone();
+            let d = ws[i - 1].clone();
             let coef = u64_to_ff(1 << xor_rot_data.shifts[i]);
 
             let mut row = GateAllocHelper::default();
@@ -1169,7 +1133,7 @@ impl<E: Engine> Blake2sGadget<E> {
             row.set_var(1, zero.clone(), b, true);
             row.set_var(2, coef, c, true);
             row.set_var(3, minus_one.clone(), d, true);
-            
+
             if i != 3 {
                 row.link_with_next_row(one.clone());
             }
@@ -1184,7 +1148,8 @@ impl<E: Engine> Blake2sGadget<E> {
     }
 
     fn g<CS>(&self, cs: &mut CS, v: &mut HashState<E>, idx_arr: [usize; 4], x: &Num<E>, y: &Num<E>) -> Result<()>
-    where CS: ConstraintSystem<E>
+    where
+        CS: ConstraintSystem<E>,
     {
         let mut regs = v.0.get_muts();
         let a = regs.at(idx_arr[0]).unwrap();
@@ -1198,28 +1163,28 @@ impl<E: Engine> Blake2sGadget<E> {
         let temp_d = xor_rot_data1.z.clone();
         let (temp_c, of2) = self.g_binary_addition_setup(cs, c, &temp_d)?;
         let xor_rot_data2 = self.g_xor_rot_setup(cs, b, &temp_c, 12)?;
-        let temp_b = xor_rot_data2.z.clone(); 
+        let temp_b = xor_rot_data2.z.clone();
 
         // first half of g function - burn preallocated variables to protoboard
         self.g_ternary_addition_process(cs, a, b, x, &temp_a, &of1, &of2)?;
         self.g_xor_rot_process(cs, &temp_a, d, xor_rot_data1, 16)?;
         self.g_binary_addition_process(cs, c, &temp_d, &temp_c, &of2)?;
         self.g_xor_rot_process(cs, b, &temp_c, xor_rot_data2, 12)?;
-        
+
         // second half of g function - setup
         let (new_a, of1) = self.g_ternary_additon_setup(cs, &temp_a, &temp_b, y)?;
         let xor_rot_data1 = self.g_xor_rot_setup(cs, &new_a, &temp_d, 8)?;
         let new_d = xor_rot_data1.z.clone();
         let (new_c, of2) = self.g_binary_addition_setup(cs, &temp_c, &new_d)?;
         let xor_rot_data2 = self.g_xor_rot_setup(cs, &temp_b, &new_c, 7)?;
-        let new_b = xor_rot_data2.z.clone(); 
+        let new_b = xor_rot_data2.z.clone();
 
         // second half of g function - burn preallocated variables to protoboard
         self.g_ternary_addition_process(cs, &temp_a, &temp_b, y, &new_a, &of1, &of2)?;
         self.g_xor_rot_process(cs, &new_a, &temp_d, xor_rot_data1, 8)?;
         self.g_binary_addition_process(cs, &temp_c, &new_d, &new_c, &of2)?;
         self.g_xor_rot_process(cs, &temp_b, &new_c, xor_rot_data2, 7)?;
-        
+
         *a = new_a;
         *b = new_b;
         *c = new_c;
@@ -1237,8 +1202,7 @@ impl<E: Engine> Blake2sGadget<E> {
 
     // if there are n -rows (and 1 <= n <= 3) modifed there will be n+1 constraints
     // if all rows are modified (n = 4) there will be 4 constraints
-    fn var_xor_const<CS: ConstraintSystem<E>>(&self, cs: &mut CS, input: &DecomposedNum<E>, cnst: u64) -> Result<Reg<E>>
-    {
+    fn var_xor_const<CS: ConstraintSystem<E>>(&self, cs: &mut CS, input: &DecomposedNum<E>, cnst: u64) -> Result<Reg<E>> {
         assert_ne!(cnst, 0);
         let zero = E::Fr::zero();
         let one = E::Fr::one();
@@ -1255,7 +1219,7 @@ impl<E: Engine> Blake2sGadget<E> {
             Ok(u64_to_ff(n))
         })?;
         let full = Num::Variable(full_var);
-        
+
         let mut idx_used = [false, false, false, false];
         let mut res_chunks = [input.r0.clone(), input.r1.clone(), input.r2.clone(), input.r3.clone()];
         let mut d = full.clone();
@@ -1268,7 +1232,7 @@ impl<E: Engine> Blake2sGadget<E> {
 
                 let num = Num::Constant(u64_to_ff(byte_val));
                 let b = self.to_allocated(cs, &num)?;
-                
+
                 let c = Num::Variable(self.xor(cs, &a, &b)?);
                 res_chunks[i] = c.clone();
 
@@ -1277,8 +1241,8 @@ impl<E: Engine> Blake2sGadget<E> {
                 row.set_var(1, zero.clone(), b, true);
                 row.set_var(2, u64_to_ff(1u64 << (CHUNK_SIZE * i)), c.clone(), true);
                 row.set_var(3, minus_one.clone(), d.clone(), true);
-            
-                if i != 3 || idx_used.iter().any(|flag| !flag)  {
+
+                if i != 3 || idx_used.iter().any(|flag| !flag) {
                     row.link_with_next_row(one.clone());
                 }
                 row.set_table(self.xor_table.clone());
@@ -1290,7 +1254,7 @@ impl<E: Engine> Blake2sGadget<E> {
                     let mut c_val = c.get_value().grab()?;
                     c_val.mul_assign(&coef);
                     d_val.sub_assign(&c_val);
-                        
+
                     Ok(d_val)
                 })?;
                 d = Num::Variable(w)
@@ -1308,7 +1272,9 @@ impl<E: Engine> Blake2sGadget<E> {
             let mut row = GateAllocHelper::default();
 
             for i in 0..3 {
-                while pos < 4 && idx_used[pos] { pos += 1};    
+                while pos < 4 && idx_used[pos] {
+                    pos += 1
+                }
                 let var = match pos {
                     0 | 1 | 2 | 3 => input[pos].clone(),
                     _ => dummy.clone(),
@@ -1323,15 +1289,17 @@ impl<E: Engine> Blake2sGadget<E> {
 
         let reg = Reg {
             full,
-            decomposed : DecomposedNum {
-                r0: res_chunks[0].clone(), r1 : res_chunks[1].clone(), r2: res_chunks[2].clone(), r3: res_chunks[3].clone(),
+            decomposed: DecomposedNum {
+                r0: res_chunks[0].clone(),
+                r1: res_chunks[1].clone(),
+                r2: res_chunks[2].clone(),
+                r3: res_chunks[3].clone(),
             },
         };
         Ok(reg)
     }
 
-    fn var_xor_var<CS: ConstraintSystem<E>>(&self, cs: &mut CS, x: &DecomposedNum<E>, y: &DecomposedNum<E>) -> Result<Reg<E>>
-    {
+    fn var_xor_var<CS: ConstraintSystem<E>>(&self, cs: &mut CS, x: &DecomposedNum<E>, y: &DecomposedNum<E>) -> Result<Reg<E>> {
         let zero = E::Fr::zero();
         let one = E::Fr::one();
         let mut minus_one = one.clone();
@@ -1352,12 +1320,12 @@ impl<E: Engine> Blake2sGadget<E> {
 
             Ok(u64_to_ff(n ^ m))
         })?;
-        
+
         let full = Num::Variable(full_var);
         let mut res_chunks = <[Num<E>; 4]>::default();
         let mut d = full.clone();
 
-        for i in 0..4 {   
+        for i in 0..4 {
             let a = x[i].clone();
             let b = y[i].clone();
             let c = Num::Variable(self.xor(cs, &a, &b)?);
@@ -1368,7 +1336,7 @@ impl<E: Engine> Blake2sGadget<E> {
             row.set_var(1, zero.clone(), b, true);
             row.set_var(2, u64_to_ff(1 << (CHUNK_SIZE * i)), c.clone(), true);
             row.set_var(3, minus_one.clone(), d.clone(), true);
-        
+
             if i != 3 {
                 row.link_with_next_row(one.clone());
             }
@@ -1381,16 +1349,19 @@ impl<E: Engine> Blake2sGadget<E> {
                 let mut c_val = c.get_value().grab()?;
                 c_val.mul_assign(&coef);
                 d_val.sub_assign(&c_val);
-                    
+
                 Ok(d_val)
             })?;
             d = Num::Variable(w)
         }
-        
+
         let reg = Reg {
             full,
-            decomposed : DecomposedNum {
-                r0: res_chunks[0].clone(), r1 : res_chunks[1].clone(), r2: res_chunks[2].clone(), r3: res_chunks[3].clone(),
+            decomposed: DecomposedNum {
+                r0: res_chunks[0].clone(),
+                r1: res_chunks[1].clone(),
+                r2: res_chunks[2].clone(),
+                r3: res_chunks[3].clone(),
             },
         };
         Ok(reg)
@@ -1398,9 +1369,10 @@ impl<E: Engine> Blake2sGadget<E> {
 
     // for description look comments preceeding "apply ternary xor"
     fn var_xor_var_with_multiplexing<CS>(&self, cs: &mut CS, x: &DecomposedNum<E>, y: &DecomposedNum<E>) -> Result<DecomposedNum<E>>
-    where CS: ConstraintSystem<E>
+    where
+        CS: ConstraintSystem<E>,
     {
-        let mut temp_chunks = <[Num<E>; 4]>::default(); 
+        let mut temp_chunks = <[Num<E>; 4]>::default();
         let zero = E::Fr::zero();
         let one = E::Fr::one();
 
@@ -1419,14 +1391,14 @@ impl<E: Engine> Blake2sGadget<E> {
                     let mut output_dict = self.allocated_cnsts.borrow_mut();
                     let key = input_dict.keys().next().unwrap().clone();
                     let val = input_dict.remove(&key).unwrap();
-                    
+
                     let d = Num::Variable(val.clone());
                     let mut cnst_sel = E::Fr::from_repr(key).unwrap();
                     cnst_sel.negate();
 
                     let prev = output_dict.insert(key, val);
                     assert!(prev.is_none());
-                    
+
                     (d, cnst_sel)
                 }
             };
@@ -1438,12 +1410,15 @@ impl<E: Engine> Blake2sGadget<E> {
             row.set_var(3, one.clone(), d, true);
             row.set_cnst_sel(cnst_sel);
             row.set_table(self.xor_table.clone());
-    
+
             self.allocate_gate(cs, row)?;
         }
 
-        Ok(DecomposedNum { 
-            r0 : temp_chunks[0].clone(), r1: temp_chunks[1].clone(), r2: temp_chunks[2].clone(), r3: temp_chunks[3].clone() 
+        Ok(DecomposedNum {
+            r0: temp_chunks[0].clone(),
+            r1: temp_chunks[1].clone(),
+            r2: temp_chunks[2].clone(),
+            r3: temp_chunks[3].clone(),
         })
     }
 
@@ -1461,7 +1436,7 @@ impl<E: Engine> Blake2sGadget<E> {
     // as well as d register remains vacant
     // we nay exploit the fact multiplexing xor-table-check with constant allocation!
     // more precisely: if there are any constant cnst0 waiting to be allocated, we may burn the following row:
-    // a[i], b[i], temp[i], cnst, with the main gate equation d = const_cel = cnst! 
+    // a[i], b[i], temp[i], cnst, with the main gate equation d = const_cel = cnst!
     fn apply_ternary_xor<CS: ConstraintSystem<E>>(&self, cs: &mut CS, a: &Reg<E>, b: &Reg<E>, c: &Reg<E>) -> Result<Reg<E>> {
         let res = match ((a.is_const(), a), (b.is_const(), b), (c.is_const(), c)) {
             // all are constants
@@ -1470,17 +1445,15 @@ impl<E: Engine> Blake2sGadget<E> {
                 let n1 = cnst_reg1.full.get_value().unwrap().into_repr().as_ref()[0];
                 let n2 = cnst_reg2.full.get_value().unwrap().into_repr().as_ref()[0];
                 self.u64_to_reg(n0 ^ n1 ^ n2)
-            },
+            }
             // one variable and two are constants
-            ((false, var_reg), (true, cnst_reg0), (true, cnst_reg1)) | ((true, cnst_reg0), (false, var_reg), (true, cnst_reg1)) |
-            ((true, cnst_reg0), (true, cnst_reg1), (false, var_reg)) => {
+            ((false, var_reg), (true, cnst_reg0), (true, cnst_reg1)) | ((true, cnst_reg0), (false, var_reg), (true, cnst_reg1)) | ((true, cnst_reg0), (true, cnst_reg1), (false, var_reg)) => {
                 let n0 = cnst_reg0.full.get_value().unwrap().into_repr().as_ref()[0];
                 let n1 = cnst_reg1.full.get_value().unwrap().into_repr().as_ref()[0];
                 self.var_xor_const(cs, &var_reg.decomposed, n0 ^ n1)?
-            },
+            }
             // two are variables and one is constant
-            ((false, var_reg0), (true, cnst_reg), (false, var_reg1)) | ((true, cnst_reg), (false, var_reg0), (false, var_reg1)) |
-            ((false, var_reg0), (false, var_reg1), (true, cnst_reg)) => {
+            ((false, var_reg0), (true, cnst_reg), (false, var_reg1)) | ((true, cnst_reg), (false, var_reg0), (false, var_reg1)) | ((false, var_reg0), (false, var_reg1), (true, cnst_reg)) => {
                 let tmp = self.var_xor_var_with_multiplexing(cs, &var_reg0.decomposed, &var_reg1.decomposed)?;
                 let n = cnst_reg.get_value().unwrap().into_repr().as_ref()[0];
                 self.var_xor_const(cs, &tmp, n)?
@@ -1492,35 +1465,29 @@ impl<E: Engine> Blake2sGadget<E> {
             }
         };
 
-        Ok(res) 
+        Ok(res)
     }
 
-    fn apply_xor_with_const<CS: ConstraintSystem<E>>(&self, cs: &mut CS, reg: &Reg<E>, cnst: u64) -> Result<Reg<E>>
-    {
+    fn apply_xor_with_const<CS: ConstraintSystem<E>>(&self, cs: &mut CS, reg: &Reg<E>, cnst: u64) -> Result<Reg<E>> {
         if reg.is_const() {
             let temp = reg.full.get_value().unwrap();
             let f_repr = temp.into_repr();
             let n = f_repr.as_ref()[0];
-            return Ok(self.u64_to_reg(n ^ cnst))
+            return Ok(self.u64_to_reg(n ^ cnst));
         }
         self.var_xor_const(cs, &reg.decomposed, cnst)
     }
 
-    fn apply_xor<CS: ConstraintSystem<E>>(&self, cs: &mut CS, a: &Reg<E>, b: &Reg<E>) -> Result<Reg<E>>
-    {
+    fn apply_xor<CS: ConstraintSystem<E>>(&self, cs: &mut CS, a: &Reg<E>, b: &Reg<E>) -> Result<Reg<E>> {
         match (a.is_const(), b.is_const()) {
             (true, true) | (false, true) => self.apply_xor_with_const(cs, a, ff_to_u64(&b.get_value().unwrap())),
             (true, false) => self.var_xor_const(cs, &b.decomposed, ff_to_u64(&a.get_value().unwrap())),
-            (false, false) => self.var_xor_var(cs, &a.decomposed, &b.decomposed)
+            (false, false) => self.var_xor_var(cs, &a.decomposed, &b.decomposed),
         }
     }
 
-    fn f<CS: ConstraintSystem<E>>(
-        &self, cs: &mut CS, hash_state: HashState<E>, m: &[Num<E>], total_len: &Num<E>, 
-        is_last_block: Boolean, max_total_len: u64
-    ) -> Result<HashState<E>>
-    where 
-    {
+    fn f<CS: ConstraintSystem<E>>(&self, cs: &mut CS, hash_state: HashState<E>, m: &[Num<E>], total_len: &Num<E>, is_last_block: Boolean, max_total_len: u64) -> Result<HashState<E>>
+where {
         // Initialize local work vector v[0..15]
         let mut v = HashState(Vec::with_capacity(BLAKE2S_STATE_WIDTH));
         // First half from state.
@@ -1537,29 +1504,29 @@ impl<E: Engine> Blake2sGadget<E> {
             Num::Constant(fr) => {
                 let total_len_as_u64 = ff_to_u64(fr);
                 // Low word of the offset.
-                v.0[12] = self.apply_xor_with_const(cs, &mut v.0[12], total_len_as_u64 & ((1 << REG_WIDTH) - 1))?; 
+                v.0[12] = self.apply_xor_with_const(cs, &mut v.0[12], total_len_as_u64 & ((1 << REG_WIDTH) - 1))?;
                 // High word.
-                v.0[13] = self.apply_xor_with_const(cs, &mut v.0[13], total_len_as_u64 >> REG_WIDTH)?; 
+                v.0[13] = self.apply_xor_with_const(cs, &mut v.0[13], total_len_as_u64 >> REG_WIDTH)?;
             }
             Num::Variable(var) => {
                 let (low, high) = self.decompose_total_len_var(cs, &var, max_total_len)?;
-                v.0[12] = self.apply_xor(cs, &mut v.0[12], &low)?; 
-                v.0[13] = self.apply_xor(cs, &mut v.0[13], &high)?; 
+                v.0[12] = self.apply_xor(cs, &mut v.0[12], &low)?;
+                v.0[13] = self.apply_xor(cs, &mut v.0[13], &high)?;
             }
         }
-        
-        // NB: xoring with very special constant: y = x ^ 0xffffffff (invert all bits of x) 
+
+        // NB: xoring with very special constant: y = x ^ 0xffffffff (invert all bits of x)
         // is equal to y = 0xffffffff - x
         match is_last_block {
             Boolean::Constant(true) => {
                 v.0[14] = self.apply_xor_with_const(cs, &mut v.0[14], 0xffffffff)?;
-            },
-            Boolean::Constant(false) => {}, 
+            }
+            Boolean::Constant(false) => {}
             Boolean::Is(_flag) | Boolean::Not(_flag) => {
                 let inverted = self.apply_xor_with_const(cs, &mut v.0[14], 0xffffffff)?;
                 // NB: it is actually a hack as we only modify the full value and let individual chunks of
                 // the decomposition to remain unchanged. This means, that full and decomposed fields of reg
-                // become incostintent, but as soon as we don't need the decomposition from now on it is not 
+                // become incostintent, but as soon as we don't need the decomposition from now on it is not
                 // a problem for us. However, with modifications of the code, this caveat should be kept in mind.
                 // The same trick is applied also for the case of Bollean::Not(_)
                 v.0[14].full = Num::conditionally_select(cs, &is_last_block, &inverted.full, &v.0[14].full)?;
@@ -1591,10 +1558,9 @@ impl<E: Engine> Blake2sGadget<E> {
         Ok(res)
     }
 
-    pub fn digest<CS: ConstraintSystem<E>>(&self, cs: &mut CS, data: &[Num<E>], message_len: usize) -> Result<Vec<Num<E>>> 
-    {
+    pub fn digest<CS: ConstraintSystem<E>>(&self, cs: &mut CS, data: &[Num<E>], message_len: usize) -> Result<Vec<Num<E>>> {
         // h[0..7] := IV[0..7] // Initialization Vector.
-        let mut total_len_as_u64 : u64 = 0;
+        let mut total_len_as_u64: u64 = 0;
         let mut hash_state = HashState(Vec::with_capacity(BLAKE2S_STATE_WIDTH / 2));
         for i in 0..(BLAKE2S_STATE_WIDTH / 2) {
             let num = if i == 0 { self.iv0_twist } else { self.iv[i] };
@@ -1602,13 +1568,12 @@ impl<E: Engine> Blake2sGadget<E> {
             hash_state.0.push(reg);
         }
 
-        for (_is_first, is_last, block) in data.chunks(16).identify_first_last() 
-        {
+        for (_is_first, is_last, block) in data.chunks(16).identify_first_last() {
             assert_eq!(block.len(), 16);
             total_len_as_u64 += 64;
             total_len_as_u64 = std::cmp::min(total_len_as_u64, message_len as u64);
             let total_len = Num::Constant(u64_to_ff(total_len_as_u64));
-            let is_last = Boolean::Constant(is_last);   
+            let is_last = Boolean::Constant(is_last);
             hash_state = self.f(cs, hash_state, &block[..], &total_len, is_last, total_len_as_u64)?;
         }
 
@@ -1622,25 +1587,23 @@ impl<E: Engine> Blake2sGadget<E> {
         Ok(res)
     }
 
-    pub fn digest_words32<CS: ConstraintSystem<E>>(&self, cs: &mut CS, words32: &[Num<E>]) -> Result<Vec<Num<E>>> 
-    {
+    pub fn digest_words32<CS: ConstraintSystem<E>>(&self, cs: &mut CS, words32: &[Num<E>]) -> Result<Vec<Num<E>>> {
         let last_block_size = words32.len() % 16;
-        let num_of_zero_words = if last_block_size > 0 { 16 - last_block_size} else {0};
-        
+        let num_of_zero_words = if last_block_size > 0 { 16 - last_block_size } else { 0 };
+
         let mut padded = vec![];
         padded.extend(words32.iter().cloned());
         padded.extend(iter::repeat(Num::Constant(E::Fr::zero())).take(num_of_zero_words));
 
         assert_eq!(padded.len() % 16, 0);
-        self.digest(cs, &padded[..], words32.len() * 4)  
+        self.digest(cs, &padded[..], words32.len() * 4)
     }
 
-    pub fn digest_bytes<CS: ConstraintSystem<E>>(&self, cs: &mut CS, bytes: &[Byte<E>]) -> Result<Vec<Num<E>>> 
-    {
+    pub fn digest_bytes<CS: ConstraintSystem<E>>(&self, cs: &mut CS, bytes: &[Byte<E>]) -> Result<Vec<Num<E>>> {
         // padding with zeroes until length of message is multiple of 64
         let last_block_size = bytes.len() % 64;
-        let num_of_zero_bytes = if last_block_size > 0 { 64 - last_block_size} else {0};
-        
+        let num_of_zero_bytes = if last_block_size > 0 { 64 - last_block_size } else { 0 };
+
         let mut padded = vec![];
         padded.extend(bytes.iter().cloned());
         padded.extend(iter::repeat(Byte::from_cnst(E::Fr::zero())).take(num_of_zero_bytes));
@@ -1651,23 +1614,23 @@ impl<E: Engine> Blake2sGadget<E> {
         let mut words32 = Vec::with_capacity(padded.len() % 4);
         let cfs = [E::Fr::one(), u64_to_ff(1 << 8), u64_to_ff(1 << 16), u64_to_ff(1 << 24)];
         for chunk in padded.chunks(4) {
-            let tmp = Num::lc(
-                cs, 
-                &cfs,
-                &[chunk[0].into_num(), chunk[1].into_num(), chunk[2].into_num(), chunk[3].into_num()], 
-            )?;
+            let tmp = Num::lc(cs, &cfs, &[chunk[0].into_num(), chunk[1].into_num(), chunk[2].into_num(), chunk[3].into_num()])?;
             words32.push(tmp);
         }
 
-        self.digest(cs, &words32[..], bytes.len())           
+        self.digest(cs, &words32[..], bytes.len())
     }
 
     pub fn round_function<CS: ConstraintSystem<E>>(
-        &self, cs: &mut CS, hash_state: [Num<E>; BLAKE2S_STATE_WIDTH / 2], 
-        round_input: &[Num<E>; BLAKE2S_STATE_WIDTH], total_len: Num<E>, max_total_len: u64,
-        is_first_chunk: Boolean, is_last_chunk: Boolean
-    ) -> Result<([Num<E>; BLAKE2S_STATE_WIDTH / 2], Num<E>)> 
-    {            
+        &self,
+        cs: &mut CS,
+        hash_state: [Num<E>; BLAKE2S_STATE_WIDTH / 2],
+        round_input: &[Num<E>; BLAKE2S_STATE_WIDTH],
+        total_len: Num<E>,
+        max_total_len: u64,
+        is_first_chunk: Boolean,
+        is_last_chunk: Boolean,
+    ) -> Result<([Num<E>; BLAKE2S_STATE_WIDTH / 2], Num<E>)> {
         let mut raw_hash_state = HashState(Vec::with_capacity(BLAKE2S_STATE_WIDTH / 2));
         for (i, cur_state_elem) in hash_state.iter().enumerate() {
             let iv_as_u64 = if i == 0 { self.iv0_twist } else { self.iv[i] };
@@ -1678,12 +1641,8 @@ impl<E: Engine> Blake2sGadget<E> {
 
         let block_size_as_num = Num::Constant(u64_to_ff(64));
         let total_len_incremented = total_len.add(cs, &block_size_as_num)?;
-        let selected_total_len = Num::conditionally_select(
-            cs, &is_first_chunk, &block_size_as_num, &total_len_incremented
-        )?;
-        raw_hash_state = self.f(
-            cs, raw_hash_state, &round_input[..], &selected_total_len, is_last_chunk, max_total_len
-        )?;
+        let selected_total_len = Num::conditionally_select(cs, &is_first_chunk, &block_size_as_num, &total_len_incremented)?;
+        raw_hash_state = self.f(cs, raw_hash_state, &round_input[..], &selected_total_len, is_last_chunk, max_total_len)?;
 
         // allocate all remaining consts
         self.constraint_all_allocated_cnsts(cs)?;

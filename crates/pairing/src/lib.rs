@@ -34,7 +34,7 @@ mod base;
 pub use self::base::*;
 
 use ff::{Field, PrimeField, PrimeFieldDecodingError, PrimeFieldRepr, ScalarEngine, SqrtField};
-use std::{error::Error};
+use std::error::Error;
 use std::fmt;
 
 /// An "engine" is a collection of types (fields, elliptic curve groups, etc.)
@@ -42,44 +42,16 @@ use std::fmt;
 /// of prime order `r`, and are equipped with a bilinear pairing function.
 pub trait Engine: ScalarEngine {
     /// The projective representation of an element in G1.
-    type G1: CurveProjective<
-            Engine = Self,
-            Base = Self::Fq,
-            Scalar = Self::Fr,
-            Affine = Self::G1Affine,
-        >
-        + From<Self::G1Affine>;
+    type G1: CurveProjective<Engine = Self, Base = Self::Fq, Scalar = Self::Fr, Affine = Self::G1Affine> + From<Self::G1Affine>;
 
     /// The affine representation of an element in G1.
-    type G1Affine: CurveAffine<
-            Engine = Self,
-            Base = Self::Fq,
-            Scalar = Self::Fr,
-            Projective = Self::G1,
-            Pair = Self::G2Affine,
-            PairingResult = Self::Fqk,
-        >
-        + From<Self::G1> + RawEncodable;
+    type G1Affine: CurveAffine<Engine = Self, Base = Self::Fq, Scalar = Self::Fr, Projective = Self::G1, Pair = Self::G2Affine, PairingResult = Self::Fqk> + From<Self::G1> + RawEncodable;
 
     /// The projective representation of an element in G2.
-    type G2: CurveProjective<
-            Engine = Self,
-            Base = Self::Fqe,
-            Scalar = Self::Fr,
-            Affine = Self::G2Affine,
-        >
-        + From<Self::G2Affine>;
+    type G2: CurveProjective<Engine = Self, Base = Self::Fqe, Scalar = Self::Fr, Affine = Self::G2Affine> + From<Self::G2Affine>;
 
     /// The affine representation of an element in G2.
-    type G2Affine: CurveAffine<
-            Engine = Self,
-            Base = Self::Fqe,
-            Scalar = Self::Fr,
-            Projective = Self::G2,
-            Pair = Self::G1Affine,
-            PairingResult = Self::Fqk,
-        >
-        + From<Self::G2>;
+    type G2Affine: CurveAffine<Engine = Self, Base = Self::Fqe, Scalar = Self::Fr, Projective = Self::G2, Pair = Self::G1Affine, PairingResult = Self::Fqk> + From<Self::G2>;
 
     /// The base field that hosts G1.
     type Fq: PrimeField + SqrtField;
@@ -93,12 +65,7 @@ pub trait Engine: ScalarEngine {
     /// Perform a miller loop with some number of (G1, G2) pairs.
     fn miller_loop<'a, I>(i: I) -> Self::Fqk
     where
-        I: IntoIterator<
-            Item = &'a (
-                &'a <Self::G1Affine as CurveAffine>::Prepared,
-                &'a <Self::G2Affine as CurveAffine>::Prepared,
-            ),
-        >;
+        I: IntoIterator<Item = &'a (&'a <Self::G1Affine as CurveAffine>::Prepared, &'a <Self::G2Affine as CurveAffine>::Prepared)>;
 
     /// Perform final exponentiation of the result of a miller loop.
     fn final_exponentiation(r: &Self::Fqk) -> Option<Self::Fqk>;
@@ -109,27 +76,13 @@ pub trait Engine: ScalarEngine {
         G1: Into<Self::G1Affine>,
         G2: Into<Self::G2Affine>,
     {
-        Self::final_exponentiation(&Self::miller_loop(
-            [(&(p.into().prepare()), &(q.into().prepare()))].iter(),
-        )).unwrap()
+        Self::final_exponentiation(&Self::miller_loop([(&(p.into().prepare()), &(q.into().prepare()))].iter())).unwrap()
     }
 }
 
 /// Projective representation of an elliptic curve point guaranteed to be
 /// in the correct prime order subgroup.
-pub trait CurveProjective:
-    PartialEq
-    + Eq
-    + Sized
-    + Copy
-    + Clone
-    + Send
-    + Sync
-    + fmt::Debug
-    + fmt::Display
-    + rand::Rand
-    + 'static
-{
+pub trait CurveProjective: PartialEq + Eq + Sized + Copy + Clone + Send + Sync + fmt::Debug + fmt::Display + rand::Rand + 'static {
     type Engine: Engine<Fr = Self::Scalar>;
     type Scalar: PrimeField + SqrtField;
     type Base: SqrtField;
@@ -190,7 +143,7 @@ pub trait CurveProjective:
     fn as_xyz(&self) -> (&Self::Base, &Self::Base, &Self::Base) {
         unimplemented!("default implementation does not exist for this function")
     }
-    
+
     /// Returns underlying X, Y and Z coordinates. Users should check for infinity
     /// outside of this call
     fn into_xyz_unchecked(self) -> (Self::Base, Self::Base, Self::Base) {
@@ -212,20 +165,7 @@ pub trait CurveProjective:
 
 /// Affine representation of an elliptic curve point guaranteed to be
 /// in the correct prime order subgroup.
-pub trait CurveAffine:
-    Copy 
-    + Clone 
-    + Sized 
-    + Send 
-    + Sync 
-    + fmt::Debug 
-    + fmt::Display 
-    + PartialEq 
-    + Eq 
-    + 'static
-    + serde::Serialize
-    + serde::de::DeserializeOwned
-{
+pub trait CurveAffine: Copy + Clone + Sized + Send + Sync + fmt::Debug + fmt::Display + PartialEq + Eq + 'static + serde::Serialize + serde::de::DeserializeOwned {
     type Engine: Engine<Fr = Self::Scalar>;
     type Scalar: PrimeField + SqrtField;
     type Base: SqrtField;
@@ -276,7 +216,7 @@ pub trait CurveAffine:
     /// Returns references to underlying X and Y coordinates. Users should check for infinity
     /// outside of this call
     fn as_xy(&self) -> (&Self::Base, &Self::Base);
-    
+
     /// Returns underlying X and Y coordinates. Users should check for infinity
     /// outside of this call
     fn into_xy_unchecked(self) -> (Self::Base, Self::Base);
@@ -309,9 +249,7 @@ pub trait RawEncodable: CurveAffine {
 }
 
 /// An encoded elliptic curve point, which should essentially wrap a `[u8; N]`.
-pub trait EncodedPoint:
-    Sized + Send + Sync + AsRef<[u8]> + AsMut<[u8]> + Clone + Copy + 'static
-{
+pub trait EncodedPoint: Sized + Send + Sync + AsRef<[u8]> + AsMut<[u8]> + Clone + Copy + 'static {
     type Affine: CurveAffine;
 
     /// Creates an empty representation.
@@ -359,9 +297,7 @@ impl GroupDecodingError {
             GroupDecodingError::NotOnCurve => "coordinate(s) do not lie on the curve",
             GroupDecodingError::NotInSubgroup => "the element is not part of an r-order subgroup",
             GroupDecodingError::CoordinateDecodingError(..) => "coordinate(s) could not be decoded",
-            GroupDecodingError::UnexpectedCompressionMode => {
-                "encoding has unexpected compression mode"
-            }
+            GroupDecodingError::UnexpectedCompressionMode => "encoding has unexpected compression mode",
             GroupDecodingError::UnexpectedInformation => "encoding has unexpected information",
         }
     }

@@ -48,11 +48,7 @@ pub fn curve_tests<G: CurveProjective>() {
     {
         let a = G::rand(&mut rng);
         let b = a.into_affine().into_projective();
-        let c = a
-            .into_affine()
-            .into_projective()
-            .into_affine()
-            .into_projective();
+        let c = a.into_affine().into_projective().into_affine().into_projective();
         assert_eq!(a, b);
         assert_eq!(b, c);
     }
@@ -66,8 +62,8 @@ pub fn curve_tests<G: CurveProjective>() {
 }
 
 fn random_wnaf_tests<G: CurveProjective>() {
-    use ff::PrimeField;
     use crate::wnaf::*;
+    use ff::PrimeField;
 
     let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
@@ -369,10 +365,7 @@ pub fn random_transformation_tests<G: CurveProjective>() {
             v[s] = v[s].into_affine().into_projective();
         }
 
-        let expected_v = v
-            .iter()
-            .map(|v| v.into_affine().into_projective())
-            .collect::<Vec<_>>();
+        let expected_v = v.iter().map(|v| v.into_affine().into_projective()).collect::<Vec<_>>();
         G::batch_normalization(&mut v);
 
         for i in &v {
@@ -398,7 +391,6 @@ pub fn random_transformation_tests_with_cofactor<G: CurveProjective>() {
         let mut v = (0..1000).map(|_| G::rand(&mut rng)).collect::<Vec<_>>();
 
         for i in &v {
-
             assert!(!i.is_normalized());
         }
 
@@ -413,10 +405,7 @@ pub fn random_transformation_tests_with_cofactor<G: CurveProjective>() {
             v[s] = v[s].into_affine().into_projective();
         }
 
-        let expected_v = v
-            .iter()
-            .map(|v| v.into_affine().into_projective())
-            .collect::<Vec<_>>();
+        let expected_v = v.iter().map(|v| v.into_affine().into_projective()).collect::<Vec<_>>();
         G::batch_normalization(&mut v);
 
         for i in &v {
@@ -430,15 +419,9 @@ pub fn random_transformation_tests_with_cofactor<G: CurveProjective>() {
 fn random_encoding_tests<G: CurveAffine>() {
     let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
-    assert_eq!(
-        G::zero().into_uncompressed().into_affine().unwrap(),
-        G::zero()
-    );
+    assert_eq!(G::zero().into_uncompressed().into_affine().unwrap(), G::zero());
 
-    assert_eq!(
-        G::zero().into_compressed().into_affine().unwrap(),
-        G::zero()
-    );
+    assert_eq!(G::zero().into_compressed().into_affine().unwrap(), G::zero());
 
     for _ in 0..1000 {
         let mut r = G::Projective::rand(&mut rng).into_affine();

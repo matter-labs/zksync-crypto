@@ -1,8 +1,8 @@
-extern crate tiny_keccak;
 extern crate blake2_rfc;
+extern crate tiny_keccak;
 
+use self::blake2_rfc::blake2s::{blake2s, Blake2s};
 use self::tiny_keccak::Keccak;
-use self::blake2_rfc::blake2s::{Blake2s, blake2s};
 
 pub trait Hasher {
     fn new(personalization: &[u8]) -> Self;
@@ -12,7 +12,7 @@ pub trait Hasher {
 
 #[derive(Clone)]
 pub struct BlakeHasher {
-    h: Blake2s
+    h: Blake2s,
 }
 
 impl Hasher for BlakeHasher {
@@ -20,9 +20,7 @@ impl Hasher for BlakeHasher {
         let mut h = Blake2s::new(32);
         h.update(personalization);
 
-        Self {
-            h: h
-        }
+        Self { h: h }
     }
 
     fn update(&mut self, data: &[u8]) {
@@ -43,7 +41,7 @@ impl Hasher for BlakeHasher {
 
 #[derive(Clone)]
 pub struct Keccak256Hasher {
-    h: Keccak
+    h: Keccak,
 }
 
 impl Hasher for Keccak256Hasher {
@@ -51,9 +49,7 @@ impl Hasher for Keccak256Hasher {
         let mut h = Keccak::new_keccak256();
         h.update(personalization);
 
-        Self {
-            h: h
-        }
+        Self { h: h }
     }
 
     fn update(&mut self, data: &[u8]) {

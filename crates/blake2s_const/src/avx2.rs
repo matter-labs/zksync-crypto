@@ -3,10 +3,7 @@ use core::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use core::arch::x86_64::*;
 
-use crate::guts::{
-    assemble_count, count_high, count_low, final_block, flag_word, input_debug_asserts, Finalize,
-    Job, Stride,
-};
+use crate::guts::{assemble_count, count_high, count_low, final_block, flag_word, input_debug_asserts, Finalize, Job, Stride};
 use crate::{Word, BLOCKBYTES, IV, SIGMA};
 use core::cmp;
 use core::mem;
@@ -58,19 +55,14 @@ unsafe fn set1(x: u32) -> __m256i {
 
 #[inline(always)]
 unsafe fn set8(a: u32, b: u32, c: u32, d: u32, e: u32, f: u32, g: u32, h: u32) -> __m256i {
-    _mm256_setr_epi32(
-        a as i32, b as i32, c as i32, d as i32, e as i32, f as i32, g as i32, h as i32,
-    )
+    _mm256_setr_epi32(a as i32, b as i32, c as i32, d as i32, e as i32, f as i32, g as i32, h as i32)
 }
 
 #[inline(always)]
 unsafe fn rot16(x: __m256i) -> __m256i {
     _mm256_shuffle_epi8(
         x,
-        _mm256_set_epi8(
-            13, 12, 15, 14, 9, 8, 11, 10, 5, 4, 7, 6, 1, 0, 3, 2, 13, 12, 15, 14, 9, 8, 11, 10, 5,
-            4, 7, 6, 1, 0, 3, 2,
-        ),
+        _mm256_set_epi8(13, 12, 15, 14, 9, 8, 11, 10, 5, 4, 7, 6, 1, 0, 3, 2, 13, 12, 15, 14, 9, 8, 11, 10, 5, 4, 7, 6, 1, 0, 3, 2),
     )
 }
 
@@ -83,10 +75,7 @@ unsafe fn rot12(x: __m256i) -> __m256i {
 unsafe fn rot8(x: __m256i) -> __m256i {
     _mm256_shuffle_epi8(
         x,
-        _mm256_set_epi8(
-            12, 15, 14, 13, 8, 11, 10, 9, 4, 7, 6, 5, 0, 3, 2, 1, 12, 15, 14, 13, 8, 11, 10, 9, 4,
-            7, 6, 5, 0, 3, 2, 1,
-        ),
+        _mm256_set_epi8(12, 15, 14, 13, 8, 11, 10, 9, 4, 7, 6, 5, 0, 3, 2, 1, 12, 15, 14, 13, 8, 11, 10, 9, 4, 7, 6, 5, 0, 3, 2, 1),
     )
 }
 
@@ -275,10 +264,7 @@ macro_rules! compress8_transposed {
 
 #[inline(always)]
 unsafe fn interleave128(a: __m256i, b: __m256i) -> (__m256i, __m256i) {
-    (
-        _mm256_permute2x128_si256(a, b, 0x20),
-        _mm256_permute2x128_si256(a, b, 0x31),
-    )
+    (_mm256_permute2x128_si256(a, b, 0x20), _mm256_permute2x128_si256(a, b, 0x31))
 }
 
 // There are several ways to do a transposition. We could do it naively, with 8 separate
@@ -288,16 +274,7 @@ unsafe fn interleave128(a: __m256i, b: __m256i) -> (__m256i, __m256i) {
 // fastest approach. To test this, run `cargo +nightly bench --bench libtest load_8` in the
 // https://github.com/oconnor663/bao_experiments repo.
 #[inline(always)]
-unsafe fn transpose_vecs(
-    vec_a: __m256i,
-    vec_b: __m256i,
-    vec_c: __m256i,
-    vec_d: __m256i,
-    vec_e: __m256i,
-    vec_f: __m256i,
-    vec_g: __m256i,
-    vec_h: __m256i,
-) -> [__m256i; 8] {
+unsafe fn transpose_vecs(vec_a: __m256i, vec_b: __m256i, vec_c: __m256i, vec_d: __m256i, vec_e: __m256i, vec_f: __m256i, vec_g: __m256i, vec_h: __m256i) -> [__m256i; 8] {
     // Interleave 32-bit lanes. The low unpack is lanes 00/11/44/55, and the high is 22/33/66/77.
     let ab_0145 = _mm256_unpacklo_epi32(vec_a, vec_b);
     let ab_2367 = _mm256_unpackhi_epi32(vec_a, vec_b);
@@ -324,10 +301,7 @@ unsafe fn transpose_vecs(
     let (abcdefgh_2, abcdefgh_6) = interleave128(abcd_26, efgh_26);
     let (abcdefgh_3, abcdefgh_7) = interleave128(abcd_37, efgh_37);
 
-    [
-        abcdefgh_0, abcdefgh_1, abcdefgh_2, abcdefgh_3, abcdefgh_4, abcdefgh_5, abcdefgh_6,
-        abcdefgh_7,
-    ]
+    [abcdefgh_0, abcdefgh_1, abcdefgh_2, abcdefgh_3, abcdefgh_4, abcdefgh_5, abcdefgh_6, abcdefgh_7]
 }
 
 #[inline(always)]
@@ -350,9 +324,7 @@ unsafe fn transpose_state_vecs(jobs: &[Job; DEGREE]) -> [__m256i; 8] {
 #[inline(always)]
 unsafe fn untranspose_state_vecs(h_vecs: &[__m256i; 8], jobs: &mut [Job; DEGREE]) {
     // Un-transpose the updated state vectors back into the caller's arrays.
-    let out = transpose_vecs(
-        h_vecs[0], h_vecs[1], h_vecs[2], h_vecs[3], h_vecs[4], h_vecs[5], h_vecs[6], h_vecs[7],
-    );
+    let out = transpose_vecs(h_vecs[0], h_vecs[1], h_vecs[2], h_vecs[3], h_vecs[4], h_vecs[5], h_vecs[6], h_vecs[7]);
     storeu(out[0], jobs[0].words);
     storeu(out[1], jobs[1].words);
     storeu(out[2], jobs[2].words);
@@ -395,9 +367,7 @@ unsafe fn transpose_msg_vecs(blocks: [*const [u8; BLOCKBYTES]; DEGREE]) -> [__m2
         loadu(block6.add(1)),
         loadu(block7.add(1)),
     );
-    [
-        m0, m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12, m13, m14, m15,
-    ]
+    [m0, m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12, m13, m14, m15]
 }
 
 #[inline(always)]
@@ -503,25 +473,12 @@ pub unsafe fn compress8_loop(jobs: &mut [Job; DEGREE], finalize: Finalize, strid
     let (block5, len5, finalize5) = final_block(jobs[5].input, fin_offset, &mut buf5, stride);
     let (block6, len6, finalize6) = final_block(jobs[6].input, fin_offset, &mut buf6, stride);
     let (block7, len7, finalize7) = final_block(jobs[7].input, fin_offset, &mut buf7, stride);
-    let fin_blocks: [*const [u8; BLOCKBYTES]; DEGREE] = [
-        block0, block1, block2, block3, block4, block5, block6, block7,
-    ];
-    let fin_counts_delta = set8(
-        len0 as Word,
-        len1 as Word,
-        len2 as Word,
-        len3 as Word,
-        len4 as Word,
-        len5 as Word,
-        len6 as Word,
-        len7 as Word,
-    );
+    let fin_blocks: [*const [u8; BLOCKBYTES]; DEGREE] = [block0, block1, block2, block3, block4, block5, block6, block7];
+    let fin_counts_delta = set8(len0 as Word, len1 as Word, len2 as Word, len3 as Word, len4 as Word, len5 as Word, len6 as Word, len7 as Word);
     let fin_last_block;
     let fin_last_node;
     if finalize.yes() {
-        fin_last_block = flags_vec([
-            finalize0, finalize1, finalize2, finalize3, finalize4, finalize5, finalize6, finalize7,
-        ]);
+        fin_last_block = flags_vec([finalize0, finalize1, finalize2, finalize3, finalize4, finalize5, finalize6, finalize7]);
         fin_last_node = flags_vec([
             finalize0 && jobs[0].last_node.yes(),
             finalize1 && jobs[1].last_node.yes(),
@@ -567,14 +524,7 @@ pub unsafe fn compress8_loop(jobs: &mut [Job; DEGREE], finalize: Finalize, strid
 
         let m_vecs = transpose_msg_vecs(blocks);
         add_to_counts(&mut counts_lo, &mut counts_hi, counts_delta);
-        compress8_transposed!(
-            &mut h_vecs,
-            &m_vecs,
-            counts_lo,
-            counts_hi,
-            last_block,
-            last_node,
-        );
+        compress8_transposed!(&mut h_vecs, &m_vecs, counts_lo, counts_hi, last_block, last_node,);
 
         // Check for termination before bumping the offset, to avoid overflow.
         if offset == fin_offset {

@@ -4,12 +4,12 @@ extern crate futures;
 
 use std::marker::PhantomData;
 
-use std::future::{Future};
+use std::future::Future;
+use std::pin::Pin;
 use std::task::{Context, Poll};
-use std::pin::{Pin};
 
-use self::futures::channel::oneshot::{channel, Sender, Receiver};
-use self::futures::executor::{block_on};
+use self::futures::channel::oneshot::{channel, Receiver, Sender};
+use self::futures::executor::block_on;
 
 #[derive(Clone)]
 pub struct Worker {
@@ -21,9 +21,7 @@ impl Worker {
     // all `Worker` instances have the same number of
     // CPUs configured.
     pub(crate) fn new_with_cpus(_cpus: usize) -> Worker {
-        Worker {
-            cpus: 1,
-        }
+        Worker { cpus: 1 }
     }
 
     pub fn new() -> Worker {
@@ -34,52 +32,38 @@ impl Worker {
         0u32
     }
 
-    pub fn compute<F, T, E>(
-        &self, f: F
-    ) -> WorkerFuture<T, E>
-        where F: FnOnce() -> Result<T, E> + Send + 'static,
-              T: Send + 'static,
-              E: Send + 'static
+    pub fn compute<F, T, E>(&self, f: F) -> WorkerFuture<T, E>
+    where
+        F: FnOnce() -> Result<T, E> + Send + 'static,
+        T: Send + 'static,
+        E: Send + 'static,
     {
         let result = f();
 
         let (sender, receiver) = channel();
         let _ = sender.send(result);
 
-        let worker_future = WorkerFuture {
-            receiver
-        };
+        let worker_future = WorkerFuture { receiver };
 
         worker_future
     }
 
-    pub fn scope<'a, F, R>(
-        &self,
-        elements: usize,
-        f: F
-    ) -> R
-        where F: FnOnce(&Scope<'a>, usize) -> R
+    pub fn scope<'a, F, R>(&self, elements: usize, f: F) -> R
+    where
+        F: FnOnce(&Scope<'a>, usize) -> R,
     {
         let chunk_size = if elements == 0 { 1 } else { elements };
 
-        let scope = Scope{
-            _marker: PhantomData
-        };
+        let scope = Scope { _marker: PhantomData };
 
         f(&scope, chunk_size)
     }
 
-    pub fn get_chunk_size(
-        &self,
-        elements: usize
-    ) -> usize {
+    pub fn get_chunk_size(&self, elements: usize) -> usize {
         elements
     }
 
-    pub fn get_num_spawned_threads(
-        &self,
-        elements: usize
-    ) -> usize {
+    pub fn get_num_spawned_threads(&self, elements: usize) -> usize {
         1
     }
 
@@ -94,38 +78,35 @@ impl Worker {
 }
 #[derive(Clone)]
 pub struct Scope<'a> {
-    _marker: PhantomData<& 'a usize>
+    _marker: PhantomData<&'a usize>,
 }
 
 impl<'a> Scope<'a> {
-    pub fn spawn<F, R>(
-        &self,
-        f: F
-    ) -> R
-        where F: FnOnce(&Scope<'a>) -> R
+    pub fn spawn<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&Scope<'a>) -> R,
     {
         f(&self)
     }
 }
 
 pub struct WorkerFuture<T, E> {
-    receiver: Receiver<Result<T, E>>
+    receiver: Receiver<Result<T, E>>,
 }
 
 impl<T: Send + 'static, E: Send + 'static> Future for WorkerFuture<T, E> {
     type Output = Result<T, E>;
 
-    fn poll(self: Pin<&mut Self>, cx: &mut Context) -> Poll<Self::Output>
-    {
+    fn poll(self: Pin<&mut Self>, cx: &mut Context) -> Poll<Self::Output> {
         let rec = unsafe { self.map_unchecked_mut(|s| &mut s.receiver) };
         match rec.poll(cx) {
             Poll::Ready(v) => {
                 if let Ok(v) = v {
-                    return Poll::Ready(v)
+                    return Poll::Ready(v);
                 } else {
                     panic!("Worker future can not have canceled sender");
                 }
-            },
+            }
             Poll::Pending => {
                 return Poll::Pending;
             }
@@ -138,7 +119,6 @@ impl<T: Send + 'static, E: Send + 'static> WorkerFuture<T, E> {
         block_on(self)
     }
 }
-
 
 #[test]
 fn test_trivial_singlecore_spawning() {

@@ -1,19 +1,19 @@
 use crate::pairing::ff::{Field, PrimeField};
-use crate::pairing::{Engine};
+use crate::pairing::Engine;
 use crate::plonk::transparent_engine::TransparentEngine;
 
-use crate::{SynthesisError};
+use crate::SynthesisError;
 use std::marker::PhantomData;
 
 use crate::plonk::cs::gates::*;
 use crate::plonk::cs::*;
 
-use crate::worker::*;
-use crate::plonk::domains::*;
-use crate::plonk::commitments::*;
 use crate::plonk::commitments::transcript::*;
-use crate::plonk::utils::*;
+use crate::plonk::commitments::*;
+use crate::plonk::domains::*;
 use crate::plonk::polynomials::*;
+use crate::plonk::utils::*;
+use crate::worker::*;
 
 #[derive(Debug, Clone)]
 pub struct ProvingAssembly<E: Engine> {
@@ -30,7 +30,7 @@ pub struct ProvingAssembly<E: Engine> {
 
     inputs_map: Vec<usize>,
 
-    is_finalized: bool
+    is_finalized: bool,
 }
 
 impl<E: Engine> ConstraintSystem<E> for ProvingAssembly<E> {
@@ -40,7 +40,7 @@ impl<E: Engine> ConstraintSystem<E> for ProvingAssembly<E> {
     // allocate a variable
     fn alloc<F>(&mut self, value: F) -> Result<Variable, SynthesisError>
     where
-        F: FnOnce() -> Result<E::Fr, SynthesisError> 
+        F: FnOnce() -> Result<E::Fr, SynthesisError>,
     {
         let value = value()?;
 
@@ -56,7 +56,7 @@ impl<E: Engine> ConstraintSystem<E> for ProvingAssembly<E> {
     // allocate an input variable
     fn alloc_input<F>(&mut self, value: F) -> Result<Variable, SynthesisError>
     where
-        F: FnOnce() -> Result<E::Fr, SynthesisError> 
+        F: FnOnce() -> Result<E::Fr, SynthesisError>,
     {
         let value = value()?;
 
@@ -73,7 +73,6 @@ impl<E: Engine> ConstraintSystem<E> for ProvingAssembly<E> {
         // println!("Allocated input Input({}) with value {}", index, value);
 
         Ok(input_var)
-
     }
 
     // enforce variable as boolean
@@ -86,9 +85,7 @@ impl<E: Engine> ConstraintSystem<E> for ProvingAssembly<E> {
     }
 
     // allocate an abstract gate
-    fn new_gate(&mut self, variables: (Variable, Variable, Variable), 
-        coeffs:(E::Fr,E::Fr,E::Fr,E::Fr,E::Fr)) -> Result<(), SynthesisError>
-    {
+    fn new_gate(&mut self, variables: (Variable, Variable, Variable), coeffs: (E::Fr, E::Fr, E::Fr, E::Fr, E::Fr)) -> Result<(), SynthesisError> {
         let gate = Gate::<E::Fr>::new_gate(variables, coeffs);
         // println!("Enforced new gate number {}: {:?}", self.n, gate);
         self.aux_gates.push(gate);
@@ -103,8 +100,7 @@ impl<E: Engine> ConstraintSystem<E> for ProvingAssembly<E> {
     }
 
     // allocate a constant
-    fn enforce_constant(&mut self, variable: Variable, constant: E::Fr) -> Result<(), SynthesisError>
-    {
+    fn enforce_constant(&mut self, variable: Variable, constant: E::Fr) -> Result<(), SynthesisError> {
         let gate = Gate::<E::Fr>::new_enforce_constant_gate(variable, Some(constant), self.dummy_variable());
         // println!("Enforced new constant gate number {}: {:?}", self.n, gate);
         self.aux_gates.push(gate);
@@ -137,8 +133,7 @@ impl<E: Engine> ConstraintSystem<E> for ProvingAssembly<E> {
     }
 
     // allocate a linear combination gate
-    fn enforce_zero_2(&mut self, variables: (Variable, Variable), coeffs:(E::Fr, E::Fr)) -> Result<(), SynthesisError>
-    {
+    fn enforce_zero_2(&mut self, variables: (Variable, Variable), coeffs: (E::Fr, E::Fr)) -> Result<(), SynthesisError> {
         let (v_0, v_1) = variables;
         let (c_0, c_1) = coeffs;
         let zero = E::Fr::zero();
@@ -151,8 +146,7 @@ impl<E: Engine> ConstraintSystem<E> for ProvingAssembly<E> {
     }
 
     // allocate a linear combination gate
-    fn enforce_zero_3(&mut self, variables: (Variable, Variable, Variable), coeffs:(E::Fr, E::Fr, E::Fr)) -> Result<(), SynthesisError>
-    {
+    fn enforce_zero_3(&mut self, variables: (Variable, Variable, Variable), coeffs: (E::Fr, E::Fr, E::Fr)) -> Result<(), SynthesisError> {
         let gate = Gate::<E::Fr>::new_enforce_zero_gate(variables, coeffs);
         self.aux_gates.push(gate);
         self.n += 1;
@@ -162,12 +156,8 @@ impl<E: Engine> ConstraintSystem<E> for ProvingAssembly<E> {
 
     fn get_value(&self, var: Variable) -> Result<E::Fr, SynthesisError> {
         let value = match var {
-            Variable(Index::Input(input)) => {
-                self.input_assingments[input - 1]
-            },
-            Variable(Index::Aux(aux)) => {
-                self.aux_assingments[aux - 1]
-            }
+            Variable(Index::Input(input)) => self.input_assingments[input - 1],
+            Variable(Index::Aux(aux)) => self.aux_assingments[aux - 1],
         };
 
         Ok(value)
@@ -214,8 +204,8 @@ impl<E: Engine> ProvingAssembly<E> {
         // }
 
         match (tmp.dummy_variable(), zero) {
-            (Variable(Index::Aux(1)), Variable(Index::Aux(1))) => {},
-            _ => panic!("zero variable is incorrect")
+            (Variable(Index::Aux(1)), Variable(Index::Aux(1))) => {}
+            _ => panic!("zero variable is incorrect"),
         }
 
         tmp
@@ -231,7 +221,7 @@ impl<E: Engine> ProvingAssembly<E> {
     }
 
     fn set_gate(&mut self, gate: Gate<E::Fr>, index: usize) {
-        self.aux_gates[index-1] = gate;
+        self.aux_gates[index - 1] = gate;
     }
 
     // return variable that is not in a constraint formally, but has some value
@@ -250,43 +240,51 @@ impl<E: Engine> ProvingAssembly<E> {
         let mut f_r = vec![E::Fr::zero(); total_num_gates];
         let mut f_o = vec![E::Fr::zero(); total_num_gates];
 
-        for (i, gate) in self.input_gates.iter().chain(&self.aux_gates).enumerate()
-        {
+        for (i, gate) in self.input_gates.iter().chain(&self.aux_gates).enumerate() {
             match gate.a_wire() {
                 Variable(Index::Input(index)) => {
                     f_l[i] = self.input_assingments[index - 1];
-                },
+                }
                 Variable(Index::Aux(index)) => {
                     f_l[i] = self.aux_assingments[index - 1];
-                },
+                }
             }
 
             match gate.b_wire() {
                 Variable(Index::Input(index)) => {
                     f_r[i] = self.input_assingments[index - 1];
-                },
+                }
                 Variable(Index::Aux(index)) => {
                     f_r[i] = self.aux_assingments[index - 1];
-                },
+                }
             }
 
             match gate.c_wire() {
                 Variable(Index::Input(index)) => {
                     f_o[i] = self.input_assingments[index - 1];
-                },
+                }
                 Variable(Index::Aux(index)) => {
                     f_o[i] = self.aux_assingments[index - 1];
-                },
+                }
             }
         }
 
         (f_l, f_r, f_o)
     }
 
-    pub(crate) fn make_circuit_description_polynomials(&self, worker: &Worker) -> Result<(
-        Polynomial::<E::Fr, Values>, Polynomial::<E::Fr, Values>, Polynomial::<E::Fr, Values>,
-        Polynomial::<E::Fr, Values>, Polynomial::<E::Fr, Values>
-    ), SynthesisError> {
+    pub(crate) fn make_circuit_description_polynomials(
+        &self,
+        worker: &Worker,
+    ) -> Result<
+        (
+            Polynomial<E::Fr, Values>,
+            Polynomial<E::Fr, Values>,
+            Polynomial<E::Fr, Values>,
+            Polynomial<E::Fr, Values>,
+            Polynomial<E::Fr, Values>,
+        ),
+        SynthesisError,
+    > {
         assert!(self.is_finalized);
 
         let total_num_gates = self.input_gates.len() + self.aux_gates.len();
@@ -296,33 +294,29 @@ impl<E: Engine> ProvingAssembly<E> {
         let mut q_m = vec![E::Fr::zero(); total_num_gates];
         let mut q_c = vec![E::Fr::zero(); total_num_gates];
 
-        fn coeff_into_field_element<F: PrimeField>(coeff: & Coeff<F>) -> F {
+        fn coeff_into_field_element<F: PrimeField>(coeff: &Coeff<F>) -> F {
             match coeff {
-                Coeff::Zero => {
-                    F::zero()
-                },
-                Coeff::One => {
-                    F::one()
-                },
+                Coeff::Zero => F::zero(),
+                Coeff::One => F::one(),
                 Coeff::NegativeOne => {
                     let mut tmp = F::one();
                     tmp.negate();
 
                     tmp
-                },
-                Coeff::Full(c) => {
-                    *c
-                },
+                }
+                Coeff::Full(c) => *c,
             }
         }
 
         // expect a small number of inputs
-        for (((((gate, q_l), q_r), q_o), q_m), q_c) in self.input_gates.iter()
-                                            .zip(q_l.iter_mut())
-                                            .zip(q_r.iter_mut())
-                                            .zip(q_o.iter_mut())
-                                            .zip(q_m.iter_mut())
-                                            .zip(q_c.iter_mut())
+        for (((((gate, q_l), q_r), q_o), q_m), q_c) in self
+            .input_gates
+            .iter()
+            .zip(q_l.iter_mut())
+            .zip(q_r.iter_mut())
+            .zip(q_o.iter_mut())
+            .zip(q_m.iter_mut())
+            .zip(q_c.iter_mut())
         {
             *q_l = coeff_into_field_element(&gate.q_l);
             *q_r = coeff_into_field_element(&gate.q_r);
@@ -330,7 +324,6 @@ impl<E: Engine> ProvingAssembly<E> {
             *q_m = coeff_into_field_element(&gate.q_m);
             *q_c = coeff_into_field_element(&gate.q_c);
         }
-
 
         let num_input_gates = self.input_gates.len();
         let q_l_aux = &mut q_l[num_input_gates..];
@@ -342,27 +335,23 @@ impl<E: Engine> ProvingAssembly<E> {
         debug_assert!(self.aux_gates.len() == q_l_aux.len());
 
         worker.scope(self.aux_gates.len(), |scope, chunk| {
-            for (((((gate, q_l), q_r), q_o), q_m), q_c) in self.aux_gates.chunks(chunk)
-                                                            .zip(q_l_aux.chunks_mut(chunk))
-                                                            .zip(q_r_aux.chunks_mut(chunk))
-                                                            .zip(q_o_aux.chunks_mut(chunk))
-                                                            .zip(q_m_aux.chunks_mut(chunk))
-                                                            .zip(q_c_aux.chunks_mut(chunk))
+            for (((((gate, q_l), q_r), q_o), q_m), q_c) in self
+                .aux_gates
+                .chunks(chunk)
+                .zip(q_l_aux.chunks_mut(chunk))
+                .zip(q_r_aux.chunks_mut(chunk))
+                .zip(q_o_aux.chunks_mut(chunk))
+                .zip(q_m_aux.chunks_mut(chunk))
+                .zip(q_c_aux.chunks_mut(chunk))
             {
                 scope.spawn(move |_| {
-                    for (((((gate, q_l), q_r), q_o), q_m), q_c) in gate.iter()
-                                                            .zip(q_l.iter_mut())
-                                                            .zip(q_r.iter_mut())
-                                                            .zip(q_o.iter_mut())
-                                                            .zip(q_m.iter_mut())
-                                                            .zip(q_c.iter_mut())
-                        {
-                            *q_l = coeff_into_field_element(&gate.q_l);
-                            *q_r = coeff_into_field_element(&gate.q_r);
-                            *q_o = coeff_into_field_element(&gate.q_o);
-                            *q_m = coeff_into_field_element(&gate.q_m);
-                            *q_c = coeff_into_field_element(&gate.q_c);
-                        }
+                    for (((((gate, q_l), q_r), q_o), q_m), q_c) in gate.iter().zip(q_l.iter_mut()).zip(q_r.iter_mut()).zip(q_o.iter_mut()).zip(q_m.iter_mut()).zip(q_c.iter_mut()) {
+                        *q_l = coeff_into_field_element(&gate.q_l);
+                        *q_r = coeff_into_field_element(&gate.q_r);
+                        *q_o = coeff_into_field_element(&gate.q_o);
+                        *q_m = coeff_into_field_element(&gate.q_m);
+                        *q_c = coeff_into_field_element(&gate.q_c);
+                    }
                 });
             }
         });
@@ -385,51 +374,50 @@ impl<E: Engine> ProvingAssembly<E> {
         // in the partition number i there is a set of indexes in V = (a, b, c) such that V_j = i
         let mut partitions = vec![vec![]; num_partitions + 1];
 
-        for (j, gate) in self.input_gates.iter().chain(&self.aux_gates).enumerate()
-        {
+        for (j, gate) in self.input_gates.iter().chain(&self.aux_gates).enumerate() {
             match gate.a_wire() {
                 Variable(Index::Input(index)) => {
                     let i = *index;
-                    partitions[i].push(j+1);
-                },
+                    partitions[i].push(j + 1);
+                }
                 Variable(Index::Aux(index)) => {
                     if *index != 0 {
                         let i = index + num_inputs;
-                        partitions[i].push(j+1);
+                        partitions[i].push(j + 1);
                     }
-                },
+                }
             }
 
             match gate.b_wire() {
                 Variable(Index::Input(index)) => {
                     let i = *index;
                     partitions[i].push(j + 1 + num_gates);
-                },
+                }
                 Variable(Index::Aux(index)) => {
                     if *index != 0 {
                         let i = index + num_inputs;
                         partitions[i].push(j + 1 + num_gates);
                     }
-                },
+                }
             }
 
             match gate.c_wire() {
                 Variable(Index::Input(index)) => {
                     let i = *index;
-                    partitions[i].push(j + 1 + 2*num_gates);
-                },
+                    partitions[i].push(j + 1 + 2 * num_gates);
+                }
                 Variable(Index::Aux(index)) => {
                     if *index != 0 {
                         let i = index + num_inputs;
-                        partitions[i].push(j + 1 + 2*num_gates);
+                        partitions[i].push(j + 1 + 2 * num_gates);
                     }
-                },
+                }
             }
         }
 
         let mut sigma_1: Vec<_> = (1..=num_gates).collect();
-        let mut sigma_2: Vec<_> = ((num_gates+1)..=(2*num_gates)).collect();
-        let mut sigma_3: Vec<_> = ((2*num_gates + 1)..=(3*num_gates)).collect();
+        let mut sigma_2: Vec<_> = ((num_gates + 1)..=(2 * num_gates)).collect();
+        let mut sigma_3: Vec<_> = ((2 * num_gates + 1)..=(3 * num_gates)).collect();
 
         let mut permutations = vec![vec![]; num_partitions + 1];
 
@@ -448,18 +436,16 @@ impl<E: Engine> ProvingAssembly<E> {
             let permutation = rotate(partition.clone());
             permutations[i] = permutation.clone();
 
-            for (original, new) in partition.into_iter()
-                                    .zip(permutation.into_iter()) 
-            {
+            for (original, new) in partition.into_iter().zip(permutation.into_iter()) {
                 if original <= num_gates {
                     debug_assert!(sigma_1[original - 1] == original);
                     sigma_1[original - 1] = new;
-                } else if original <= 2*num_gates {
+                } else if original <= 2 * num_gates {
                     debug_assert!(sigma_2[original - num_gates - 1] == original);
                     sigma_2[original - num_gates - 1] = new;
                 } else {
-                    debug_assert!(sigma_3[original - 2*num_gates - 1] == original);
-                    sigma_3[original - 2*num_gates - 1] = new;
+                    debug_assert!(sigma_3[original - 2 * num_gates - 1] == original);
+                    sigma_3[original - 2 * num_gates - 1] = new;
                 }
             }
         }
@@ -474,19 +460,23 @@ impl<E: Engine> ProvingAssembly<E> {
         result
     }
 
-    pub(crate) fn output_setup_polynomials(&self, worker: &Worker) -> Result<
-    (
-        Polynomial::<E::Fr, Coefficients>, // q_l
-        Polynomial::<E::Fr, Coefficients>, // q_r
-        Polynomial::<E::Fr, Coefficients>, // q_o
-        Polynomial::<E::Fr, Coefficients>, // q_m
-        Polynomial::<E::Fr, Coefficients>, // q_c
-        Polynomial::<E::Fr, Coefficients>, // s_id
-        Polynomial::<E::Fr, Coefficients>, // sigma_1
-        Polynomial::<E::Fr, Coefficients>, // sigma_2
-        Polynomial::<E::Fr, Coefficients>, // sigma_3
-    ), SynthesisError> 
-    {
+    pub(crate) fn output_setup_polynomials(
+        &self,
+        worker: &Worker,
+    ) -> Result<
+        (
+            Polynomial<E::Fr, Coefficients>, // q_l
+            Polynomial<E::Fr, Coefficients>, // q_r
+            Polynomial<E::Fr, Coefficients>, // q_o
+            Polynomial<E::Fr, Coefficients>, // q_m
+            Polynomial<E::Fr, Coefficients>, // q_c
+            Polynomial<E::Fr, Coefficients>, // s_id
+            Polynomial<E::Fr, Coefficients>, // sigma_1
+            Polynomial<E::Fr, Coefficients>, // sigma_2
+            Polynomial<E::Fr, Coefficients>, // sigma_3
+        ),
+        SynthesisError,
+    > {
         assert!(self.is_finalized);
 
         let s_id = self.make_s_id();
@@ -529,14 +519,14 @@ impl<E: Engine> ProvingAssembly<E> {
             return;
         }
         let n = self.input_gates.len() + self.aux_gates.len();
-        if (n+1).is_power_of_two() {
+        if (n + 1).is_power_of_two() {
             self.is_finalized = true;
             return;
         }
 
         let empty_gate = Gate::<E::Fr>::new_empty_gate(self.dummy_variable());
 
-        let new_aux_len = (n+1).next_power_of_two() - 1 - self.input_gates.len();
+        let new_aux_len = (n + 1).next_power_of_two() - 1 - self.input_gates.len();
 
         self.aux_gates.resize(new_aux_len, empty_gate);
 
@@ -547,29 +537,22 @@ impl<E: Engine> ProvingAssembly<E> {
         // self.finalize();
         // assert!(self.is_finalized);
 
-        fn coeff_into_field_element<F: PrimeField>(coeff: & Coeff<F>) -> F {
+        fn coeff_into_field_element<F: PrimeField>(coeff: &Coeff<F>) -> F {
             match coeff {
-                Coeff::Zero => {
-                    F::zero()
-                },
-                Coeff::One => {
-                    F::one()
-                },
+                Coeff::Zero => F::zero(),
+                Coeff::One => F::one(),
                 Coeff::NegativeOne => {
                     let mut tmp = F::one();
                     tmp.negate();
 
                     tmp
-                },
-                Coeff::Full(c) => {
-                    *c
-                },
+                }
+                Coeff::Full(c) => *c,
             }
         }
 
         // expect a small number of inputs
-        for (i, gate) in self.input_gates.iter().enumerate()
-        {
+        for (i, gate) in self.input_gates.iter().enumerate() {
             let q_l = coeff_into_field_element(&gate.q_l);
             let q_r = coeff_into_field_element(&gate.q_r);
             let q_o = coeff_into_field_element(&gate.q_o);
@@ -604,14 +587,13 @@ impl<E: Engine> ProvingAssembly<E> {
             res.add_assign(&tmp);
 
             if !res.is_zero() {
-                println!("Unsatisfied at input gate {}: {:?}", i+1, gate);
+                println!("Unsatisfied at input gate {}: {:?}", i + 1, gate);
                 println!("A value = {}, B value = {}, C value = {}", a_value, b_value, c_value);
                 return false;
             }
         }
 
-        for (i, gate) in self.aux_gates.iter().enumerate()
-        {
+        for (i, gate) in self.aux_gates.iter().enumerate() {
             let q_l = coeff_into_field_element(&gate.q_l);
             let q_r = coeff_into_field_element(&gate.q_r);
             let q_o = coeff_into_field_element(&gate.q_o);
@@ -642,7 +624,7 @@ impl<E: Engine> ProvingAssembly<E> {
             res.add_assign(&tmp);
 
             if !res.is_zero() {
-                println!("Unsatisfied at aux gate {}", i+1);
+                println!("Unsatisfied at aux gate {}", i + 1);
                 println!("Gate {:?}", *gate);
                 println!("A = {}, B = {}, C = {}", a_value, b_value, c_value);
                 return false;
@@ -652,7 +634,7 @@ impl<E: Engine> ProvingAssembly<E> {
         true
     }
 
-    fn calculate_inverse_vanishing_polynomial_in_a_coset(&self, worker: &Worker, poly_size:usize, vahisning_size: usize) -> Result<Polynomial::<E::Fr, Values>, SynthesisError> {
+    fn calculate_inverse_vanishing_polynomial_in_a_coset(&self, worker: &Worker, poly_size: usize, vahisning_size: usize) -> Result<Polynomial<E::Fr, Values>, SynthesisError> {
         assert!(poly_size.is_power_of_two());
         assert!(vahisning_size.is_power_of_two());
 
@@ -682,7 +664,7 @@ impl<E: Engine> ProvingAssembly<E> {
         // now we should evaluate X^(n+1) - 1 in a linear time
 
         let shift = multiplicative_generator.pow([vahisning_size as u64]);
-        
+
         let mut denominator = Polynomial::<E::Fr, Values>::from_values(vec![shift; poly_size])?;
 
         // elements are h^size - 1, (hg)^size - 1, (hg^2)^size - 1, ...
@@ -721,7 +703,7 @@ impl<E: Engine> ProvingAssembly<E> {
         numerator
     }
 
-    fn calculate_lagrange_poly(&self, worker: &Worker, poly_size:usize, poly_number: usize) -> Result<Polynomial::<E::Fr, Coefficients>, SynthesisError> {
+    fn calculate_lagrange_poly(&self, worker: &Worker, poly_size: usize, poly_number: usize) -> Result<Polynomial<E::Fr, Coefficients>, SynthesisError> {
         assert!(poly_size.is_power_of_two());
         assert!(poly_number < poly_size);
 
@@ -766,11 +748,11 @@ impl<E: Engine> ProvingAssembly<E> {
 
 use crate::plonk::fft::cooley_tukey_ntt::CTPrecomputations;
 
-use crate::pairing::{CurveAffine, CurveProjective};
 use crate::pairing::EncodedPoint;
+use crate::pairing::{CurveAffine, CurveProjective};
 
 #[derive(Debug)]
-pub struct PlonkSetup<E: Engine>{
+pub struct PlonkSetup<E: Engine> {
     pub n: usize,
     pub q_l: E::G1Affine,
     pub q_r: E::G1Affine,
@@ -784,7 +766,7 @@ pub struct PlonkSetup<E: Engine>{
 }
 
 // #[derive(Debug)]
-pub struct PlonkSetupPrecomputation<E: Engine>{
+pub struct PlonkSetupPrecomputation<E: Engine> {
     pub q_l_aux: Polynomial<E::Fr, Values>,
     pub q_r_aux: Polynomial<E::Fr, Values>,
     pub q_o_aux: Polynomial<E::Fr, Values>,
@@ -799,23 +781,17 @@ pub struct PlonkSetupPrecomputation<E: Engine>{
 struct OpeningRequest<'a, E: Engine> {
     polynomials: Vec<&'a Polynomial<E::Fr, Coefficients>>,
     opening_point: E::Fr,
-    opening_values: Vec<E::Fr>
+    opening_values: Vec<E::Fr>,
 }
 
 use crate::multiexp::dense_multiexp;
 
-pub(crate) fn field_elements_into_representations<E: Engine>(
-    worker: &Worker,
-    scalars: Vec<E::Fr>
-) -> Result<Vec<<E::Fr as PrimeField>::Repr>, SynthesisError>
-{   
+pub(crate) fn field_elements_into_representations<E: Engine>(worker: &Worker, scalars: Vec<E::Fr>) -> Result<Vec<<E::Fr as PrimeField>::Repr>, SynthesisError> {
     let mut representations = vec![<E::Fr as PrimeField>::Repr::default(); scalars.len()];
     worker.scope(scalars.len(), |scope, chunk| {
-        for (scalar, repr) in scalars.chunks(chunk)
-                    .zip(representations.chunks_mut(chunk)) {
+        for (scalar, repr) in scalars.chunks(chunk).zip(representations.chunks_mut(chunk)) {
             scope.spawn(move |_| {
-                for (scalar, repr) in scalar.iter()
-                                        .zip(repr.iter_mut()) {
+                for (scalar, repr) in scalar.iter().zip(repr.iter_mut()) {
                     *repr = scalar.into_repr();
                 }
             });
@@ -826,21 +802,14 @@ pub(crate) fn field_elements_into_representations<E: Engine>(
 }
 
 impl<E: Engine> ProvingAssembly<E> {
-    pub(crate) fn commit_single_poly(
-        poly: &Polynomial<E::Fr, Coefficients>, 
-        bases: &[E::G1Affine],
-        worker: &Worker
-    ) -> Result<E::G1Affine, SynthesisError> {
+    pub(crate) fn commit_single_poly(poly: &Polynomial<E::Fr, Coefficients>, bases: &[E::G1Affine], worker: &Worker) -> Result<E::G1Affine, SynthesisError> {
         let reprs = field_elements_into_representations::<E>(&worker, poly.as_ref().to_owned())?;
         let result = dense_multiexp(&worker, bases, &reprs)?;
 
         Ok(result.into_affine())
     }
 
-    fn divide_single(
-        poly: &[E::Fr],
-        opening_point: E::Fr,
-    ) -> Vec<E::Fr> {
+    fn divide_single(poly: &[E::Fr], opening_point: E::Fr) -> Vec<E::Fr> {
         // we are only interested in quotient without a reminder, so we actually don't need opening value
         let mut b = opening_point;
         b.negate();
@@ -852,7 +821,7 @@ impl<E: Engine> ProvingAssembly<E> {
         for (q, r) in q.iter_mut().rev().skip(1).zip(poly.iter().rev()) {
             if !found_one {
                 if r.is_zero() {
-                    continue
+                    continue;
                 } else {
                     found_one = true;
                 }
@@ -868,43 +837,37 @@ impl<E: Engine> ProvingAssembly<E> {
         q
     }
 
-    fn multiopening<T: Transcript<E::Fr>>
-        ( 
-            opening_request: OpeningRequest<E>,
-            bases: &[E::G1Affine],
-            worker: &Worker,
-            transcript: &mut T
-        ) -> Result<E::G1Affine, SynthesisError> {
-            let required_size = opening_request.polynomials[0].size();
+    fn multiopening<T: Transcript<E::Fr>>(opening_request: OpeningRequest<E>, bases: &[E::G1Affine], worker: &Worker, transcript: &mut T) -> Result<E::G1Affine, SynthesisError> {
+        let required_size = opening_request.polynomials[0].size();
 
-            let mut final_aggregate = Polynomial::from_coeffs(vec![E::Fr::zero(); required_size])?;
+        let mut final_aggregate = Polynomial::from_coeffs(vec![E::Fr::zero(); required_size])?;
 
-            let aggregation_challenge = transcript.get_challenge();
+        let aggregation_challenge = transcript.get_challenge();
 
-            let mut alpha = E::Fr::one();
+        let mut alpha = E::Fr::one();
 
-            for poly in opening_request.polynomials.iter() {
-                final_aggregate.add_assign_scaled(&worker, poly, &alpha);
+        for poly in opening_request.polynomials.iter() {
+            final_aggregate.add_assign_scaled(&worker, poly, &alpha);
 
-                alpha.mul_assign(&aggregation_challenge);
-            }
+            alpha.mul_assign(&aggregation_challenge);
+        }
 
-            let q = Self::divide_single(final_aggregate.as_ref(), opening_request.opening_point);
+        let q = Self::divide_single(final_aggregate.as_ref(), opening_request.opening_point);
 
-            let q = Polynomial::from_coeffs(q)?;
+        let q = Polynomial::from_coeffs(q)?;
 
-            let opening = Self::commit_single_poly(&q, bases, &worker)?;
+        let opening = Self::commit_single_poly(&q, bases, &worker)?;
 
-            Ok(opening)
+        Ok(opening)
     }
 
-    fn prove_with_setup_precomputed<CP: CTPrecomputations<E::Fr>, CPI: CTPrecomputations<E::Fr>, T: Transcript<E::Fr> >(
+    fn prove_with_setup_precomputed<CP: CTPrecomputations<E::Fr>, CPI: CTPrecomputations<E::Fr>, T: Transcript<E::Fr>>(
         self,
         setup_precomp: &PlonkSetupPrecomputation<E>,
         worker: &Worker,
         omegas_bitreversed: &CP,
         omegas_inv_bitreversed: &CPI,
-        bases: &[E::G1Affine]
+        bases: &[E::G1Affine],
     ) -> Result<(), SynthesisError> {
         assert!(self.is_finalized);
 
@@ -962,7 +925,7 @@ impl<E: Engine> ProvingAssembly<E> {
             w_l_contribution.add_assign_scaled(&worker, &s_id_1, &beta);
             drop(s_id_1);
 
-            let s_id_2: Vec<_> = ((n+1)..=(2*n)).collect();
+            let s_id_2: Vec<_> = ((n + 1)..=(2 * n)).collect();
             let s_id_2 = convert_to_field_elements(&s_id_2, &worker);
             let s_id_2 = Polynomial::<E::Fr, Values>::from_values_unpadded(s_id_2)?;
             let mut w_r_contribution = w_r_plus_gamma.clone();
@@ -971,7 +934,7 @@ impl<E: Engine> ProvingAssembly<E> {
             w_l_contribution.mul_assign(&worker, &w_r_contribution);
             drop(w_r_contribution);
 
-            let s_id_3: Vec<_> = ((2*n+1)..=(3*n)).collect();
+            let s_id_3: Vec<_> = ((2 * n + 1)..=(3 * n)).collect();
             let s_id_3 = convert_to_field_elements(&s_id_3, &worker);
             let s_id_3 = Polynomial::<E::Fr, Values>::from_values_unpadded(s_id_3)?;
             let mut w_o_contribution = w_o_plus_gamma.clone();
@@ -1049,32 +1012,22 @@ impl<E: Engine> ProvingAssembly<E> {
 
         let mut z_1_shifted = z_1.clone();
         z_1_shifted.distribute_powers(&worker, z_1.omega);
-        
+
         let mut z_2_shifted = z_2.clone();
         z_2_shifted.distribute_powers(&worker, z_2.omega);
 
+        let a_coset_lde_bitreversed = a_poly
+            .clone()
+            .bitreversed_lde_using_bitreversed_ntt(&worker, 4, omegas_bitreversed, &E::Fr::multiplicative_generator())?;
 
-        let a_coset_lde_bitreversed = a_poly.clone().bitreversed_lde_using_bitreversed_ntt(
-            &worker, 
-            4, 
-            omegas_bitreversed, 
-            &E::Fr::multiplicative_generator()
-        )?;
+        let b_coset_lde_bitreversed = b_poly
+            .clone()
+            .bitreversed_lde_using_bitreversed_ntt(&worker, 4, omegas_bitreversed, &E::Fr::multiplicative_generator())?;
 
-        let b_coset_lde_bitreversed = b_poly.clone().bitreversed_lde_using_bitreversed_ntt(
-            &worker, 
-            4, 
-            omegas_bitreversed, 
-            &E::Fr::multiplicative_generator()
-        )?;
+        let c_coset_lde_bitreversed = c_poly
+            .clone()
+            .bitreversed_lde_using_bitreversed_ntt(&worker, 4, omegas_bitreversed, &E::Fr::multiplicative_generator())?;
 
-        let c_coset_lde_bitreversed = c_poly.clone().bitreversed_lde_using_bitreversed_ntt(
-            &worker, 
-            4, 
-            omegas_bitreversed, 
-            &E::Fr::multiplicative_generator()
-        )?;
-        
         let q_l_coset_lde_bitreversed = setup_precomp.q_l_aux.clone();
         let q_r_coset_lde_bitreversed = setup_precomp.q_r_aux.clone();
         let q_o_coset_lde_bitreversed = setup_precomp.q_o_aux.clone();
@@ -1139,47 +1092,31 @@ impl<E: Engine> ProvingAssembly<E> {
                     break;
                 }
             }
-    
+
             println!("Degree = {}", degree);
-    
+
             degree
         }
 
-        let z_1_coset_lde_bitreversed = z_1.clone().bitreversed_lde_using_bitreversed_ntt(
-            &worker, 
-            4, 
-            omegas_bitreversed, 
-            &E::Fr::multiplicative_generator()
-        )?;
+        let z_1_coset_lde_bitreversed = z_1.clone().bitreversed_lde_using_bitreversed_ntt(&worker, 4, omegas_bitreversed, &E::Fr::multiplicative_generator())?;
 
-        assert!(z_1_coset_lde_bitreversed.size() == required_domain_size*4);
+        assert!(z_1_coset_lde_bitreversed.size() == required_domain_size * 4);
 
-        let z_1_shifted_coset_lde_bitreversed = z_1_shifted.clone().bitreversed_lde_using_bitreversed_ntt(
-            &worker, 
-            4, 
-            omegas_bitreversed, 
-            &E::Fr::multiplicative_generator()
-        )?;
+        let z_1_shifted_coset_lde_bitreversed = z_1_shifted
+            .clone()
+            .bitreversed_lde_using_bitreversed_ntt(&worker, 4, omegas_bitreversed, &E::Fr::multiplicative_generator())?;
 
-        assert!(z_1_shifted_coset_lde_bitreversed.size() == required_domain_size*4);
+        assert!(z_1_shifted_coset_lde_bitreversed.size() == required_domain_size * 4);
 
-        let z_2_coset_lde_bitreversed = z_2.clone().bitreversed_lde_using_bitreversed_ntt(
-            &worker, 
-            4, 
-            omegas_bitreversed, 
-            &E::Fr::multiplicative_generator()
-        )?;
+        let z_2_coset_lde_bitreversed = z_2.clone().bitreversed_lde_using_bitreversed_ntt(&worker, 4, omegas_bitreversed, &E::Fr::multiplicative_generator())?;
 
-        assert!(z_2_coset_lde_bitreversed.size() == required_domain_size*4);
+        assert!(z_2_coset_lde_bitreversed.size() == required_domain_size * 4);
 
-        let z_2_shifted_coset_lde_bitreversed = z_2_shifted.clone().bitreversed_lde_using_bitreversed_ntt(
-            &worker, 
-            4, 
-            omegas_bitreversed, 
-            &E::Fr::multiplicative_generator()
-        )?;
+        let z_2_shifted_coset_lde_bitreversed = z_2_shifted
+            .clone()
+            .bitreversed_lde_using_bitreversed_ntt(&worker, 4, omegas_bitreversed, &E::Fr::multiplicative_generator())?;
 
-        assert!(z_2_shifted_coset_lde_bitreversed.size() == required_domain_size*4);
+        assert!(z_2_shifted_coset_lde_bitreversed.size() == required_domain_size * 4);
 
         // (A + beta*i + gamma)(B + beta(n+i) + gamma)(C + beta(2n+i) + gamma)*Z(k) = Z(k+1)
         {
@@ -1235,7 +1172,6 @@ impl<E: Engine> ProvingAssembly<E> {
             contrib_z_2.mul_assign(&worker, &a_perm);
             drop(a_perm);
 
-
             let mut b_perm = sigma_2_coset_lde_bitreversed;
             b_perm.scale(&worker, beta);
             b_perm.add_constant(&worker, &gamma);
@@ -1264,18 +1200,15 @@ impl<E: Engine> ProvingAssembly<E> {
         drop(c_coset_lde_bitreversed);
 
         let l_0 = self.calculate_lagrange_poly(&worker, required_domain_size.next_power_of_two(), 0)?;
-        let l_n_minus_one = self.calculate_lagrange_poly(&worker, required_domain_size.next_power_of_two(), n-1)?;
+        let l_n_minus_one = self.calculate_lagrange_poly(&worker, required_domain_size.next_power_of_two(), n - 1)?;
 
         {
             let mut z_1_minus_z_2_shifted = z_1_shifted_coset_lde_bitreversed.clone();
             z_1_minus_z_2_shifted.sub_assign(&worker, &z_2_shifted_coset_lde_bitreversed);
 
-            let l_coset_lde_bitreversed = l_n_minus_one.clone().bitreversed_lde_using_bitreversed_ntt(
-                &worker, 
-                4, 
-                omegas_bitreversed, 
-                &E::Fr::multiplicative_generator()
-            )?;
+            let l_coset_lde_bitreversed = l_n_minus_one
+                .clone()
+                .bitreversed_lde_using_bitreversed_ntt(&worker, 4, omegas_bitreversed, &E::Fr::multiplicative_generator())?;
 
             z_1_minus_z_2_shifted.mul_assign(&worker, &l_coset_lde_bitreversed);
             drop(l_coset_lde_bitreversed);
@@ -1291,12 +1224,7 @@ impl<E: Engine> ProvingAssembly<E> {
             let mut z_1_minus_z_2 = z_1_coset_lde_bitreversed.clone();
             z_1_minus_z_2.sub_assign(&worker, &z_2_coset_lde_bitreversed);
 
-            let l_coset_lde_bitreversed = l_0.clone().bitreversed_lde_using_bitreversed_ntt(
-                &worker, 
-                4, 
-                omegas_bitreversed, 
-                &E::Fr::multiplicative_generator()
-            )?;
+            let l_coset_lde_bitreversed = l_0.clone().bitreversed_lde_using_bitreversed_ntt(&worker, 4, omegas_bitreversed, &E::Fr::multiplicative_generator())?;
 
             z_1_minus_z_2.mul_assign(&worker, &l_coset_lde_bitreversed);
             drop(l_coset_lde_bitreversed);
@@ -1317,7 +1245,7 @@ impl<E: Engine> ProvingAssembly<E> {
 
         let t_poly = t_1.icoset_fft_for_generator(&worker, &E::Fr::multiplicative_generator());
 
-        debug_assert!(get_degree::<E::Fr>(&t_poly) <= 3*n);
+        debug_assert!(get_degree::<E::Fr>(&t_poly) <= 3 * n);
 
         let mut t_poly_parts = t_poly.break_into_multiples(required_domain_size)?;
 
@@ -1624,20 +1552,7 @@ impl<E: Engine> ProvingAssembly<E> {
         z_by_omega.mul_assign(&z_1.omega);
 
         let request_at_z = OpeningRequest {
-            polynomials: vec![
-                &a_poly,
-                &b_poly,
-                &c_poly,
-                &z_1,
-                &z_2,
-                &s_id,
-                &sigma_1,
-                &sigma_2,
-                &sigma_3,
-                &t_poly_low,
-                &t_poly_mid,
-                &t_poly_high
-            ],
+            polynomials: vec![&a_poly, &b_poly, &c_poly, &z_1, &z_2, &s_id, &sigma_1, &sigma_2, &sigma_3, &t_poly_low, &t_poly_mid, &t_poly_high],
             opening_point: z,
             opening_values: vec![
                 a_at_z,
@@ -1652,28 +1567,20 @@ impl<E: Engine> ProvingAssembly<E> {
                 t_low_at_z,
                 t_mid_at_z,
                 t_high_at_z,
-            ]
+            ],
         };
 
         let request_at_z_omega = OpeningRequest {
-            polynomials: vec![
-                &z_1,
-                &z_2
-            ],
+            polynomials: vec![&z_1, &z_2],
             opening_point: z_by_omega,
-            opening_values: vec![
-                z_1_shifted_at_z,
-                z_2_shifted_at_z,
-            ]
+            opening_values: vec![z_1_shifted_at_z, z_2_shifted_at_z],
         };
 
         let _ = Self::multiopening(request_at_z, &bases, &worker, &mut transcript);
         let _ = Self::multiopening(request_at_z_omega, &bases, &worker, &mut transcript);
 
-
         Ok(())
 
-        
         // let proof = PlonkChunkedNonhomomorphicProof::<E, S> {
         //     a_opening_value: a_at_z,
         //     b_opening_value: b_at_z,
@@ -1712,18 +1619,18 @@ impl<E: Engine> ProvingAssembly<E> {
 #[cfg(test)]
 mod test {
 
-    use crate::plonk::cs::*;
-    use crate::pairing::Engine;
-    use crate::SynthesisError;
-    use super::*;
     use super::super::generator::*;
+    use super::*;
+    use crate::pairing::Engine;
+    use crate::plonk::cs::*;
+    use crate::SynthesisError;
 
     use crate::ff::{Field, PrimeField};
 
     #[derive(Clone)]
-    struct BenchmarkCircuit<E: Engine>{
+    struct BenchmarkCircuit<E: Engine> {
         num_steps: usize,
-        _marker: std::marker::PhantomData<E>
+        _marker: std::marker::PhantomData<E>,
     }
 
     impl<E: Engine> Circuit<E> for BenchmarkCircuit<E> {
@@ -1736,21 +1643,15 @@ mod test {
 
             let mut two = one;
             two.double();
-            
-            let mut a = cs.alloc(|| {
-                Ok(E::Fr::one())
-            })?;
 
-            let mut b = cs.alloc(|| {
-                Ok(E::Fr::one())
-            })?;
+            let mut a = cs.alloc(|| Ok(E::Fr::one()))?;
+
+            let mut b = cs.alloc(|| Ok(E::Fr::one()))?;
 
             cs.enforce_zero_2((a, b), (one, negative_one))?;
             // cs.enforce_zero_2((b, CS::ONE), (one, negative_one))?;
 
-            let mut c = cs.alloc(|| {
-                Ok(two)
-            })?;
+            let mut c = cs.alloc(|| Ok(two))?;
 
             cs.enforce_zero_3((a, b, c), (one, one, negative_one))?;
 
@@ -1766,9 +1667,7 @@ mod test {
                 b_value = c_value;
                 c_value.add_assign(&a_value);
 
-                c = cs.alloc(|| {
-                    Ok(c_value)
-                })?;
+                c = cs.alloc(|| Ok(c_value))?;
 
                 cs.enforce_zero_3((a, b, c), (one, one, negative_one))?;
             }
@@ -1779,9 +1678,9 @@ mod test {
 
     #[test]
     fn test_bench_plonk_bls12() {
-        use crate::pairing::Engine;
-        use crate::pairing::{CurveProjective, CurveAffine};
         use crate::pairing::bls12_381::{Bls12, Fr};
+        use crate::pairing::Engine;
+        use crate::pairing::{CurveAffine, CurveProjective};
         use crate::plonk::utils::*;
         use crate::worker::Worker;
         // use crate::plonk::tester::*;
@@ -1791,8 +1690,8 @@ mod test {
 
         use std::time::Instant;
 
-        use crate::plonk::fft::cooley_tukey_ntt::*;
         use crate::plonk::commitments::transparent::fri::coset_combining_fri::precomputation::*;
+        use crate::plonk::fft::cooley_tukey_ntt::*;
 
         let sizes: Vec<usize> = vec![(1 << 18) - 10, (1 << 19) - 10, (1 << 20) - 10, (1 << 21) - 10, (1 << 22) - 10, (1 << 23) - 10];
 
@@ -1820,13 +1719,11 @@ mod test {
 
             // Compute the H query with multiple threads
             worker.scope(bases.len(), |scope, chunk| {
-                for (h, p) in bases.chunks_mut(chunk).zip(powers_of_tau.chunks(chunk))
-                {
+                for (h, p) in bases.chunks_mut(chunk).zip(powers_of_tau.chunks(chunk)) {
                     let mut g1_wnaf = g1_wnaf.shared();
                     scope.spawn(move |_| {
                         // Set values of the H query to g1^{(tau^i * t(tau)) / delta}
-                        for (h, p) in h.iter_mut().zip(p.iter())
-                        {
+                        for (h, p) in h.iter_mut().zip(p.iter()) {
                             // Exponentiate
                             *h = g1_wnaf.scalar(p.into_repr());
                         }
@@ -1842,22 +1739,17 @@ mod test {
         println!("Done making bases");
 
         for size in sizes.into_iter() {
-
             let circuit = BenchmarkCircuit::<Eng> {
                 // num_steps: 1_000_000,
                 num_steps: size,
-                _marker: std::marker::PhantomData
+                _marker: std::marker::PhantomData,
             };
 
             let omegas_bitreversed = BitReversedOmegas::<Fr>::new_for_domain_size(size.next_power_of_two());
-            let omegas_inv_bitreversed = <OmegasInvBitreversed::<Fr> as CTPrecomputations::<Fr>>::new_for_domain_size(size.next_power_of_two());
+            let omegas_inv_bitreversed = <OmegasInvBitreversed<Fr> as CTPrecomputations<Fr>>::new_for_domain_size(size.next_power_of_two());
 
             println!("Start setup and precomputations");
-            let (_, setup_precomp) = setup_with_precomputations::<Eng, _, _>(
-                &circuit,
-                &omegas_bitreversed,
-                &bases[0..size.next_power_of_two()]
-            ).unwrap();
+            let (_, setup_precomp) = setup_with_precomputations::<Eng, _, _>(&circuit, &omegas_bitreversed, &bases[0..size.next_power_of_two()]).unwrap();
 
             let mut prover = ProvingAssembly::<Eng>::new();
             circuit.synthesize(&mut prover).unwrap();
@@ -1869,17 +1761,12 @@ mod test {
 
             let start = Instant::now();
 
-            let _ = prover.prove_with_setup_precomputed::<_, _, Transcr>(
-                &setup_precomp, 
-                &worker, 
-                &omegas_bitreversed, 
-                &omegas_inv_bitreversed,
-                &bases[0..size.next_power_of_two()]
-            ).unwrap();
+            let _ = prover
+                .prove_with_setup_precomputed::<_, _, Transcr>(&setup_precomp, &worker, &omegas_bitreversed, &omegas_inv_bitreversed, &bases[0..size.next_power_of_two()])
+                .unwrap();
 
             println!("Proving taken {:?} for size {}", start.elapsed(), size);
         }
-
 
         // {
         //     let mut tester = TestingAssembly::<Transparent252>::new();
@@ -1915,9 +1802,9 @@ mod test {
 
     #[test]
     fn test_bench_plonk_bn254() {
-        use crate::pairing::Engine;
-        use crate::pairing::{CurveProjective, CurveAffine};
         use crate::pairing::bn256::{Bn256, Fr};
+        use crate::pairing::Engine;
+        use crate::pairing::{CurveAffine, CurveProjective};
         use crate::plonk::utils::*;
         use crate::worker::Worker;
         // use crate::plonk::tester::*;
@@ -1927,8 +1814,8 @@ mod test {
 
         use std::time::Instant;
 
-        use crate::plonk::fft::cooley_tukey_ntt::*;
         use crate::plonk::commitments::transparent::fri::coset_combining_fri::precomputation::*;
+        use crate::plonk::fft::cooley_tukey_ntt::*;
 
         let sizes: Vec<usize> = vec![(1 << 18) - 10, (1 << 19) - 10, (1 << 20) - 10, (1 << 21) - 10, (1 << 22) - 10, (1 << 23) - 10];
 
@@ -1956,13 +1843,11 @@ mod test {
 
             // Compute the H query with multiple threads
             worker.scope(bases.len(), |scope, chunk| {
-                for (h, p) in bases.chunks_mut(chunk).zip(powers_of_tau.chunks(chunk))
-                {
+                for (h, p) in bases.chunks_mut(chunk).zip(powers_of_tau.chunks(chunk)) {
                     let mut g1_wnaf = g1_wnaf.shared();
                     scope.spawn(move |_| {
                         // Set values of the H query to g1^{(tau^i * t(tau)) / delta}
-                        for (h, p) in h.iter_mut().zip(p.iter())
-                        {
+                        for (h, p) in h.iter_mut().zip(p.iter()) {
                             // Exponentiate
                             *h = g1_wnaf.scalar(p.into_repr());
                         }
@@ -1983,18 +1868,14 @@ mod test {
             let circuit = BenchmarkCircuit::<Eng> {
                 // num_steps: 1_000_000,
                 num_steps: size,
-                _marker: std::marker::PhantomData
+                _marker: std::marker::PhantomData,
             };
 
             let omegas_bitreversed = BitReversedOmegas::<Fr>::new_for_domain_size(size.next_power_of_two());
-            let omegas_inv_bitreversed = <OmegasInvBitreversed::<Fr> as CTPrecomputations::<Fr>>::new_for_domain_size(size.next_power_of_two());
+            let omegas_inv_bitreversed = <OmegasInvBitreversed<Fr> as CTPrecomputations<Fr>>::new_for_domain_size(size.next_power_of_two());
 
             println!("Start setup and precomputations");
-            let (_, setup_precomp) = setup_with_precomputations::<Eng, _, _>(
-                &circuit,
-                &omegas_bitreversed,
-                &bases[0..size.next_power_of_two()]
-            ).unwrap();
+            let (_, setup_precomp) = setup_with_precomputations::<Eng, _, _>(&circuit, &omegas_bitreversed, &bases[0..size.next_power_of_two()]).unwrap();
 
             let mut prover = ProvingAssembly::<Eng>::new();
             circuit.synthesize(&mut prover).unwrap();
@@ -2006,17 +1887,12 @@ mod test {
 
             let start = Instant::now();
 
-            let _ = prover.prove_with_setup_precomputed::<_, _, Transcr>(
-                &setup_precomp, 
-                &worker, 
-                &omegas_bitreversed, 
-                &omegas_inv_bitreversed,
-                &bases[0..size.next_power_of_two()]
-            ).unwrap();
+            let _ = prover
+                .prove_with_setup_precomputed::<_, _, Transcr>(&setup_precomp, &worker, &omegas_bitreversed, &omegas_inv_bitreversed, &bases[0..size.next_power_of_two()])
+                .unwrap();
 
             println!("Proving taken {:?} for size {}", start.elapsed(), size);
         }
-
 
         // {
         //     let mut tester = TestingAssembly::<Transparent252>::new();

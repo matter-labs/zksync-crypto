@@ -10,9 +10,7 @@ mod g1 {
 
         let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
-        let v: Vec<(G1, Fr)> = (0..SAMPLES)
-            .map(|_| (G1::rand(&mut rng), Fr::rand(&mut rng)))
-            .collect();
+        let v: Vec<(G1, Fr)> = (0..SAMPLES).map(|_| (G1::rand(&mut rng), Fr::rand(&mut rng))).collect();
 
         let mut count = 0;
         b.iter(|| {
@@ -29,9 +27,7 @@ mod g1 {
 
         let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
-        let v: Vec<(G1, G1)> = (0..SAMPLES)
-            .map(|_| (G1::rand(&mut rng), G1::rand(&mut rng)))
-            .collect();
+        let v: Vec<(G1, G1)> = (0..SAMPLES).map(|_| (G1::rand(&mut rng), G1::rand(&mut rng))).collect();
 
         let mut count = 0;
         b.iter(|| {
@@ -48,9 +44,7 @@ mod g1 {
 
         let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
-        let v: Vec<(G1, G1Affine)> = (0..SAMPLES)
-            .map(|_| (G1::rand(&mut rng), G1::rand(&mut rng).into()))
-            .collect();
+        let v: Vec<(G1, G1Affine)> = (0..SAMPLES).map(|_| (G1::rand(&mut rng), G1::rand(&mut rng).into())).collect();
 
         let mut count = 0;
         b.iter(|| {
@@ -74,9 +68,7 @@ mod g2 {
 
         let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
-        let v: Vec<(G2, Fr)> = (0..SAMPLES)
-            .map(|_| (G2::rand(&mut rng), Fr::rand(&mut rng)))
-            .collect();
+        let v: Vec<(G2, Fr)> = (0..SAMPLES).map(|_| (G2::rand(&mut rng), Fr::rand(&mut rng))).collect();
 
         let mut count = 0;
         b.iter(|| {
@@ -93,9 +85,7 @@ mod g2 {
 
         let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
-        let v: Vec<(G2, G2)> = (0..SAMPLES)
-            .map(|_| (G2::rand(&mut rng), G2::rand(&mut rng)))
-            .collect();
+        let v: Vec<(G2, G2)> = (0..SAMPLES).map(|_| (G2::rand(&mut rng), G2::rand(&mut rng))).collect();
 
         let mut count = 0;
         b.iter(|| {
@@ -112,9 +102,7 @@ mod g2 {
 
         let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
-        let v: Vec<(G2, G2Affine)> = (0..SAMPLES)
-            .map(|_| (G2::rand(&mut rng), G2::rand(&mut rng).into()))
-            .collect();
+        let v: Vec<(G2, G2Affine)> = (0..SAMPLES).map(|_| (G2::rand(&mut rng), G2::rand(&mut rng).into())).collect();
 
         let mut count = 0;
         b.iter(|| {

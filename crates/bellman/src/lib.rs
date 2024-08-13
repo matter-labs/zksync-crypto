@@ -1,18 +1,17 @@
-#![ allow( dead_code, unused_imports, unused_mut, unused_variables, unused_macros, unused_assignments, unreachable_patterns ) ]
+#![allow(dead_code, unused_imports, unused_mut, unused_variables, unused_macros, unused_assignments, unreachable_patterns)]
 #![cfg_attr(feature = "allocator", feature(allocator_api))]
 
 #[macro_use]
-
 extern crate cfg_if;
-pub extern crate pairing;
-extern crate rand;
 extern crate bit_vec;
 extern crate byteorder;
+pub extern crate pairing;
+extern crate rand;
 
 pub use pairing::*;
 pub use smallvec;
 
-use crate::pairing::ff as ff;
+use crate::pairing::ff;
 pub use ff::*;
 
 #[macro_use]
@@ -42,9 +41,9 @@ pub mod kate_commitment;
 
 pub mod constants;
 mod group;
-mod source;
 mod multiexp;
 mod prefetch;
+mod source;
 
 #[cfg(test)]
 mod tests;
@@ -69,10 +68,10 @@ cfg_if! {
 mod cs;
 pub use self::cs::*;
 
-use std::str::FromStr;
 use std::env;
+use std::str::FromStr;
 
-cfg_if!{
+cfg_if! {
     if #[cfg(any(not(feature = "nolog"), feature = "sonic"))] {
         fn verbose_flag() -> bool {
             option_env!("BELLMAN_VERBOSE").unwrap_or("0") == "1"

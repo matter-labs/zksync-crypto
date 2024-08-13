@@ -1,8 +1,7 @@
 use crate::pairing::ff::PrimeField;
 use crate::worker::*;
 
-pub(crate) fn best_lde<F: PrimeField>(a: &mut [F], worker: &Worker, omega: &F, log_n: u32, lde_factor: usize)
-{
+pub(crate) fn best_lde<F: PrimeField>(a: &mut [F], worker: &Worker, omega: &F, log_n: u32, lde_factor: usize) {
     let log_cpus = worker.log_num_cpus();
 
     if log_n <= log_cpus {
@@ -12,8 +11,7 @@ pub(crate) fn best_lde<F: PrimeField>(a: &mut [F], worker: &Worker, omega: &F, l
     }
 }
 
-pub(crate) fn serial_lde<F: PrimeField>(a: &mut [F], omega: &F, log_n: u32, lde_factor: usize)
-{
+pub(crate) fn serial_lde<F: PrimeField>(a: &mut [F], omega: &F, log_n: u32, lde_factor: usize) {
     #[inline(always)]
     fn bitreverse(mut n: u32, l: u32) -> u32 {
         let mut r = 0;
@@ -36,7 +34,7 @@ pub(crate) fn serial_lde<F: PrimeField>(a: &mut [F], omega: &F, log_n: u32, lde_
         if f <= 1 {
             return true;
         }
-       
+
         false
     }
 
@@ -56,30 +54,30 @@ pub(crate) fn serial_lde<F: PrimeField>(a: &mut [F], omega: &F, log_n: u32, lde_
     let mut step = 0;
 
     for _ in 0..log_n {
-        let w_m = omega.pow(&[(n / (2*m)) as u64]);
+        let w_m = omega.pow(&[(n / (2 * m)) as u64]);
 
-        let step_by = 2*m as usize;
-        if is_dense_round(lde_factor, step) {    
+        let step_by = 2 * m as usize;
+        if is_dense_round(lde_factor, step) {
             // standard fft
             for k in (0..n).step_by(step_by) {
                 let mut w = F::one();
                 for j in 0..m {
-                    let mut t = a[(k+j+m) as usize];
+                    let mut t = a[(k + j + m) as usize];
                     t.mul_assign(&w);
-                    let mut tmp = a[(k+j) as usize];
+                    let mut tmp = a[(k + j) as usize];
                     tmp.sub_assign(&t);
-                    a[(k+j+m) as usize] = tmp;
-                    a[(k+j) as usize].add_assign(&t);
+                    a[(k + j + m) as usize] = tmp;
+                    a[(k + j) as usize].add_assign(&t);
                     w.mul_assign(&w_m);
-                } 
+                }
             }
         } else {
             // have some pain trying to save on memory reads and multiplications
             for k in (0..n).step_by(step_by) {
                 let mut w = F::one();
                 for j in 0..m {
-                    let odd_idx = (k+j+m) as usize;
-                    let even_idx = (k+j) as usize;
+                    let odd_idx = (k + j + m) as usize;
+                    let even_idx = (k + j) as usize;
 
                     let odd_is_non_zero = is_non_zero(odd_idx, lde_factor, step);
                     let even_is_non_zero = is_non_zero(even_idx, lde_factor, step);
@@ -97,22 +95,21 @@ pub(crate) fn serial_lde<F: PrimeField>(a: &mut [F], omega: &F, log_n: u32, lde_
 
                             a[odd_idx] = tmp;
                             a[even_idx].add_assign(&t);
-                        },
+                        }
                         (false, true) => {
                             a[odd_idx] = a[even_idx];
-                        },
+                        }
                         (true, false) => {
                             let mut t = a[odd_idx];
                             t.mul_assign(&w);
 
                             let mut tmp = t;
                             tmp.negate();
-                            
+
                             a[odd_idx] = tmp;
                             a[even_idx] = t;
-                        },
-                        (false, false) => {
                         }
+                        (false, false) => {}
                     }
 
                     w.mul_assign(&w_m);
@@ -125,15 +122,7 @@ pub(crate) fn serial_lde<F: PrimeField>(a: &mut [F], omega: &F, log_n: u32, lde_
     }
 }
 
-pub(crate) fn parallel_lde<F: PrimeField>(
-    a: &mut [F],
-    worker: &Worker,
-    omega: &F,
-    log_n: u32,
-    log_cpus: u32,
-    lde_factor: usize
-)
-{
+pub(crate) fn parallel_lde<F: PrimeField>(a: &mut [F], worker: &Worker, omega: &F, log_n: u32, log_cpus: u32, lde_factor: usize) {
     assert!(log_n >= log_cpus);
 
     let num_cpus = 1 << log_cpus;
@@ -354,4 +343,3 @@ pub(crate) fn parallel_lde<F: PrimeField>(
 
 //     assert!(naive_lde.into_coeffs() == lde);
 // }
-

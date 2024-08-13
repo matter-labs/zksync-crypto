@@ -1,20 +1,20 @@
 use crate::pairing::ff::{Field, PrimeField};
-use crate::pairing::{Engine};
+use crate::pairing::Engine;
 
-use crate::{SynthesisError};
+use crate::plonk::domains::*;
 use crate::plonk::polynomials::*;
 use crate::worker::Worker;
-use crate::plonk::domains::*;
+use crate::SynthesisError;
 
 use std::marker::PhantomData;
 
 use super::cs::*;
-use super::keys::{SetupPolynomials, Proof, SetupPolynomialsPrecomputations};
+use super::keys::{Proof, SetupPolynomials, SetupPolynomialsPrecomputations};
 
 use crate::source::{DensityTracker, DensityTrackerersChain};
 
-use crate::kate_commitment::*;
 use super::utils::*;
+use crate::kate_commitment::*;
 
 use crate::plonk::commitments::transcript::*;
 use crate::plonk::fft::cooley_tukey_ntt::*;
@@ -29,7 +29,6 @@ pub struct ProverAssembly<E: Engine, P: PlonkConstraintSystemParams<E>> {
     n: usize,
     // input_gates: Vec<(P::StateVariables, P::ThisTraceStepCoefficients, P::NextTraceStepCoefficients)>,
     // aux_gates: Vec<(P::StateVariables, P::ThisTraceStepCoefficients, P::NextTraceStepCoefficients)>,
-
     num_inputs: usize,
     num_aux: usize,
 
@@ -39,20 +38,19 @@ pub struct ProverAssembly<E: Engine, P: PlonkConstraintSystemParams<E>> {
     wire_assignments: Vec<Vec<E::Fr>>,
 
     // aux_densities: Vec<DensityTracker>,
-
     inputs_map: Vec<usize>,
     dummy_var: Variable,
 
     is_finalized: bool,
 
-    _marker: std::marker::PhantomData<P>
+    _marker: std::marker::PhantomData<P>,
 }
 
 impl<E: Engine, P: PlonkConstraintSystemParams<E>> ConstraintSystem<E, P> for ProverAssembly<E, P> {
     // allocate a variable
     fn alloc<F>(&mut self, value: F) -> Result<Variable, SynthesisError>
     where
-        F: FnOnce() -> Result<E::Fr, SynthesisError> 
+        F: FnOnce() -> Result<E::Fr, SynthesisError>,
     {
         let value = value()?;
 
@@ -66,7 +64,7 @@ impl<E: Engine, P: PlonkConstraintSystemParams<E>> ConstraintSystem<E, P> for Pr
     // allocate an input variable
     fn alloc_input<F>(&mut self, value: F) -> Result<Variable, SynthesisError>
     where
-        F: FnOnce() -> Result<E::Fr, SynthesisError> 
+        F: FnOnce() -> Result<E::Fr, SynthesisError>,
     {
         let value = value()?;
 
@@ -77,20 +75,14 @@ impl<E: Engine, P: PlonkConstraintSystemParams<E>> ConstraintSystem<E, P> for Pr
         let input_var = Variable(Index::Input(index));
 
         // there is an implicit gate to constraint the input
-        // and it's handled during the proving 
-        self.n += 1; 
+        // and it's handled during the proving
+        self.n += 1;
 
         Ok(input_var)
-
     }
 
     // allocate an abstract gate
-    fn new_gate(&mut self, 
-        variables: P::StateVariables, 
-        _this_step_coeffs: P::ThisTraceStepCoefficients,
-        _next_step_coeffs: P::NextTraceStepCoefficients
-    ) -> Result<(), SynthesisError>
-    {
+    fn new_gate(&mut self, variables: P::StateVariables, _this_step_coeffs: P::ThisTraceStepCoefficients, _next_step_coeffs: P::NextTraceStepCoefficients) -> Result<(), SynthesisError> {
         for (idx, &v) in variables.as_ref().iter().enumerate() {
             let val = self.get_value(v)?;
             self.wire_assignments[idx].push(val);
@@ -110,12 +102,8 @@ impl<E: Engine, P: PlonkConstraintSystemParams<E>> ConstraintSystem<E, P> for Pr
                 unreachable!();
                 // return Err(SynthesisError::AssignmentMissing);
             }
-            Variable(Index::Input(input)) => {
-                self.input_assingments[input - 1]
-            },
-            Variable(Index::Aux(aux)) => {
-                self.aux_assingments[aux - 1]
-            }
+            Variable(Index::Input(input)) => self.input_assingments[input - 1],
+            Variable(Index::Aux(aux)) => self.aux_assingments[aux - 1],
         };
 
         Ok(value)
@@ -139,15 +127,14 @@ impl<E: Engine, P: PlonkConstraintSystemParams<E>> ProverAssembly<E, P> {
             aux_assingments: vec![],
 
             wire_assignments: vec![vec![]; P::STATE_WIDTH],
-        
-            // aux_densities: vec![DensityTracker::new(); P::STATE_WIDTH],
 
+            // aux_densities: vec![DensityTracker::new(); P::STATE_WIDTH],
             inputs_map: vec![],
             dummy_var: Variable(Index::Aux(0)),
 
             is_finalized: false,
 
-            _marker: std::marker::PhantomData
+            _marker: std::marker::PhantomData,
         };
 
         tmp
@@ -165,15 +152,14 @@ impl<E: Engine, P: PlonkConstraintSystemParams<E>> ProverAssembly<E, P> {
             aux_assingments: Vec::with_capacity(num_aux),
 
             wire_assignments: vec![Vec::with_capacity(num_inputs + num_aux); P::STATE_WIDTH],
-        
-            // aux_densities: vec![DensityTracker::new(); P::STATE_WIDTH],
 
+            // aux_densities: vec![DensityTracker::new(); P::STATE_WIDTH],
             inputs_map: Vec::with_capacity(num_inputs),
             dummy_var: Variable(Index::Aux(0)),
 
             is_finalized: false,
 
-            _marker: std::marker::PhantomData
+            _marker: std::marker::PhantomData,
         };
 
         tmp
@@ -194,12 +180,12 @@ impl<E: Engine, P: PlonkConstraintSystemParams<E>> ProverAssembly<E, P> {
         }
 
         let n = self.n;
-        if (n+1).is_power_of_two() {
+        if (n + 1).is_power_of_two() {
             self.is_finalized = true;
             return;
         }
 
-        self.n = (n+1).next_power_of_two() - 1;
+        self.n = (n + 1).next_power_of_two() - 1;
 
         self.is_finalized = true;
     }
@@ -238,13 +224,10 @@ impl<E: Engine, P: PlonkConstraintSystemParams<E>> ProverAssembly<E, P> {
     //     Ok((full_assignments, aux_densities))
     // }
 
-    pub fn make_witness_polynomials(
-        self
-    ) -> Result<Vec<Vec<E::Fr>>, SynthesisError>
-    {
+    pub fn make_witness_polynomials(self) -> Result<Vec<Vec<E::Fr>>, SynthesisError> {
         assert!(self.is_finalized);
 
-        let mut full_assignments = vec![Vec::with_capacity((self.n+1).next_power_of_two()); self.wire_assignments.len()];
+        let mut full_assignments = vec![Vec::with_capacity((self.n + 1).next_power_of_two()); self.wire_assignments.len()];
 
         for inp in self.input_assingments.into_iter() {
             // inputs will always go into A wire
@@ -256,11 +239,11 @@ impl<E: Engine, P: PlonkConstraintSystemParams<E>> ProverAssembly<E, P> {
 
         for (idx, aux) in self.wire_assignments.into_iter().enumerate() {
             full_assignments[idx].extend(aux);
-            full_assignments[idx].resize((self.n+1).next_power_of_two() - 1, E::Fr::zero());
+            full_assignments[idx].resize((self.n + 1).next_power_of_two() - 1, E::Fr::zero());
         }
 
         for a in full_assignments.iter() {
-            assert_eq!(a.len(), (self.n+1).next_power_of_two() - 1);
+            assert_eq!(a.len(), (self.n + 1).next_power_of_two() - 1);
         }
 
         Ok(full_assignments)
@@ -275,25 +258,21 @@ pub type ProverAssembly4WithNextStep<E> = ProverAssembly<E, PlonkCsWidth4WithNex
 
 impl<E: Engine> ProverAssembly4WithNextStep<E> {
     pub fn prove<T: Transcript<E::Fr>, CP: CTPrecomputations<E::Fr>, CPI: CTPrecomputations<E::Fr>>(
-        self, 
-        worker: &Worker, 
+        self,
+        worker: &Worker,
         setup: &SetupPolynomials<E, PlonkCsWidth4WithNextStepParams>,
         setup_precomputations: &SetupPolynomialsPrecomputations<E, PlonkCsWidth4WithNextStepParams>,
-        crs_vals: &Crs<E, CrsForLagrangeForm>, 
+        crs_vals: &Crs<E, CrsForLagrangeForm>,
         crs_mon: &Crs<E, CrsForMonomialForm>,
         omegas_bitreversed: &CP,
         omegas_inv_bitreversed: &CPI,
-        transcript_init_params: Option< <T as Prng<E::Fr> >:: InitializationParameters>,
+        transcript_init_params: Option<<T as Prng<E::Fr>>::InitializationParameters>,
     ) -> Result<Proof<E, PlonkCsWidth4WithNextStepParams>, SynthesisError> {
         use crate::pairing::CurveAffine;
         use std::sync::Arc;
 
-        let mut transcript = if let Some(p) = transcript_init_params {
-            T::new_from_params(p)
-        } else {
-            T::new()
-        };
-            
+        let mut transcript = if let Some(p) = transcript_init_params { T::new_from_params(p) } else { T::new() };
+
         assert!(self.is_finalized);
 
         let input_values = self.input_assingments.clone();
@@ -319,14 +298,10 @@ impl<E: Engine> ProverAssembly4WithNextStep<E> {
 
         // let coset_factor = E::Fr::one();
 
-        // Commit wire polynomials 
+        // Commit wire polynomials
 
         for wire_poly in full_assignments.iter() {
-            let commitment = commit_using_raw_values(
-                &wire_poly, 
-                &crs_vals, 
-                &worker
-            )?;
+            let commitment = commit_using_raw_values(&wire_poly, &crs_vals, &worker)?;
 
             commit_point_as_xy::<E, _>(&mut transcript, &commitment);
 
@@ -357,19 +332,14 @@ impl<E: Engine> ProverAssembly4WithNextStep<E> {
 
         let domain = Domain::new_for_size(required_domain_size as u64)?;
 
-        let mut domain_elements = materialize_domain_elements_with_natural_enumeration(
-            &domain, 
-            &worker
-        );
+        let mut domain_elements = materialize_domain_elements_with_natural_enumeration(&domain, &worker);
 
         domain_elements.pop().expect("must pop last element for omega^i");
 
         let mut domain_elements_poly_by_beta = Polynomial::from_values_unpadded(domain_elements)?;
         domain_elements_poly_by_beta.scale(&worker, beta);
 
-        let non_residues = make_non_residues::<E::Fr>(
-            <PlonkCsWidth4WithNextStepParams as PlonkConstraintSystemParams<E>>::STATE_WIDTH - 1
-        );
+        let non_residues = make_non_residues::<E::Fr>(<PlonkCsWidth4WithNextStepParams as PlonkConstraintSystemParams<E>>::STATE_WIDTH - 1);
 
         // we take A, B, C, ... values and form (A + beta * X * non_residue + gamma), etc and calculate their grand product
 
@@ -390,19 +360,15 @@ impl<E: Engine> ProverAssembly4WithNextStep<E> {
         // we take A, B, C, ... values and form (A + beta * perm_a + gamma), etc and calculate their grand product
 
         let z_den = {
-            assert_eq!(
-                setup_precomputations.permutation_polynomials_values_of_size_n_minus_one.len(), 
-                grand_products_protos_with_gamma.len()
-            );
+            assert_eq!(setup_precomputations.permutation_polynomials_values_of_size_n_minus_one.len(), grand_products_protos_with_gamma.len());
             let mut grand_products_proto_it = grand_products_protos_with_gamma.into_iter();
             let mut permutation_polys_it = setup_precomputations.permutation_polynomials_values_of_size_n_minus_one.iter();
 
             let mut z_2 = grand_products_proto_it.next().unwrap();
             z_2.add_assign_scaled(&worker, &permutation_polys_it.next().unwrap(), &beta);
 
-            for (mut p, perm) in grand_products_proto_it
-                                            .zip(permutation_polys_it) {
-                // permutation polynomials 
+            for (mut p, perm) in grand_products_proto_it.zip(permutation_polys_it) {
+                // permutation polynomials
                 p.add_assign_scaled(&worker, &perm, &beta);
                 z_2.mul_assign(&worker, &p);
             }
@@ -423,11 +389,7 @@ impl<E: Engine> ProverAssembly4WithNextStep<E> {
         // println!("Z last = {}", z.as_ref().last().unwrap());
         // assert!(z.as_ref().last().expect("must exist") == &E::Fr::one());
 
-        let z_commitment = commit_using_values(
-            &z, 
-            &crs_vals, 
-            &worker
-        )?;
+        let z_commitment = commit_using_values(&z, &crs_vals, &worker)?;
         proof.grand_product_commitment = z_commitment;
 
         commit_point_as_xy::<E, _>(&mut transcript, &proof.grand_product_commitment);
@@ -438,7 +400,7 @@ impl<E: Engine> ProverAssembly4WithNextStep<E> {
         // those are z(x*Omega) formally
         let mut z_shifted_in_monomial_form = z_in_monomial_form.clone();
         z_shifted_in_monomial_form.distribute_powers(&worker, z_in_monomial_form.omega);
-        
+
         // now we have to LDE everything and compute quotient polynomial
         // also to save on openings that we will have to do from the monomial form anyway
 
@@ -456,22 +418,12 @@ impl<E: Engine> ProverAssembly4WithNextStep<E> {
                 let mut d_next = monomial.clone();
                 d_next.distribute_powers(&worker, d_next.omega);
 
-                let lde = d_next.bitreversed_lde_using_bitreversed_ntt(
-                    &worker, 
-                    LDE_FACTOR, 
-                    omegas_bitreversed, 
-                    &coset_factor
-                )?;
+                let lde = d_next.bitreversed_lde_using_bitreversed_ntt(&worker, LDE_FACTOR, omegas_bitreversed, &coset_factor)?;
 
                 witness_next_ldes_on_coset.push(lde);
             }
 
-            let lde = monomial.bitreversed_lde_using_bitreversed_ntt(
-                &worker, 
-                LDE_FACTOR, 
-                omegas_bitreversed, 
-                &coset_factor
-            )?;
+            let lde = monomial.bitreversed_lde_using_bitreversed_ntt(&worker, LDE_FACTOR, omegas_bitreversed, &coset_factor)?;
             witness_ldes_on_coset.push(lde);
         }
 
@@ -496,12 +448,7 @@ impl<E: Engine> ProverAssembly4WithNextStep<E> {
             inputs_poly.add_assign(&worker, setup.selector_polynomials.last().unwrap());
 
             // LDE
-            let mut t_1 = inputs_poly.bitreversed_lde_using_bitreversed_ntt(
-                &worker, 
-                LDE_FACTOR, 
-                omegas_bitreversed, 
-                &coset_factor
-            )?;
+            let mut t_1 = inputs_poly.bitreversed_lde_using_bitreversed_ntt(&worker, LDE_FACTOR, omegas_bitreversed, &coset_factor)?;
 
             // Q_A * A
             let mut tmp = setup_precomputations.selector_polynomials_on_coset_of_size_4n_bitreversed[0].clone();
@@ -541,26 +488,18 @@ impl<E: Engine> ProverAssembly4WithNextStep<E> {
 
         // now compute the permutation argument
 
-        let z_coset_lde_bitreversed = z_in_monomial_form.clone().bitreversed_lde_using_bitreversed_ntt(
-            &worker, 
-            LDE_FACTOR, 
-            omegas_bitreversed, 
-            &coset_factor
-        )?;
+        let z_coset_lde_bitreversed = z_in_monomial_form
+            .clone()
+            .bitreversed_lde_using_bitreversed_ntt(&worker, LDE_FACTOR, omegas_bitreversed, &coset_factor)?;
 
-        assert!(z_coset_lde_bitreversed.size() == required_domain_size*LDE_FACTOR);
+        assert!(z_coset_lde_bitreversed.size() == required_domain_size * LDE_FACTOR);
 
-        let z_shifted_coset_lde_bitreversed = z_shifted_in_monomial_form.bitreversed_lde_using_bitreversed_ntt(
-            &worker, 
-            LDE_FACTOR, 
-            omegas_bitreversed, 
-            &coset_factor
-        )?;
+        let z_shifted_coset_lde_bitreversed = z_shifted_in_monomial_form.bitreversed_lde_using_bitreversed_ntt(&worker, LDE_FACTOR, omegas_bitreversed, &coset_factor)?;
 
-        assert!(z_shifted_coset_lde_bitreversed.size() == required_domain_size*LDE_FACTOR);
+        assert!(z_shifted_coset_lde_bitreversed.size() == required_domain_size * LDE_FACTOR);
 
         // For both Z_1 and Z_2 we first check for grand products
-        // z*(X)(A + beta*X + gamma)(B + beta*k_1*X + gamma)(C + beta*K_2*X + gamma) - 
+        // z*(X)(A + beta*X + gamma)(B + beta*k_1*X + gamma)(C + beta*K_2*X + gamma) -
         // - (A + beta*perm_a(X) + gamma)(B + beta*perm_b(X) + gamma)(C + beta*perm_c(X) + gamma)*Z(X*Omega)== 0
 
         // we use evaluations of the polynomial X and K_i * X on a large domain's coset
@@ -597,12 +536,9 @@ impl<E: Engine> ProverAssembly4WithNextStep<E> {
 
             // A + beta*perm_a + gamma
 
-            assert_eq!(
-                setup_precomputations.permutation_polynomials_on_coset_of_size_4n_bitreversed.len(), witness_ldes_on_coset.len()
-            );
+            assert_eq!(setup_precomputations.permutation_polynomials_on_coset_of_size_4n_bitreversed.len(), witness_ldes_on_coset.len());
 
-            for (w, perm) in witness_ldes_on_coset.iter()
-            .zip(setup_precomputations.permutation_polynomials_on_coset_of_size_4n_bitreversed.iter()) {
+            for (w, perm) in witness_ldes_on_coset.iter().zip(setup_precomputations.permutation_polynomials_on_coset_of_size_4n_bitreversed.iter()) {
                 tmp.reuse_allocation(&w);
                 tmp.add_constant(&worker, &gamma);
                 tmp.add_assign_scaled(&worker, &perm, &beta);
@@ -624,12 +560,7 @@ impl<E: Engine> ProverAssembly4WithNextStep<E> {
             let mut z_minus_one_by_l_0 = z_coset_lde_bitreversed;
             z_minus_one_by_l_0.sub_constant(&worker, &E::Fr::one());
 
-            let l_coset_lde_bitreversed = l_0.bitreversed_lde_using_bitreversed_ntt(
-                &worker, 
-                LDE_FACTOR, 
-                omegas_bitreversed, 
-                &coset_factor
-            )?;
+            let l_coset_lde_bitreversed = l_0.bitreversed_lde_using_bitreversed_ntt(&worker, LDE_FACTOR, omegas_bitreversed, &coset_factor)?;
 
             z_minus_one_by_l_0.mul_assign(&worker, &l_coset_lde_bitreversed);
 
@@ -649,11 +580,7 @@ impl<E: Engine> ProverAssembly4WithNextStep<E> {
         let mut t_poly_parts = t_poly_in_monomial_form.break_into_multiples(required_domain_size)?;
 
         for t_part in t_poly_parts.iter() {
-            let t_part_commitment = commit_using_monomials(
-                &t_part, 
-                &crs_mon, 
-                &worker
-            )?;
+            let t_part_commitment = commit_using_monomials(&t_part, &crs_mon, &worker)?;
 
             commit_point_as_xy::<E, _>(&mut transcript, &t_part_commitment);
 
@@ -747,9 +674,7 @@ impl<E: Engine> ProverAssembly4WithNextStep<E> {
             // + (a(z) + beta*z + gamma)*()*()*()*Z(x)
 
             let mut factor = quotient_linearization_challenge;
-            for (wire_at_z, non_residue) in proof.wire_values_at_z.iter()
-                            .zip(Some(E::Fr::one()).iter().chain(&non_residues)) 
-            {
+            for (wire_at_z, non_residue) in proof.wire_values_at_z.iter().zip(Some(E::Fr::one()).iter().chain(&non_residues)) {
                 let mut t = z;
                 t.mul_assign(&non_residue);
                 t.mul_assign(&beta);
@@ -767,9 +692,7 @@ impl<E: Engine> ProverAssembly4WithNextStep<E> {
             factor.mul_assign(&beta);
             factor.mul_assign(&z_at_z_omega);
 
-            for (wire_at_z, perm_at_z) in proof.wire_values_at_z.iter()
-                            .zip(proof.permutation_polynomials_at_z.iter())
-            {
+            for (wire_at_z, perm_at_z) in proof.wire_values_at_z.iter().zip(proof.permutation_polynomials_at_z.iter()) {
                 let mut t = *perm_at_z;
                 t.mul_assign(&beta);
                 t.add_assign(&wire_at_z);
@@ -804,7 +727,7 @@ impl<E: Engine> ProverAssembly4WithNextStep<E> {
         // sanity check - verification
         {
             let mut lhs = t_at_z;
-            let vanishing_at_z = evaluate_vanishing_for_size(&z ,required_domain_size as u64);
+            let vanishing_at_z = evaluate_vanishing_for_size(&z, required_domain_size as u64);
             lhs.mul_assign(&vanishing_at_z);
 
             let mut quotient_linearization_challenge = E::Fr::one();
@@ -834,9 +757,9 @@ impl<E: Engine> ProverAssembly4WithNextStep<E> {
                 tmp.mul_assign(&beta);
                 tmp.add_assign(&gamma);
                 tmp.add_assign(&w);
-                
+
                 z_part.mul_assign(&tmp);
-            }   
+            }
 
             // last poly value and gamma
             let mut tmp = gamma;
@@ -848,7 +771,7 @@ impl<E: Engine> ProverAssembly4WithNextStep<E> {
             rhs.sub_assign(&z_part);
 
             quotient_linearization_challenge.mul_assign(&alpha);
-            
+
             // - L_0(z) * \alpha^2
 
             let mut l_0_at_z = evaluate_l0_at_point(required_domain_size as u64, z)?;
@@ -938,60 +861,44 @@ impl<E: Engine> ProverAssembly4WithNextStep<E> {
         let open_at_z_omega = polys.pop().unwrap().0;
         let open_at_z = polys.pop().unwrap().0;
 
-        let opening_at_z = commit_using_monomials(
-            &open_at_z, 
-            &crs_mon,
-            &worker
-        )?;
+        let opening_at_z = commit_using_monomials(&open_at_z, &crs_mon, &worker)?;
 
-        let opening_at_z_omega = commit_using_monomials(
-            &open_at_z_omega, 
-            &crs_mon,
-            &worker
-        )?;
+        let opening_at_z_omega = commit_using_monomials(&open_at_z_omega, &crs_mon, &worker)?;
 
         proof.opening_at_z_proof = opening_at_z;
         proof.opening_at_z_omega_proof = opening_at_z_omega;
-        
+
         Ok(proof)
     }
 }
 
 #[cfg(test)]
 mod test {
-    use super::*;
     use super::super::verifier::verify;
+    use super::*;
 
     use crate::pairing::Engine;
 
     #[derive(Clone)]
-    struct TestCircuit4<E:Engine>{
-        _marker: PhantomData<E>
+    struct TestCircuit4<E: Engine> {
+        _marker: PhantomData<E>,
     }
 
     impl<E: Engine> Circuit<E, PlonkCsWidth4WithNextStepParams> for TestCircuit4<E> {
-        fn synthesize<CS: ConstraintSystem<E, PlonkCsWidth4WithNextStepParams> >(&self, cs: &mut CS) -> Result<(), SynthesisError> {
-            let a = cs.alloc_input(|| {
-                Ok(E::Fr::from_str("10").unwrap())
-            })?;
+        fn synthesize<CS: ConstraintSystem<E, PlonkCsWidth4WithNextStepParams>>(&self, cs: &mut CS) -> Result<(), SynthesisError> {
+            let a = cs.alloc_input(|| Ok(E::Fr::from_str("10").unwrap()))?;
 
             println!("A = {:?}", a);
 
-            let b = cs.alloc_input(|| {
-                Ok(E::Fr::from_str("20").unwrap())
-            })?;
+            let b = cs.alloc_input(|| Ok(E::Fr::from_str("20").unwrap()))?;
 
             println!("B = {:?}", b);
 
-            let c = cs.alloc(|| {
-                Ok(E::Fr::from_str("200").unwrap())
-            })?;
+            let c = cs.alloc(|| Ok(E::Fr::from_str("200").unwrap()))?;
 
             println!("C = {:?}", c);
 
-            let d = cs.alloc(|| {
-                Ok(E::Fr::from_str("100").unwrap())
-            })?;
+            let d = cs.alloc(|| Ok(E::Fr::from_str("100").unwrap()))?;
 
             println!("D = {:?}", d);
 
@@ -1008,114 +915,54 @@ mod test {
             let dummy = cs.get_dummy_variable();
 
             // 2a - b == 0
-            cs.new_gate(
-                [a, b, dummy, dummy], 
-                [two, negative_one, zero, zero, zero, zero],
-                [zero]
-            )?;
+            cs.new_gate([a, b, dummy, dummy], [two, negative_one, zero, zero, zero, zero], [zero])?;
 
             // try various combinations
-            cs.new_gate(
-                [dummy, b, dummy, a], 
-                [zero, negative_one, zero, two, zero, zero],
-                [zero]
-            )?;
+            cs.new_gate([dummy, b, dummy, a], [zero, negative_one, zero, two, zero, zero], [zero])?;
 
-            cs.new_gate(
-                [dummy, b, a, dummy], 
-                [zero, negative_one, two, zero, zero, zero],
-                [zero]
-            )?;
+            cs.new_gate([dummy, b, a, dummy], [zero, negative_one, two, zero, zero, zero], [zero])?;
 
             // 10b - c = 0
             let ten = E::Fr::from_str("10").unwrap();
 
-            cs.new_gate(
-                [b, c, dummy, dummy], 
-                [ten, negative_one, zero, zero, zero, zero],
-                [zero]
-            )?;
+            cs.new_gate([b, c, dummy, dummy], [ten, negative_one, zero, zero, zero, zero], [zero])?;
 
             // same, try various combinations
 
-            cs.new_gate(
-                [dummy, c, dummy, b], 
-                [zero, negative_one, zero, ten, zero, zero],
-                [zero]
-            )?;
+            cs.new_gate([dummy, c, dummy, b], [zero, negative_one, zero, ten, zero, zero], [zero])?;
 
-            cs.new_gate(
-                [dummy, c, b, dummy], 
-                [zero, negative_one, ten, zero, zero, zero],
-                [zero]
-            )?;
+            cs.new_gate([dummy, c, b, dummy], [zero, negative_one, ten, zero, zero, zero], [zero])?;
 
-            // c - a*b == 0 
+            // c - a*b == 0
 
-            cs.new_gate(
-                [a, b, dummy, c], 
-                [zero, zero, zero, negative_one, one, zero],
-                [zero]
-            )?;
+            cs.new_gate([a, b, dummy, c], [zero, zero, zero, negative_one, one, zero], [zero])?;
 
-            cs.new_gate(
-                [a, b, c, dummy], 
-                [zero, zero, negative_one, zero, one, zero],
-                [zero]
-            )?;
+            cs.new_gate([a, b, c, dummy], [zero, zero, negative_one, zero, one, zero], [zero])?;
 
             // 10a + 10b - c - d == 0
 
-            cs.new_gate(
-                [a, b, c, d], 
-                [ten, ten, negative_one, negative_one, zero, zero],
-                [zero]
-            )?;
+            cs.new_gate([a, b, c, d], [ten, ten, negative_one, negative_one, zero, zero], [zero])?;
 
-            cs.new_gate(
-                [a, d, b, c], 
-                [ten, negative_one, ten, negative_one, zero, zero],
-                [zero]
-            )?;
+            cs.new_gate([a, d, b, c], [ten, negative_one, ten, negative_one, zero, zero], [zero])?;
 
             // 2d - c == 0
 
-            cs.new_gate(
-                [d, c, dummy, dummy], 
-                [two, negative_one, zero, zero, zero, zero],
-                [zero]
-            )?;
+            cs.new_gate([d, c, dummy, dummy], [two, negative_one, zero, zero, zero, zero], [zero])?;
 
-            cs.new_gate(
-                [d, c, dummy, d], 
-                [one, negative_one, zero, one, zero, zero],
-                [zero]
-            )?;
+            cs.new_gate([d, c, dummy, d], [one, negative_one, zero, one, zero, zero], [zero])?;
 
             // make a gate that affects next step
 
             // 10a + 10b - c - (something in d on next step) == 0, then
             // d + 0 + 0 - d = 0
 
-            cs.new_gate(
-                [a, b, c, dummy], 
-                [ten, ten, negative_one, zero, zero, zero],
-                [negative_one]
-            )?;
+            cs.new_gate([a, b, c, dummy], [ten, ten, negative_one, zero, zero, zero], [negative_one])?;
 
-            cs.new_gate(
-                [d, dummy, dummy, d], 
-                [one, zero, zero, negative_one, zero, zero],
-                [zero]
-            )?;
+            cs.new_gate([d, dummy, dummy, d], [one, zero, zero, negative_one, zero, zero], [zero])?;
 
             // check internal constant
 
-            cs.new_gate(
-                [d, dummy, dummy, dummy], 
-                [negative_one, zero, zero, zero, zero, E::Fr::from_str("100").unwrap()],
-                [zero]
-            )?;
+            cs.new_gate([d, dummy, dummy, dummy], [negative_one, zero, zero, zero, zero, E::Fr::from_str("100").unwrap()], [zero])?;
 
             Ok(())
         }
@@ -1124,15 +971,13 @@ mod test {
     #[test]
     fn test_prove_trivial_circuit() {
         use crate::pairing::bn256::{Bn256, Fr};
-        use crate::worker::Worker;
         use crate::plonk::better_cs::generator::*;
         use crate::plonk::better_cs::keys::*;
+        use crate::worker::Worker;
 
         let mut assembly = GeneratorAssembly4WithNextStep::<Bn256>::new();
 
-        let circuit = TestCircuit4::<Bn256> {
-            _marker: PhantomData
-        };
+        let circuit = TestCircuit4::<Bn256> { _marker: PhantomData };
 
         circuit.clone().synthesize(&mut assembly).expect("must work");
 
@@ -1147,18 +992,11 @@ mod test {
         let crs_mons = Crs::<Bn256, CrsForMonomialForm>::crs_42(setup.permutation_polynomials[0].size(), &worker);
         let crs_vals = Crs::<Bn256, CrsForLagrangeForm>::crs_42(setup.permutation_polynomials[0].size(), &worker);
 
-        let verification_key = VerificationKey::from_setup(
-            &setup, 
-            &worker, 
-            &crs_mons
-        ).unwrap();
+        let verification_key = VerificationKey::from_setup(&setup, &worker, &crs_mons).unwrap();
 
         // println!("Verification key = {:?}", verification_key);
 
-        let precomputations = SetupPolynomialsPrecomputations::from_setup(
-            &setup, 
-            &worker
-        ).unwrap();
+        let precomputations = SetupPolynomialsPrecomputations::from_setup(&setup, &worker).unwrap();
 
         let mut assembly = ProverAssembly4WithNextStep::<Bn256>::new();
 
@@ -1171,22 +1009,14 @@ mod test {
         type Transcr = Blake2sTranscript<Fr>;
 
         let omegas_bitreversed = BitReversedOmegas::<Fr>::new_for_domain_size(size.next_power_of_two());
-        let omegas_inv_bitreversed = <OmegasInvBitreversed::<Fr> as CTPrecomputations::<Fr>>::new_for_domain_size(size.next_power_of_two());
+        let omegas_inv_bitreversed = <OmegasInvBitreversed<Fr> as CTPrecomputations<Fr>>::new_for_domain_size(size.next_power_of_two());
 
-        let proof = assembly.prove::<Transcr, _, _>(
-            &worker,
-            &setup,
-            &precomputations,
-            &crs_vals,
-            &crs_mons,
-            &omegas_bitreversed,
-            &omegas_inv_bitreversed,
-            None,
-        ).unwrap();
+        let proof = assembly
+            .prove::<Transcr, _, _>(&worker, &setup, &precomputations, &crs_vals, &crs_mons, &omegas_bitreversed, &omegas_inv_bitreversed, None)
+            .unwrap();
 
         let is_valid = verify::<Bn256, PlonkCsWidth4WithNextStepParams, Transcr>(&proof, &verification_key, None).unwrap();
 
         assert!(is_valid);
-
     }
 }

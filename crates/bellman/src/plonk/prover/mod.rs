@@ -1,20 +1,19 @@
 use crate::pairing::ff::{Field, PrimeField};
-use crate::pairing::{Engine};
+use crate::pairing::Engine;
 
-use crate::{SynthesisError};
+use crate::SynthesisError;
 use std::marker::PhantomData;
 
 use crate::plonk::cs::gates::*;
 use crate::plonk::cs::*;
 
-use crate::worker::*;
-use super::polynomials::*;
 use super::domains::*;
-use crate::plonk::commitments::*;
+use super::polynomials::*;
 use crate::plonk::commitments::transcript::*;
-use crate::plonk::utils::*;
+use crate::plonk::commitments::*;
 use crate::plonk::generator::*;
-
+use crate::plonk::utils::*;
+use crate::worker::*;
 
 #[derive(Debug)]
 struct ProvingAssembly<E: Engine> {
@@ -31,14 +30,14 @@ struct ProvingAssembly<E: Engine> {
 
     inputs_map: Vec<usize>,
 
-    is_finalized: bool
+    is_finalized: bool,
 }
 
 impl<E: Engine> ConstraintSystem<E> for ProvingAssembly<E> {
     // allocate a variable
     fn alloc<F>(&mut self, value: F) -> Result<Variable, SynthesisError>
     where
-        F: FnOnce() -> Result<E::Fr, SynthesisError> 
+        F: FnOnce() -> Result<E::Fr, SynthesisError>,
     {
         let value = value()?;
 
@@ -52,7 +51,7 @@ impl<E: Engine> ConstraintSystem<E> for ProvingAssembly<E> {
     // allocate an input variable
     fn alloc_input<F>(&mut self, value: F) -> Result<Variable, SynthesisError>
     where
-        F: FnOnce() -> Result<E::Fr, SynthesisError> 
+        F: FnOnce() -> Result<E::Fr, SynthesisError>,
     {
         let value = value()?;
 
@@ -67,7 +66,6 @@ impl<E: Engine> ConstraintSystem<E> for ProvingAssembly<E> {
         self.input_gates.push(gate);
 
         Ok(input_var)
-
     }
 
     // enforce variable as boolean
@@ -80,9 +78,7 @@ impl<E: Engine> ConstraintSystem<E> for ProvingAssembly<E> {
     }
 
     // allocate an abstract gate
-    fn new_gate(&mut self, variables: (Variable, Variable, Variable), 
-        coeffs:(E::Fr,E::Fr,E::Fr,E::Fr,E::Fr)) -> Result<(), SynthesisError>
-    {
+    fn new_gate(&mut self, variables: (Variable, Variable, Variable), coeffs: (E::Fr, E::Fr, E::Fr, E::Fr, E::Fr)) -> Result<(), SynthesisError> {
         let gate = Gate::<E::Fr>::new_gate(variables, coeffs);
         self.aux_gates.push(gate);
         self.n += 1;
@@ -91,8 +87,7 @@ impl<E: Engine> ConstraintSystem<E> for ProvingAssembly<E> {
     }
 
     // allocate a constant
-    fn enforce_constant(&mut self, variable: Variable, constant: E::Fr) -> Result<(), SynthesisError>
-    {
+    fn enforce_constant(&mut self, variable: Variable, constant: E::Fr) -> Result<(), SynthesisError> {
         let gate = Gate::<E::Fr>::new_enforce_constant_gate(variable, Some(constant), self.dummy_variable());
         self.aux_gates.push(gate);
         self.n += 1;
@@ -124,8 +119,7 @@ impl<E: Engine> ConstraintSystem<E> for ProvingAssembly<E> {
     }
 
     // allocate a linear combination gate
-    fn enforce_zero_2(&mut self, variables: (Variable, Variable), coeffs:(E::Fr, E::Fr)) -> Result<(), SynthesisError>
-    {
+    fn enforce_zero_2(&mut self, variables: (Variable, Variable), coeffs: (E::Fr, E::Fr)) -> Result<(), SynthesisError> {
         let (v_0, v_1) = variables;
         let (c_0, c_1) = coeffs;
         let zero = E::Fr::zero();
@@ -138,14 +132,12 @@ impl<E: Engine> ConstraintSystem<E> for ProvingAssembly<E> {
     }
 
     // allocate a linear combination gate
-    fn enforce_zero_3(&mut self, variables: (Variable, Variable, Variable), coeffs:(E::Fr, E::Fr, E::Fr)) -> Result<(), SynthesisError>
-    {
+    fn enforce_zero_3(&mut self, variables: (Variable, Variable, Variable), coeffs: (E::Fr, E::Fr, E::Fr)) -> Result<(), SynthesisError> {
         let gate = Gate::<E::Fr>::new_enforce_zero_gate(variables, coeffs);
         self.aux_gates.push(gate);
         self.n += 1;
 
         Ok(())
-        
     }
 
     fn get_dummy_variable(&self) -> Variable {
@@ -164,7 +156,7 @@ impl<E: Engine> ProvingAssembly<E> {
     }
 
     fn set_gate(&mut self, gate: Gate<E::Fr>, index: usize) {
-        self.aux_gates[index-1] = gate;
+        self.aux_gates[index - 1] = gate;
     }
 
     pub(crate) fn new() -> Self {
@@ -189,8 +181,8 @@ impl<E: Engine> ProvingAssembly<E> {
         tmp.enforce_constant(zero, E::Fr::zero()).expect("should have no issues");
 
         match (tmp.dummy_variable(), zero) {
-            (Variable(Index::Aux(1)), Variable(Index::Aux(1))) => {},
-            _ => panic!("zero variable is incorrect")
+            (Variable(Index::Aux(1)), Variable(Index::Aux(1))) => {}
+            _ => panic!("zero variable is incorrect"),
         }
 
         tmp
@@ -211,43 +203,51 @@ impl<E: Engine> ProvingAssembly<E> {
         let mut f_r = vec![E::Fr::zero(); total_num_gates];
         let mut f_o = vec![E::Fr::zero(); total_num_gates];
 
-        for (i, gate) in self.input_gates.iter().chain(&self.aux_gates).enumerate()
-        {
+        for (i, gate) in self.input_gates.iter().chain(&self.aux_gates).enumerate() {
             match gate.a_wire() {
                 Variable(Index::Input(index)) => {
                     f_l[i] = self.input_assingments[index - 1];
-                },
+                }
                 Variable(Index::Aux(index)) => {
                     f_l[i] = self.aux_assingments[index - 1];
-                },
+                }
             }
 
             match gate.b_wire() {
                 Variable(Index::Input(index)) => {
                     f_r[i] = self.input_assingments[index - 1];
-                },
+                }
                 Variable(Index::Aux(index)) => {
                     f_r[i] = self.aux_assingments[index - 1];
-                },
+                }
             }
 
             match gate.c_wire() {
                 Variable(Index::Input(index)) => {
                     f_o[i] = self.input_assingments[index - 1];
-                },
+                }
                 Variable(Index::Aux(index)) => {
                     f_o[i] = self.aux_assingments[index - 1];
-                },
+                }
             }
         }
 
         (f_l, f_r, f_o)
     }
 
-    pub(crate) fn make_circuit_description_polynomials(&self, worker: &Worker) -> Result<(
-        Polynomial::<E::Fr, Values>, Polynomial::<E::Fr, Values>, Polynomial::<E::Fr, Values>,
-        Polynomial::<E::Fr, Values>, Polynomial::<E::Fr, Values>
-    ), SynthesisError> {
+    pub(crate) fn make_circuit_description_polynomials(
+        &self,
+        worker: &Worker,
+    ) -> Result<
+        (
+            Polynomial<E::Fr, Values>,
+            Polynomial<E::Fr, Values>,
+            Polynomial<E::Fr, Values>,
+            Polynomial<E::Fr, Values>,
+            Polynomial<E::Fr, Values>,
+        ),
+        SynthesisError,
+    > {
         assert!(self.is_finalized);
 
         let total_num_gates = self.input_gates.len() + self.aux_gates.len();
@@ -257,33 +257,29 @@ impl<E: Engine> ProvingAssembly<E> {
         let mut q_m = vec![E::Fr::zero(); total_num_gates];
         let mut q_c = vec![E::Fr::zero(); total_num_gates];
 
-        fn coeff_into_field_element<F: PrimeField>(coeff: & Coeff<F>) -> F {
+        fn coeff_into_field_element<F: PrimeField>(coeff: &Coeff<F>) -> F {
             match coeff {
-                Coeff::Zero => {
-                    F::zero()
-                },
-                Coeff::One => {
-                    F::one()
-                },
+                Coeff::Zero => F::zero(),
+                Coeff::One => F::one(),
                 Coeff::NegativeOne => {
                     let mut tmp = F::one();
                     tmp.negate();
 
                     tmp
-                },
-                Coeff::Full(c) => {
-                    *c
-                },
+                }
+                Coeff::Full(c) => *c,
             }
         }
 
         // expect a small number of inputs
-        for (((((gate, q_l), q_r), q_o), q_m), q_c) in self.input_gates.iter()
-                                            .zip(q_l.iter_mut())
-                                            .zip(q_r.iter_mut())
-                                            .zip(q_o.iter_mut())
-                                            .zip(q_m.iter_mut())
-                                            .zip(q_c.iter_mut())
+        for (((((gate, q_l), q_r), q_o), q_m), q_c) in self
+            .input_gates
+            .iter()
+            .zip(q_l.iter_mut())
+            .zip(q_r.iter_mut())
+            .zip(q_o.iter_mut())
+            .zip(q_m.iter_mut())
+            .zip(q_c.iter_mut())
         {
             *q_l = coeff_into_field_element(&gate.q_l);
             *q_r = coeff_into_field_element(&gate.q_r);
@@ -291,7 +287,6 @@ impl<E: Engine> ProvingAssembly<E> {
             *q_m = coeff_into_field_element(&gate.q_m);
             *q_c = coeff_into_field_element(&gate.q_c);
         }
-
 
         let num_input_gates = self.input_gates.len();
         let q_l_aux = &mut q_l[num_input_gates..];
@@ -303,27 +298,23 @@ impl<E: Engine> ProvingAssembly<E> {
         debug_assert!(self.aux_gates.len() == q_l_aux.len());
 
         worker.scope(self.aux_gates.len(), |scope, chunk| {
-            for (((((gate, q_l), q_r), q_o), q_m), q_c) in self.aux_gates.chunks(chunk)
-                                                            .zip(q_l_aux.chunks_mut(chunk))
-                                                            .zip(q_r_aux.chunks_mut(chunk))
-                                                            .zip(q_o_aux.chunks_mut(chunk))
-                                                            .zip(q_m_aux.chunks_mut(chunk))
-                                                            .zip(q_c_aux.chunks_mut(chunk))
+            for (((((gate, q_l), q_r), q_o), q_m), q_c) in self
+                .aux_gates
+                .chunks(chunk)
+                .zip(q_l_aux.chunks_mut(chunk))
+                .zip(q_r_aux.chunks_mut(chunk))
+                .zip(q_o_aux.chunks_mut(chunk))
+                .zip(q_m_aux.chunks_mut(chunk))
+                .zip(q_c_aux.chunks_mut(chunk))
             {
                 scope.spawn(move |_| {
-                    for (((((gate, q_l), q_r), q_o), q_m), q_c) in gate.iter()
-                                                            .zip(q_l.iter_mut())
-                                                            .zip(q_r.iter_mut())
-                                                            .zip(q_o.iter_mut())
-                                                            .zip(q_m.iter_mut())
-                                                            .zip(q_c.iter_mut())
-                        {
-                            *q_l = coeff_into_field_element(&gate.q_l);
-                            *q_r = coeff_into_field_element(&gate.q_r);
-                            *q_o = coeff_into_field_element(&gate.q_o);
-                            *q_m = coeff_into_field_element(&gate.q_m);
-                            *q_c = coeff_into_field_element(&gate.q_c);
-                        }
+                    for (((((gate, q_l), q_r), q_o), q_m), q_c) in gate.iter().zip(q_l.iter_mut()).zip(q_r.iter_mut()).zip(q_o.iter_mut()).zip(q_m.iter_mut()).zip(q_c.iter_mut()) {
+                        *q_l = coeff_into_field_element(&gate.q_l);
+                        *q_r = coeff_into_field_element(&gate.q_r);
+                        *q_o = coeff_into_field_element(&gate.q_o);
+                        *q_m = coeff_into_field_element(&gate.q_m);
+                        *q_c = coeff_into_field_element(&gate.q_c);
+                    }
                 });
             }
         });
@@ -346,51 +337,50 @@ impl<E: Engine> ProvingAssembly<E> {
         // in the partition number i there is a set of indexes in V = (a, b, c) such that V_j = i
         let mut partitions = vec![vec![]; num_partitions + 1];
 
-        for (j, gate) in self.input_gates.iter().chain(&self.aux_gates).enumerate()
-        {
+        for (j, gate) in self.input_gates.iter().chain(&self.aux_gates).enumerate() {
             match gate.a_wire() {
                 Variable(Index::Input(index)) => {
                     let i = *index;
-                    partitions[i].push(j+1);
-                },
+                    partitions[i].push(j + 1);
+                }
                 Variable(Index::Aux(index)) => {
                     if *index != 0 {
                         let i = index + num_inputs;
-                        partitions[i].push(j+1);
+                        partitions[i].push(j + 1);
                     }
-                },
+                }
             }
 
             match gate.b_wire() {
                 Variable(Index::Input(index)) => {
                     let i = *index;
                     partitions[i].push(j + 1 + num_gates);
-                },
+                }
                 Variable(Index::Aux(index)) => {
                     if *index != 0 {
                         let i = index + num_inputs;
                         partitions[i].push(j + 1 + num_gates);
                     }
-                },
+                }
             }
 
             match gate.c_wire() {
                 Variable(Index::Input(index)) => {
                     let i = *index;
-                    partitions[i].push(j + 1 + 2*num_gates);
-                },
+                    partitions[i].push(j + 1 + 2 * num_gates);
+                }
                 Variable(Index::Aux(index)) => {
                     if *index != 0 {
                         let i = index + num_inputs;
-                        partitions[i].push(j + 1 + 2*num_gates);
+                        partitions[i].push(j + 1 + 2 * num_gates);
                     }
-                },
+                }
             }
         }
 
         let mut sigma_1: Vec<_> = (1..=num_gates).collect();
-        let mut sigma_2: Vec<_> = ((num_gates+1)..=(2*num_gates)).collect();
-        let mut sigma_3: Vec<_> = ((2*num_gates + 1)..=(3*num_gates)).collect();
+        let mut sigma_2: Vec<_> = ((num_gates + 1)..=(2 * num_gates)).collect();
+        let mut sigma_3: Vec<_> = ((2 * num_gates + 1)..=(3 * num_gates)).collect();
 
         let mut permutations = vec![vec![]; num_partitions + 1];
 
@@ -409,18 +399,16 @@ impl<E: Engine> ProvingAssembly<E> {
             let permutation = rotate(partition.clone());
             permutations[i] = permutation.clone();
 
-            for (original, new) in partition.into_iter()
-                                    .zip(permutation.into_iter()) 
-            {
+            for (original, new) in partition.into_iter().zip(permutation.into_iter()) {
                 if original <= num_gates {
                     debug_assert!(sigma_1[original - 1] == original);
                     sigma_1[original - 1] = new;
-                } else if original <= 2*num_gates {
+                } else if original <= 2 * num_gates {
                     debug_assert!(sigma_2[original - num_gates - 1] == original);
                     sigma_2[original - num_gates - 1] = new;
                 } else {
-                    debug_assert!(sigma_3[original - 2*num_gates - 1] == original);
-                    sigma_3[original - 2*num_gates - 1] = new;
+                    debug_assert!(sigma_3[original - 2 * num_gates - 1] == original);
+                    sigma_3[original - 2 * num_gates - 1] = new;
                 }
             }
         }
@@ -435,19 +423,23 @@ impl<E: Engine> ProvingAssembly<E> {
         result
     }
 
-    pub(crate) fn output_setup_polynomials(&self, worker: &Worker) -> Result<
-    (
-        Polynomial::<E::Fr, Coefficients>, // q_l
-        Polynomial::<E::Fr, Coefficients>, // q_r
-        Polynomial::<E::Fr, Coefficients>, // q_o
-        Polynomial::<E::Fr, Coefficients>, // q_m
-        Polynomial::<E::Fr, Coefficients>, // q_c
-        Polynomial::<E::Fr, Coefficients>, // s_id
-        Polynomial::<E::Fr, Coefficients>, // sigma_1
-        Polynomial::<E::Fr, Coefficients>, // sigma_2
-        Polynomial::<E::Fr, Coefficients>, // sigma_3
-    ), SynthesisError> 
-    {
+    pub(crate) fn output_setup_polynomials(
+        &self,
+        worker: &Worker,
+    ) -> Result<
+        (
+            Polynomial<E::Fr, Coefficients>, // q_l
+            Polynomial<E::Fr, Coefficients>, // q_r
+            Polynomial<E::Fr, Coefficients>, // q_o
+            Polynomial<E::Fr, Coefficients>, // q_m
+            Polynomial<E::Fr, Coefficients>, // q_c
+            Polynomial<E::Fr, Coefficients>, // s_id
+            Polynomial<E::Fr, Coefficients>, // sigma_1
+            Polynomial<E::Fr, Coefficients>, // sigma_2
+            Polynomial<E::Fr, Coefficients>, // sigma_3
+        ),
+        SynthesisError,
+    > {
         assert!(self.is_finalized);
 
         let s_id = self.make_s_id();
@@ -490,20 +482,20 @@ impl<E: Engine> ProvingAssembly<E> {
             return;
         }
         let n = self.input_gates.len() + self.aux_gates.len();
-        if (n+1).is_power_of_two() {
+        if (n + 1).is_power_of_two() {
             return;
         }
 
         let empty_gate = Gate::<E::Fr>::new_empty_gate(self.dummy_variable());
 
-        let new_aux_len = (n+1).next_power_of_two() - 1 - self.input_gates.len();
+        let new_aux_len = (n + 1).next_power_of_two() - 1 - self.input_gates.len();
 
         self.aux_gates.resize(new_aux_len, empty_gate);
 
         self.is_finalized = true;
     }
 
-    fn calculate_inverse_vanishing_polynomial_in_a_coset(&self, worker: &Worker, poly_size:usize, vahisning_size: usize) -> Result<Polynomial::<E::Fr, Values>, SynthesisError> {
+    fn calculate_inverse_vanishing_polynomial_in_a_coset(&self, worker: &Worker, poly_size: usize, vahisning_size: usize) -> Result<Polynomial<E::Fr, Values>, SynthesisError> {
         assert!(poly_size.is_power_of_two());
         assert!(vahisning_size.is_power_of_two());
 
@@ -533,7 +525,7 @@ impl<E: Engine> ProvingAssembly<E> {
         // now we should evaluate X^(n+1) - 1 in a linear time
 
         let shift = multiplicative_generator.pow([vahisning_size as u64]);
-        
+
         let mut denominator = Polynomial::<E::Fr, Values>::from_values(vec![shift; poly_size])?;
 
         // elements are h^size - 1, (hg)^size - 1, (hg^2)^size - 1, ...
@@ -572,7 +564,7 @@ impl<E: Engine> ProvingAssembly<E> {
         numerator
     }
 
-    fn calculate_lagrange_poly(&self, worker: &Worker, poly_size:usize, poly_number: usize) -> Result<Polynomial::<E::Fr, Coefficients>, SynthesisError> {
+    fn calculate_lagrange_poly(&self, worker: &Worker, poly_size: usize, poly_number: usize) -> Result<Polynomial<E::Fr, Coefficients>, SynthesisError> {
         assert!(poly_size.is_power_of_two());
         assert!(poly_number < poly_size);
 
@@ -584,10 +576,9 @@ impl<E: Engine> ProvingAssembly<E> {
     }
 }
 
-
 // for a non-homomorphic case we do not need r(x) polynomial at all, just open all the parts of t(x) at z
 
-pub struct PlonkNonhomomorphicProof<E: Engine, S: CommitmentScheme<E::Fr> >{
+pub struct PlonkNonhomomorphicProof<E: Engine, S: CommitmentScheme<E::Fr>> {
     pub a_opening_value: E::Fr,
     pub b_opening_value: E::Fr,
     pub c_opening_value: E::Fr,
@@ -616,7 +607,7 @@ pub struct PlonkNonhomomorphicProof<E: Engine, S: CommitmentScheme<E::Fr> >{
     pub t_opening_proof: S::OpeningProof,
 }
 
-pub struct PlonkChunkedNonhomomorphicProof<E: Engine, S: CommitmentScheme<E::Fr> >{
+pub struct PlonkChunkedNonhomomorphicProof<E: Engine, S: CommitmentScheme<E::Fr>> {
     pub a_opening_value: E::Fr,
     pub b_opening_value: E::Fr,
     pub c_opening_value: E::Fr,
@@ -647,9 +638,9 @@ pub struct PlonkChunkedNonhomomorphicProof<E: Engine, S: CommitmentScheme<E::Fr>
     pub openings_proof: S::OpeningProof,
 }
 
-use crate::plonk::commitments::transparent::StatelessTransparentCommitter;
-use crate::plonk::commitments::transparent::iop::blake2s_trivial_iop::TrivialBlake2sIOP;
 use crate::plonk::commitments::transparent::fri::naive_fri::naive_fri::NaiveFriIop;
+use crate::plonk::commitments::transparent::iop::blake2s_trivial_iop::TrivialBlake2sIOP;
+use crate::plonk::commitments::transparent::StatelessTransparentCommitter;
 
 type Iop<E: Engine> = TrivialBlake2sIOP<E::Fr>;
 type Fri<E: Engine> = NaiveFriIop<E::Fr, Iop<E>>;
@@ -683,7 +674,7 @@ impl<E: Engine> PlonkChunkedNonhomomorphicProof<E, StatelessTransparentCommitter
         // final coefficients
         proofs_size += fri_proof.final_coefficients.len() * std::mem::size_of_val(&fri_proof.final_coefficients[0]);
 
-        // queries 
+        // queries
         assert_eq!(num_queries, fri_proof.queries.len());
         let mut total_queries_size_per_round = 0;
         for q in fri_proof.queries[0].iter() {
@@ -700,17 +691,16 @@ impl<E: Engine> PlonkChunkedNonhomomorphicProof<E, StatelessTransparentCommitter
 
         proofs_size += total_queries_size_per_round * num_queries;
 
-
         proofs_size
     }
 }
 
 pub fn prove_nonhomomorphic<E: Engine, S: CommitmentScheme<E::Fr, Prng = T>, T: Transcript<E::Fr, Input = S::Commitment>, C: Circuit<E>>(
-    circuit: &C, 
+    circuit: &C,
     setup: &PlonkSetup<E, S>,
     aux: &PlonkSetupAuxData<E, S>,
     meta: S::Meta,
-    large_meta: S::Meta
+    large_meta: S::Meta,
 ) -> Result<PlonkNonhomomorphicProof<E, S>, SynthesisError> {
     assert!(S::IS_HOMOMORPHIC == false);
 
@@ -776,7 +766,7 @@ pub fn prove_nonhomomorphic<E: Engine, S: CommitmentScheme<E::Fr, Prng = T>, T: 
         w_l_contribution.add_assign_scaled(&worker, &s_id_1, &beta);
         drop(s_id_1);
 
-        let s_id_2: Vec<_> = ((n+1)..=(2*n)).collect();
+        let s_id_2: Vec<_> = ((n + 1)..=(2 * n)).collect();
         let s_id_2 = convert_to_field_elements(&s_id_2, &worker);
         let s_id_2 = Polynomial::<E::Fr, Values>::from_values_unpadded(s_id_2)?;
         let mut w_r_contribution = w_r_plus_gamma.clone();
@@ -785,7 +775,7 @@ pub fn prove_nonhomomorphic<E: Engine, S: CommitmentScheme<E::Fr, Prng = T>, T: 
         w_l_contribution.mul_assign(&worker, &w_r_contribution);
         drop(w_r_contribution);
 
-        let s_id_3: Vec<_> = ((2*n+1)..=(3*n)).collect();
+        let s_id_3: Vec<_> = ((2 * n + 1)..=(3 * n)).collect();
         let s_id_3 = convert_to_field_elements(&s_id_3, &worker);
         let s_id_3 = Polynomial::<E::Fr, Values>::from_values_unpadded(s_id_3)?;
         let mut w_o_contribution = w_o_plus_gamma.clone();
@@ -858,10 +848,10 @@ pub fn prove_nonhomomorphic<E: Engine, S: CommitmentScheme<E::Fr, Prng = T>, T: 
 
     let mut z_1_shifted = z_1.clone();
     z_1_shifted.distribute_powers(&worker, z_1.omega);
-    
+
     let mut z_2_shifted = z_2.clone();
     z_2_shifted.distribute_powers(&worker, z_2.omega);
-    
+
     let a_lde = a_poly.clone().coset_lde(&worker, 4)?;
     let b_lde = b_poly.clone().coset_lde(&worker, 4)?;
     let c_lde = c_poly.clone().coset_lde(&worker, 4)?;
@@ -969,7 +959,7 @@ pub fn prove_nonhomomorphic<E: Engine, S: CommitmentScheme<E::Fr, Prng = T>, T: 
         t_1.add_assign(&worker, &contrib_z_1);
     }
 
-        {
+    {
         // TODO: May be optimize number of additions
         let mut contrib_z_2 = z_2_lde.clone();
 
@@ -979,7 +969,6 @@ pub fn prove_nonhomomorphic<E: Engine, S: CommitmentScheme<E::Fr, Prng = T>, T: 
         a_perm.add_assign(&worker, &a_lde);
         contrib_z_2.mul_assign(&worker, &a_perm);
         drop(a_perm);
-
 
         let mut b_perm = sigma_2_lde;
         b_perm.scale(&worker, beta);
@@ -1009,7 +998,7 @@ pub fn prove_nonhomomorphic<E: Engine, S: CommitmentScheme<E::Fr, Prng = T>, T: 
     drop(c_lde);
 
     let l_0 = assembly.calculate_lagrange_poly(&worker, required_domain_size.next_power_of_two(), 0)?;
-    let l_n_minus_one = assembly.calculate_lagrange_poly(&worker, required_domain_size.next_power_of_two(), n-1)?;
+    let l_n_minus_one = assembly.calculate_lagrange_poly(&worker, required_domain_size.next_power_of_two(), n - 1)?;
 
     {
         let mut z_1_minus_z_2_shifted = z_1_shifted_lde.clone();
@@ -1028,7 +1017,7 @@ pub fn prove_nonhomomorphic<E: Engine, S: CommitmentScheme<E::Fr, Prng = T>, T: 
     }
 
     {
-        let mut z_1_minus_z_2= z_1_lde.clone();
+        let mut z_1_minus_z_2 = z_1_lde.clone();
         z_1_minus_z_2.sub_assign(&worker, &z_2_lde);
 
         let l = l_0.clone().coset_lde(&worker, 4)?;
@@ -1050,8 +1039,8 @@ pub fn prove_nonhomomorphic<E: Engine, S: CommitmentScheme<E::Fr, Prng = T>, T: 
     // let degree = get_degree::<E>(&t_poly);
 
     // assert!(degree <= 3*n);
-    
-    fn get_degree<E:Engine>(poly: &Polynomial<E::Fr, Coefficients>) -> usize {
+
+    fn get_degree<E: Engine>(poly: &Polynomial<E::Fr, Coefficients>) -> usize {
         let mut degree = poly.as_ref().len() - 1;
         for c in poly.as_ref().iter().rev() {
             if c.is_zero() {
@@ -1254,24 +1243,7 @@ pub fn prove_nonhomomorphic<E: Engine, S: CommitmentScheme<E::Fr, Prng = T>, T: 
     let mut z_by_omega = z;
     z_by_omega.mul_assign(&z_1.omega);
 
-    let opening_polynomials = vec![
-        &a_poly,
-        &b_poly,
-        &c_poly,
-        &q_l,
-        &q_r,
-        &q_o,
-        &q_m,
-        &q_c,
-        &s_id,
-        &sigma_1,
-        &sigma_2,
-        &sigma_3,
-        &z_1,
-        &z_2,
-        &z_1,
-        &z_2,
-    ];
+    let opening_polynomials = vec![&a_poly, &b_poly, &c_poly, &q_l, &q_r, &q_o, &q_m, &q_c, &s_id, &sigma_1, &sigma_2, &sigma_3, &z_1, &z_2, &z_1, &z_2];
 
     let degrees: Vec<usize> = opening_polynomials.iter().map(|el| el.size()).collect();
 
@@ -1310,51 +1282,14 @@ pub fn prove_nonhomomorphic<E: Engine, S: CommitmentScheme<E::Fr, Prng = T>, T: 
         z_1_at_z,
         z_2_at_z,
         z_1_shifted_at_z,
-        z_2_shifted_at_z
+        z_2_shifted_at_z,
     ];
 
-    let opening_points = vec![
-        z, 
-        z,
-        z,
+    let opening_points = vec![z, z, z, z, z, z, z, z, z, z, z, z, z, z, z_by_omega, z_by_omega];
 
-        z, 
-        z,
-        z,
-        z,
-        z,
+    let multiopen_proof = committer.open_multiple(opening_polynomials, degrees, aggregation_challenge, opening_points, opening_values, &precomputations, &mut transcript);
 
-        z,
-        z,
-        z,
-        z,
-
-        z,
-        z,
-
-        z_by_omega,
-        z_by_omega
-    ];
-
-    let multiopen_proof = committer.open_multiple(
-        opening_polynomials, 
-        degrees, 
-        aggregation_challenge,
-        opening_points, 
-        opening_values,
-        &precomputations, 
-        &mut transcript
-    );
-
-    let t_opening_proof = large_committer.open_single(
-        &t_poly,
-        z,
-        t_at_z,
-        &t_aux.as_ref(), 
-        &mut transcript
-    ); 
-
-
+    let t_opening_proof = large_committer.open_single(&t_poly, z, t_at_z, &t_aux.as_ref(), &mut transcript);
 
     // let opening_polynomials = vec![
     //     &z_1,
@@ -1373,15 +1308,13 @@ pub fn prove_nonhomomorphic<E: Engine, S: CommitmentScheme<E::Fr, Prng = T>, T: 
     //     z_2_shifted_at_z
     // ];
 
-    
-
     // let shifted_proof = committer.open_multiple(
-    //     opening_polynomials, 
-    //     degrees, 
+    //     opening_polynomials,
+    //     degrees,
     //     shifted_opening_aggregation_challenge,
-    //     opening_point, 
+    //     opening_point,
     //     opening_values,
-    //     &precomputations, 
+    //     &precomputations,
     //     &mut transcript
     // );
 
@@ -1418,7 +1351,7 @@ pub fn prove_nonhomomorphic<E: Engine, S: CommitmentScheme<E::Fr, Prng = T>, T: 
 }
 
 pub fn prove_nonhomomorphic_chunked<E: Engine, S: CommitmentScheme<E::Fr, Prng = T>, T: Transcript<E::Fr, Input = S::Commitment>, C: Circuit<E>>(
-    circuit: &C, 
+    circuit: &C,
     aux: &PlonkSetupAuxData<E, S>,
     meta: S::Meta,
 ) -> Result<PlonkChunkedNonhomomorphicProof<E, S>, SynthesisError> {
@@ -1485,7 +1418,7 @@ pub fn prove_nonhomomorphic_chunked<E: Engine, S: CommitmentScheme<E::Fr, Prng =
         w_l_contribution.add_assign_scaled(&worker, &s_id_1, &beta);
         drop(s_id_1);
 
-        let s_id_2: Vec<_> = ((n+1)..=(2*n)).collect();
+        let s_id_2: Vec<_> = ((n + 1)..=(2 * n)).collect();
         let s_id_2 = convert_to_field_elements(&s_id_2, &worker);
         let s_id_2 = Polynomial::<E::Fr, Values>::from_values_unpadded(s_id_2)?;
         let mut w_r_contribution = w_r_plus_gamma.clone();
@@ -1494,7 +1427,7 @@ pub fn prove_nonhomomorphic_chunked<E: Engine, S: CommitmentScheme<E::Fr, Prng =
         w_l_contribution.mul_assign(&worker, &w_r_contribution);
         drop(w_r_contribution);
 
-        let s_id_3: Vec<_> = ((2*n+1)..=(3*n)).collect();
+        let s_id_3: Vec<_> = ((2 * n + 1)..=(3 * n)).collect();
         let s_id_3 = convert_to_field_elements(&s_id_3, &worker);
         let s_id_3 = Polynomial::<E::Fr, Values>::from_values_unpadded(s_id_3)?;
         let mut w_o_contribution = w_o_plus_gamma.clone();
@@ -1567,10 +1500,10 @@ pub fn prove_nonhomomorphic_chunked<E: Engine, S: CommitmentScheme<E::Fr, Prng =
 
     let mut z_1_shifted = z_1.clone();
     z_1_shifted.distribute_powers(&worker, z_1.omega);
-    
+
     let mut z_2_shifted = z_2.clone();
     z_2_shifted.distribute_powers(&worker, z_2.omega);
-    
+
     let a_lde = a_poly.clone().coset_lde(&worker, 4)?;
     let b_lde = b_poly.clone().coset_lde(&worker, 4)?;
     let c_lde = c_poly.clone().coset_lde(&worker, 4)?;
@@ -1678,7 +1611,7 @@ pub fn prove_nonhomomorphic_chunked<E: Engine, S: CommitmentScheme<E::Fr, Prng =
         t_1.add_assign(&worker, &contrib_z_1);
     }
 
-        {
+    {
         // TODO: May be optimize number of additions
         let mut contrib_z_2 = z_2_lde.clone();
 
@@ -1688,7 +1621,6 @@ pub fn prove_nonhomomorphic_chunked<E: Engine, S: CommitmentScheme<E::Fr, Prng =
         a_perm.add_assign(&worker, &a_lde);
         contrib_z_2.mul_assign(&worker, &a_perm);
         drop(a_perm);
-
 
         let mut b_perm = sigma_2_lde;
         b_perm.scale(&worker, beta);
@@ -1718,7 +1650,7 @@ pub fn prove_nonhomomorphic_chunked<E: Engine, S: CommitmentScheme<E::Fr, Prng =
     drop(c_lde);
 
     let l_0 = assembly.calculate_lagrange_poly(&worker, required_domain_size.next_power_of_two(), 0)?;
-    let l_n_minus_one = assembly.calculate_lagrange_poly(&worker, required_domain_size.next_power_of_two(), n-1)?;
+    let l_n_minus_one = assembly.calculate_lagrange_poly(&worker, required_domain_size.next_power_of_two(), n - 1)?;
 
     {
         let mut z_1_minus_z_2_shifted = z_1_shifted_lde.clone();
@@ -1737,7 +1669,7 @@ pub fn prove_nonhomomorphic_chunked<E: Engine, S: CommitmentScheme<E::Fr, Prng =
     }
 
     {
-        let mut z_1_minus_z_2= z_1_lde.clone();
+        let mut z_1_minus_z_2 = z_1_lde.clone();
         z_1_minus_z_2.sub_assign(&worker, &z_2_lde);
 
         let l = l_0.clone().coset_lde(&worker, 4)?;
@@ -1993,7 +1925,7 @@ pub fn prove_nonhomomorphic_chunked<E: Engine, S: CommitmentScheme<E::Fr, Prng =
         &z_2,
         &t_poly_low,
         &t_poly_mid,
-        &t_poly_high
+        &t_poly_high,
     ];
 
     let degrees: Vec<usize> = opening_polynomials.iter().map(|el| el.size()).collect();
@@ -2024,65 +1956,27 @@ pub fn prove_nonhomomorphic_chunked<E: Engine, S: CommitmentScheme<E::Fr, Prng =
         a_at_z,
         b_at_z,
         c_at_z,
-
         q_l_at_z,
         q_r_at_z,
         q_o_at_z,
         q_m_at_z,
         q_c_at_z,
-
         s_id_at_z,
         sigma_1_at_z,
         sigma_2_at_z,
         sigma_3_at_z,
-
         z_1_at_z,
         z_2_at_z,
-
         z_1_shifted_at_z,
         z_2_shifted_at_z,
-
         t_low_at_z,
         t_mid_at_z,
         t_high_at_z,
     ];
 
-    let opening_points = vec![
-        z, 
-        z,
-        z,
+    let opening_points = vec![z, z, z, z, z, z, z, z, z, z, z, z, z, z, z_by_omega, z_by_omega, z, z, z];
 
-        z, 
-        z,
-        z,
-        z,
-        z,
-
-        z,
-        z,
-        z,
-        z,
-
-        z,
-        z,
-
-        z_by_omega,
-        z_by_omega,
-
-        z,
-        z,
-        z,
-    ];
-
-    let multiopen_proof = committer.open_multiple(
-        opening_polynomials, 
-        degrees, 
-        aggregation_challenge,
-        opening_points, 
-        opening_values,
-        &precomputations, 
-        &mut transcript
-    );
+    let multiopen_proof = committer.open_multiple(opening_polynomials, degrees, aggregation_challenge, opening_points, opening_values, &precomputations, &mut transcript);
 
     let proof = PlonkChunkedNonhomomorphicProof::<E, S> {
         a_opening_value: a_at_z,
@@ -2123,35 +2017,29 @@ mod test {
 
     use super::*;
     use crate::pairing::ff::{Field, PrimeField};
-    use crate::pairing::{Engine};
+    use crate::pairing::Engine;
 
-    use crate::{SynthesisError};
+    use crate::SynthesisError;
     use std::marker::PhantomData;
 
     use crate::plonk::cs::gates::*;
     use crate::plonk::cs::*;
 
-    struct TestCircuit<E:Engine>{
-        _marker: PhantomData<E>
+    struct TestCircuit<E: Engine> {
+        _marker: PhantomData<E>,
     }
 
     impl<E: Engine> Circuit<E> for TestCircuit<E> {
         fn synthesize<CS: ConstraintSystem<E>>(&self, cs: &mut CS) -> Result<(), SynthesisError> {
-            let a = cs.alloc(|| {
-                Ok(E::Fr::from_str("10").unwrap())
-            })?;
+            let a = cs.alloc(|| Ok(E::Fr::from_str("10").unwrap()))?;
 
             println!("A = {:?}", a);
 
-            let b = cs.alloc(|| {
-                Ok(E::Fr::from_str("20").unwrap())
-            })?;
+            let b = cs.alloc(|| Ok(E::Fr::from_str("20").unwrap()))?;
 
             println!("B = {:?}", b);
 
-            let c = cs.alloc(|| {
-                Ok(E::Fr::from_str("200").unwrap())
-            })?;
+            let c = cs.alloc(|| Ok(E::Fr::from_str("200").unwrap()))?;
 
             println!("C = {:?}", c);
 
@@ -2180,9 +2068,7 @@ mod test {
 
         let mut assembly = ProvingAssembly::<Bn256>::new();
 
-        let circuit = TestCircuit::<Bn256> {
-            _marker: PhantomData
-        };
+        let circuit = TestCircuit::<Bn256> { _marker: PhantomData };
 
         circuit.synthesize(&mut assembly).expect("must work");
 
@@ -2197,8 +2083,8 @@ mod test {
         let num_gates = assembly.num_gates();
 
         let id_1: Vec<_> = (1..=num_gates).collect();
-        let id_2: Vec<_> = ((num_gates+1)..=(2*num_gates)).collect();
-        let id_3: Vec<_> = ((2*num_gates + 1)..=(3*num_gates)).collect();
+        let id_2: Vec<_> = ((num_gates + 1)..=(2 * num_gates)).collect();
+        let id_3: Vec<_> = ((2 * num_gates + 1)..=(3 * num_gates)).collect();
 
         let beta = Fr::from_str("15").unwrap();
         let gamma = Fr::from_str("4").unwrap();
@@ -2238,7 +2124,6 @@ mod test {
             tmp.add_assign(&el);
             g_2_poly.push(tmp);
         }
-
 
         let mut f_3_poly = vec![];
         let mut g_3_poly = vec![];

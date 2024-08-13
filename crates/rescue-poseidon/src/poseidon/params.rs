@@ -26,9 +26,7 @@ pub struct PoseidonParams<E: Engine, const RATE: usize, const WIDTH: usize> {
     pub(crate) custom_gate: CustomGate,
 }
 
-impl<E: Engine, const RATE: usize, const WIDTH: usize> PartialEq
-    for PoseidonParams<E, RATE, WIDTH>
-{
+impl<E: Engine, const RATE: usize, const WIDTH: usize> PartialEq for PoseidonParams<E, RATE, WIDTH> {
     fn eq(&self, other: &Self) -> bool {
         self.hash_family() == other.hash_family()
     }
@@ -36,12 +34,7 @@ impl<E: Engine, const RATE: usize, const WIDTH: usize> PartialEq
 
 impl<E: Engine, const RATE: usize, const WIDTH: usize> Default for PoseidonParams<E, RATE, WIDTH> {
     fn default() -> Self {
-        let (params, 
-            alpha, 
-            optimized_round_constants, 
-            (optimized_mds_matrixes_0, optimized_mds_matrixes_1)
-        ) =
-            super::params::poseidon_light_params::<E, RATE, WIDTH>();
+        let (params, alpha, optimized_round_constants, (optimized_mds_matrixes_0, optimized_mds_matrixes_1)) = super::params::poseidon_light_params::<E, RATE, WIDTH>();
         Self {
             state: [E::Fr::zero(); WIDTH],
             mds_matrix: params.mds_matrix,
@@ -56,9 +49,7 @@ impl<E: Engine, const RATE: usize, const WIDTH: usize> Default for PoseidonParam
     }
 }
 
-impl<E: Engine, const RATE: usize, const WIDTH: usize> HashParams<E, RATE, WIDTH>
-    for PoseidonParams<E, RATE, WIDTH>
-{
+impl<E: Engine, const RATE: usize, const WIDTH: usize> HashParams<E, RATE, WIDTH> for PoseidonParams<E, RATE, WIDTH> {
     fn hash_family(&self) -> HashFamily {
         HashFamily::Poseidon
     }
@@ -92,10 +83,7 @@ impl<E: Engine, const RATE: usize, const WIDTH: usize> HashParams<E, RATE, WIDTH
     }
 
     fn optimized_mds_matrixes(&self) -> (&[[E::Fr; WIDTH]; WIDTH], &[[[E::Fr; WIDTH]; WIDTH]]) {
-        (
-            &self.optimized_mds_matrixes_0,
-            &self.optimized_mds_matrixes_1,
-        )
+        (&self.optimized_mds_matrixes_0, &self.optimized_mds_matrixes_1)
     }
 
     fn custom_gate(&self) -> CustomGate {
@@ -107,8 +95,7 @@ impl<E: Engine, const RATE: usize, const WIDTH: usize> HashParams<E, RATE, WIDTH
     }
 }
 
-pub fn poseidon_params<E: Engine, const RATE: usize, const WIDTH: usize>(
-) -> (InnerHashParameters<E, RATE, WIDTH>, u64) {
+pub fn poseidon_params<E: Engine, const RATE: usize, const WIDTH: usize>() -> (InnerHashParameters<E, RATE, WIDTH>, u64) {
     let security_level = 80;
     let full_rounds = 8;
     // let partial_rounds = 83;
@@ -126,28 +113,15 @@ pub fn poseidon_params<E: Engine, const RATE: usize, const WIDTH: usize>(
     (params, alpha)
 }
 
-pub(crate) fn poseidon_light_params<E: Engine, const RATE: usize, const WIDTH: usize>() -> (
-    InnerHashParameters<E, RATE, WIDTH>,
-    u64,
-    Vec<[E::Fr; WIDTH]>,
-    ([[E::Fr; WIDTH]; WIDTH], Vec<[[E::Fr; WIDTH]; WIDTH]>),
-) {
+pub(crate) fn poseidon_light_params<E: Engine, const RATE: usize, const WIDTH: usize>(
+) -> (InnerHashParameters<E, RATE, WIDTH>, u64, Vec<[E::Fr; WIDTH]>, ([[E::Fr; WIDTH]; WIDTH], Vec<[[E::Fr; WIDTH]; WIDTH]>)) {
     let (params, alpha) = poseidon_params();
 
-    let optimized_constants = compute_optimized_round_constants::<E, WIDTH>(
-        params.round_constants(),
-        &params.mds_matrix,
-        params.partial_rounds,
-        params.full_rounds,
-    );
+    let optimized_constants = compute_optimized_round_constants::<E, WIDTH>(params.round_constants(), &params.mds_matrix, params.partial_rounds, params.full_rounds);
 
     const SUBDIM: usize = 2; // TODO:
-    assert!(
-        WIDTH - SUBDIM == 1,
-        "only dim 2 and dim 3 matrixes are allowed for now."
-    );
-    let optimized_matrixes =
-        compute_optimized_matrixes::<E, WIDTH, SUBDIM>(params.partial_rounds, &params.mds_matrix);
+    assert!(WIDTH - SUBDIM == 1, "only dim 2 and dim 3 matrixes are allowed for now.");
+    let optimized_matrixes = compute_optimized_matrixes::<E, WIDTH, SUBDIM>(params.partial_rounds, &params.mds_matrix);
     (params, alpha, optimized_constants, optimized_matrixes)
 }
 
@@ -186,26 +160,19 @@ pub(crate) fn compute_optimized_round_constants<E: Engine, const WIDTH: usize>(
 
         // vector addition
         acc = [E::Fr::zero(); WIDTH];
-        constants[round]
-            .iter()
-            .enumerate()
-            .zip(first.iter())
-            .for_each(|((idx, a), b)| {
-                let mut tmp = a.clone();
-                tmp.add_assign(&b);
-                acc[idx] = tmp;
-            });
+        constants[round].iter().enumerate().zip(first.iter()).for_each(|((idx, a), b)| {
+            let mut tmp = a.clone();
+            tmp.add_assign(&b);
+            acc[idx] = tmp;
+        });
     }
     optimized_constants.push(acc);
     optimized_constants.reverse();
 
     let mut final_constants = constants.to_vec();
-    final_constants[start..end + 1]
-        .iter_mut()
-        .zip(optimized_constants)
-        .for_each(|(a, b)| {
-            *a = b;
-        });
+    final_constants[start..end + 1].iter_mut().zip(optimized_constants).for_each(|(a, b)| {
+        *a = b;
+    });
 
     final_constants
 }

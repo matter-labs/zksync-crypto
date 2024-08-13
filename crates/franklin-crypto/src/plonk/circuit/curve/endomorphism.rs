@@ -1,20 +1,8 @@
-use crate::bellman::pairing::{
-    Engine,
-    GenericCurveAffine,
-    GenericCurveProjective
-};
+use crate::bellman::pairing::{Engine, GenericCurveAffine, GenericCurveProjective};
 
-use crate::bellman::pairing::ff::{
-    Field,
-    PrimeField,
-    PrimeFieldRepr,
-    BitIterator,
-    ScalarEngine
-};
+use crate::bellman::pairing::ff::{BitIterator, Field, PrimeField, PrimeFieldRepr, ScalarEngine};
 
-use crate::bellman::{
-    SynthesisError,
-};
+use crate::bellman::SynthesisError;
 
 use num_bigint::BigUint;
 use num_integer::Integer;
@@ -22,9 +10,9 @@ use num_traits::Num;
 
 use crate::plonk::circuit::bigint::bigint::*;
 
-// we use parameters for decomposition as 
+// we use parameters for decomposition as
 // k = k1 - \lambda * k2
-// so affine point is transformed as 
+// so affine point is transformed as
 // G1 -> (beta*x, -y) to be multiplied by +k2
 #[derive(Clone, Debug)]
 pub struct EndomorphismParameters<E: Engine> {
@@ -38,7 +26,7 @@ pub struct EndomorphismParameters<E: Engine> {
     pub target_scalar_width: usize,
 }
 
-impl <E: Engine> EndomorphismParameters<E>  {
+impl<E: Engine> EndomorphismParameters<E> {
     pub fn calculate_decomposition(&self, val: E::Fr) -> (E::Fr, E::Fr) {
         // fast variant
         let value = repr_to_biguint::<E::Fr>(&val.into_repr());
@@ -114,7 +102,7 @@ pub fn bn254_endomorphism_parameters() -> EndomorphismParameters<crate::bellman:
         minus_b1: BigUint::from_str_radix("6f4d8248eeb859fc8211bbeb7d4f1128", 16).unwrap(),
         b2: BigUint::from_str_radix("89d3256894d213e3", 16).unwrap(),
         scalar_width: 256,
-        target_scalar_width: 127
+        target_scalar_width: 127,
     }
 }
 
@@ -152,7 +140,7 @@ mod test {
     //         assert!(k1_bits <= params.target_scalar_width as u32);
     //         let k2_bits = k2.into_repr().num_bits();
     //         assert!(k2_bits <= params.target_scalar_width as u32);
-    
+
     //         let endo_point = params.apply_to_g1_point(point);
 
     //         let k1_by_point = point.mul(k1.into_repr());

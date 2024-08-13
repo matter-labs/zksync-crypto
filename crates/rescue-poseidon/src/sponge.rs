@@ -3,13 +3,7 @@ use franklin_crypto::bellman::Engine;
 use franklin_crypto::bellman::Field;
 use std::convert::TryInto;
 
-pub fn generic_hash<
-    E: Engine,
-    P: HashParams<E, RATE, WIDTH>,
-    const RATE: usize,
-    const WIDTH: usize,
-    const LENGTH: usize,
->(
+pub fn generic_hash<E: Engine, P: HashParams<E, RATE, WIDTH>, const RATE: usize, const WIDTH: usize, const LENGTH: usize>(
     params: &P,
     input: &[E::Fr; LENGTH],
     domain_strategy: Option<DomainStrategy>,
@@ -52,11 +46,7 @@ impl<'a, E: Engine, const RATE: usize, const WIDTH: usize> GenericSponge<E, RATE
         }
     }
 
-    pub fn hash<P: HashParams<E, RATE, WIDTH>>(
-        input: &[E::Fr],
-        params: &P,
-        domain_strategy: Option<DomainStrategy>,
-    ) -> [E::Fr; RATE] {
+    pub fn hash<P: HashParams<E, RATE, WIDTH>>(input: &[E::Fr], params: &P, domain_strategy: Option<DomainStrategy>) -> [E::Fr; RATE] {
         // init state
         let mut state = [E::Fr::zero(); WIDTH];
 
@@ -67,9 +57,7 @@ impl<'a, E: Engine, const RATE: usize, const WIDTH: usize> GenericSponge<E, RATE
         }
 
         // specialize capacity
-        let capacity_value = domain_strategy
-            .compute_capacity::<E>(input.len(), RATE)
-            .unwrap_or(E::Fr::zero());
+        let capacity_value = domain_strategy.compute_capacity::<E>(input.len(), RATE).unwrap_or(E::Fr::zero());
         *state.last_mut().expect("last element") = capacity_value;
 
         // compute padding values
@@ -84,11 +72,7 @@ impl<'a, E: Engine, const RATE: usize, const WIDTH: usize> GenericSponge<E, RATE
 
         // process each chunk of input
         for values in padded_input.chunks_exact(RATE) {
-            absorb::<E, _, RATE, WIDTH>(
-                &mut state,
-                &values.try_into().expect("constant array"),
-                params,
-            );
+            absorb::<E, _, RATE, WIDTH>(&mut state, &values.try_into().expect("constant array"), params);
         }
         // prepare output
         let mut output = [E::Fr::zero(); RATE];
@@ -100,7 +84,7 @@ impl<'a, E: Engine, const RATE: usize, const WIDTH: usize> GenericSponge<E, RATE
     }
 
     pub fn absorb_multiple<P: HashParams<E, RATE, WIDTH>>(&mut self, input: &[E::Fr], params: &P) {
-        // compute padding values        
+        // compute padding values
         let padding_values = self.domain_strategy.generate_padding_values::<E>(input.len(), RATE);
 
         for inp in input.iter().chain(padding_values.iter()) {
@@ -148,9 +132,8 @@ impl<'a, E: Engine, const RATE: usize, const WIDTH: usize> GenericSponge<E, RATE
         match self.mode {
             SpongeMode::Absorb(ref mut buf) => {
                 let unwrapped_buffer_len = buf.iter().filter(|el| el.is_some()).count();
-                // compute padding values                
-                let padding_values =
-                    self.domain_strategy.generate_padding_values::<E>(unwrapped_buffer_len, RATE);
+                // compute padding values
+                let padding_values = self.domain_strategy.generate_padding_values::<E>(unwrapped_buffer_len, RATE);
                 let mut padding_values_it = padding_values.iter().cloned();
 
                 for b in buf {
@@ -212,41 +195,18 @@ impl<'a, E: Engine, const RATE: usize, const WIDTH: usize> GenericSponge<E, RATE
     }
 }
 
-fn absorb<E: Engine, P: HashParams<E, RATE, WIDTH>, const RATE: usize, const WIDTH: usize>(
-    state: &mut [E::Fr; WIDTH],
-    input: &[E::Fr; RATE],
-    params: &P,
-) {
+fn absorb<E: Engine, P: HashParams<E, RATE, WIDTH>, const RATE: usize, const WIDTH: usize>(state: &mut [E::Fr; WIDTH], input: &[E::Fr; RATE], params: &P) {
     for (i, s) in input.iter().zip(state.iter_mut()) {
         s.add_assign(i);
     }
     generic_round_function(params, state);
 }
 
-pub fn generic_round_function<
-    E: Engine,
-    P: HashParams<E, RATE, WIDTH>,
-    const RATE: usize,
-    const WIDTH: usize,
->(
-    params: &P,
-    state: &mut [E::Fr; WIDTH],
-) {
+pub fn generic_round_function<E: Engine, P: HashParams<E, RATE, WIDTH>, const RATE: usize, const WIDTH: usize>(params: &P, state: &mut [E::Fr; WIDTH]) {
     match params.hash_family() {
-        crate::traits::HashFamily::Rescue => {
-            crate::rescue::rescue_round_function(params, state)
-        }
-        crate::traits::HashFamily::Poseidon => {
-            crate::poseidon::poseidon_round_function(params, state)
-        }
-        crate::traits::HashFamily::RescuePrime => {
-            crate::rescue_prime::rescue_prime_round_function(params, state)
-        }
-        crate::traits::HashFamily::Poseidon2 => {
-            crate::poseidon2::poseidon2_round_function(
-                state, 
-                params.try_to_poseidon2_params().unwrap()
-            )
-        }
+        crate::traits::HashFamily::Rescue => crate::rescue::rescue_round_function(params, state),
+        crate::traits::HashFamily::Poseidon => crate::poseidon::poseidon_round_function(params, state),
+        crate::traits::HashFamily::RescuePrime => crate::rescue_prime::rescue_prime_round_function(params, state),
+        crate::traits::HashFamily::Poseidon2 => crate::poseidon2::poseidon2_round_function(state, params.try_to_poseidon2_params().unwrap()),
     }
 }

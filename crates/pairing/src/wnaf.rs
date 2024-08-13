@@ -108,10 +108,7 @@ impl<G: CurveProjective> Wnaf<(), Vec<G>, Vec<i64>> {
 
     /// Given a scalar, compute its wNAF representation and return a `Wnaf` object that can perform
     /// exponentiations with `.base(..)`.
-    pub fn scalar(
-        &mut self,
-        scalar: <<G as CurveProjective>::Scalar as PrimeField>::Repr,
-    ) -> Wnaf<usize, &mut Vec<G>, &[i64]> {
+    pub fn scalar(&mut self, scalar: <<G as CurveProjective>::Scalar as PrimeField>::Repr) -> Wnaf<usize, &mut Vec<G>, &[i64]> {
         // Compute the appropriate window size for the scalar.
         let window_size = G::recommended_wnaf_for_scalar(scalar);
 
@@ -166,10 +163,7 @@ impl<B, S: AsRef<[i64]>> Wnaf<usize, B, S> {
 
 impl<B, S: AsMut<Vec<i64>>> Wnaf<usize, B, S> {
     /// Performs exponentiation given a scalar.
-    pub fn scalar<G: CurveProjective>(
-        &mut self,
-        scalar: <<G as CurveProjective>::Scalar as PrimeField>::Repr,
-    ) -> G
+    pub fn scalar<G: CurveProjective>(&mut self, scalar: <<G as CurveProjective>::Scalar as PrimeField>::Repr) -> G
     where
         B: AsRef<[G]>,
     {

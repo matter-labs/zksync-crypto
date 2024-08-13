@@ -1,5 +1,5 @@
-mod prover;
 mod generator;
+mod prover;
 
 // use crate::Engine;
 // use crate::plonk::plonk::prover::PlonkSetup;

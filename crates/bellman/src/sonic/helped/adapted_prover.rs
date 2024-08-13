@@ -1,57 +1,41 @@
-use crate::pairing::ff::{Field};
-use crate::pairing::{Engine, CurveProjective};
+use crate::pairing::ff::Field;
+use crate::pairing::{CurveProjective, Engine};
 use std::marker::PhantomData;
 
-use super::{Proof, SxyAdvice};
 use super::batch::Batch;
+use super::parameters::Parameters;
 use super::poly::{SxEval, SyEval};
-use super::parameters::{Parameters};
+use super::{Proof, SxyAdvice};
 
 use crate::SynthesisError;
 
-use crate::sonic::transcript::{Transcript, TranscriptProtocol};
-use crate::sonic::util::*;
-use crate::sonic::cs::{Backend, SynthesisDriver};
-use crate::{Circuit};
-use crate::sonic::sonic::AdaptorCircuit;
-use crate::sonic::srs::SRS;
-use crate::sonic::sonic::Basic;
 use super::prover::create_advice as create_advice_sonic_circuit;
 use super::prover::create_advice_on_information_and_srs as create_advice_on_information_and_srs_sonic_circuit;
 use super::prover::create_proof_on_srs as create_proof_on_srs_sonic_circuit;
+use crate::sonic::cs::{Backend, SynthesisDriver};
+use crate::sonic::sonic::AdaptorCircuit;
+use crate::sonic::sonic::Basic;
 use crate::sonic::sonic::CountN;
+use crate::sonic::srs::SRS;
+use crate::sonic::transcript::{Transcript, TranscriptProtocol};
+use crate::sonic::util::*;
+use crate::Circuit;
 
 // pub fn create_advice_on_information_and_srs<E: Engine, C: Circuit<E> + Clone, S: SynthesisDriver>(
-pub fn create_advice_on_information_and_srs<E: Engine, C: Circuit<E> + Clone>(
-    circuit: C,
-    proof: &Proof<E>,
-    srs: &SRS<E>,
-    n: usize
-) -> Result<SxyAdvice<E>, SynthesisError>
-{
+pub fn create_advice_on_information_and_srs<E: Engine, C: Circuit<E> + Clone>(circuit: C, proof: &Proof<E>, srs: &SRS<E>, n: usize) -> Result<SxyAdvice<E>, SynthesisError> {
     let adapted_circuit = AdaptorCircuit(circuit);
 
     create_advice_on_information_and_srs_sonic_circuit::<_, _, Basic>(&adapted_circuit, proof, srs, n)
 }
 
 // pub fn create_advice<E: Engine, C: Circuit<E> + Clone, S: SynthesisDriver>(
-pub fn create_advice<E: Engine, C: Circuit<E> + Clone>(
-    circuit: C,
-    proof: &Proof<E>,
-    parameters: &Parameters<E>,
-) -> Result<SxyAdvice<E>, SynthesisError>
-{
+pub fn create_advice<E: Engine, C: Circuit<E> + Clone>(circuit: C, proof: &Proof<E>, parameters: &Parameters<E>) -> Result<SxyAdvice<E>, SynthesisError> {
     let n = parameters.vk.n;
-    create_advice_on_information_and_srs::<E, C>(circuit, proof, &parameters.srs, n)   
+    create_advice_on_information_and_srs::<E, C>(circuit, proof, &parameters.srs, n)
 }
 
 // pub fn create_advice_on_srs<E: Engine, C: Circuit<E> + Clone, S: SynthesisDriver>(
-pub fn create_advice_on_srs<E: Engine, C: Circuit<E> + Clone>(
-    circuit: C,
-    proof: &Proof<E>,
-    srs: &SRS<E>
-) -> Result<SxyAdvice<E>, SynthesisError>
-{
+pub fn create_advice_on_srs<E: Engine, C: Circuit<E> + Clone>(circuit: C, proof: &Proof<E>, srs: &SRS<E>) -> Result<SxyAdvice<E>, SynthesisError> {
     use crate::sonic::sonic::Nonassigning;
 
     let adapted_circuit = AdaptorCircuit(circuit.clone());
@@ -64,23 +48,16 @@ pub fn create_advice_on_srs<E: Engine, C: Circuit<E> + Clone>(
         tmp.n
     };
 
-    create_advice_on_information_and_srs::<E, C>(circuit, proof, srs, n)   
+    create_advice_on_information_and_srs::<E, C>(circuit, proof, srs, n)
 }
 
 // pub fn create_proof<E: Engine, C: Circuit<E> + Clone, S: SynthesisDriver>(
-pub fn create_proof<E: Engine, C: Circuit<E> + Clone>(
-    circuit: C,
-    parameters: &Parameters<E>
-) -> Result<Proof<E>, SynthesisError> {
+pub fn create_proof<E: Engine, C: Circuit<E> + Clone>(circuit: C, parameters: &Parameters<E>) -> Result<Proof<E>, SynthesisError> {
     create_proof_on_srs::<E, C>(circuit, &parameters.srs)
 }
 
 // pub fn create_proof_on_srs<E: Engine, C: Circuit<E> + Clone, S: SynthesisDriver>(
-pub fn create_proof_on_srs<E: Engine, C: Circuit<E> + Clone>(
-    circuit: C,
-    srs: &SRS<E>
-) -> Result<Proof<E>, SynthesisError>
-{
+pub fn create_proof_on_srs<E: Engine, C: Circuit<E> + Clone>(circuit: C, srs: &SRS<E>) -> Result<Proof<E>, SynthesisError> {
     let adapted_circuit = AdaptorCircuit(circuit);
 
     create_proof_on_srs_sonic_circuit::<_, _, Basic>(&adapted_circuit, srs)

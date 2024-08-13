@@ -61,22 +61,21 @@ pub(crate) fn sbox_alpha_inv_via_add_chain<E: Engine>(chain: &[crate::traits::St
 #[inline]
 pub(crate) fn sbox_alpha_inv_via_add_chain<E: Engine>(chain: &[crate::traits::Step], state: &mut [E::Fr]) {
     use rayon::prelude::*;
-    state.par_iter_mut()
-        .for_each(|el| {
-            let mut scratch = smallvec::SmallVec::<[E::Fr; 512]>::new();
-            *el = crate::add_chain_pow_smallvec(*el, chain, &mut scratch);
-        });
+    state.par_iter_mut().for_each(|el| {
+        let mut scratch = smallvec::SmallVec::<[E::Fr; 512]>::new();
+        *el = crate::add_chain_pow_smallvec(*el, chain, &mut scratch);
+    });
 }
 
 #[cfg(feature = "futures")]
-lazy_static::lazy_static!{
+lazy_static::lazy_static! {
     static ref EXECUTOR: futures::executor::ThreadPool = futures::executor::ThreadPool::builder().pool_size(3).create().expect("Failed to build pool");
 }
 
 #[cfg(feature = "futures")]
 #[inline]
 pub(crate) fn sbox_alpha_inv_via_add_chain<E: Engine>(chain: &[crate::traits::Step], state: &mut [E::Fr]) {
-    let chain = unsafe {std::mem::transmute(chain)};
+    let chain = unsafe { std::mem::transmute(chain) };
     use futures::task::SpawnExt;
     let f0 = EXECUTOR.spawn_with_handle(sbox_alpha_inv_via_add_chain_fut::<E>(state[0], chain)).unwrap();
     let f1 = EXECUTOR.spawn_with_handle(sbox_alpha_inv_via_add_chain_fut::<E>(state[1], chain)).unwrap();

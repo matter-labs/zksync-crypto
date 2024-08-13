@@ -5,49 +5,30 @@ use rand::{thread_rng, Rng};
 use std::time::{Duration, Instant};
 
 // Bring in some tools for using pairing-friendly curves
-use bellman_ce::pairing::{
-    Engine  
-};
+use bellman_ce::pairing::Engine;
 
-use bellman_ce::pairing::ff::{
-    Field,
-};
+use bellman_ce::pairing::ff::Field;
 
 // We're going to use the BLS12-381 pairing-friendly elliptic curve.
-use bellman_ce::pairing::bls12_381::{
-    Bls12
-};
+use bellman_ce::pairing::bls12_381::Bls12;
 
-use bellman_ce::pairing::bn256::{
-    Bn256
-};
+use bellman_ce::pairing::bn256::Bn256;
 
 // We'll use these interfaces to construct our circuit.
-use bellman_ce::{
-    Circuit,
-    ConstraintSystem,
-    SynthesisError
-};
+use bellman_ce::{Circuit, ConstraintSystem, SynthesisError};
 
 // We're going to use the Groth16 proving system.
-use bellman_ce::groth16::{
-    Proof,
-    generate_random_parameters,
-    prepare_verifying_key,
-    create_random_proof,
-    verify_proof,
-};
+use bellman_ce::groth16::{create_random_proof, generate_random_parameters, prepare_verifying_key, verify_proof, Proof};
 
 // const MIMC_ROUNDS: usize = 322;
 
 const MIMC_ROUNDS: usize = 1000000;
 
-
 #[cfg(feature = "marlin")]
 #[test]
 fn test_bench_marlin_prover() {
-    use bellman_ce::pairing::bn256::{Bn256};
     use bellman_ce::marlin::prover::test_over_engine_and_circuit_with_proving_key;
+    use bellman_ce::pairing::bn256::Bn256;
     {
         // This may not be cryptographically safe, use
         // `OsRng` (for example) in production software.
@@ -64,7 +45,7 @@ fn test_bench_marlin_prover() {
         let circuit = MiMCDemo {
             xl: Some(xl),
             xr: Some(xr),
-            constants: &constants
+            constants: &constants,
         };
 
         test_over_engine_and_circuit_with_proving_key::<Bn256, _>(circuit, format!("./marlin_mimc_{}", MIMC_ROUNDS));
@@ -74,8 +55,8 @@ fn test_bench_marlin_prover() {
 #[cfg(feature = "marlin")]
 #[test]
 fn test_create_marlin_proving_key() {
-    use bellman_ce::pairing::bn256::{Bn256};
     use bellman_ce::marlin::prover::create_test_keys;
+    use bellman_ce::pairing::bn256::Bn256;
     {
         // This may not be cryptographically safe, use
         // `OsRng` (for example) in production software.
@@ -92,7 +73,7 @@ fn test_create_marlin_proving_key() {
         let circuit = MiMCDemo {
             xl: Some(xl),
             xr: Some(xr),
-            constants: &constants
+            constants: &constants,
         };
 
         create_test_keys::<Bn256, _>(circuit, format!("./marlin_mimc_{}", MIMC_ROUNDS));
@@ -101,7 +82,7 @@ fn test_create_marlin_proving_key() {
 
 /// This is an implementation of MiMC, specifically a
 /// variant named `LongsightF322p3` for BLS12-381.
-/// See http://eprint.iacr.org/2016/492 for more 
+/// See http://eprint.iacr.org/2016/492 for more
 /// information about this construction.
 ///
 /// ```
@@ -112,12 +93,7 @@ fn test_create_marlin_proving_key() {
 ///     return xL
 /// }
 /// ```
-fn mimc<E: Engine>(
-    mut xl: E::Fr,
-    mut xr: E::Fr,
-    constants: &[E::Fr]
-) -> E::Fr
-{
+fn mimc<E: Engine>(mut xl: E::Fr, mut xr: E::Fr, constants: &[E::Fr]) -> E::Fr {
     assert_eq!(constants.len(), MIMC_ROUNDS);
 
     for i in 0..MIMC_ROUNDS {
@@ -140,31 +116,23 @@ fn mimc<E: Engine>(
 struct MiMCDemo<'a, E: Engine> {
     xl: Option<E::Fr>,
     xr: Option<E::Fr>,
-    constants: &'a [E::Fr]
+    constants: &'a [E::Fr],
 }
 
 /// Our demo circuit implements this `Circuit` trait which
 /// is used during paramgen and proving in order to
 /// synthesize the constraint system.
 impl<'a, E: Engine> Circuit<E> for MiMCDemo<'a, E> {
-    fn synthesize<CS: ConstraintSystem<E>>(
-        self,
-        cs: &mut CS
-    ) -> Result<(), SynthesisError>
-    {
+    fn synthesize<CS: ConstraintSystem<E>>(self, cs: &mut CS) -> Result<(), SynthesisError> {
         assert_eq!(self.constants.len(), MIMC_ROUNDS);
 
         // Allocate the first component of the preimage.
         let mut xl_value = self.xl;
-        let mut xl = cs.alloc(|| "preimage xl", || {
-            xl_value.ok_or(SynthesisError::AssignmentMissing)
-        })?;
+        let mut xl = cs.alloc(|| "preimage xl", || xl_value.ok_or(SynthesisError::AssignmentMissing))?;
 
         // Allocate the second component of the preimage.
         let mut xr_value = self.xr;
-        let mut xr = cs.alloc(|| "preimage xr", || {
-            xr_value.ok_or(SynthesisError::AssignmentMissing)
-        })?;
+        let mut xr = cs.alloc(|| "preimage xr", || xr_value.ok_or(SynthesisError::AssignmentMissing))?;
 
         for i in 0..MIMC_ROUNDS {
             // xL, xR := xR + (xL + Ci)^3, xL
@@ -176,15 +144,13 @@ impl<'a, E: Engine> Circuit<E> for MiMCDemo<'a, E> {
                 e.square();
                 e
             });
-            let tmp = cs.alloc(|| "tmp", || {
-                tmp_value.ok_or(SynthesisError::AssignmentMissing)
-            })?;
+            let tmp = cs.alloc(|| "tmp", || tmp_value.ok_or(SynthesisError::AssignmentMissing))?;
 
             cs.enforce(
                 || "tmp = (xL + Ci)^2",
                 |lc| lc + xl + (self.constants[i], CS::one()),
                 |lc| lc + xl + (self.constants[i], CS::one()),
-                |lc| lc + tmp
+                |lc| lc + tmp,
             );
 
             // new_xL = xR + (xL + Ci)^3
@@ -197,24 +163,15 @@ impl<'a, E: Engine> Circuit<E> for MiMCDemo<'a, E> {
                 e
             });
 
-            let new_xl = if i == (MIMC_ROUNDS-1) {
+            let new_xl = if i == (MIMC_ROUNDS - 1) {
                 // This is the last round, xL is our image and so
                 // we allocate a public input.
-                cs.alloc_input(|| "image", || {
-                    new_xl_value.ok_or(SynthesisError::AssignmentMissing)
-                })?
+                cs.alloc_input(|| "image", || new_xl_value.ok_or(SynthesisError::AssignmentMissing))?
             } else {
-                cs.alloc(|| "new_xl", || {
-                    new_xl_value.ok_or(SynthesisError::AssignmentMissing)
-                })?
+                cs.alloc(|| "new_xl", || new_xl_value.ok_or(SynthesisError::AssignmentMissing))?
             };
 
-            cs.enforce(
-                || "new_xL = xR + (xL + Ci)^3",
-                |lc| lc + tmp,
-                |lc| lc + xl + (self.constants[i], CS::one()),
-                |lc| lc + new_xl - xr
-            );
+            cs.enforce(|| "new_xL = xR + (xL + Ci)^3", |lc| lc + tmp, |lc| lc + xl + (self.constants[i], CS::one()), |lc| lc + new_xl - xr);
 
             // xR = xL
             xr = xl;
@@ -245,7 +202,7 @@ fn test_mimc_bls12() {
         let c = MiMCDemo::<Bls12> {
             xl: None,
             xr: None,
-            constants: &constants
+            constants: &constants,
         };
 
         generate_random_parameters(c, rng).unwrap()
@@ -280,7 +237,7 @@ fn test_mimc_bls12() {
             let c = MiMCDemo {
                 xl: Some(xl),
                 xr: Some(xr),
-                constants: &constants
+                constants: &constants,
             };
 
             // Create a groth16 proof with our parameters.
@@ -294,20 +251,14 @@ fn test_mimc_bls12() {
         let start = Instant::now();
         let proof = Proof::read(&proof_vec[..]).unwrap();
         // Check the proof
-        assert!(verify_proof(
-            &pvk,
-            &proof,
-            &[image]
-        ).unwrap());
+        assert!(verify_proof(&pvk, &proof, &[image]).unwrap());
         total_verifying += start.elapsed();
     }
     let proving_avg = total_proving / SAMPLES;
-    let proving_avg = proving_avg.subsec_nanos() as f64 / 1_000_000_000f64
-                      + (proving_avg.as_secs() as f64);
+    let proving_avg = proving_avg.subsec_nanos() as f64 / 1_000_000_000f64 + (proving_avg.as_secs() as f64);
 
     let verifying_avg = total_verifying / SAMPLES;
-    let verifying_avg = verifying_avg.subsec_nanos() as f64 / 1_000_000_000f64
-                      + (verifying_avg.as_secs() as f64);
+    let verifying_avg = verifying_avg.subsec_nanos() as f64 / 1_000_000_000f64 + (verifying_avg.as_secs() as f64);
 
     println!("Average proving time: {:?} seconds", proving_avg);
     println!("Average verifying time: {:?} seconds", verifying_avg);
@@ -329,7 +280,7 @@ fn test_mimc_bn256() {
         let c = MiMCDemo::<Bn256> {
             xl: None,
             xr: None,
-            constants: &constants
+            constants: &constants,
         };
 
         generate_random_parameters(c, rng).unwrap()
@@ -365,7 +316,7 @@ fn test_mimc_bn256() {
             let c = MiMCDemo {
                 xl: Some(xl),
                 xr: Some(xr),
-                constants: &constants
+                constants: &constants,
             };
 
             // Create a groth16 proof with our parameters.
@@ -379,25 +330,18 @@ fn test_mimc_bn256() {
         let start = Instant::now();
         let proof = Proof::read(&proof_vec[..]).unwrap();
         // Check the proof
-        assert!(verify_proof(
-            &pvk,
-            &proof,
-            &[image]
-        ).unwrap());
+        assert!(verify_proof(&pvk, &proof, &[image]).unwrap());
         total_verifying += start.elapsed();
     }
     let proving_avg = total_proving / SAMPLES;
-    let proving_avg = proving_avg.subsec_nanos() as f64 / 1_000_000_000f64
-                      + (proving_avg.as_secs() as f64);
+    let proving_avg = proving_avg.subsec_nanos() as f64 / 1_000_000_000f64 + (proving_avg.as_secs() as f64);
 
     let verifying_avg = total_verifying / SAMPLES;
-    let verifying_avg = verifying_avg.subsec_nanos() as f64 / 1_000_000_000f64
-                      + (verifying_avg.as_secs() as f64);
+    let verifying_avg = verifying_avg.subsec_nanos() as f64 / 1_000_000_000f64 + (verifying_avg.as_secs() as f64);
 
     println!("Average proving time: {:?} seconds", proving_avg);
     println!("Average verifying time: {:?} seconds", verifying_avg);
 }
-
 
 #[cfg(feature = "plonk")]
 #[test]
@@ -413,7 +357,7 @@ fn test_mimc_transpilation_into_plonk() {
     let c = MiMCDemo::<Bn256> {
         xl: None,
         xr: None,
-        constants: &constants
+        constants: &constants,
     };
 
     let mut transpiler = Transpiler::new();

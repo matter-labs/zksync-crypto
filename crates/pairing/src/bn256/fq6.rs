@@ -33,7 +33,6 @@ impl Rand for Fq6 {
 // BN256 (v^3 - ξ) where ξ = u + 9
 
 impl Fq6 {
-
     /// Multiply by cubic nonresidue v.
     pub fn mul_by_nonresidue(&mut self) {
         use std::mem::swap;
@@ -311,11 +310,7 @@ impl Field for Fq6 {
 
         match tmp1.inverse() {
             Some(t) => {
-                let mut tmp = Fq6 {
-                    c0: t,
-                    c1: t,
-                    c2: t,
-                };
+                let mut tmp = Fq6 { c0: t, c1: t, c2: t };
                 tmp.c0.mul_assign(&c0);
                 tmp.c1.mul_assign(&c1);
                 tmp.c2.mul_assign(&c2);
@@ -381,11 +376,7 @@ fn test_fq6_mul_by_01() {
         let mut b = a;
 
         a.mul_by_01(&c0, &c1);
-        b.mul_assign(&Fq6 {
-            c0: c0,
-            c1: c1,
-            c2: Fq2::zero(),
-        });
+        b.mul_assign(&Fq6 { c0: c0, c1: c1, c2: Fq2::zero() });
 
         assert_eq!(a, b);
     }

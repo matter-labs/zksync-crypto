@@ -96,11 +96,7 @@ pub fn degree() -> usize {
 type JobsVec<'a, 'b> = ArrayVec<[Job<'a, 'b>; guts::MAX_DEGREE]>;
 
 #[inline(always)]
-fn fill_jobs_vec<'a, 'b>(
-    jobs_iter: &mut impl Iterator<Item = Job<'a, 'b>>,
-    vec: &mut JobsVec<'a, 'b>,
-    target_len: usize,
-) {
+fn fill_jobs_vec<'a, 'b>(jobs_iter: &mut impl Iterator<Item = Job<'a, 'b>>, vec: &mut JobsVec<'a, 'b>, target_len: usize) {
     while vec.len() < target_len {
         if let Some(job) = jobs_iter.next() {
             vec.push(job);
@@ -130,12 +126,8 @@ fn evict_finished<'a, 'b>(vec: &mut JobsVec<'a, 'b>, num_jobs: usize) {
     }
 }
 
-pub(crate) fn compress_many<'a, 'b, I>(
-    jobs: I,
-    imp: Implementation,
-    finalize: Finalize,
-    stride: Stride,
-) where
+pub(crate) fn compress_many<'a, 'b, I>(jobs: I, imp: Implementation, finalize: Finalize, stride: Stride)
+where
     I: IntoIterator<Item = Job<'a, 'b>>,
 {
     // Fuse is important for correctness, since each of these blocks tries to
@@ -168,12 +160,7 @@ pub(crate) fn compress_many<'a, 'b, I>(
     }
 
     for job in jobs_vec.into_iter().chain(jobs_iter) {
-        let Job {
-            input,
-            words,
-            count,
-            last_node,
-        } = job;
+        let Job { input, words, count, last_node } = job;
         imp.compress1_loop(input, words, count, last_node, finalize, stride);
     }
 }
@@ -292,14 +279,7 @@ impl<'a> HashManyJob<'a> {
                 finalization = Finalize::Yes;
                 finished = true;
             }
-            params.implementation.compress1_loop(
-                &params.key_block,
-                &mut words,
-                0,
-                params.last_node,
-                finalization,
-                Stride::Serial,
-            );
+            params.implementation.compress1_loop(&params.key_block, &mut words, 0, params.last_node, finalization, Stride::Serial);
             count = BLOCKBYTES as Count;
         }
         Self {

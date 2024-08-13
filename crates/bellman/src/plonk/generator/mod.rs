@@ -1,17 +1,17 @@
 use crate::pairing::ff::{Field, PrimeField};
-use crate::pairing::{Engine};
+use crate::pairing::Engine;
 
-use crate::{SynthesisError};
+use crate::SynthesisError;
 use std::marker::PhantomData;
 
 use crate::plonk::cs::gates::*;
 use crate::plonk::cs::*;
 
-use crate::worker::*;
-use super::polynomials::*;
 use super::domains::*;
+use super::polynomials::*;
 use crate::plonk::commitments::*;
 use crate::plonk::utils::*;
+use crate::worker::*;
 
 #[derive(Debug)]
 struct GeneratorAssembly<E: Engine> {
@@ -32,7 +32,7 @@ impl<E: Engine> ConstraintSystem<E> for GeneratorAssembly<E> {
     // allocate a variable
     fn alloc<F>(&mut self, _value: F) -> Result<Variable, SynthesisError>
     where
-        F: FnOnce() -> Result<E::Fr, SynthesisError> 
+        F: FnOnce() -> Result<E::Fr, SynthesisError>,
     {
         self.num_aux += 1;
         let index = self.num_aux;
@@ -43,7 +43,7 @@ impl<E: Engine> ConstraintSystem<E> for GeneratorAssembly<E> {
     // allocate an input variable
     fn alloc_input<F>(&mut self, _value: F) -> Result<Variable, SynthesisError>
     where
-        F: FnOnce() -> Result<E::Fr, SynthesisError> 
+        F: FnOnce() -> Result<E::Fr, SynthesisError>,
     {
         self.num_inputs += 1;
         let index = self.num_inputs;
@@ -54,7 +54,6 @@ impl<E: Engine> ConstraintSystem<E> for GeneratorAssembly<E> {
         self.input_gates.push(gate);
 
         Ok(input_var)
-
     }
 
     // enforce variable as boolean
@@ -67,9 +66,7 @@ impl<E: Engine> ConstraintSystem<E> for GeneratorAssembly<E> {
     }
 
     // allocate an abstract gate
-    fn new_gate(&mut self, variables: (Variable, Variable, Variable), 
-        coeffs:(E::Fr,E::Fr,E::Fr,E::Fr,E::Fr)) -> Result<(), SynthesisError>
-    {
+    fn new_gate(&mut self, variables: (Variable, Variable, Variable), coeffs: (E::Fr, E::Fr, E::Fr, E::Fr, E::Fr)) -> Result<(), SynthesisError> {
         let gate = Gate::<E::Fr>::new_gate(variables, coeffs);
         self.aux_gates.push(gate);
         self.n += 1;
@@ -78,8 +75,7 @@ impl<E: Engine> ConstraintSystem<E> for GeneratorAssembly<E> {
     }
 
     // allocate a constant
-    fn enforce_constant(&mut self, variable: Variable, constant: E::Fr) -> Result<(), SynthesisError>
-    {
+    fn enforce_constant(&mut self, variable: Variable, constant: E::Fr) -> Result<(), SynthesisError> {
         let gate = Gate::<E::Fr>::new_enforce_constant_gate(variable, Some(constant), self.dummy_variable());
         self.aux_gates.push(gate);
         self.n += 1;
@@ -111,8 +107,7 @@ impl<E: Engine> ConstraintSystem<E> for GeneratorAssembly<E> {
     }
 
     // allocate a linear combination gate
-    fn enforce_zero_2(&mut self, variables: (Variable, Variable), coeffs:(E::Fr, E::Fr)) -> Result<(), SynthesisError>
-    {
+    fn enforce_zero_2(&mut self, variables: (Variable, Variable), coeffs: (E::Fr, E::Fr)) -> Result<(), SynthesisError> {
         let (v_0, v_1) = variables;
         let (c_0, c_1) = coeffs;
         let zero = E::Fr::zero();
@@ -125,14 +120,12 @@ impl<E: Engine> ConstraintSystem<E> for GeneratorAssembly<E> {
     }
 
     // allocate a linear combination gate
-    fn enforce_zero_3(&mut self, variables: (Variable, Variable, Variable), coeffs:(E::Fr, E::Fr, E::Fr)) -> Result<(), SynthesisError>
-    {
+    fn enforce_zero_3(&mut self, variables: (Variable, Variable, Variable), coeffs: (E::Fr, E::Fr, E::Fr)) -> Result<(), SynthesisError> {
         let gate = Gate::<E::Fr>::new_enforce_zero_gate(variables, coeffs);
         self.aux_gates.push(gate);
         self.n += 1;
 
         Ok(())
-        
     }
 
     fn get_dummy_variable(&self) -> Variable {
@@ -151,7 +144,7 @@ impl<E: Engine> GeneratorAssembly<E> {
     }
 
     fn set_gate(&mut self, gate: Gate<E::Fr>, index: usize) {
-        self.aux_gates[index-1] = gate;
+        self.aux_gates[index - 1] = gate;
     }
 
     pub(crate) fn new() -> Self {
@@ -167,15 +160,14 @@ impl<E: Engine> GeneratorAssembly<E> {
             inputs_map: vec![],
 
             is_finalized: false,
-
         };
 
         let zero = tmp.alloc(|| Ok(E::Fr::zero())).expect("should have no issues");
         tmp.enforce_constant(zero, E::Fr::zero()).expect("should have no issues");
 
         match (tmp.dummy_variable(), zero) {
-            (Variable(Index::Aux(1)), Variable(Index::Aux(1))) => {},
-            _ => panic!("zero variable is incorrect")
+            (Variable(Index::Aux(1)), Variable(Index::Aux(1))) => {}
+            _ => panic!("zero variable is incorrect"),
         }
 
         tmp
@@ -186,10 +178,19 @@ impl<E: Engine> GeneratorAssembly<E> {
         Variable(Index::Aux(1))
     }
 
-    pub(crate) fn make_circuit_description_polynomials(&self, worker: &Worker) -> Result<(
-        Polynomial::<E::Fr, Values>, Polynomial::<E::Fr, Values>, Polynomial::<E::Fr, Values>,
-        Polynomial::<E::Fr, Values>, Polynomial::<E::Fr, Values>
-    ), SynthesisError> {
+    pub(crate) fn make_circuit_description_polynomials(
+        &self,
+        worker: &Worker,
+    ) -> Result<
+        (
+            Polynomial<E::Fr, Values>,
+            Polynomial<E::Fr, Values>,
+            Polynomial<E::Fr, Values>,
+            Polynomial<E::Fr, Values>,
+            Polynomial<E::Fr, Values>,
+        ),
+        SynthesisError,
+    > {
         assert!(self.is_finalized);
         let total_num_gates = self.input_gates.len() + self.aux_gates.len();
         let mut q_l = vec![E::Fr::zero(); total_num_gates];
@@ -198,33 +199,29 @@ impl<E: Engine> GeneratorAssembly<E> {
         let mut q_m = vec![E::Fr::zero(); total_num_gates];
         let mut q_c = vec![E::Fr::zero(); total_num_gates];
 
-        fn coeff_into_field_element<F: PrimeField>(coeff: & Coeff<F>) -> F {
+        fn coeff_into_field_element<F: PrimeField>(coeff: &Coeff<F>) -> F {
             match coeff {
-                Coeff::Zero => {
-                    F::zero()
-                },
-                Coeff::One => {
-                    F::one()
-                },
+                Coeff::Zero => F::zero(),
+                Coeff::One => F::one(),
                 Coeff::NegativeOne => {
                     let mut tmp = F::one();
                     tmp.negate();
 
                     tmp
-                },
-                Coeff::Full(c) => {
-                    *c
-                },
+                }
+                Coeff::Full(c) => *c,
             }
         }
 
         // expect a small number of inputs
-        for (((((gate, q_l), q_r), q_o), q_m), q_c) in self.input_gates.iter()
-                                            .zip(q_l.iter_mut())
-                                            .zip(q_r.iter_mut())
-                                            .zip(q_o.iter_mut())
-                                            .zip(q_m.iter_mut())
-                                            .zip(q_c.iter_mut())
+        for (((((gate, q_l), q_r), q_o), q_m), q_c) in self
+            .input_gates
+            .iter()
+            .zip(q_l.iter_mut())
+            .zip(q_r.iter_mut())
+            .zip(q_o.iter_mut())
+            .zip(q_m.iter_mut())
+            .zip(q_c.iter_mut())
         {
             *q_l = coeff_into_field_element(&gate.q_l);
             *q_r = coeff_into_field_element(&gate.q_r);
@@ -232,7 +229,6 @@ impl<E: Engine> GeneratorAssembly<E> {
             *q_m = coeff_into_field_element(&gate.q_m);
             *q_c = coeff_into_field_element(&gate.q_c);
         }
-
 
         let num_input_gates = self.input_gates.len();
         let q_l_aux = &mut q_l[num_input_gates..];
@@ -244,27 +240,23 @@ impl<E: Engine> GeneratorAssembly<E> {
         debug_assert!(self.aux_gates.len() == q_l_aux.len());
 
         worker.scope(self.aux_gates.len(), |scope, chunk| {
-            for (((((gate, q_l), q_r), q_o), q_m), q_c) in self.aux_gates.chunks(chunk)
-                                                            .zip(q_l_aux.chunks_mut(chunk))
-                                                            .zip(q_r_aux.chunks_mut(chunk))
-                                                            .zip(q_o_aux.chunks_mut(chunk))
-                                                            .zip(q_m_aux.chunks_mut(chunk))
-                                                            .zip(q_c_aux.chunks_mut(chunk))
+            for (((((gate, q_l), q_r), q_o), q_m), q_c) in self
+                .aux_gates
+                .chunks(chunk)
+                .zip(q_l_aux.chunks_mut(chunk))
+                .zip(q_r_aux.chunks_mut(chunk))
+                .zip(q_o_aux.chunks_mut(chunk))
+                .zip(q_m_aux.chunks_mut(chunk))
+                .zip(q_c_aux.chunks_mut(chunk))
             {
                 scope.spawn(move |_| {
-                    for (((((gate, q_l), q_r), q_o), q_m), q_c) in gate.iter()
-                                                            .zip(q_l.iter_mut())
-                                                            .zip(q_r.iter_mut())
-                                                            .zip(q_o.iter_mut())
-                                                            .zip(q_m.iter_mut())
-                                                            .zip(q_c.iter_mut())
-                        {
-                            *q_l = coeff_into_field_element(&gate.q_l);
-                            *q_r = coeff_into_field_element(&gate.q_r);
-                            *q_o = coeff_into_field_element(&gate.q_o);
-                            *q_m = coeff_into_field_element(&gate.q_m);
-                            *q_c = coeff_into_field_element(&gate.q_c);
-                        }
+                    for (((((gate, q_l), q_r), q_o), q_m), q_c) in gate.iter().zip(q_l.iter_mut()).zip(q_r.iter_mut()).zip(q_o.iter_mut()).zip(q_m.iter_mut()).zip(q_c.iter_mut()) {
+                        *q_l = coeff_into_field_element(&gate.q_l);
+                        *q_r = coeff_into_field_element(&gate.q_r);
+                        *q_o = coeff_into_field_element(&gate.q_o);
+                        *q_m = coeff_into_field_element(&gate.q_m);
+                        *q_c = coeff_into_field_element(&gate.q_c);
+                    }
                 });
             }
         });
@@ -287,51 +279,50 @@ impl<E: Engine> GeneratorAssembly<E> {
         // in the partition number i there is a set of indexes in V = (a, b, c) such that V_j = i
         let mut partitions = vec![vec![]; num_partitions + 1];
 
-        for (j, gate) in self.input_gates.iter().chain(&self.aux_gates).enumerate()
-        {
+        for (j, gate) in self.input_gates.iter().chain(&self.aux_gates).enumerate() {
             match gate.a_wire() {
                 Variable(Index::Input(index)) => {
                     let i = *index;
-                    partitions[i].push(j+1);
-                },
+                    partitions[i].push(j + 1);
+                }
                 Variable(Index::Aux(index)) => {
                     if *index != 0 {
                         let i = index + num_inputs;
-                        partitions[i].push(j+1);
+                        partitions[i].push(j + 1);
                     }
-                },
+                }
             }
 
             match gate.b_wire() {
                 Variable(Index::Input(index)) => {
                     let i = *index;
                     partitions[i].push(j + 1 + num_gates);
-                },
+                }
                 Variable(Index::Aux(index)) => {
                     if *index != 0 {
                         let i = index + num_inputs;
                         partitions[i].push(j + 1 + num_gates);
                     }
-                },
+                }
             }
 
             match gate.c_wire() {
                 Variable(Index::Input(index)) => {
                     let i = *index;
-                    partitions[i].push(j + 1 + 2*num_gates);
-                },
+                    partitions[i].push(j + 1 + 2 * num_gates);
+                }
                 Variable(Index::Aux(index)) => {
                     if *index != 0 {
                         let i = index + num_inputs;
-                        partitions[i].push(j + 1 + 2*num_gates);
+                        partitions[i].push(j + 1 + 2 * num_gates);
                     }
-                },
+                }
             }
         }
 
         let mut sigma_1: Vec<_> = (1..=num_gates).collect();
-        let mut sigma_2: Vec<_> = ((num_gates+1)..=(2*num_gates)).collect();
-        let mut sigma_3: Vec<_> = ((2*num_gates + 1)..=(3*num_gates)).collect();
+        let mut sigma_2: Vec<_> = ((num_gates + 1)..=(2 * num_gates)).collect();
+        let mut sigma_3: Vec<_> = ((2 * num_gates + 1)..=(3 * num_gates)).collect();
 
         let mut permutations = vec![vec![]; num_partitions + 1];
 
@@ -350,18 +341,16 @@ impl<E: Engine> GeneratorAssembly<E> {
             let permutation = rotate(partition.clone());
             permutations[i] = permutation.clone();
 
-            for (original, new) in partition.into_iter()
-                                    .zip(permutation.into_iter()) 
-            {
+            for (original, new) in partition.into_iter().zip(permutation.into_iter()) {
                 if original <= num_gates {
                     debug_assert!(sigma_1[original - 1] == original);
                     sigma_1[original - 1] = new;
-                } else if original <= 2*num_gates {
+                } else if original <= 2 * num_gates {
                     debug_assert!(sigma_2[original - num_gates - 1] == original);
                     sigma_2[original - num_gates - 1] = new;
                 } else {
-                    debug_assert!(sigma_3[original - 2*num_gates - 1] == original);
-                    sigma_3[original - 2*num_gates - 1] = new;
+                    debug_assert!(sigma_3[original - 2 * num_gates - 1] == original);
+                    sigma_3[original - 2 * num_gates - 1] = new;
                 }
             }
         }
@@ -378,19 +367,23 @@ impl<E: Engine> GeneratorAssembly<E> {
         result
     }
 
-    pub(crate) fn output_setup_polynomials(&self, worker: &Worker) -> Result<
-    (
-        Polynomial::<E::Fr, Coefficients>, // q_l
-        Polynomial::<E::Fr, Coefficients>, // q_r
-        Polynomial::<E::Fr, Coefficients>, // q_o
-        Polynomial::<E::Fr, Coefficients>, // q_m
-        Polynomial::<E::Fr, Coefficients>, // q_c
-        Polynomial::<E::Fr, Coefficients>, // s_id
-        Polynomial::<E::Fr, Coefficients>, // sigma_1
-        Polynomial::<E::Fr, Coefficients>, // sigma_2
-        Polynomial::<E::Fr, Coefficients>, // sigma_3
-    ), SynthesisError> 
-    {
+    pub(crate) fn output_setup_polynomials(
+        &self,
+        worker: &Worker,
+    ) -> Result<
+        (
+            Polynomial<E::Fr, Coefficients>, // q_l
+            Polynomial<E::Fr, Coefficients>, // q_r
+            Polynomial<E::Fr, Coefficients>, // q_o
+            Polynomial<E::Fr, Coefficients>, // q_m
+            Polynomial<E::Fr, Coefficients>, // q_c
+            Polynomial<E::Fr, Coefficients>, // s_id
+            Polynomial<E::Fr, Coefficients>, // sigma_1
+            Polynomial<E::Fr, Coefficients>, // sigma_2
+            Polynomial<E::Fr, Coefficients>, // sigma_3
+        ),
+        SynthesisError,
+    > {
         assert!(self.is_finalized);
 
         let s_id = self.make_s_id();
@@ -431,13 +424,13 @@ impl<E: Engine> GeneratorAssembly<E> {
             return;
         }
         let n = self.input_gates.len() + self.aux_gates.len();
-        if (n+1).is_power_of_two() {
+        if (n + 1).is_power_of_two() {
             return;
         }
 
         let empty_gate = Gate::<E::Fr>::new_empty_gate(self.dummy_variable());
 
-        let new_aux_len = (n+1).next_power_of_two() - 1 - self.input_gates.len();
+        let new_aux_len = (n + 1).next_power_of_two() - 1 - self.input_gates.len();
 
         self.aux_gates.resize(new_aux_len, empty_gate);
 
@@ -446,7 +439,7 @@ impl<E: Engine> GeneratorAssembly<E> {
 }
 
 #[derive(Debug)]
-pub struct PlonkSetup<E: Engine, S: CommitmentScheme<E::Fr> >{
+pub struct PlonkSetup<E: Engine, S: CommitmentScheme<E::Fr>> {
     pub n: usize,
     pub q_l: S::Commitment,
     pub q_r: S::Commitment,
@@ -460,7 +453,7 @@ pub struct PlonkSetup<E: Engine, S: CommitmentScheme<E::Fr> >{
 }
 
 #[derive(Debug)]
-pub struct PlonkSetupAuxData<E: Engine, S: CommitmentScheme<E::Fr> >{
+pub struct PlonkSetupAuxData<E: Engine, S: CommitmentScheme<E::Fr>> {
     pub q_l_aux: Option<S::IntermediateData>,
     pub q_r_aux: Option<S::IntermediateData>,
     pub q_o_aux: Option<S::IntermediateData>,
@@ -476,7 +469,7 @@ pub fn setup<E: Engine, S: CommitmentScheme<E::Fr>, C: Circuit<E>>(circuit: &C, 
     let mut assembly = GeneratorAssembly::<E>::new();
     circuit.synthesize(&mut assembly)?;
     assembly.finalize();
-    
+
     let n = assembly.num_gates();
 
     let worker = Worker::new();
@@ -517,7 +510,7 @@ pub fn setup<E: Engine, S: CommitmentScheme<E::Fr>, C: Circuit<E>>(circuit: &C, 
         s_id_aux,
         sigma_1_aux,
         sigma_2_aux,
-        sigma_3_aux
+        sigma_3_aux,
     };
 
     Ok((setup, aux))

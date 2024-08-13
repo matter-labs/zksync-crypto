@@ -1,16 +1,11 @@
 use franklin_crypto::{
     bellman::{
-        plonk::better_better_cs::cs::{
-            ArithmeticTerm, ConstraintSystem, MainGateTerm, PlonkConstraintSystemParams,
-        },
+        plonk::better_better_cs::cs::{ArithmeticTerm, ConstraintSystem, MainGateTerm, PlonkConstraintSystemParams},
         Engine,
     },
     bellman::{Field, SynthesisError},
     plonk::circuit::allocated_num::AllocatedNum,
-    plonk::circuit::{
-        allocated_num::Num,
-        linear_combination::LinearCombination,
-    },
+    plonk::circuit::{allocated_num::Num, linear_combination::LinearCombination},
 };
 
 use franklin_crypto::plonk::circuit::Assignment;
@@ -30,27 +25,15 @@ pub(crate) fn sbox<E: Engine, CS: ConstraintSystem<E>, const WIDTH: usize>(
     use_partial_state: Option<std::ops::Range<usize>>,
     custom_gate: CustomGate,
 ) -> Result<(), SynthesisError> {
-    let state_range = if let Some(partial_range) = use_partial_state{
-        partial_range
-    }else{
-        0..WIDTH
-    };
+    let state_range = if let Some(partial_range) = use_partial_state { partial_range } else { 0..WIDTH };
 
     match power {
-        Sbox::Alpha(alpha) => sbox_alpha(
-            cs,
-            alpha,
-            prev_state,
-            state_range,
-            custom_gate,
-        ),
-        Sbox::AlphaInverse(alpha_inv, alpha) => {           
-            sbox_alpha_inv(cs, alpha_inv, alpha, prev_state, custom_gate)
-        },
-        Sbox::AddChain(chain, alpha) => {         
-            // in circuit there is no difference  
+        Sbox::Alpha(alpha) => sbox_alpha(cs, alpha, prev_state, state_range, custom_gate),
+        Sbox::AlphaInverse(alpha_inv, alpha) => sbox_alpha_inv(cs, alpha_inv, alpha, prev_state, custom_gate),
+        Sbox::AddChain(chain, alpha) => {
+            // in circuit there is no difference
             sbox_alpha_inv_via_add_chain(cs, chain, alpha, prev_state, custom_gate)
-        },
+        }
     }
 }
 
@@ -65,8 +48,7 @@ fn sbox_alpha<E: Engine, CS: ConstraintSystem<E>, const WIDTH: usize>(
         CustomGate::None => false,
         _ => true,
     };
-    let use_custom_gate =
-        use_custom_gate && CS::Params::HAS_CUSTOM_GATES == true && CS::Params::STATE_WIDTH >= 4;
+    let use_custom_gate = use_custom_gate && CS::Params::HAS_CUSTOM_GATES == true && CS::Params::STATE_WIDTH >= 4;
 
     if *alpha != 5u64 {
         unimplemented!("only 5th power is supported!")
@@ -137,8 +119,7 @@ fn sbox_alpha_inv<E: Engine, CS: ConstraintSystem<E>, const WIDTH: usize>(
                     let quad = squared.square(cs)?;
 
                     let mut term = MainGateTerm::<E>::new();
-                    let fifth_term = ArithmeticTerm::from_variable(quad.get_variable())
-                        .mul_by_variable(powered.get_variable());
+                    let fifth_term = ArithmeticTerm::from_variable(quad.get_variable()).mul_by_variable(powered.get_variable());
                     let el_term = ArithmeticTerm::from_variable(value.get_variable());
                     term.add_assign(fifth_term);
                     term.sub_assign(el_term);
@@ -151,7 +132,6 @@ fn sbox_alpha_inv<E: Engine, CS: ConstraintSystem<E>, const WIDTH: usize>(
 
     return Ok(());
 }
-
 
 // This function computes power of inverse of alpha to each element of state.
 // By custom gate support, it costs only single gate. Under the hood, it proves
@@ -198,8 +178,7 @@ fn sbox_alpha_inv_via_add_chain<E: Engine, CS: ConstraintSystem<E>, const WIDTH:
                     let quad = squared.square(cs)?;
 
                     let mut term = MainGateTerm::<E>::new();
-                    let fifth_term = ArithmeticTerm::from_variable(quad.get_variable())
-                        .mul_by_variable(powered.get_variable());
+                    let fifth_term = ArithmeticTerm::from_variable(quad.get_variable()).mul_by_variable(powered.get_variable());
                     let el_term = ArithmeticTerm::from_variable(value.get_variable());
                     term.add_assign(fifth_term);
                     term.sub_assign(el_term);
@@ -219,32 +198,15 @@ fn inner_apply_5th_power<E: Engine, CS: ConstraintSystem<E>>(
     existing_5th: Option<AllocatedNum<E>>,
     custom_gate: CustomGate,
 ) -> Result<AllocatedNum<E>, SynthesisError> {
-    assert!(
-        CS::Params::HAS_CUSTOM_GATES,
-        "CS should have custom gate support"
-    );
+    assert!(CS::Params::HAS_CUSTOM_GATES, "CS should have custom gate support");
     match custom_gate {
         CustomGate::QuinticWidth4 => {
-            assert!(
-                CS::Params::STATE_WIDTH >= 4,
-                "state width should equal or large then 4"
-            );
-            franklin_crypto::plonk::circuit::custom_rescue_gate::apply_5th_power(
-                cs,
-                value,
-                existing_5th,
-            )
+            assert!(CS::Params::STATE_WIDTH >= 4, "state width should equal or large then 4");
+            franklin_crypto::plonk::circuit::custom_rescue_gate::apply_5th_power(cs, value, existing_5th)
         }
         CustomGate::QuinticWidth3 => {
-            assert!(
-                CS::Params::STATE_WIDTH >= 3,
-                "state width should equal or large then 3"
-            );
-            franklin_crypto::plonk::circuit::custom_5th_degree_gate_optimized::apply_5th_power(
-                cs,
-                value,
-                existing_5th,
-            )
+            assert!(CS::Params::STATE_WIDTH >= 3, "state width should equal or large then 3");
+            franklin_crypto::plonk::circuit::custom_5th_degree_gate_optimized::apply_5th_power(cs, value, existing_5th)
         }
         _ => unimplemented!(),
     }
@@ -263,14 +225,7 @@ mod test {
 
     use super::*;
 
-    fn run_test_sbox<E: Engine, CS: ConstraintSystem<E>, const N: usize>(
-        cs: &mut CS,
-        power: Sbox,
-        number_of_rounds: usize,
-        custom_gate: CustomGate,
-        use_partial_state: bool,
-        use_allocated: bool,
-    ) {
+    fn run_test_sbox<E: Engine, CS: ConstraintSystem<E>, const N: usize>(cs: &mut CS, power: Sbox, number_of_rounds: usize, custom_gate: CustomGate, use_partial_state: bool, use_allocated: bool) {
         let (mut state, state_as_nums) = test_inputs::<E, _, N>(cs, use_allocated);
 
         let mut state_as_lc = vec![];
@@ -280,24 +235,13 @@ mod test {
         }
         let mut state_as_lc: [LinearCombination<E>; N] = state_as_lc.try_into().expect("array");
 
-        let state_range = if use_partial_state {
-            Some(0..1)
-        } else {
-            Some(0..N)
-        };
+        let state_range = if use_partial_state { Some(0..1) } else { Some(0..N) };
 
         assert_eq!(state_range.as_ref().unwrap().len(), N);
 
         for _ in 0..number_of_rounds {
             crate::common::sbox::sbox::<E>(&power, &mut state);
-            sbox(
-                cs,
-                &power,
-                &mut state_as_lc,
-                state_range.clone(),
-                custom_gate.clone(),
-            )
-            .expect("5th apply successfu");
+            sbox(cs, &power, &mut state_as_lc, state_range.clone(), custom_gate.clone()).expect("5th apply successfu");
         }
     }
     fn test_sbox(power: Sbox) {
@@ -306,75 +250,18 @@ mod test {
         const INPUT_LENGTH: usize = 3;
         const NUM_ROUNDS: usize = 1;
 
-        run_test_sbox::<_, _, INPUT_LENGTH>(
-            cs,
-            power.clone(),
-            NUM_ROUNDS,
-            CustomGate::QuinticWidth4,
-            false,
-            true,
-        ); // variable inputs
-        println!(
-            "{:?} sbox takes {} gates with custom gate(width4) for {} iteration ",
-            power,
-            cs.n(),
-            NUM_ROUNDS,
-        );
+        run_test_sbox::<_, _, INPUT_LENGTH>(cs, power.clone(), NUM_ROUNDS, CustomGate::QuinticWidth4, false, true); // variable inputs
+        println!("{:?} sbox takes {} gates with custom gate(width4) for {} iteration ", power, cs.n(), NUM_ROUNDS,);
         let mut end = cs.n();
 
-        run_test_sbox::<_, _, INPUT_LENGTH>(
-            cs,
-            power.clone(),
-            NUM_ROUNDS,
-            CustomGate::QuinticWidth3,
-            false,
-            true,
-        ); // variable inputs
-        println!(
-            "{:?} takes {} gates with custom gate(width3) for {} iteration ",
-            power,
-            cs.n()-end,
-            NUM_ROUNDS,
-        );
+        run_test_sbox::<_, _, INPUT_LENGTH>(cs, power.clone(), NUM_ROUNDS, CustomGate::QuinticWidth3, false, true); // variable inputs
+        println!("{:?} takes {} gates with custom gate(width3) for {} iteration ", power, cs.n() - end, NUM_ROUNDS,);
         end = cs.n();
-        run_test_sbox::<_, _, INPUT_LENGTH>(
-            cs,
-            power.clone(),
-            NUM_ROUNDS,
-            CustomGate::None,
-            false,
-            true,
-        ); // variable inputs + no custom gate
-        println!(
-            "{:?} takes {} gates without custom gate for {} iteration ",
-            power,
-            cs.n() - end,
-            NUM_ROUNDS,
-        );
-        run_test_sbox::<_, _, INPUT_LENGTH>(
-            cs,
-            power.clone(),
-            NUM_ROUNDS,
-            CustomGate::None,
-            false,
-            false,
-        ); // constant inputs + no custom gate
-        run_test_sbox::<_, _, INPUT_LENGTH>(
-            cs,
-            power.clone(),
-            NUM_ROUNDS,
-            CustomGate::QuinticWidth4,
-            false,
-            false,
-        ); // constant inputs
-        run_test_sbox::<_, _, INPUT_LENGTH>(
-            cs,
-            power.clone(),
-            NUM_ROUNDS,
-            CustomGate::QuinticWidth3,
-            false,
-            false,
-        ); // constant inputs
+        run_test_sbox::<_, _, INPUT_LENGTH>(cs, power.clone(), NUM_ROUNDS, CustomGate::None, false, true); // variable inputs + no custom gate
+        println!("{:?} takes {} gates without custom gate for {} iteration ", power, cs.n() - end, NUM_ROUNDS,);
+        run_test_sbox::<_, _, INPUT_LENGTH>(cs, power.clone(), NUM_ROUNDS, CustomGate::None, false, false); // constant inputs + no custom gate
+        run_test_sbox::<_, _, INPUT_LENGTH>(cs, power.clone(), NUM_ROUNDS, CustomGate::QuinticWidth4, false, false); // constant inputs
+        run_test_sbox::<_, _, INPUT_LENGTH>(cs, power.clone(), NUM_ROUNDS, CustomGate::QuinticWidth3, false, false); // constant inputs
 
         cs.finalize();
         assert!(cs.is_satisfied());

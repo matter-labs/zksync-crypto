@@ -1,25 +1,10 @@
-use crate::pairing::{
-    Engine,
-    CurveProjective,
-    CurveAffine,
-    GroupDecodingError,
-    RawEncodable,
-    EncodedPoint
-};
+use crate::pairing::{CurveAffine, CurveProjective, EncodedPoint, Engine, GroupDecodingError, RawEncodable};
 
-use crate::pairing::ff::{
-    PrimeField,
-    PrimeFieldRepr,
-    Field,
-    SqrtField,
-    LegendreSymbol,
-    ScalarEngine,
-    PrimeFieldDecodingError,
-};
+use crate::pairing::ff::{Field, LegendreSymbol, PrimeField, PrimeFieldDecodingError, PrimeFieldRepr, ScalarEngine, SqrtField};
 
+use rand::{Rand, Rng};
 use std::cmp::Ordering;
 use std::fmt;
-use rand::{Rand, Rng};
 use std::num::Wrapping;
 
 const MODULUS_R: Wrapping<u32> = Wrapping(64513);
@@ -96,10 +81,7 @@ impl RawEncodable for Fr {
         Self::Uncompressed::empty()
     }
 
-    fn from_raw_uncompressed_le_unchecked(
-            _encoded: &Self::Uncompressed, 
-            _infinity: bool
-    ) -> Result<Self, GroupDecodingError> {
+    fn from_raw_uncompressed_le_unchecked(_encoded: &Self::Uncompressed, _infinity: bool) -> Result<Self, GroupDecodingError> {
         Ok(<Self as Field>::zero())
     }
 
@@ -112,9 +94,13 @@ impl SqrtField for Fr {
     fn legendre(&self) -> LegendreSymbol {
         // s = self^((r - 1) // 2)
         let s = self.pow([32256]);
-        if s == <Fr as Field>::zero() { LegendreSymbol::Zero }
-        else if s == <Fr as Field>::one() { LegendreSymbol::QuadraticResidue }
-        else { LegendreSymbol::QuadraticNonResidue }
+        if s == <Fr as Field>::zero() {
+            LegendreSymbol::Zero
+        } else if s == <Fr as Field>::one() {
+            LegendreSymbol::QuadraticResidue
+        } else {
+            LegendreSymbol::QuadraticNonResidue
+        }
     }
 
     fn sqrt(&self) -> Option<Self> {
@@ -132,7 +118,7 @@ impl SqrtField for Fr {
                 let mut m = Fr::S;
 
                 while t != <Fr as Field>::one() {
-                let mut i = 1;
+                    let mut i = 1;
                     {
                         let mut t2i = t;
                         t2i.square();
@@ -314,15 +300,13 @@ impl Engine for DummyEngine {
     type G2Affine = Fr;
     type Fq = Fr;
     type Fqe = Fr;
-    
+
     // TODO: This should be F_645131 or something. Doesn't matter for now.
     type Fqk = Fr;
 
     fn miller_loop<'a, I>(i: I) -> Self::Fqk
-        where I: IntoIterator<Item=&'a (
-                                    &'a <Self::G1Affine as CurveAffine>::Prepared,
-                                    &'a <Self::G2Affine as CurveAffine>::Prepared
-                               )>
+    where
+        I: IntoIterator<Item = &'a (&'a <Self::G1Affine as CurveAffine>::Prepared, &'a <Self::G2Affine as CurveAffine>::Prepared)>,
     {
         let mut acc = <Fr as Field>::zero();
 
@@ -336,8 +320,7 @@ impl Engine for DummyEngine {
     }
 
     /// Perform final exponentiation of the result of a miller loop.
-    fn final_exponentiation(this: &Self::Fqk) -> Option<Self::Fqk>
-    {
+    fn final_exponentiation(this: &Self::Fqk) -> Option<Self::Fqk> {
         Some(*this)
     }
 }
@@ -360,9 +343,7 @@ impl CurveProjective for Fr {
         <Fr as Field>::is_zero(self)
     }
 
-    fn batch_normalization(_: &mut [Self]) {
-        
-    }
+    fn batch_normalization(_: &mut [Self]) {}
 
     fn is_normalized(&self) -> bool {
         true
@@ -384,8 +365,7 @@ impl CurveProjective for Fr {
         <Fr as Field>::negate(self);
     }
 
-    fn mul_assign<S: Into<<Self::Scalar as PrimeField>::Repr>>(&mut self, other: S)
-    {
+    fn mul_assign<S: Into<<Self::Scalar as PrimeField>::Repr>>(&mut self, other: S) {
         let tmp = Fr::from_repr(other.into()).unwrap();
 
         <Fr as Field>::mul_assign(self, &tmp);
@@ -470,8 +450,7 @@ impl CurveAffine for Fr {
         <Fr as Field>::negate(self);
     }
 
-    fn mul<S: Into<<Self::Scalar as PrimeField>::Repr>>(&self, other: S) -> Self::Projective
-    {
+    fn mul<S: Into<<Self::Scalar as PrimeField>::Repr>>(&self, other: S) -> Self::Projective {
         let mut res = *self;
         let tmp = Fr::from_repr(other.into()).unwrap();
 
@@ -508,11 +487,11 @@ impl CurveAffine for Fr {
         Ok(<Fr as Field>::zero())
     }
 
-    fn a_coeff() -> <Self as pairing::CurveAffine>::Base { 
+    fn a_coeff() -> <Self as pairing::CurveAffine>::Base {
         <Fr as Field>::zero()
     }
 
-    fn b_coeff() -> <Self as pairing::CurveAffine>::Base { 
+    fn b_coeff() -> <Self as pairing::CurveAffine>::Base {
         <Fr as Field>::zero()
     }
 }

@@ -1,13 +1,13 @@
-use crate::pairing::{Engine};
-use crate::pairing::ff::{Field, PrimeField, PrimeFieldRepr};
-use crate::worker::Worker;
-use crate::plonk::commitments::transparent::utils::log2_floor;
-use super::*;
-use super::tree_hash::*;
-use super::binary_tree::{BinaryTree, BinaryTreeParams};
-use crate::plonk::polynomials::*;
-use super::multioracle::Multioracle;
 use super::super::cs_old::*;
+use super::binary_tree::{BinaryTree, BinaryTreeParams};
+use super::multioracle::Multioracle;
+use super::tree_hash::*;
+use super::*;
+use crate::pairing::ff::{Field, PrimeField, PrimeFieldRepr};
+use crate::pairing::Engine;
+use crate::plonk::commitments::transparent::utils::log2_floor;
+use crate::plonk::polynomials::*;
+use crate::worker::Worker;
 use crate::SynthesisError;
 
 pub struct SetupMultioracle<E: Engine, H: BinaryTreeHasher<E::Fr>> {
@@ -18,7 +18,7 @@ pub struct SetupMultioracle<E: Engine, H: BinaryTreeHasher<E::Fr>> {
     pub setup_ids: Vec<PolyIdentifier>,
     pub permutations_ranges: Vec<std::ops::Range<usize>>,
     pub gate_selectors_indexes: Vec<usize>,
-    pub tree: BinaryTree<E, H>
+    pub tree: BinaryTree<E, H>,
 }
 
 pub const LDE_FACTOR: usize = 16;
@@ -28,7 +28,7 @@ impl<E: Engine, H: BinaryTreeHasher<E::Fr>> SetupMultioracle<E, H> {
     pub fn from_assembly<P: PlonkConstraintSystemParams<E>, MG: MainGateEquation>(
         assembly: TrivialAssembly<E, P, MG>,
         tree_hasher: H,
-        worker: &Worker
+        worker: &Worker,
     ) -> Result<(Self, Vec<Polynomial<E::Fr, Values>>), SynthesisError> {
         use crate::plonk::fft::cooley_tukey_ntt::*;
 
@@ -46,8 +46,8 @@ impl<E: Engine, H: BinaryTreeHasher<E::Fr>> SetupMultioracle<E, H> {
         let mut mononial_forms = vec![];
 
         let omegas_bitreversed = BitReversedOmegas::<E::Fr>::new_for_domain_size(size.next_power_of_two());
-        let omegas_inv_bitreversed = <OmegasInvBitreversed::<E::Fr> as CTPrecomputations::<E::Fr>>::new_for_domain_size(size.next_power_of_two());
-    
+        let omegas_inv_bitreversed = <OmegasInvBitreversed<E::Fr> as CTPrecomputations<E::Fr>>::new_for_domain_size(size.next_power_of_two());
+
         for id in ids.iter() {
             let mut setup_poly = storage.remove(&id).expect(&format!("must contain a poly for id {:?}", id));
             setup_poly.pad_to_domain()?;
@@ -96,12 +96,7 @@ impl<E: Engine, H: BinaryTreeHasher<E::Fr>> SetupMultioracle<E, H> {
 
         println!("Gate selectors LDEs completed");
 
-        let multioracle = Multioracle::<E, H>::new_from_polynomials(
-            &setup_polys, 
-            tree_hasher, 
-            FRI_VALUES_PER_LEAF,
-            &worker
-        );
+        let multioracle = Multioracle::<E, H>::new_from_polynomials(&setup_polys, tree_hasher, FRI_VALUES_PER_LEAF, &worker);
 
         let tree = multioracle.tree;
 
@@ -128,4 +123,3 @@ impl<E: Engine, H: BinaryTreeHasher<E::Fr>> SetupMultioracle<E, H> {
         Ok((setup, permutations))
     }
 }
-

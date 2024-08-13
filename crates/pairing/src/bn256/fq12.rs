@@ -19,10 +19,7 @@ impl ::std::fmt::Display for Fq12 {
 
 impl Rand for Fq12 {
     fn rand<R: Rng>(rng: &mut R) -> Self {
-        Fq12 {
-            c0: rng.gen(),
-            c1: rng.gen(),
-        }
+        Fq12 { c0: rng.gen(), c1: rng.gen() }
     }
 }
 
@@ -53,33 +50,23 @@ impl Fq12 {
     // // multiply by (c0, c1, c2) + (c3, c4, c5)*w where only c0, c3 and c4 are non-zero
     pub fn mul_by_034(&mut self, c0: &Fq2, c3: &Fq2, c4: &Fq2) {
         self.mul_assign(&Fq12 {
-                c0: Fq6 {
-                    c0: *c0,
-                    c1: Fq2::zero(),
-                    c2: Fq2::zero(),
-                },
-                c1: Fq6 {
-                    c0: *c3,
-                    c1: *c4,
-                    c2: Fq2::zero(),
-                },
+            c0: Fq6 {
+                c0: *c0,
+                c1: Fq2::zero(),
+                c2: Fq2::zero(),
+            },
+            c1: Fq6 { c0: *c3, c1: *c4, c2: Fq2::zero() },
         });
     }
 }
 
 impl Field for Fq12 {
     fn zero() -> Self {
-        Fq12 {
-            c0: Fq6::zero(),
-            c1: Fq6::zero(),
-        }
+        Fq12 { c0: Fq6::zero(), c1: Fq6::zero() }
     }
 
     fn one() -> Self {
-        Fq12 {
-            c0: Fq6::one(),
-            c1: Fq6::zero(),
-        }
+        Fq12 { c0: Fq6::one(), c1: Fq6::zero() }
     }
 
     fn is_zero(&self) -> bool {
@@ -183,11 +170,7 @@ fn test_fq12_mul_by_014() {
 
         a.mul_by_014(&c0, &c1, &c5);
         b.mul_assign(&Fq12 {
-            c0: Fq6 {
-                c0: c0,
-                c1: c1,
-                c2: Fq2::zero(),
-            },
+            c0: Fq6 { c0: c0, c1: c1, c2: Fq2::zero() },
             c1: Fq6 {
                 c0: Fq2::zero(),
                 c1: c5,

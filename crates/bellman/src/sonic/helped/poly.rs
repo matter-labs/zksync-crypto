@@ -1,9 +1,9 @@
-use crate::pairing::ff::{Field};
-use crate::pairing::{Engine, CurveProjective};
+use crate::pairing::ff::Field;
+use crate::pairing::{CurveProjective, Engine};
 use std::marker::PhantomData;
 
-use crate::sonic::cs::{Backend};
-use crate::sonic::cs::{Coeff, Variable, LinearCombination};
+use crate::sonic::cs::Backend;
+use crate::sonic::cs::{Coeff, LinearCombination, Variable};
 use crate::sonic::util::*;
 
 /*
@@ -65,14 +65,7 @@ impl<E: Engine> SxEval<E> {
         //     tmp2.mul_assign(&y_inv);
         // }
 
-        SxEval {
-            y,
-            yqn,
-            u,
-            v,
-            w,
-            max_n: n
-        }
+        SxEval { y, yqn, u, v, w, max_n: n }
     }
 
     pub fn poly(mut self) -> (Vec<E::Fr>, Vec<E::Fr>) {
@@ -87,11 +80,11 @@ impl<E: Engine> SxEval<E> {
         let mut acc = E::Fr::zero();
 
         let tmp = x_inv;
-        acc.add_assign(&evaluate_at_consequitive_powers(& self.u[..], tmp, tmp));
+        acc.add_assign(&evaluate_at_consequitive_powers(&self.u[..], tmp, tmp));
         let tmp = x;
-        acc.add_assign(&evaluate_at_consequitive_powers(& self.v[..], tmp, tmp));
-        let tmp = x.pow(&[(self.v.len()+1) as u64]);
-        acc.add_assign(&evaluate_at_consequitive_powers(& self.w[..], tmp, x));
+        acc.add_assign(&evaluate_at_consequitive_powers(&self.v[..], tmp, tmp));
+        let tmp = x.pow(&[(self.v.len() + 1) as u64]);
+        acc.add_assign(&evaluate_at_consequitive_powers(&self.w[..], tmp, x));
 
         // let mut tmp = x_inv;
         // for mut u in self.u {
@@ -131,25 +124,19 @@ impl<'a, E: Engine> Backend<E> for &'a mut SxEval<E> {
 
     fn insert_coefficient(&mut self, var: Variable, coeff: Coeff<E>, y: &E::Fr) {
         let acc = match var {
-            Variable::A(index) => {
-                &mut self.u[index - 1]
-            }
-            Variable::B(index) => {
-                &mut self.v[index - 1]
-            }
-            Variable::C(index) => {
-                &mut self.w[index - 1]
-            }
+            Variable::A(index) => &mut self.u[index - 1],
+            Variable::B(index) => &mut self.v[index - 1],
+            Variable::C(index) => &mut self.w[index - 1],
         };
 
         match coeff {
-            Coeff::Zero => { },
+            Coeff::Zero => {}
             Coeff::One => {
                 acc.add_assign(&y);
-            },
+            }
             Coeff::NegativeOne => {
                 acc.sub_assign(&y);
-            },
+            }
             Coeff::Full(mut val) => {
                 val.mul_assign(&y);
                 acc.add_assign(&val);
@@ -185,7 +172,6 @@ pub struct SyEval<E: Engine> {
     negative_coeffs: Vec<E::Fr>,
 }
 
-
 impl<E: Engine> SyEval<E> {
     pub fn new(x: E::Fr, n: usize, q: usize) -> Self {
         let xinv = x.inverse().unwrap();
@@ -196,13 +182,13 @@ impl<E: Engine> SyEval<E> {
         mut_distribute_consequitive_powers(&mut b[..], x, x);
 
         let mut c = vec![E::Fr::one(); n];
-        mut_distribute_consequitive_powers(&mut c[..], x.pow(&[(n+1) as u64]), x);
+        mut_distribute_consequitive_powers(&mut c[..], x.pow(&[(n + 1) as u64]), x);
 
         let mut minus_one = E::Fr::one();
         minus_one.negate();
 
         let mut positive_coeffs = vec![minus_one; n];
-        mut_distribute_consequitive_powers(&mut positive_coeffs[..], x.pow(&[(n+1) as u64]), x);
+        mut_distribute_consequitive_powers(&mut positive_coeffs[..], x.pow(&[(n + 1) as u64]), x);
         let negative_coeffs = positive_coeffs.clone();
 
         positive_coeffs.resize(n + q, E::Fr::zero());
@@ -257,8 +243,8 @@ impl<E: Engine> SyEval<E> {
         let mut acc = E::Fr::zero();
         let yinv = y.inverse().unwrap(); // TODO
 
-        let positive_powers_contrib = evaluate_at_consequitive_powers(& self.positive_coeffs[..], y, y);
-        let negative_powers_contrib = evaluate_at_consequitive_powers(& self.negative_coeffs[..], yinv, yinv);
+        let positive_powers_contrib = evaluate_at_consequitive_powers(&self.positive_coeffs[..], y, y);
+        let negative_powers_contrib = evaluate_at_consequitive_powers(&self.negative_coeffs[..], yinv, yinv);
         acc.add_assign(&positive_powers_contrib);
         acc.add_assign(&negative_powers_contrib);
 

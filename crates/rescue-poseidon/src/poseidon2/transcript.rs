@@ -2,23 +2,17 @@ use super::*;
 
 use derivative::*;
 
-use franklin_crypto::boojum::field::SmallField;
-use franklin_crypto::boojum::cs::traits::GoodAllocator;
 use franklin_crypto::boojum::algebraic_props::round_function::AbsorptionModeTrait;
 use franklin_crypto::boojum::cs::implementations::transcript::Transcript;
+use franklin_crypto::boojum::cs::traits::GoodAllocator;
+use franklin_crypto::boojum::field::SmallField;
 use std::collections::VecDeque;
 
 use franklin_crypto::bellman::{Engine, Field, PrimeField, PrimeFieldRepr};
 
 #[derive(Derivative)]
 #[derivative(Clone, Debug)]
-pub struct Poseidon2Transcript<
-    E: Engine,
-    F: SmallField,
-    M: AbsorptionModeTrait<E::Fr>,
-    const RATE: usize,
-    const WIDTH: usize
-> {
+pub struct Poseidon2Transcript<E: Engine, F: SmallField, M: AbsorptionModeTrait<E::Fr>, const RATE: usize, const WIDTH: usize> {
     buffer: Vec<E::Fr>,
     last_filled: usize,
     available_challenges: VecDeque<F>,
@@ -26,13 +20,7 @@ pub struct Poseidon2Transcript<
     sponge: Poseidon2Sponge<E, F, M, RATE, WIDTH>,
 }
 
-impl<
-    E: Engine,
-    F: SmallField,
-    M: AbsorptionModeTrait<E::Fr>,
-    const RATE: usize,
-    const WIDTH: usize
-> Poseidon2Transcript<E, F, M, RATE, WIDTH> {
+impl<E: Engine, F: SmallField, M: AbsorptionModeTrait<E::Fr>, const RATE: usize, const WIDTH: usize> Poseidon2Transcript<E, F, M, RATE, WIDTH> {
     pub fn new() -> Self {
         Self {
             buffer: Vec::new(),
@@ -43,13 +31,7 @@ impl<
     }
 }
 
-impl<
-    E: Engine,
-    F: SmallField,
-    M: AbsorptionModeTrait<E::Fr>,
-    const RATE: usize,
-    const WIDTH: usize
-> Transcript<F> for Poseidon2Transcript<E, F, M, RATE, WIDTH> {
+impl<E: Engine, F: SmallField, M: AbsorptionModeTrait<E::Fr>, const RATE: usize, const WIDTH: usize> Transcript<F> for Poseidon2Transcript<E, F, M, RATE, WIDTH> {
     type CompatibleCap = E::Fr;
     type TransciptParameters = ();
 
@@ -67,10 +49,8 @@ impl<
     fn witness_field_elements(&mut self, field_els: &[F]) {
         let capasity_per_element = Poseidon2Sponge::<E, F, M, RATE, WIDTH>::capasity_per_element();
         debug_assert!(self.last_filled < capasity_per_element);
-        
-        let add_to_last = field_els.len().min(
-            (capasity_per_element - self.last_filled) % capasity_per_element
-        );
+
+        let add_to_last = field_els.len().min((capasity_per_element - self.last_filled) % capasity_per_element);
 
         if add_to_last != 0 {
             let mut repr_to_add = <E::Fr as PrimeField>::Repr::default();
@@ -115,10 +95,7 @@ impl<
                 self.sponge.run_round_function();
 
                 {
-                    let commitment = self
-                        .sponge
-                        .try_get_committment()
-                        .expect("must have no pending elements in the buffer");
+                    let commitment = self.sponge.try_get_committment().expect("must have no pending elements in the buffer");
                     for &el in commitment.iter() {
                         self.available_challenges.extend(get_challenges_from_fr::<E, F>(el));
                     }
@@ -143,16 +120,9 @@ impl<
     }
 }
 
-fn get_challenges_from_fr<E: Engine, F: SmallField>(
-    scalar_element: E::Fr,
-) -> Vec<F> {
+fn get_challenges_from_fr<E: Engine, F: SmallField>(scalar_element: E::Fr) -> Vec<F> {
     assert!(F::CHAR_BITS <= 64, "Goldilocks has less than 64 bits per element");
     let num_challenges = (E::Fr::CAPACITY as usize) / (F::CHAR_BITS as usize);
 
-    scalar_element.into_repr()
-        .as_ref()[..num_challenges]
-        .iter()
-        .map(|x|
-            F::from_u64_with_reduction(*x)
-        ).collect()
+    scalar_element.into_repr().as_ref()[..num_challenges].iter().map(|x| F::from_u64_with_reduction(*x)).collect()
 }

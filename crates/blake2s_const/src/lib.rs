@@ -35,35 +35,21 @@ pub const PERSONALBYTES: usize = 2 * size_of::<Word>();
 /// to use an even multiple of `BLOCKBYTES`, or else their apparent throughput will be low.
 pub const BLOCKBYTES: usize = 16 * size_of::<Word>();
 
-#[cfg(all(
-    any(target_arch = "x86", target_arch = "x86_64"),
-    target_feature = "avx2"
-))]
+#[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), target_feature = "avx2"))]
 const EMPTY_PARAMS: Params = Params::new_for_implementation(Implementation(Platform::AVX2));
 
-#[cfg(all(
-    any(target_arch = "x86", target_arch = "x86_64"),
-    all(not(target_feature = "avx2"), target_feature = "sse4.1")
-))]
+#[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), all(not(target_feature = "avx2"), target_feature = "sse4.1")))]
 const EMPTY_PARAMS: Params = Params::new_for_implementation(Implementation(Platform::SSE41));
 
 #[cfg(not(any(
-    all(
-        any(target_arch = "x86", target_arch = "x86_64"),
-        target_feature = "avx2"
-    ),
-    all(
-        any(target_arch = "x86", target_arch = "x86_64"),
-        target_feature = "sse4.1"
-    ),
+    all(any(target_arch = "x86", target_arch = "x86_64"), target_feature = "avx2"),
+    all(any(target_arch = "x86", target_arch = "x86_64"), target_feature = "sse4.1"),
 )))]
 const EMPTY_PARAMS: Params = Params::new_for_implementation(Implementation(Platform::Portable));
 
 const EMPTY_WORDS: [Word; 8] = EMPTY_PARAMS.empty_words();
 
-const IV: [Word; 8] = [
-    0x6A09E667, 0xBB67AE85, 0x3C6EF372, 0xA54FF53A, 0x510E527F, 0x9B05688C, 0x1F83D9AB, 0x5BE0CD19,
-];
+const IV: [Word; 8] = [0x6A09E667, 0xBB67AE85, 0x3C6EF372, 0xA54FF53A, 0x510E527F, 0x9B05688C, 0x1F83D9AB, 0x5BE0CD19];
 
 const SIGMA: [[u8; 16]; 10] = [
     [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
@@ -184,20 +170,12 @@ impl Params {
     #[inline(always)]
     fn to_words(&self) -> [Word; 8] {
         let (salt_left, salt_right) = array_refs!(&self.salt, SALTBYTES / 2, SALTBYTES / 2);
-        let (personal_left, personal_right) =
-            array_refs!(&self.personal, PERSONALBYTES / 2, PERSONALBYTES / 2);
+        let (personal_left, personal_right) = array_refs!(&self.personal, PERSONALBYTES / 2, PERSONALBYTES / 2);
         [
-            IV[0]
-                ^ self.hash_length as u32
-                ^ (self.key_length as u32) << 8
-                ^ (self.fanout as u32) << 16
-                ^ (self.max_depth as u32) << 24,
+            IV[0] ^ self.hash_length as u32 ^ (self.key_length as u32) << 8 ^ (self.fanout as u32) << 16 ^ (self.max_depth as u32) << 24,
             IV[1] ^ self.max_leaf_length,
             IV[2] ^ self.node_offset as u32,
-            IV[3]
-                ^ (self.node_offset >> 32) as u32
-                ^ (self.node_depth as u32) << 16
-                ^ (self.inner_hash_length as u32) << 24,
+            IV[3] ^ (self.node_offset >> 32) as u32 ^ (self.node_depth as u32) << 16 ^ (self.inner_hash_length as u32) << 24,
             IV[4] ^ Word::from_le_bytes(*salt_left),
             IV[5] ^ Word::from_le_bytes(*salt_right),
             IV[6] ^ Word::from_le_bytes(*personal_left),
@@ -208,17 +186,10 @@ impl Params {
     #[inline(always)]
     const fn empty_words(&self) -> [Word; 8] {
         [
-            IV[0]
-                ^ self.hash_length as u32
-                ^ (self.key_length as u32) << 8
-                ^ (self.fanout as u32) << 16
-                ^ (self.max_depth as u32) << 24,
+            IV[0] ^ self.hash_length as u32 ^ (self.key_length as u32) << 8 ^ (self.fanout as u32) << 16 ^ (self.max_depth as u32) << 24,
             IV[1] ^ self.max_leaf_length,
             IV[2] ^ self.node_offset as u32,
-            IV[3]
-                ^ (self.node_offset >> 32) as u32
-                ^ (self.node_depth as u32) << 16
-                ^ (self.inner_hash_length as u32) << 24,
+            IV[3] ^ (self.node_offset >> 32) as u32 ^ (self.node_depth as u32) << 16 ^ (self.inner_hash_length as u32) << 24,
             IV[4] ^ 0,
             IV[5] ^ 0,
             IV[6] ^ 0,
@@ -234,14 +205,7 @@ impl Params {
             return self.to_state().update(input).finalize();
         }
         let mut words = self.to_words();
-        self.implementation.compress1_loop(
-            input,
-            &mut words,
-            0,
-            self.last_node,
-            guts::Finalize::Yes,
-            guts::Stride::Serial,
-        );
+        self.implementation.compress1_loop(input, &mut words, 0, self.last_node, guts::Finalize::Yes, guts::Stride::Serial);
         Hash {
             bytes: state_words_to_bytes(&words),
             len: self.hash_length,
@@ -252,14 +216,7 @@ impl Params {
     #[inline]
     pub fn hash_without_state(&self, input: &[u8]) -> Hash {
         let mut words = EMPTY_WORDS;
-        self.implementation.compress1_loop(
-            input,
-            &mut words,
-            0,
-            self.last_node,
-            guts::Finalize::Yes,
-            guts::Stride::Serial,
-        );
+        self.implementation.compress1_loop(input, &mut words, 0, self.last_node, guts::Finalize::Yes, guts::Stride::Serial);
         Hash {
             bytes: state_words_to_bytes(&words),
             len: self.hash_length,
@@ -277,11 +234,7 @@ impl Params {
     /// will result in a totally different hash.
     #[inline]
     pub fn hash_length(&mut self, length: usize) -> &mut Self {
-        assert!(
-            1 <= length && length <= OUTBYTES,
-            "Bad hash length: {}",
-            length
-        );
+        assert!(1 <= length && length <= OUTBYTES, "Bad hash length: {}", length);
         self.hash_length = length as u8;
         self
     }
@@ -311,11 +264,7 @@ impl Params {
     /// personalization is equivalent to having no personalization at all.
     #[inline]
     pub fn personal(&mut self, personalization: &[u8]) -> &mut Self {
-        assert!(
-            personalization.len() <= PERSONALBYTES,
-            "Bad personalization length: {}",
-            personalization.len()
-        );
+        assert!(personalization.len() <= PERSONALBYTES, "Bad personalization length: {}", personalization.len());
         self.personal = [0; PERSONALBYTES];
         self.personal[..personalization.len()].copy_from_slice(personalization);
         self
@@ -372,11 +321,7 @@ impl Params {
     /// [`State::set_last_node`]: struct.State.html#method.set_last_node
     #[inline]
     pub fn last_node(&mut self, last_node: bool) -> &mut Self {
-        self.last_node = if last_node {
-            guts::LastNode::Yes
-        } else {
-            guts::LastNode::No
-        };
+        self.last_node = if last_node { guts::LastNode::Yes } else { guts::LastNode::No };
         self
     }
 }
@@ -477,14 +422,8 @@ impl State {
         if self.buflen > 0 {
             self.fill_buf(input);
             if !input.is_empty() {
-                self.implementation.compress1_loop(
-                    &self.buf,
-                    &mut self.words,
-                    self.count,
-                    self.last_node,
-                    guts::Finalize::No,
-                    guts::Stride::Serial,
-                );
+                self.implementation
+                    .compress1_loop(&self.buf, &mut self.words, self.count, self.last_node, guts::Finalize::No, guts::Stride::Serial);
                 self.count = self.count.wrapping_add(BLOCKBYTES as Count);
                 self.buflen = 0;
             }
@@ -500,14 +439,8 @@ impl State {
         let mut end = input.len().saturating_sub(1);
         end -= end % BLOCKBYTES;
         if end > 0 {
-            self.implementation.compress1_loop(
-                &input[..end],
-                &mut self.words,
-                self.count,
-                self.last_node,
-                guts::Finalize::No,
-                guts::Stride::Serial,
-            );
+            self.implementation
+                .compress1_loop(&input[..end], &mut self.words, self.count, self.last_node, guts::Finalize::No, guts::Stride::Serial);
             self.count = self.count.wrapping_add(end as Count);
             input = &input[end..];
         }
@@ -546,11 +479,7 @@ impl State {
     /// [`Params::last_node`]: struct.Params.html#method.last_node
     /// [the BLAKE2 spec]: https://blake2.net/blake2.pdf
     pub fn set_last_node(&mut self, last_node: bool) -> &mut Self {
-        self.last_node = if last_node {
-            guts::LastNode::Yes
-        } else {
-            guts::LastNode::No
-        };
+        self.last_node = if last_node { guts::LastNode::Yes } else { guts::LastNode::No };
         self
     }
 
@@ -600,13 +529,7 @@ impl std::io::Write for State {
 impl fmt::Debug for State {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         // NB: Don't print the words. Leaking them would allow length extension.
-        write!(
-            f,
-            "State {{ count: {}, hash_length: {}, last_node: {} }}",
-            self.count(),
-            self.hash_length,
-            self.last_node.yes(),
-        )
+        write!(f, "State {{ count: {}, hash_length: {}, last_node: {} }}", self.count(), self.hash_length, self.last_node.yes(),)
     }
 }
 

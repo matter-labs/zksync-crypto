@@ -17,24 +17,15 @@
 //! the Montgomery curve forms a group isomorphism, allowing points
 //! to be freely converted between the two forms.
 
-use bellman::pairing::{
-    Engine,
-};
+use bellman::pairing::Engine;
 
-use bellman::pairing::ff::{
-    Field,
-    PrimeField,
-    SqrtField
-};
+use bellman::pairing::ff::{Field, PrimeField, SqrtField};
 
 use group_hash::group_hash;
 
 use constants;
 
-use bellman::pairing::bls12_381::{
-    Bls12,
-    Fr
-};
+use bellman::pairing::bls12_381::{Bls12, Fr};
 
 /// This is an implementation of the twisted Edwards Jubjub curve.
 pub mod edwards;
@@ -50,10 +41,10 @@ pub mod fs;
 pub mod tests;
 
 /// Point of unknown order.
-pub enum Unknown { }
+pub enum Unknown {}
 
 /// Point of prime order.
-pub enum PrimeOrder { }
+pub enum PrimeOrder {}
 
 /// Fixed generators of the Jubjub curve of unknown
 /// exponent.
@@ -85,7 +76,7 @@ pub enum FixedGenerators {
     /// base at spend time.
     SpendingKeyGenerator = 5,
 
-    Max = 6
+    Max = 6,
 }
 
 pub trait ToUniform {
@@ -157,10 +148,18 @@ pub struct JubjubBls12 {
 }
 
 impl JubjubParams<Bls12> for JubjubBls12 {
-    fn edwards_d(&self) -> &Fr { &self.edwards_d }
-    fn montgomery_a(&self) -> &Fr { &self.montgomery_a }
-    fn montgomery_2a(&self) -> &Fr { &self.montgomery_2a }
-    fn scale(&self) -> &Fr { &self.scale }
+    fn edwards_d(&self) -> &Fr {
+        &self.edwards_d
+    }
+    fn montgomery_a(&self) -> &Fr {
+        &self.montgomery_a
+    }
+    fn montgomery_2a(&self) -> &Fr {
+        &self.montgomery_2a
+    }
+    fn scale(&self) -> &Fr {
+        &self.scale
+    }
     fn pedersen_hash_generators(&self) -> &[edwards::Point<Bls12, PrimeOrder>] {
         &self.pedersen_hash_generators
     }
@@ -176,12 +175,10 @@ impl JubjubParams<Bls12> for JubjubBls12 {
     fn pedersen_circuit_generators(&self) -> &[Vec<Vec<(Fr, Fr)>>] {
         &self.pedersen_circuit_generators
     }
-    fn generator(&self, base: FixedGenerators) -> &edwards::Point<Bls12, PrimeOrder>
-    {
+    fn generator(&self, base: FixedGenerators) -> &edwards::Point<Bls12, PrimeOrder> {
         &self.fixed_base_generators[base as usize]
     }
-    fn circuit_generators(&self, base: FixedGenerators) -> &[Vec<(Fr, Fr)>]
-    {
+    fn circuit_generators(&self, base: FixedGenerators) -> &[Vec<(Fr, Fr)>] {
         &self.fixed_base_circuit_generators[base as usize][..]
     }
     fn pedersen_hash_exp_window_size(&self) -> u32 {
@@ -213,22 +210,13 @@ impl JubjubBls12 {
             fixed_base_circuit_generators: vec![],
         };
 
-        fn find_group_hash<E: JubjubEngine>(
-            m: &[u8],
-            personalization: &[u8; 8],
-            params: &E::Params
-        ) -> edwards::Point<E, PrimeOrder>
-        {
+        fn find_group_hash<E: JubjubEngine>(m: &[u8], personalization: &[u8; 8], params: &E::Params) -> edwards::Point<E, PrimeOrder> {
             let mut tag = m.to_vec();
             let i = tag.len();
             tag.push(0u8);
 
             loop {
-                let gh = group_hash(
-                    &tag,
-                    personalization,
-                    params
-                );
+                let gh = group_hash(&tag, personalization, params);
 
                 // We don't want to overflow and start reusing generators
                 assert!(tag[i] != u8::max_value());
@@ -245,18 +233,12 @@ impl JubjubBls12 {
             let mut pedersen_hash_generators = vec![];
 
             for m in 0..5 {
-                use byteorder::{WriteBytesExt, LittleEndian};
+                use byteorder::{LittleEndian, WriteBytesExt};
 
                 let mut segment_number = [0u8; 4];
                 (&mut segment_number[0..4]).write_u32::<LittleEndian>(m).unwrap();
 
-                pedersen_hash_generators.push(
-                    find_group_hash(
-                        &segment_number,
-                        constants::PEDERSEN_HASH_GENERATORS_PERSONALIZATION,
-                        &tmp_params
-                    )
-                );
+                pedersen_hash_generators.push(find_group_hash(&segment_number, constants::PEDERSEN_HASH_GENERATORS_PERSONALIZATION, &tmp_params));
             }
 
             // Check for duplicates, far worse than spec inconsistencies!
@@ -265,7 +247,7 @@ impl JubjubBls12 {
                     panic!("Neutral element!");
                 }
 
-                for p2 in pedersen_hash_generators.iter().skip(i+1) {
+                for p2 in pedersen_hash_generators.iter().skip(i + 1) {
                     if p1 == p2 {
                         panic!("Duplicate generator!");
                     }
@@ -315,23 +297,17 @@ impl JubjubBls12 {
         {
             let mut fixed_base_generators = vec![edwards::Point::zero(); FixedGenerators::Max as usize];
 
-            fixed_base_generators[FixedGenerators::ProofGenerationKey as usize] =
-                find_group_hash(&[], constants::PROOF_GENERATION_KEY_BASE_GENERATOR_PERSONALIZATION, &tmp_params);
+            fixed_base_generators[FixedGenerators::ProofGenerationKey as usize] = find_group_hash(&[], constants::PROOF_GENERATION_KEY_BASE_GENERATOR_PERSONALIZATION, &tmp_params);
 
-            fixed_base_generators[FixedGenerators::NoteCommitmentRandomness as usize] =
-                find_group_hash(b"r", constants::PEDERSEN_HASH_GENERATORS_PERSONALIZATION, &tmp_params);
+            fixed_base_generators[FixedGenerators::NoteCommitmentRandomness as usize] = find_group_hash(b"r", constants::PEDERSEN_HASH_GENERATORS_PERSONALIZATION, &tmp_params);
 
-            fixed_base_generators[FixedGenerators::NullifierPosition as usize] =
-                find_group_hash(&[], constants::NULLIFIER_POSITION_IN_TREE_GENERATOR_PERSONALIZATION, &tmp_params);
+            fixed_base_generators[FixedGenerators::NullifierPosition as usize] = find_group_hash(&[], constants::NULLIFIER_POSITION_IN_TREE_GENERATOR_PERSONALIZATION, &tmp_params);
 
-            fixed_base_generators[FixedGenerators::ValueCommitmentValue as usize] =
-                find_group_hash(b"v", constants::VALUE_COMMITMENT_GENERATOR_PERSONALIZATION, &tmp_params);
+            fixed_base_generators[FixedGenerators::ValueCommitmentValue as usize] = find_group_hash(b"v", constants::VALUE_COMMITMENT_GENERATOR_PERSONALIZATION, &tmp_params);
 
-            fixed_base_generators[FixedGenerators::ValueCommitmentRandomness as usize] =
-                find_group_hash(b"r", constants::VALUE_COMMITMENT_GENERATOR_PERSONALIZATION, &tmp_params);
+            fixed_base_generators[FixedGenerators::ValueCommitmentRandomness as usize] = find_group_hash(b"r", constants::VALUE_COMMITMENT_GENERATOR_PERSONALIZATION, &tmp_params);
 
-            fixed_base_generators[FixedGenerators::SpendingKeyGenerator as usize] =
-                find_group_hash(&[], constants::SPENDING_KEY_GENERATOR_PERSONALIZATION, &tmp_params);
+            fixed_base_generators[FixedGenerators::SpendingKeyGenerator as usize] = find_group_hash(&[], constants::SPENDING_KEY_GENERATOR_PERSONALIZATION, &tmp_params);
 
             // Check for duplicates, far worse than spec inconsistencies!
             for (i, p1) in fixed_base_generators.iter().enumerate() {
@@ -339,7 +315,7 @@ impl JubjubBls12 {
                     panic!("Neutral element!");
                 }
 
-                for p2 in fixed_base_generators.iter().skip(i+1) {
+                for p2 in fixed_base_generators.iter().skip(i + 1) {
                     if p1 == p2 {
                         panic!("Duplicate generator!");
                     }

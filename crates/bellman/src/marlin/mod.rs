@@ -38,5 +38,5 @@ pub struct Proof<E: Engine> {
     pub a_col_on_beta_3: E::Fr,
     pub b_col_on_beta_3: E::Fr,
     pub c_col_on_beta_3: E::Fr,
-    pub f_3_at_beta_3: E::Fr
+    pub f_3_at_beta_3: E::Fr,
 }

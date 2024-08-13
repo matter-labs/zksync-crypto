@@ -1,41 +1,37 @@
 use crate::pairing::ff::*;
-use crate::pairing::{Engine, CurveAffine, CurveProjective};
+use crate::pairing::{CurveAffine, CurveProjective, Engine};
 
-use super::setup::VerificationKey;
-use super::proof::{Proof, sort_queries_for_linearization};
 use super::cs::*;
 use super::data_structures::*;
+use super::proof::{sort_queries_for_linearization, Proof};
+use super::setup::VerificationKey;
 
 use std::collections::HashMap;
 
 use crate::plonk::domains::*;
 use crate::SynthesisError;
 
-use crate::plonk::commitments::transcript::*;
+use super::lookup_tables::LookupQuery;
 use crate::kate_commitment::*;
 use crate::plonk::better_cs::utils::*;
-use super::lookup_tables::LookupQuery;
+use crate::plonk::commitments::transcript::*;
 
 pub const MAX_DILATION: usize = 1;
 
-pub fn verify<E: Engine, C: Circuit<E>, T: Transcript<E::Fr>>(
-    vk: &VerificationKey<E, C>, 
-    proof: &Proof<E, C>,
-    transcript_params: Option<T::InitializationParameters>,
-) -> Result<bool, SynthesisError> {
+pub fn verify<E: Engine, C: Circuit<E>, T: Transcript<E::Fr>>(vk: &VerificationKey<E, C>, proof: &Proof<E, C>, transcript_params: Option<T::InitializationParameters>) -> Result<bool, SynthesisError> {
     let ((pair_with_generator, pair_with_x), success) = aggregate::<_, _, T>(vk, proof, transcript_params)?;
     if !success {
-        return Ok(false)
+        return Ok(false);
     }
 
     use crate::pairing::CurveAffine;
 
-    let valid = E::final_exponentiation(
-        &E::miller_loop(&[
-            (&pair_with_generator.prepare(), &vk.g2_elements[0].prepare()),
-            (&pair_with_x.prepare(), &vk.g2_elements[1].prepare())
-        ])
-    ).ok_or(SynthesisError::Unsatisfiable)? == E::Fqk::one();
+    let valid = E::final_exponentiation(&E::miller_loop(&[
+        (&pair_with_generator.prepare(), &vk.g2_elements[0].prepare()),
+        (&pair_with_x.prepare(), &vk.g2_elements[1].prepare()),
+    ]))
+    .ok_or(SynthesisError::Unsatisfiable)?
+        == E::Fqk::one();
 
     Ok(valid)
 }
@@ -49,24 +45,20 @@ fn safe_assert(must_be_true: bool) -> Result<(), SynthesisError> {
 }
 
 fn safe_assert_eq<T: Eq>(a: T, b: T) -> Result<(), SynthesisError> {
-    safe_assert(a==b)
+    safe_assert(a == b)
 }
 
 pub fn aggregate<E: Engine, C: Circuit<E>, T: Transcript<E::Fr>>(
-    vk: &VerificationKey<E, C>, 
+    vk: &VerificationKey<E, C>,
     proof: &Proof<E, C>,
     transcript_params: Option<T::InitializationParameters>,
 ) -> Result<((E::G1Affine, E::G1Affine), bool), SynthesisError> {
-    let mut transcript = if let Some(params) = transcript_params {
-        T::new_from_params(params)
-    } else {
-        T::new()
-    };
+    let mut transcript = if let Some(params) = transcript_params { T::new_from_params(params) } else { T::new() };
 
     let sorted_gates = C::declare_used_gates()?;
     let num_different_gates = sorted_gates.len();
 
-    safe_assert((vk.n+1).is_power_of_two())?;
+    safe_assert((vk.n + 1).is_power_of_two())?;
     let required_domain_size = vk.n.next_power_of_two();
 
     let domain = Domain::<E::Fr>::new_for_size(required_domain_size as u64)?;
@@ -78,12 +70,12 @@ pub fn aggregate<E: Engine, C: Circuit<E>, T: Transcript<E::Fr>>(
     for idx in 0..vk.state_width {
         let commitment = proof.state_polys_commitments.get(idx).ok_or(SynthesisError::AssignmentMissing)?;
         commit_point_as_xy::<E, T>(&mut transcript, commitment);
-    }    
+    }
 
     for idx in 0..vk.num_witness_polys {
         let commitment = proof.witness_polys_commitments.get(idx).ok_or(SynthesisError::AssignmentMissing)?;
         commit_point_as_xy::<E, T>(&mut transcript, commitment);
-    }   
+    }
 
     let mut eta = E::Fr::zero();
     if vk.total_lookup_entries_length > 0 {
@@ -99,7 +91,7 @@ pub fn aggregate<E: Engine, C: Circuit<E>, T: Transcript<E::Fr>>(
     let commitment = &proof.copy_permutation_grand_product_commitment;
     commit_point_as_xy::<E, T>(&mut transcript, commitment);
 
-    let mut beta_for_lookup = None; 
+    let mut beta_for_lookup = None;
     let mut gamma_for_lookup = None;
 
     if vk.total_lookup_entries_length > 0 {
@@ -181,7 +173,6 @@ pub fn aggregate<E: Engine, C: Circuit<E>, T: Transcript<E::Fr>>(
     {
         let mut gate_setup_polys_commitments_iter = vk.gate_setup_commitments.iter();
 
-
         if sorted_gates.len() == 1 {
             // there is no selector
             let gate = sorted_gates.last().unwrap();
@@ -199,11 +190,11 @@ pub fn aggregate<E: Engine, C: Circuit<E>, T: Transcript<E::Fr>>(
                 let key = PolyIdentifier::GateSelector(gate.name());
                 let commitment = *gate_selectors_polys_commitments_iter.next().ok_or(SynthesisError::AssignmentMissing)?;
                 gate_selectors_commitments_storage.insert(key, commitment);
-    
+
                 let setup_polys = gate.setup_polynomials();
                 for &id in setup_polys.into_iter() {
                     let commitment = *gate_setup_polys_commitments_iter.next().ok_or(SynthesisError::AssignmentMissing)?;
-    
+
                     setup_commitments_storage.insert(id, commitment);
                 }
             }
@@ -252,7 +243,7 @@ pub fn aggregate<E: Engine, C: Circuit<E>, T: Transcript<E::Fr>>(
 
                 all_values_queried_at_z_omega.push(value);
                 all_commitments_queried_at_z_omega.push(commitment);
-                
+
                 value
             };
 
@@ -293,10 +284,10 @@ pub fn aggregate<E: Engine, C: Circuit<E>, T: Transcript<E::Fr>>(
                 safe_assert_eq(dilation, dilation_value)?;
                 safe_assert_eq(*poly_idx, witness_poly_idx)?;
                 safe_assert(witness_poly_idx < vk.num_witness_polys)?;
-                
+
                 all_values_queried_at_z_omega.push(value);
                 all_commitments_queried_at_z_omega.push(commitment);
-                
+
                 value
             };
 
@@ -332,7 +323,7 @@ pub fn aggregate<E: Engine, C: Circuit<E>, T: Transcript<E::Fr>>(
 
                     all_values_queried_at_z.push(value);
                     all_commitments_queried_at_z.push(commitment);
-    
+
                     value
                 } else {
                     unimplemented!("gate setup polynomials can not be time dilated");
@@ -344,7 +335,7 @@ pub fn aggregate<E: Engine, C: Circuit<E>, T: Transcript<E::Fr>>(
 
                 query_values_map.insert(key, value);
             }
-        } 
+        }
     }
 
     safe_assert(gate_setup_openings_at_z_iter.next().is_none())?;
@@ -378,7 +369,7 @@ pub fn aggregate<E: Engine, C: Circuit<E>, T: Transcript<E::Fr>>(
 
     let mut copy_permutation_queries = vec![];
 
-    for _ in 0..(vk.state_width-1) {
+    for _ in 0..(vk.state_width - 1) {
         let value = *copy_permutation_polys_openings_at_z_iter.next().ok_or(SynthesisError::AssignmentMissing)?;
 
         transcript.commit_field_element(&value);
@@ -391,7 +382,7 @@ pub fn aggregate<E: Engine, C: Circuit<E>, T: Transcript<E::Fr>>(
     }
 
     safe_assert(copy_permutation_polys_openings_at_z_iter.next().is_none())?;
-    
+
     // copy-permutation grand product query
 
     let mut z_omega = z;
@@ -447,12 +438,7 @@ pub fn aggregate<E: Engine, C: Circuit<E>, T: Transcript<E::Fr>>(
 
             let input_values = proof.inputs.clone();
 
-            let mut inputs_term = gate.add_inputs_into_quotient(
-                required_domain_size,
-                &input_values,
-                z,
-                for_gate,
-            )?;
+            let mut inputs_term = gate.add_inputs_into_quotient(required_domain_size, &input_values, z, for_gate)?;
 
             if num_different_gates > 1 {
                 let selector_value = selector_values[0];
@@ -462,7 +448,7 @@ pub fn aggregate<E: Engine, C: Circuit<E>, T: Transcript<E::Fr>>(
             tmp.add_assign(&inputs_term);
 
             t_num_on_full_domain.add_assign(&tmp);
-        } 
+        }
 
         // now aggregate leftovers from grand product for copy permutation
         {
@@ -472,13 +458,12 @@ pub fn aggregate<E: Engine, C: Circuit<E>, T: Transcript<E::Fr>>(
             let mut factor = alpha_0;
             factor.mul_assign(&copy_permutation_z_at_z_omega);
 
-            for idx in 0..(vk.state_width-1) {
+            for idx in 0..(vk.state_width - 1) {
                 let key = PolynomialInConstraint::from_id(PolyIdentifier::VariablesPolynomial(idx));
-                let wire_value = query_values_map.get(&key)
-                    .ok_or(SynthesisError::AssignmentMissing)?;
+                let wire_value = query_values_map.get(&key).ok_or(SynthesisError::AssignmentMissing)?;
                 let permutation_at_z = copy_permutation_queries[idx];
                 let mut t = permutation_at_z;
-                
+
                 t.mul_assign(&beta_for_copy_permutation);
                 t.add_assign(&wire_value);
                 t.add_assign(&gamma_for_copy_permutation);
@@ -486,9 +471,8 @@ pub fn aggregate<E: Engine, C: Circuit<E>, T: Transcript<E::Fr>>(
                 factor.mul_assign(&t);
             }
 
-            let key = PolynomialInConstraint::from_id(PolyIdentifier::VariablesPolynomial(vk.state_width-1));
-            let mut tmp = *query_values_map.get(&key)
-                .ok_or(SynthesisError::AssignmentMissing)?;
+            let key = PolynomialInConstraint::from_id(PolyIdentifier::VariablesPolynomial(vk.state_width - 1));
+            let mut tmp = *query_values_map.get(&key).ok_or(SynthesisError::AssignmentMissing)?;
             tmp.add_assign(&gamma_for_copy_permutation);
 
             factor.mul_assign(&tmp);
@@ -506,7 +490,6 @@ pub fn aggregate<E: Engine, C: Circuit<E>, T: Transcript<E::Fr>>(
         // and if exists - grand product for lookup permutation
         {
             if vk.total_lookup_entries_length > 0 {
-
                 let [alpha_0, alpha_1, alpha_2] = lookup_grand_product_alphas.expect("there must be powers of alpha for lookup permutation");
 
                 let lookup_queries = LookupQuery::<E> {
@@ -525,11 +508,11 @@ pub fn aggregate<E: Engine, C: Circuit<E>, T: Transcript<E::Fr>>(
                 let mut gamma_beta = gamma_for_lookup_permutation;
                 gamma_beta.mul_assign(&beta_plus_one);
 
-                let expected = gamma_beta.pow([(required_domain_size-1) as u64]);
+                let expected = gamma_beta.pow([(required_domain_size - 1) as u64]);
 
                 // in a linearization we've taken terms:
                 // - s(x) from the alpha_0 * Z(x*omega)*(\gamma*(1 + \beta) + s(x) + \beta * s(x*omega)))
-                // - and Z(x) from - alpha_0 * Z(x) * (\beta + 1) * (\gamma + f(x)) * (\gamma(1 + \beta) + t(x) + \beta * t(x*omega)) (term in full) + 
+                // - and Z(x) from - alpha_0 * Z(x) * (\beta + 1) * (\gamma + f(x)) * (\gamma(1 + \beta) + t(x) + \beta * t(x*omega)) (term in full) +
                 // + alpha_1 * (Z(x) - 1) * L_{0}(z) + alpha_2 * (Z(x) - expected) * L_{n-1}(z)
 
                 // first make alpha_0 * Z(x*omega)*(\gamma*(1 + \beta) + \beta * s(x*omega)))
@@ -553,7 +536,7 @@ pub fn aggregate<E: Engine, C: Circuit<E>, T: Transcript<E::Fr>>(
 
                 let mut l_0_at_z = evaluate_l0_at_point(required_domain_size as u64, z)?;
                 l_0_at_z.mul_assign(&alpha_1);
-    
+
                 t_num_on_full_domain.sub_assign(&l_0_at_z);
 
                 // // - alpha_2 * expected L_{n-1}(z)
@@ -580,7 +563,6 @@ pub fn aggregate<E: Engine, C: Circuit<E>, T: Transcript<E::Fr>>(
 
     // now we need to reconstruct the effective linearization poly with homomorphic properties
     let linearization_commitment = {
-
         let mut challenges_slice = &powers_of_alpha_for_gates[..];
 
         let mut all_gates = sorted_gates.clone();
@@ -595,14 +577,7 @@ pub fn aggregate<E: Engine, C: Circuit<E>, T: Transcript<E::Fr>>(
 
         let input_values = proof.inputs.clone();
 
-        let mut r = gate.contribute_into_linearization_commitment_for_public_inputs(
-            required_domain_size,
-            &input_values,
-            z,
-            &query_values_map,
-            &setup_commitments_storage,
-            for_gate,
-        )?;
+        let mut r = gate.contribute_into_linearization_commitment_for_public_inputs(required_domain_size, &input_values, z, &query_values_map, &setup_commitments_storage, for_gate)?;
 
         let mut selectors_it = selector_values.clone().into_iter();
 
@@ -619,13 +594,7 @@ pub fn aggregate<E: Engine, C: Circuit<E>, T: Transcript<E::Fr>>(
 
             if gate.benefits_from_linearization() {
                 // gate benefits from linearization, so make temporary value
-                let tmp = gate.contribute_into_linearization_commitment(
-                    required_domain_size,
-                    z,
-                    &query_values_map,
-                    &setup_commitments_storage,
-                    for_gate,
-                )?;
+                let tmp = gate.contribute_into_linearization_commitment(required_domain_size, z, &query_values_map, &setup_commitments_storage, for_gate)?;
 
                 let selector_value = selectors_it.next().ok_or(SynthesisError::AssignmentMissing)?;
                 let mut scaled = tmp;
@@ -634,12 +603,7 @@ pub fn aggregate<E: Engine, C: Circuit<E>, T: Transcript<E::Fr>>(
                 r.add_assign(&scaled);
             } else {
                 // we linearize over the selector, so take a selector and scale it
-                let gate_value_at_z = gate.contribute_into_verification_equation(
-                    required_domain_size,
-                    z,
-                    &query_values_map,
-                    for_gate
-                )?;
+                let gate_value_at_z = gate.contribute_into_verification_equation(required_domain_size, z, &query_values_map, for_gate)?;
 
                 let key = PolyIdentifier::GateSelector(gate.name());
                 let gate_selector = gate_selectors_commitments_storage.get(&key).ok_or(SynthesisError::AssignmentMissing)?;
@@ -667,8 +631,7 @@ pub fn aggregate<E: Engine, C: Circuit<E>, T: Transcript<E::Fr>>(
 
             for idx in 0..vk.state_width {
                 let key = PolynomialInConstraint::from_id(PolyIdentifier::VariablesPolynomial(idx));
-                let wire_value = query_values_map.get(&key)
-                    .ok_or(SynthesisError::AssignmentMissing)?;
+                let wire_value = query_values_map.get(&key).ok_or(SynthesisError::AssignmentMissing)?;
                 let mut t = z;
                 let non_res = non_residues_iterator.next().ok_or(SynthesisError::AssignmentMissing)?;
                 t.mul_assign(&non_res);
@@ -691,13 +654,12 @@ pub fn aggregate<E: Engine, C: Circuit<E>, T: Transcript<E::Fr>>(
             factor.mul_assign(&beta_for_copy_permutation);
             factor.mul_assign(&copy_permutation_z_at_z_omega);
 
-            for idx in 0..(vk.state_width-1) {
+            for idx in 0..(vk.state_width - 1) {
                 let key = PolynomialInConstraint::from_id(PolyIdentifier::VariablesPolynomial(idx));
-                let wire_value = query_values_map.get(&key)
-                    .ok_or(SynthesisError::AssignmentMissing)?;
+                let wire_value = query_values_map.get(&key).ok_or(SynthesisError::AssignmentMissing)?;
                 let permutation_at_z = copy_permutation_queries[idx];
                 let mut t = permutation_at_z;
-                
+
                 t.mul_assign(&beta_for_copy_permutation);
                 t.add_assign(&wire_value);
                 t.add_assign(&gamma_for_copy_permutation);
@@ -706,7 +668,7 @@ pub fn aggregate<E: Engine, C: Circuit<E>, T: Transcript<E::Fr>>(
             }
 
             let scaled = vk.permutation_commitments.get(vk.state_width - 1).ok_or(SynthesisError::AssignmentMissing)?.mul(factor.into_repr());
-            
+
             r.sub_assign(&scaled);
 
             // + L_0(z) * Z(x)
@@ -724,7 +686,7 @@ pub fn aggregate<E: Engine, C: Circuit<E>, T: Transcript<E::Fr>>(
         // due to separate divisor it's not obvious if this is beneficial without some tricks
         // like multiplication by (1 - L_{n-1}) or by (x - omega^{n-1})
 
-        // Z(x*omega)*(\gamma*(1 + \beta) + s(x) + \beta * s(x*omega))) -  
+        // Z(x*omega)*(\gamma*(1 + \beta) + s(x) + \beta * s(x*omega))) -
         // Z(x) * (\beta + 1) * (\gamma + f(x)) * (\gamma(1 + \beta) + t(x) + \beta * t(x*omega)) == 0
         // check that (Z(x) - 1) * L_{0} == 0
         // check that (Z(x) - expected) * L_{n-1} == 0, or (Z(x*omega) - expected)* L_{n-2} == 0
@@ -758,7 +720,7 @@ pub fn aggregate<E: Engine, C: Circuit<E>, T: Transcript<E::Fr>>(
             let mut gamma_beta = gamma_for_lookup_permutation;
             gamma_beta.mul_assign(&beta_plus_one);
 
-            // (Z(x*omega)*(\gamma*(1 + \beta) + s(x) + \beta * s(x*omega))) -  
+            // (Z(x*omega)*(\gamma*(1 + \beta) + s(x) + \beta * s(x*omega))) -
             // Z(x) * (\beta + 1) * (\gamma + f(x)) * (\gamma(1 + \beta) + t(x) + \beta * t(x*omega)))*(X - omega^{n-1})
 
             let last_omega = domain.generator.pow(&[(required_domain_size - 1) as u64]);
@@ -774,7 +736,7 @@ pub fn aggregate<E: Engine, C: Circuit<E>, T: Transcript<E::Fr>>(
 
             r.add_assign(&scaled);
 
-            // Z(x) from - alpha_0 * Z(x) * (\beta + 1) * (\gamma + f(x)) * (\gamma(1 + \beta) + t(x) + \beta * t(x*omega)) 
+            // Z(x) from - alpha_0 * Z(x) * (\beta + 1) * (\gamma + f(x)) * (\gamma(1 + \beta) + t(x) + \beta * t(x*omega))
             // + alpha_1 * Z(x) * L_{0}(z) + alpha_2 * Z(x) * L_{n-1}(z)
 
             // accumulate coefficient
@@ -790,10 +752,9 @@ pub fn aggregate<E: Engine, C: Circuit<E>, T: Transcript<E::Fr>>(
             let eta = eta;
             // a,b,c
             safe_assert_eq(vk.state_width, 4)?;
-            for idx in 0..(vk.state_width-1) {
+            for idx in 0..(vk.state_width - 1) {
                 let key = PolynomialInConstraint::from_id(PolyIdentifier::VariablesPolynomial(idx));
-                let mut value = *query_values_map.get(&key)
-                    .ok_or(SynthesisError::AssignmentMissing)?;
+                let mut value = *query_values_map.get(&key).ok_or(SynthesisError::AssignmentMissing)?;
 
                 value.mul_assign(&current);
                 f_reconstructed.add_assign(&value);
@@ -891,16 +852,16 @@ pub fn aggregate<E: Engine, C: Circuit<E>, T: Transcript<E::Fr>>(
         let lookup_t_poly_commitment_aggregated = {
             let mut commitments_iter = vk.lookup_tables_commitments.iter();
             let mut result = commitments_iter.next().ok_or(SynthesisError::AssignmentMissing)?.into_projective();
-    
+
             let mut current = eta;
             for part in commitments_iter {
                 let tmp = *part;
                 let tmp = tmp.mul(current.into_repr());
-    
+
                 result.add_assign(&tmp);
                 current.mul_assign(&eta);
             }
-    
+
             result.into_affine()
         };
 
@@ -950,7 +911,11 @@ pub fn aggregate<E: Engine, C: Circuit<E>, T: Transcript<E::Fr>>(
 
     aggregation_challenge.mul_assign(&v);
 
-    let mut aggregated_commitment_at_z_omega = commitments_queried_at_z_omega.drain(0..1).next().ok_or(SynthesisError::AssignmentMissing)?.mul(aggregation_challenge.into_repr());
+    let mut aggregated_commitment_at_z_omega = commitments_queried_at_z_omega
+        .drain(0..1)
+        .next()
+        .ok_or(SynthesisError::AssignmentMissing)?
+        .mul(aggregation_challenge.into_repr());
     let mut aggregated_opening_at_z_omega = values_queried_at_z_omega.drain(0..1).next().ok_or(SynthesisError::AssignmentMissing)?;
     aggregated_opening_at_z_omega.mul_assign(&aggregation_challenge);
 
@@ -995,6 +960,6 @@ pub fn aggregate<E: Engine, C: Circuit<E>, T: Transcript<E::Fr>>(
     pair_with_x.negate();
 
     let pair_with_generator = pair_with_generator.into_affine();
-    
+
     Ok(((pair_with_generator, pair_with_x), true))
 }

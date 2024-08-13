@@ -1,7 +1,7 @@
-use crate::pairing::ff::{Field};
-use crate::pairing::{Engine};
+use crate::pairing::ff::Field;
+use crate::pairing::Engine;
 
-use crate::{SynthesisError};
+use crate::SynthesisError;
 use std::marker::PhantomData;
 
 pub use crate::plonk::cs::variable::*;
@@ -12,12 +12,12 @@ pub trait Circuit<E: Engine, P: PlonkConstraintSystemParams<E>> {
 
 pub trait CustomGateMarker<E: Engine>: Sized {}
 
-// pub trait TraceStepCoefficients<'a, E: Engine>: Sized 
-//     + AsRef<[E::Fr]> 
-//     + Copy 
-//     + Clone 
-//     + PartialEq 
-//     + Eq 
+// pub trait TraceStepCoefficients<'a, E: Engine>: Sized
+//     + AsRef<[E::Fr]>
+//     + Copy
+//     + Clone
+//     + PartialEq
+//     + Eq
 //     + ExactSizeIterator<Item = &'a E::Fr> { }
 
 // pub trait PlonkConstraintSystemParams<E: Engine, T1, T2> where
@@ -30,17 +30,12 @@ pub trait CustomGateMarker<E: Engine>: Sized {}
 //     type CustomGateType: CustomGateMarker<E>;
 // }
 
-pub trait TraceStepCoefficients<E: Engine>: Sized 
-    + AsRef<[E::Fr]> 
-    + Copy 
-    + Clone 
-    + PartialEq 
-    + Eq  {
-        fn empty() -> Self;
-        fn identity() -> Self;
-        fn negate(&mut self);
-        fn from_coeffs(coeffs: &[E::Fr]) -> Self;
-    }
+pub trait TraceStepCoefficients<E: Engine>: Sized + AsRef<[E::Fr]> + Copy + Clone + PartialEq + Eq {
+    fn empty() -> Self;
+    fn identity() -> Self;
+    fn negate(&mut self);
+    fn from_coeffs(coeffs: &[E::Fr]) -> Self;
+}
 
 pub trait StateVariablesSet: Sized + AsRef<[Variable]> + Copy + Clone + PartialEq + Eq {
     fn from_variable_and_padding(variable: Variable, padding: Variable) -> Self;
@@ -70,19 +65,14 @@ pub trait ConstraintSystem<E: Engine, P: PlonkConstraintSystemParams<E>> {
     where
         F: FnOnce() -> Result<E::Fr, SynthesisError>;
 
-    fn new_gate(&mut self, 
-        variables: P::StateVariables, 
-        this_step_coeffs: P::ThisTraceStepCoefficients,
-        next_step_coeffs: P::NextTraceStepCoefficients
-    ) -> Result<(), SynthesisError>;
+    fn new_gate(&mut self, variables: P::StateVariables, this_step_coeffs: P::ThisTraceStepCoefficients, next_step_coeffs: P::NextTraceStepCoefficients) -> Result<(), SynthesisError>;
 
-    fn get_value(&self, _variable: Variable) -> Result<E::Fr, SynthesisError> { 
+    fn get_value(&self, _variable: Variable) -> Result<E::Fr, SynthesisError> {
         Err(SynthesisError::AssignmentMissing)
     }
 
     fn get_dummy_variable(&self) -> Variable;
 }
-
 
 pub struct NoCustomGate;
 impl<E: Engine> CustomGateMarker<E> for NoCustomGate {}
@@ -136,9 +126,7 @@ impl<E: Engine> TraceStepCoefficients<E> for [E::Fr; 0] {
     fn identity() -> Self {
         []
     }
-    fn negate(&mut self) {
-        
-    }
+    fn negate(&mut self) {}
     fn from_coeffs(coeffs: &[E::Fr]) -> Self {
         debug_assert_eq!(coeffs.len(), 0);
 
@@ -244,9 +232,9 @@ impl<E: Engine> TraceStepCoefficients<E> for [E::Fr; 6] {
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct PlonkCsWidth3WithNextStepParams;
 impl<E: Engine> PlonkConstraintSystemParams<E> for PlonkCsWidth3WithNextStepParams {
-    const STATE_WIDTH: usize =  3;
-    const HAS_CUSTOM_GATES: bool =  false;
-    const CAN_ACCESS_NEXT_TRACE_STEP: bool =  true;
+    const STATE_WIDTH: usize = 3;
+    const HAS_CUSTOM_GATES: bool = false;
+    const CAN_ACCESS_NEXT_TRACE_STEP: bool = true;
 
     type StateVariables = [Variable; 3];
     type ThisTraceStepCoefficients = [E::Fr; 5];
@@ -258,9 +246,9 @@ impl<E: Engine> PlonkConstraintSystemParams<E> for PlonkCsWidth3WithNextStepPara
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct PlonkCsWidth4WithNextStepParams;
 impl<E: Engine> PlonkConstraintSystemParams<E> for PlonkCsWidth4WithNextStepParams {
-    const STATE_WIDTH: usize =  4;
-    const HAS_CUSTOM_GATES: bool =  false;
-    const CAN_ACCESS_NEXT_TRACE_STEP: bool =  true;
+    const STATE_WIDTH: usize = 4;
+    const HAS_CUSTOM_GATES: bool = false;
+    const CAN_ACCESS_NEXT_TRACE_STEP: bool = true;
 
     type StateVariables = [Variable; 4];
     type ThisTraceStepCoefficients = [E::Fr; 6];

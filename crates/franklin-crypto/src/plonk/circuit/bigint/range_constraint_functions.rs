@@ -1,52 +1,25 @@
-use crate::bellman::pairing::{
-    Engine,
-};
+use crate::bellman::pairing::Engine;
 
-use crate::bellman::pairing::ff::{
-    Field,
-    PrimeField,
-    PrimeFieldRepr,
-    BitIterator
-};
+use crate::bellman::pairing::ff::{BitIterator, Field, PrimeField, PrimeFieldRepr};
 
-use crate::bellman::{
-    SynthesisError,
-};
+use crate::bellman::SynthesisError;
 
 use crate::bellman::plonk::better_better_cs::cs::{
-    Variable, 
-    ConstraintSystem,
-    ArithmeticTerm,
-    MainGateTerm,
-    Width4MainGateWithDNext,
-    MainGate,
-    GateInternal,
-    Gate,
-    LinearCombinationOfTerms,
-    PolynomialMultiplicativeTerm,
-    PolynomialInConstraint,
-    TimeDilation,
-    Coefficient,
-    PlonkConstraintSystemParams,
-    PlonkCsWidth4WithNextStepParams,
-    TrivialAssembly
+    ArithmeticTerm, Coefficient, ConstraintSystem, Gate, GateInternal, LinearCombinationOfTerms, MainGate, MainGateTerm, PlonkConstraintSystemParams, PlonkCsWidth4WithNextStepParams,
+    PolynomialInConstraint, PolynomialMultiplicativeTerm, TimeDilation, TrivialAssembly, Variable, Width4MainGateWithDNext,
 };
 
-use crate::plonk::circuit::Assignment;
-use super::*;
 use super::bigint::*;
+use super::*;
+use crate::plonk::circuit::Assignment;
 
 use crate::plonk::circuit::allocated_num::{AllocatedNum, Num};
-use crate::plonk::circuit::simple_term::{Term};
 use crate::plonk::circuit::linear_combination::LinearCombination;
+use crate::plonk::circuit::simple_term::Term;
 
-// enforces that this value is either `num_bits` long or a little longer 
+// enforces that this value is either `num_bits` long or a little longer
 // up to a single range constraint width from the table
-pub fn coarsely_enforce_using_multitable<E: Engine, CS: ConstraintSystem<E>>(
-    cs: &mut CS, 
-    to_constraint: &AllocatedNum<E>, 
-    num_bits: usize
-) -> Result<(), SynthesisError> {
+pub fn coarsely_enforce_using_multitable<E: Engine, CS: ConstraintSystem<E>>(cs: &mut CS, to_constraint: &AllocatedNum<E>, num_bits: usize) -> Result<(), SynthesisError> {
     let strategies = get_range_constraint_info(&*cs);
     assert_eq!(CS::Params::STATE_WIDTH, 4);
     assert!(strategies.len() > 0);
@@ -59,11 +32,7 @@ pub fn coarsely_enforce_using_multitable<E: Engine, CS: ConstraintSystem<E>>(
     assert_eq!(linear_terms_used, 3);
 
     if num_bits <= width_per_gate {
-        return coarsely_enforce_using_multitable_into_single_gate(
-            cs,
-            to_constraint,
-            num_bits
-        );
+        return coarsely_enforce_using_multitable_into_single_gate(cs, to_constraint, num_bits);
     }
 
     // we do two things simultaneously:
@@ -120,9 +89,7 @@ pub fn coarsely_enforce_using_multitable<E: Engine, CS: ConstraintSystem<E>>(
         let mut term = MainGateTerm::<E>::new();
         for _ in 0..3 {
             let value = (&mut it).next().unwrap();
-            let allocated = AllocatedNum::alloc(cs, || {
-                Ok(*value.get()?)
-            })?;
+            let allocated = AllocatedNum::alloc(cs, || Ok(*value.get()?))?;
 
             let scaled = value.mul(&Some(current_term_coeff));
             next_step_value = next_step_value.add(&scaled);
@@ -145,9 +112,7 @@ pub fn coarsely_enforce_using_multitable<E: Engine, CS: ConstraintSystem<E>>(
         let is_last_gate = (full_gate_idx == num_full_gates - 1) && num_terms_in_partial_gate == 0;
 
         if is_last_gate == false {
-            let next_var = AllocatedNum::alloc(cs, || {
-                Ok(*next_step_value.get()?)
-            })?;
+            let next_var = AllocatedNum::alloc(cs, || Ok(*next_step_value.get()?))?;
             next_step_variable_from_previous_gate = Some(next_var);
         } else {
             next_step_variable_from_previous_gate = Some(to_constraint.clone());
@@ -155,12 +120,7 @@ pub fn coarsely_enforce_using_multitable<E: Engine, CS: ConstraintSystem<E>>(
 
         cs.begin_gates_batch_for_step()?;
 
-        cs.new_gate_in_batch(
-            &CS::MainGate::default(), 
-            &coeffs, 
-            &variables, 
-            &[]
-        )?;
+        cs.new_gate_in_batch(&CS::MainGate::default(), &coeffs, &variables, &[])?;
 
         cs.apply_multi_lookup_gate(&variables[0..linear_terms_used], Arc::clone(&table))?;
 
@@ -171,9 +131,7 @@ pub fn coarsely_enforce_using_multitable<E: Engine, CS: ConstraintSystem<E>>(
     if num_terms_in_partial_gate != 0 {
         let mut term = MainGateTerm::<E>::new();
         for value in it {
-            let allocated = AllocatedNum::alloc(cs, || {
-                Ok(*value.get()?)
-            })?;
+            let allocated = AllocatedNum::alloc(cs, || Ok(*value.get()?))?;
 
             let scaled = value.mul(&Some(current_term_coeff));
             next_step_value = next_step_value.add(&scaled);
@@ -195,17 +153,12 @@ pub fn coarsely_enforce_using_multitable<E: Engine, CS: ConstraintSystem<E>>(
 
         let (variables, mut coeffs) = CS::MainGate::format_linear_term_with_duplicates(term, dummy_var)?;
         coeffs[next_step_coeff_idx] = minus_one;
-        
+
         next_step_variable_from_previous_gate = Some(to_constraint.clone());
 
         cs.begin_gates_batch_for_step()?;
 
-        cs.new_gate_in_batch(
-            &CS::MainGate::default(), 
-            &coeffs, 
-            &variables, 
-            &[]
-        )?;
+        cs.new_gate_in_batch(&CS::MainGate::default(), &coeffs, &variables, &[])?;
 
         cs.apply_multi_lookup_gate(&variables[0..linear_terms_used], Arc::clone(&table))?;
 
@@ -218,24 +171,14 @@ pub fn coarsely_enforce_using_multitable<E: Engine, CS: ConstraintSystem<E>>(
 
     *vars.last_mut().unwrap() = final_val.get_variable();
 
-    cs.new_single_gate_for_trace_step(
-        &CS::MainGate::default(), 
-        &coeffs, 
-        &vars,
-        &[]
-    )?;
-    
+    cs.new_single_gate_for_trace_step(&CS::MainGate::default(), &coeffs, &vars, &[])?;
+
     Ok(())
 }
 
-
-// enforces that this value is either `num_bits` long or a little longer 
+// enforces that this value is either `num_bits` long or a little longer
 // up to a single range constraint width from the table
-pub fn coarsely_enforce_using_multitable_into_single_gate<E: Engine, CS: ConstraintSystem<E>>(
-    cs: &mut CS, 
-    to_constraint: &AllocatedNum<E>, 
-    num_bits: usize
-) -> Result<(), SynthesisError> {
+pub fn coarsely_enforce_using_multitable_into_single_gate<E: Engine, CS: ConstraintSystem<E>>(cs: &mut CS, to_constraint: &AllocatedNum<E>, num_bits: usize) -> Result<(), SynthesisError> {
     let strategies = get_range_constraint_info(&*cs);
     assert_eq!(CS::Params::STATE_WIDTH, 4);
     assert!(strategies.len() > 0);
@@ -275,9 +218,7 @@ pub fn coarsely_enforce_using_multitable_into_single_gate<E: Engine, CS: Constra
 
     let mut term = MainGateTerm::<E>::new();
     for value in slices.into_iter() {
-        let allocated = AllocatedNum::alloc(cs, || {
-            Ok(*value.get()?)
-        })?;
+        let allocated = AllocatedNum::alloc(cs, || Ok(*value.get()?))?;
 
         // let scaled = value.mul(&Some(current_term_coeff));
 
@@ -296,27 +237,18 @@ pub fn coarsely_enforce_using_multitable_into_single_gate<E: Engine, CS: Constra
 
     cs.begin_gates_batch_for_step()?;
 
-    cs.new_gate_in_batch(
-        &CS::MainGate::default(), 
-        &coeffs, 
-        &variables, 
-        &[]
-    )?;
+    cs.new_gate_in_batch(&CS::MainGate::default(), &coeffs, &variables, &[])?;
 
     let table = cs.get_multitable(RANGE_CHECK_MULTIAPPLICATION_TABLE_NAME)?;
 
     cs.apply_multi_lookup_gate(&variables[0..linear_terms_used], table)?;
 
     cs.end_gates_batch_for_step()?;
-    
+
     Ok(())
 }
 
-pub fn adaptively_coarsely_constraint_multiple_with_multitable<E: Engine, CS: ConstraintSystem<E>>(
-    cs: &mut CS,
-    terms: &[Term<E>],
-    widths: &[usize]
-) -> Result<(), SynthesisError> {
+pub fn adaptively_coarsely_constraint_multiple_with_multitable<E: Engine, CS: ConstraintSystem<E>>(cs: &mut CS, terms: &[Term<E>], widths: &[usize]) -> Result<(), SynthesisError> {
     let strategies = get_range_constraint_info(&*cs);
     assert_eq!(CS::Params::STATE_WIDTH, 4);
     assert!(strategies.len() > 0);
@@ -400,11 +332,7 @@ pub fn adaptively_coarsely_constraint_multiple_with_multitable<E: Engine, CS: Co
     Ok(())
 }
 
-pub fn adaptively_coarsely_constraint_multiple_with_two_bit_decomposition<E: Engine, CS: ConstraintSystem<E>>(
-    cs: &mut CS,
-    terms: &[Term<E>],
-    widths: &[usize]
-) -> Result<(), SynthesisError> {
+pub fn adaptively_coarsely_constraint_multiple_with_two_bit_decomposition<E: Engine, CS: ConstraintSystem<E>>(cs: &mut CS, terms: &[Term<E>], widths: &[usize]) -> Result<(), SynthesisError> {
     let strategies = get_range_constraint_info(&*cs);
     assert_eq!(CS::Params::STATE_WIDTH, 4);
     assert!(strategies.len() > 0);
@@ -422,7 +350,7 @@ pub fn adaptively_coarsely_constraint_multiple_with_two_bit_decomposition<E: Eng
 
     // so it's ceil(bits/8) + 3 for packing of two
 
-    // for packing of three we would have ceil(bits/8) + 4, 
+    // for packing of three we would have ceil(bits/8) + 4,
     // so it's not that important how many we pack up to ceil()
 
     assert_eq!(terms.len(), widths.len());
@@ -441,7 +369,7 @@ pub fn adaptively_coarsely_constraint_multiple_with_two_bit_decomposition<E: Eng
     }
 
     if non_constant_terms.len() == 0 {
-        return Ok(())
+        return Ok(());
     }
 
     let capacity = ((E::Fr::CAPACITY / 8) * 8) as usize;
@@ -495,7 +423,7 @@ pub fn adaptively_coarsely_constraint_multiple_with_two_bit_decomposition<E: Eng
             let index_of_high_part = w1 / 2 - 1;
 
             let peeked_high = &chain[index_of_high_part];
-            
+
             let mut lc = LinearCombination::zero();
             lc.add_assign_term(&high_term);
 
@@ -531,9 +459,9 @@ pub fn adaptively_coarsely_constraint_multiple_with_two_bit_decomposition<E: Eng
 mod test {
 
     use super::*;
-    use crate::plonk::circuit::*;
-    use crate::bellman::plonk::better_better_cs::lookup_tables::*;
     use crate::bellman::plonk::better_better_cs::cs::*;
+    use crate::bellman::plonk::better_better_cs::lookup_tables::*;
+    use crate::plonk::circuit::*;
 
     #[test]
     fn make_ideal_case_range_constraint() {
@@ -548,18 +476,9 @@ mod test {
         cs.add_multitable(table).unwrap();
 
         let value = Fr::from_str(&"123456").unwrap();
-        let num = AllocatedNum::alloc(
-            &mut cs,
-            || {
-                Ok(value)
-            }
-        ).unwrap();
+        let num = AllocatedNum::alloc(&mut cs, || Ok(value)).unwrap();
 
-        coarsely_enforce_using_multitable(
-            &mut cs,
-            &num,
-            48
-        ).unwrap();
+        coarsely_enforce_using_multitable(&mut cs, &num, 48).unwrap();
 
         assert!(cs.n() == 2);
 
@@ -579,24 +498,14 @@ mod test {
         cs.add_multitable(table).unwrap();
 
         let value = Fr::from_str(&"123456").unwrap();
-        let num = AllocatedNum::alloc(
-            &mut cs,
-            || {
-                Ok(value)
-            }
-        ).unwrap();
+        let num = AllocatedNum::alloc(&mut cs, || Ok(value)).unwrap();
 
-        coarsely_enforce_using_multitable(
-            &mut cs,
-            &num,
-            60
-        ).unwrap();
+        coarsely_enforce_using_multitable(&mut cs, &num, 60).unwrap();
 
         assert!(cs.n() == 3);
 
         assert!(cs.is_satisfied());
     }
-
 
     #[test]
     fn make_coarse_short_range_constraint() {
@@ -611,18 +520,9 @@ mod test {
         cs.add_multitable(table).unwrap();
 
         let value = Fr::from_str(&"123456").unwrap();
-        let num = AllocatedNum::alloc(
-            &mut cs,
-            || {
-                Ok(value)
-            }
-        ).unwrap();
+        let num = AllocatedNum::alloc(&mut cs, || Ok(value)).unwrap();
 
-        coarsely_enforce_using_multitable(
-            &mut cs,
-            &num,
-            20
-        ).unwrap();
+        coarsely_enforce_using_multitable(&mut cs, &num, 20).unwrap();
 
         assert!(cs.n() == 1);
 

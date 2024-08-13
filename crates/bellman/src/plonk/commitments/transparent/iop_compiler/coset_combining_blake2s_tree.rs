@@ -1,20 +1,20 @@
-use crate::pairing::ff::{PrimeField, PrimeFieldRepr};
-use blake2s_const::blake2s_const;
-use crate::worker::Worker;
 use super::super::utils::log2_floor;
 use super::*;
+use crate::pairing::ff::{PrimeField, PrimeFieldRepr};
+use crate::worker::Worker;
+use blake2s_const::blake2s_const;
 
 #[derive(Debug)]
 pub struct FriSpecificBlake2sTree<F: PrimeField> {
     size: usize,
     nodes: Vec<[u8; 32]>,
     params: FriSpecificBlake2sTreeParams,
-    _marker: std::marker::PhantomData<F>
+    _marker: std::marker::PhantomData<F>,
 }
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct FriSpecificBlake2sTreeParams {
-    pub values_per_leaf: usize
+    pub values_per_leaf: usize,
 }
 
 // impl<F: PrimeField> FriSpecificBlake2sTree<F> {
@@ -112,10 +112,9 @@ impl<F: PrimeField> IopInstance<F> for FriSpecificBlake2sTree<F> {
 
         {
             worker.scope(leaf_hashes.len(), |scope, chunk| {
-                for (i, lh) in leaf_hashes.chunks_mut(chunk)
-                                .enumerate() {
+                for (i, lh) in leaf_hashes.chunks_mut(chunk).enumerate() {
                     scope.spawn(move |_| {
-                        let base_idx = i*chunk;
+                        let base_idx = i * chunk;
                         let mut scratch_space = vec![0u8; Self::VALUE_BYTE_SIZE * values_per_leaf];
                         for (j, lh) in lh.iter_mut().enumerate() {
                             let idx = base_idx + j;
@@ -135,15 +134,14 @@ impl<F: PrimeField> IopInstance<F> for FriSpecificBlake2sTree<F> {
 
         // separately hash last level, which hashes leaf hashes into first nodes
         {
-            let _level = num_levels-1;
+            let _level = num_levels - 1;
             let inputs = &mut leaf_hashes[..];
-            let (_, outputs) = nodes_for_hashing.split_at_mut(nodes_for_hashing.len()/2);
+            let (_, outputs) = nodes_for_hashing.split_at_mut(nodes_for_hashing.len() / 2);
             assert!(outputs.len() * 2 == inputs.len());
             assert!(outputs.len().is_power_of_two());
 
             worker.scope(outputs.len(), |scope, chunk| {
-                for (o, i) in outputs.chunks_mut(chunk)
-                                .zip(inputs.chunks(chunk*2)) {
+                for (o, i) in outputs.chunks_mut(chunk).zip(inputs.chunks(chunk * 2)) {
                     scope.spawn(move |_| {
                         let mut hash_input = [0u8; 64];
                         for (o, i) in o.iter_mut().zip(i.chunks(2)) {
@@ -156,16 +154,15 @@ impl<F: PrimeField> IopInstance<F> for FriSpecificBlake2sTree<F> {
             });
         }
 
-        for _ in (0..(num_levels-1)).rev() {
+        for _ in (0..(num_levels - 1)).rev() {
             // do the trick - split
-            let (next_levels, inputs) = nodes_for_hashing.split_at_mut(nodes_for_hashing.len()/2);
+            let (next_levels, inputs) = nodes_for_hashing.split_at_mut(nodes_for_hashing.len() / 2);
             let (_, outputs) = next_levels.split_at_mut(next_levels.len() / 2);
             assert!(outputs.len() * 2 == inputs.len());
             assert!(outputs.len().is_power_of_two());
 
             worker.scope(outputs.len(), |scope, chunk| {
-                for (o, i) in outputs.chunks_mut(chunk)
-                                .zip(inputs.chunks(chunk*2)) {
+                for (o, i) in outputs.chunks_mut(chunk).zip(inputs.chunks(chunk * 2)) {
                     scope.spawn(move |_| {
                         let mut hash_input = [0u8; 64];
                         for (o, i) in o.iter_mut().zip(i.chunks(2)) {
@@ -184,7 +181,7 @@ impl<F: PrimeField> IopInstance<F> for FriSpecificBlake2sTree<F> {
             size: size,
             nodes: nodes,
             params: params.clone(),
-            _marker: std::marker::PhantomData
+            _marker: std::marker::PhantomData,
         }
     }
 
@@ -196,18 +193,21 @@ impl<F: PrimeField> IopInstance<F> for FriSpecificBlake2sTree<F> {
         // we never expect that query is mis-alligned, so check it
         debug_assert!(indexes[0] % self.params.values_per_leaf == 0);
         debug_assert!(indexes.len() == self.params.values_per_leaf);
-        debug_assert!(indexes == (indexes[0]..(indexes[0]+self.params.values_per_leaf)).collect::<Vec<_>>());
+        debug_assert!(indexes == (indexes[0]..(indexes[0] + self.params.values_per_leaf)).collect::<Vec<_>>());
         debug_assert!(*indexes.last().expect("is some") < self.size());
         debug_assert!(*indexes.last().expect("is some") < values.len());
 
-        let query_values = Vec::from(&values[indexes[0]..(indexes[0]+self.params.values_per_leaf)]);
+        let query_values = Vec::from(&values[indexes[0]..(indexes[0] + self.params.values_per_leaf)]);
 
         let leaf_index = indexes[0] / self.params.values_per_leaf;
 
         let pair_index = leaf_index ^ 1;
 
         let mut scratch_space = vec![0u8; Self::VALUE_BYTE_SIZE * self.params.values_per_leaf];
-        let leaf_pair_hash = Self::hash_into_leaf(&values[(pair_index*self.params.values_per_leaf)..((pair_index+1)*self.params.values_per_leaf)], &mut scratch_space);
+        let leaf_pair_hash = Self::hash_into_leaf(
+            &values[(pair_index * self.params.values_per_leaf)..((pair_index + 1) * self.params.values_per_leaf)],
+            &mut scratch_space,
+        );
 
         let path = self.make_full_path(leaf_index, leaf_pair_hash);
 
@@ -280,9 +280,7 @@ fn make_small_iop() {
     const SIZE: usize = 16;
     const VALUES_PER_LEAF: usize = 4;
 
-    let params = FriSpecificBlake2sTreeParams {
-        values_per_leaf: VALUES_PER_LEAF
-    };
+    let params = FriSpecificBlake2sTreeParams { values_per_leaf: VALUES_PER_LEAF };
 
     let mut inputs = vec![];
     let mut f = Fr::one();
@@ -297,13 +295,12 @@ fn make_small_iop() {
     assert!(tree_size == SIZE);
     assert!(iop.nodes.len() == (SIZE / VALUES_PER_LEAF));
     for i in 0..(SIZE / VALUES_PER_LEAF) {
-        let indexes: Vec<_> = ((i*VALUES_PER_LEAF)..(VALUES_PER_LEAF + i*VALUES_PER_LEAF)).collect();
+        let indexes: Vec<_> = ((i * VALUES_PER_LEAF)..(VALUES_PER_LEAF + i * VALUES_PER_LEAF)).collect();
         let query = iop.produce_query(indexes, &inputs);
         let valid = FriSpecificBlake2sTree::verify_query(&commitment, &query, &params);
         assert!(valid, "invalid query for leaf index {}", i);
     }
 }
-
 
 #[test]
 fn test_bench_large_fri_specific_iop() {
@@ -313,9 +310,7 @@ fn test_bench_large_fri_specific_iop() {
     const SIZE: usize = 1 << (20 + 4);
     const VALUES_PER_LEAF: usize = 8;
 
-    let params = FriSpecificBlake2sTreeParams {
-        values_per_leaf: VALUES_PER_LEAF
-    };
+    let params = FriSpecificBlake2sTreeParams { values_per_leaf: VALUES_PER_LEAF };
 
     let mut inputs = vec![];
     let mut f = Fr::one();
@@ -330,7 +325,7 @@ fn test_bench_large_fri_specific_iop() {
     assert!(tree_size == SIZE);
     assert!(iop.nodes.len() == (SIZE / VALUES_PER_LEAF));
     for i in 0..128 {
-        let indexes: Vec<_> = ((i*VALUES_PER_LEAF)..(VALUES_PER_LEAF + i*VALUES_PER_LEAF)).collect();
+        let indexes: Vec<_> = ((i * VALUES_PER_LEAF)..(VALUES_PER_LEAF + i * VALUES_PER_LEAF)).collect();
         let query = iop.produce_query(indexes, &inputs);
         let valid = FriSpecificBlake2sTree::verify_query(&commitment, &query, &params);
         assert!(valid, "invalid query for leaf index {}", i);

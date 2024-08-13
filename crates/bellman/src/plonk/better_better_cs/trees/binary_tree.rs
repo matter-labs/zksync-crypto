@@ -1,24 +1,24 @@
-use crate::pairing::{Engine};
-use crate::pairing::ff::{PrimeField, PrimeFieldRepr};
-use crate::worker::Worker;
-use crate::plonk::commitments::transparent::utils::log2_floor;
-use super::*;
 use super::tree_hash::*;
+use super::*;
+use crate::pairing::ff::{PrimeField, PrimeFieldRepr};
+use crate::pairing::Engine;
+use crate::plonk::commitments::transparent::utils::log2_floor;
+use crate::worker::Worker;
 
 #[derive(Debug)]
 pub struct BinaryTree<E: Engine, H: BinaryTreeHasher<E::Fr>> {
-    pub (crate) size: usize,
-    pub (crate) num_leafs: usize,
-    pub (crate) num_combined: usize,
-    pub (crate) nodes: Vec<H::Output>,
-    pub (crate) params: BinaryTreeParams,
-    pub (crate) tree_hasher: H,
-    _marker: std::marker::PhantomData<E>
+    pub(crate) size: usize,
+    pub(crate) num_leafs: usize,
+    pub(crate) num_combined: usize,
+    pub(crate) nodes: Vec<H::Output>,
+    pub(crate) params: BinaryTreeParams,
+    pub(crate) tree_hasher: H,
+    _marker: std::marker::PhantomData<E>,
 }
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct BinaryTreeParams {
-    pub values_per_leaf: usize
+    pub values_per_leaf: usize,
 }
 
 use std::time::Instant;
@@ -58,12 +58,7 @@ impl<E: Engine, H: BinaryTreeHasher<E::Fr>> BinaryTree<E, H> {
         self.num_leafs
     }
 
-    pub fn create_from_combined_leafs(
-        leafs: &[Vec<&[E::Fr]>],
-        num_combined: usize, 
-        tree_hasher: H, 
-        params: &BinaryTreeParams
-    ) -> Self {
+    pub fn create_from_combined_leafs(leafs: &[Vec<&[E::Fr]>], num_combined: usize, tree_hasher: H, params: &BinaryTreeParams) -> Self {
         let values_per_leaf = params.values_per_leaf;
         let num_leafs = leafs.len();
         let values_per_leaf_supplied = leafs[0].len() * leafs[0][0].len();
@@ -85,11 +80,10 @@ impl<E: Engine, H: BinaryTreeHasher<E::Fr>> BinaryTree<E, H> {
 
         {
             worker.scope(leaf_hashes.len(), |scope, chunk| {
-                for (i, lh) in leaf_hashes.chunks_mut(chunk)
-                                .enumerate() {
+                for (i, lh) in leaf_hashes.chunks_mut(chunk).enumerate() {
                     scope.spawn(move |_| {
                         let mut scratch_space = Vec::with_capacity(values_per_leaf);
-                        let base_idx = i*chunk;
+                        let base_idx = i * chunk;
                         for (j, lh) in lh.iter_mut().enumerate() {
                             // idx is index of the leaf
                             let idx = base_idx + j;
@@ -115,15 +109,14 @@ impl<E: Engine, H: BinaryTreeHasher<E::Fr>> BinaryTree<E, H> {
 
         // separately hash last level, which hashes leaf hashes into first nodes
         {
-            let _level = num_levels-1;
+            let _level = num_levels - 1;
             let inputs = &mut leaf_hashes[..];
-            let (_, outputs) = nodes_for_hashing.split_at_mut(nodes_for_hashing.len()/2);
+            let (_, outputs) = nodes_for_hashing.split_at_mut(nodes_for_hashing.len() / 2);
             assert!(outputs.len() * 2 == inputs.len());
             assert!(outputs.len().is_power_of_two());
 
             worker.scope(outputs.len(), |scope, chunk| {
-                for (o, i) in outputs.chunks_mut(chunk)
-                                .zip(inputs.chunks(chunk*2)) {
+                for (o, i) in outputs.chunks_mut(chunk).zip(inputs.chunks(chunk * 2)) {
                     scope.spawn(move |_| {
                         let mut hash_input = [H::placeholder_output(); 2];
                         for (o, i) in o.iter_mut().zip(i.chunks(2)) {
@@ -136,16 +129,15 @@ impl<E: Engine, H: BinaryTreeHasher<E::Fr>> BinaryTree<E, H> {
             });
         }
 
-        for _level in (0..(num_levels-1)).rev() {
+        for _level in (0..(num_levels - 1)).rev() {
             // do the trick - split
-            let (next_levels, inputs) = nodes_for_hashing.split_at_mut(nodes_for_hashing.len()/2);
+            let (next_levels, inputs) = nodes_for_hashing.split_at_mut(nodes_for_hashing.len() / 2);
             let (_, outputs) = next_levels.split_at_mut(next_levels.len() / 2);
             assert!(outputs.len() * 2 == inputs.len());
             assert!(outputs.len().is_power_of_two());
 
             worker.scope(outputs.len(), |scope, chunk| {
-                for (o, i) in outputs.chunks_mut(chunk)
-                                .zip(inputs.chunks(chunk*2)) {
+                for (o, i) in outputs.chunks_mut(chunk).zip(inputs.chunks(chunk * 2)) {
                     scope.spawn(move |_| {
                         let mut hash_input = [H::placeholder_output(); 2];
                         for (o, i) in o.iter_mut().zip(i.chunks(2)) {
@@ -167,9 +159,8 @@ impl<E: Engine, H: BinaryTreeHasher<E::Fr>> BinaryTree<E, H> {
             num_combined,
             tree_hasher: tree_hasher,
             params: params.clone(),
-            _marker: std::marker::PhantomData
+            _marker: std::marker::PhantomData,
         }
-
     }
 
     pub(crate) fn create(values: &[E::Fr], tree_hasher: H, params: &BinaryTreeParams) -> Self {
@@ -194,10 +185,9 @@ impl<E: Engine, H: BinaryTreeHasher<E::Fr>> BinaryTree<E, H> {
 
         {
             worker.scope(leaf_hashes.len(), |scope, chunk| {
-                for (i, lh) in leaf_hashes.chunks_mut(chunk)
-                                .enumerate() {
+                for (i, lh) in leaf_hashes.chunks_mut(chunk).enumerate() {
                     scope.spawn(move |_| {
-                        let base_idx = i*chunk;
+                        let base_idx = i * chunk;
                         for (j, lh) in lh.iter_mut().enumerate() {
                             let idx = base_idx + j;
                             let values_start = idx * values_per_leaf;
@@ -216,15 +206,14 @@ impl<E: Engine, H: BinaryTreeHasher<E::Fr>> BinaryTree<E, H> {
 
         // separately hash last level, which hashes leaf hashes into first nodes
         {
-            let _level = num_levels-1;
+            let _level = num_levels - 1;
             let inputs = &mut leaf_hashes[..];
-            let (_, outputs) = nodes_for_hashing.split_at_mut(nodes_for_hashing.len()/2);
+            let (_, outputs) = nodes_for_hashing.split_at_mut(nodes_for_hashing.len() / 2);
             assert!(outputs.len() * 2 == inputs.len());
             assert!(outputs.len().is_power_of_two());
 
             worker.scope(outputs.len(), |scope, chunk| {
-                for (o, i) in outputs.chunks_mut(chunk)
-                                .zip(inputs.chunks(chunk*2)) {
+                for (o, i) in outputs.chunks_mut(chunk).zip(inputs.chunks(chunk * 2)) {
                     scope.spawn(move |_| {
                         let mut hash_input = [H::placeholder_output(); 2];
                         for (o, i) in o.iter_mut().zip(i.chunks(2)) {
@@ -237,16 +226,15 @@ impl<E: Engine, H: BinaryTreeHasher<E::Fr>> BinaryTree<E, H> {
             });
         }
 
-        for _level in (0..(num_levels-1)).rev() {
+        for _level in (0..(num_levels - 1)).rev() {
             // do the trick - split
-            let (next_levels, inputs) = nodes_for_hashing.split_at_mut(nodes_for_hashing.len()/2);
+            let (next_levels, inputs) = nodes_for_hashing.split_at_mut(nodes_for_hashing.len() / 2);
             let (_, outputs) = next_levels.split_at_mut(next_levels.len() / 2);
             assert!(outputs.len() * 2 == inputs.len());
             assert!(outputs.len().is_power_of_two());
 
             worker.scope(outputs.len(), |scope, chunk| {
-                for (o, i) in outputs.chunks_mut(chunk)
-                                .zip(inputs.chunks(chunk*2)) {
+                for (o, i) in outputs.chunks_mut(chunk).zip(inputs.chunks(chunk * 2)) {
                     scope.spawn(move |_| {
                         let mut hash_input = [H::placeholder_output(); 2];
                         for (o, i) in o.iter_mut().zip(i.chunks(2)) {
@@ -268,7 +256,7 @@ impl<E: Engine, H: BinaryTreeHasher<E::Fr>> BinaryTree<E, H> {
             num_combined: 1,
             tree_hasher: tree_hasher,
             params: params.clone(),
-            _marker: std::marker::PhantomData
+            _marker: std::marker::PhantomData,
         }
     }
 
@@ -280,17 +268,19 @@ impl<E: Engine, H: BinaryTreeHasher<E::Fr>> BinaryTree<E, H> {
         // we never expect that query is mis-alligned, so check it
         debug_assert!(indexes[0] % self.params.values_per_leaf == 0);
         debug_assert!(indexes.len() == self.params.values_per_leaf);
-        debug_assert!(indexes == (indexes[0]..(indexes[0]+self.params.values_per_leaf)).collect::<Vec<_>>());
+        debug_assert!(indexes == (indexes[0]..(indexes[0] + self.params.values_per_leaf)).collect::<Vec<_>>());
         debug_assert!(*indexes.last().expect("is some") < self.size());
         debug_assert!(*indexes.last().expect("is some") < values.len());
 
-        let query_values = Vec::from(&values[indexes[0]..(indexes[0]+self.params.values_per_leaf)]);
+        let query_values = Vec::from(&values[indexes[0]..(indexes[0] + self.params.values_per_leaf)]);
 
         let leaf_index = indexes[0] / self.params.values_per_leaf;
 
         let pair_index = leaf_index ^ 1;
 
-        let leaf_pair_hash = self.tree_hasher.leaf_hash(&values[(pair_index*self.params.values_per_leaf)..((pair_index+1)*self.params.values_per_leaf)]);
+        let leaf_pair_hash = self
+            .tree_hasher
+            .leaf_hash(&values[(pair_index * self.params.values_per_leaf)..((pair_index + 1) * self.params.values_per_leaf)]);
 
         let path = self.make_full_path(leaf_index, leaf_pair_hash);
 
@@ -301,15 +291,10 @@ impl<E: Engine, H: BinaryTreeHasher<E::Fr>> BinaryTree<E, H> {
         }
     }
 
-    pub fn produce_multiquery(
-        &self, 
-        indexes: Vec<usize>, 
-        num_combined: usize,
-        leafs: &[Vec<&[E::Fr]>]
-    ) -> MultiQuery<E, H> {
+    pub fn produce_multiquery(&self, indexes: Vec<usize>, num_combined: usize, leafs: &[Vec<&[E::Fr]>]) -> MultiQuery<E, H> {
         // debug_assert!(indexes[0] % self.params.values_per_leaf == 0);
         // debug_assert!(indexes.len() == self.params.values_per_leaf);
-        debug_assert!(indexes == (indexes[0]..(indexes[0]+(self.params.values_per_leaf/self.num_combined))).collect::<Vec<_>>());
+        debug_assert!(indexes == (indexes[0]..(indexes[0] + (self.params.values_per_leaf / self.num_combined))).collect::<Vec<_>>());
         debug_assert!(*indexes.last().expect("is some") < self.size());
         debug_assert!(leafs[0].len() == num_combined);
 
@@ -345,12 +330,7 @@ impl<E: Engine, H: BinaryTreeHasher<E::Fr>> BinaryTree<E, H> {
         }
     }
 
-    pub fn verify_query(
-        commitment: &H::Output, 
-        query: &Query<E, H>, 
-        params: &BinaryTreeParams, 
-        tree_hasher: &H
-    ) -> bool {
+    pub fn verify_query(commitment: &H::Output, query: &Query<E, H>, params: &BinaryTreeParams, tree_hasher: &H) -> bool {
         if query.values().len() != params.values_per_leaf {
             return false;
         }
@@ -376,12 +356,7 @@ impl<E: Engine, H: BinaryTreeHasher<E::Fr>> BinaryTree<E, H> {
         &hash == commitment
     }
 
-    pub fn verify_multiquery(
-        commitment: &H::Output, 
-        query: &MultiQuery<E, H>, 
-        params: &BinaryTreeParams, 
-        tree_hasher: &H
-    ) -> bool {
+    pub fn verify_multiquery(commitment: &H::Output, query: &MultiQuery<E, H>, params: &BinaryTreeParams, tree_hasher: &H) -> bool {
         let values = query.values_flattened();
         if values.len() != params.values_per_leaf {
             return false;

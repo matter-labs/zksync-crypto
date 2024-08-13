@@ -1,10 +1,10 @@
-use crate::pairing::{Engine, CurveAffine, CurveProjective};
 use crate::ff::{Field, PrimeField};
-use crate::worker::Worker;
-use crate::plonk::polynomials::*;
-use std::sync::Arc;
 use crate::multiexp;
+use crate::pairing::{CurveAffine, CurveProjective, Engine};
+use crate::plonk::polynomials::*;
+use crate::worker::Worker;
 use crate::SynthesisError;
+use std::sync::Arc;
 
 pub trait CrsType {}
 
@@ -20,29 +20,24 @@ pub struct Crs<E: Engine, T: CrsType> {
     pub g1_bases: Arc<Vec<E::G1Affine>>,
     pub g2_monomial_bases: Arc<Vec<E::G2Affine>>,
 
-    _marker: std::marker::PhantomData<T>
+    _marker: std::marker::PhantomData<T>,
 }
 
-use std::io::{Read, Write};
+use crate::byteorder::BigEndian;
 use crate::byteorder::ReadBytesExt;
 use crate::byteorder::WriteBytesExt;
-use crate::byteorder::BigEndian;
+use std::io::{Read, Write};
 
 impl<E: Engine, T: CrsType> PartialEq for Crs<E, T> {
     fn eq(&self, other: &Self) -> bool {
-        self.g1_bases == other.g1_bases 
-        && self.g2_monomial_bases == other.g2_monomial_bases
+        self.g1_bases == other.g1_bases && self.g2_monomial_bases == other.g2_monomial_bases
     }
 }
 
-impl<E: Engine, T: CrsType> Eq for Crs<E, T> { }
+impl<E: Engine, T: CrsType> Eq for Crs<E, T> {}
 
 impl<E: Engine, T: CrsType> Crs<E, T> {
-    pub fn write<W: Write>(
-        &self,
-        mut writer: W
-    ) -> std::io::Result<()>
-    {
+    pub fn write<W: Write>(&self, mut writer: W) -> std::io::Result<()> {
         writer.write_u64::<BigEndian>(self.g1_bases.len() as u64)?;
         for g in &self.g1_bases[..] {
             writer.write_all(g.into_uncompressed().as_ref())?;
@@ -56,10 +51,7 @@ impl<E: Engine, T: CrsType> Crs<E, T> {
         Ok(())
     }
 
-    pub fn read<R: Read>(
-        mut reader: R
-    ) -> std::io::Result<Self>
-    {
+    pub fn read<R: Read>(mut reader: R) -> std::io::Result<Self> {
         use crate::pairing::EncodedPoint;
 
         let mut g1_repr = <E::G1Affine as CurveAffine>::Uncompressed::empty();
@@ -69,7 +61,7 @@ impl<E: Engine, T: CrsType> Crs<E, T> {
 
         let mut g1_bases = Vec::with_capacity(num_g1 as usize);
 
-        for _ in 0..num_g1 {  
+        for _ in 0..num_g1 {
             reader.read_exact(g1_repr.as_mut())?;
             let p = g1_repr.into_affine().map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
             g1_bases.push(p);
@@ -80,7 +72,7 @@ impl<E: Engine, T: CrsType> Crs<E, T> {
 
         let mut g2_bases = Vec::with_capacity(num_g2 as usize);
 
-        for _ in 0..num_g2 {  
+        for _ in 0..num_g2 {
             reader.read_exact(g2_repr.as_mut())?;
             let p = g2_repr.into_affine().map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
             g2_bases.push(p);
@@ -89,12 +81,12 @@ impl<E: Engine, T: CrsType> Crs<E, T> {
         let new = Self {
             g1_bases: Arc::new(g1_bases),
             g2_monomial_bases: Arc::new(g2_bases),
-        
-            _marker: std::marker::PhantomData
+
+            _marker: std::marker::PhantomData,
         };
 
-        Ok(new) 
-    }  
+        Ok(new)
+    }
 }
 
 impl<E: Engine> Crs<E, CrsForMonomialForm> {
@@ -107,8 +99,7 @@ impl<E: Engine> Crs<E, CrsForMonomialForm> {
         Self {
             g1_bases: Arc::new(g1),
             g2_monomial_bases: Arc::new(g2),
-        
-            _marker: std::marker::PhantomData
+            _marker: std::marker::PhantomData,
         }
     }
 
@@ -118,22 +109,21 @@ impl<E: Engine> Crs<E, CrsForMonomialForm> {
 
         let mut g2 = vec![E::G2Affine::one(); 2];
 
-        use crate::group::Scalar;
         use crate::domain::EvaluationDomain;
+        use crate::group::Scalar;
         use crate::pairing::Wnaf;
 
         let mut coeffs = vec![Scalar::<E>(E::Fr::one()); size];
-        
+
         {
             let gen = E::Fr::from_str("42").unwrap();
 
             g2[1] = g2[1].mul(gen.into_repr()).into_affine();
 
             worker.scope(coeffs.len(), |scope, chunk| {
-                for (i, p) in coeffs.chunks_mut(chunk).enumerate()
-                {
+                for (i, p) in coeffs.chunks_mut(chunk).enumerate() {
                     scope.spawn(move |_| {
-                        let mut current_p = gen.pow(&[(i*chunk) as u64]);
+                        let mut current_p = gen.pow(&[(i * chunk) as u64]);
 
                         for p in p.iter_mut() {
                             p.0 = current_p;
@@ -150,12 +140,10 @@ impl<E: Engine> Crs<E, CrsForMonomialForm> {
         let mut g1 = vec![E::G1Affine::zero().into_projective(); size];
 
         worker.scope(g1.len(), |scope, chunk| {
-            for (g1, p) in g1.chunks_mut(chunk).zip(coeffs.chunks(chunk))
-            {
+            for (g1, p) in g1.chunks_mut(chunk).zip(coeffs.chunks(chunk)) {
                 let mut g1_wnaf = g1_wnaf.shared();
                 scope.spawn(move |_| {
-                    for (g1, p) in g1.iter_mut().zip(p.iter())
-                    {
+                    for (g1, p) in g1.iter_mut().zip(p.iter()) {
                         // Compute final exponent
                         let exp = p.0;
 
@@ -174,8 +162,7 @@ impl<E: Engine> Crs<E, CrsForMonomialForm> {
         Self {
             g1_bases: Arc::new(g1),
             g2_monomial_bases: Arc::new(g2),
-        
-            _marker: std::marker::PhantomData
+            _marker: std::marker::PhantomData,
         }
     }
 }
@@ -191,18 +178,17 @@ impl<E: Engine> Crs<E, CrsForLagrangeForm> {
         Self {
             g1_bases: Arc::new(g1),
             g2_monomial_bases: Arc::new(g2),
-        
-            _marker: std::marker::PhantomData
+            _marker: std::marker::PhantomData,
         }
     }
-    
+
     pub fn crs_42(size: usize, worker: &Worker) -> Self {
         let tmp = Crs::<E, CrsForMonomialForm>::crs_42(size, &worker);
 
         Self::from_powers(&tmp, size, &worker)
     }
 
-    pub fn from_powers(powers: &Crs::<E, CrsForMonomialForm>, size: usize, worker: &Worker) -> Self {
+    pub fn from_powers(powers: &Crs<E, CrsForMonomialForm>, size: usize, worker: &Worker) -> Self {
         assert!(size.is_power_of_two());
         assert!(size <= powers.g1_bases.len());
 
@@ -211,16 +197,15 @@ impl<E: Engine> Crs<E, CrsForLagrangeForm> {
 
         let g1 = g1.into_iter().map(|el| Point(el.into_projective())).collect();
 
-        use crate::group::Point;
         use crate::domain::EvaluationDomain;
+        use crate::group::Point;
 
         let mut g1 = EvaluationDomain::from_coeffs(g1).expect("must fit into the domain");
         g1.transform_powers_of_tau_into_lagrange_basis(&worker);
         let mut g1: Vec<_> = g1.into_coeffs().into_iter().map(|el| el.0).collect();
 
         worker.scope(g1.len(), |scope, chunk| {
-            for g1 in g1.chunks_mut(chunk)
-            {
+            for g1 in g1.chunks_mut(chunk) {
                 scope.spawn(move |_| {
                     // Batch normalize
                     E::G1::batch_normalization(g1);
@@ -233,8 +218,7 @@ impl<E: Engine> Crs<E, CrsForLagrangeForm> {
         Self {
             g1_bases: Arc::new(g1),
             g2_monomial_bases: Arc::new(g2),
-        
-            _marker: std::marker::PhantomData
+            _marker: std::marker::PhantomData,
         }
     }
 }
@@ -250,8 +234,7 @@ impl<E: Engine> Crs<E, CrsForLagrangeFormOnCoset> {
         Self {
             g1_bases: Arc::new(g1),
             g2_monomial_bases: Arc::new(g2),
-        
-            _marker: std::marker::PhantomData
+            _marker: std::marker::PhantomData,
         }
     }
 
@@ -261,7 +244,7 @@ impl<E: Engine> Crs<E, CrsForLagrangeFormOnCoset> {
         Self::from_powers(&tmp, size, &worker)
     }
 
-    pub fn from_powers(powers: &Crs::<E, CrsForMonomialForm>, size: usize, worker: &Worker) -> Self {
+    pub fn from_powers(powers: &Crs<E, CrsForMonomialForm>, size: usize, worker: &Worker) -> Self {
         assert!(size.is_power_of_two());
         assert!(size <= powers.g1_bases.len());
 
@@ -270,8 +253,8 @@ impl<E: Engine> Crs<E, CrsForLagrangeFormOnCoset> {
 
         let g1: Vec<_> = g1.into_iter().map(|el| Point(el.into_projective())).collect();
 
-        use crate::group::Point;
         use crate::domain::EvaluationDomain;
+        use crate::group::Point;
 
         let mut g1 = EvaluationDomain::from_coeffs(g1).expect("must fit into the domain");
 
@@ -279,8 +262,7 @@ impl<E: Engine> Crs<E, CrsForLagrangeFormOnCoset> {
         let mut g1: Vec<_> = g1.into_coeffs().into_iter().map(|el| el.0).collect();
 
         worker.scope(g1.len(), |scope, chunk| {
-            for g1 in g1.chunks_mut(chunk)
-            {
+            for g1 in g1.chunks_mut(chunk) {
                 scope.spawn(move |_| {
                     // Batch normalize
                     E::G1::batch_normalization(g1);
@@ -293,24 +275,17 @@ impl<E: Engine> Crs<E, CrsForLagrangeFormOnCoset> {
         Self {
             g1_bases: Arc::new(g1),
             g2_monomial_bases: Arc::new(g2),
-        
-            _marker: std::marker::PhantomData
+            _marker: std::marker::PhantomData,
         }
     }
 }
 
-pub(crate) fn elements_into_representations<E: Engine>(
-    worker: &Worker,
-    scalars: &[E::Fr]
-) -> Result<Vec<<E::Fr as PrimeField>::Repr>, SynthesisError>
-{   
+pub(crate) fn elements_into_representations<E: Engine>(worker: &Worker, scalars: &[E::Fr]) -> Result<Vec<<E::Fr as PrimeField>::Repr>, SynthesisError> {
     let mut representations = vec![<E::Fr as PrimeField>::Repr::default(); scalars.len()];
     worker.scope(scalars.len(), |scope, chunk| {
-        for (scalar, repr) in scalars.chunks(chunk)
-                    .zip(representations.chunks_mut(chunk)) {
+        for (scalar, repr) in scalars.chunks(chunk).zip(representations.chunks_mut(chunk)) {
             scope.spawn(move |_| {
-                for (scalar, repr) in scalar.iter()
-                                        .zip(repr.iter_mut()) {
+                for (scalar, repr) in scalar.iter().zip(repr.iter_mut()) {
                     *repr = scalar.into_repr();
                 }
             });
@@ -320,113 +295,57 @@ pub(crate) fn elements_into_representations<E: Engine>(
     Ok(representations)
 }
 
-pub fn commit_using_monomials<E: Engine>(
-    poly: &Polynomial<E::Fr, Coefficients>,
-    crs: &Crs<E, CrsForMonomialForm>,
-    worker: &Worker
-) -> Result<E::G1Affine, SynthesisError> {
-    let scalars_repr = elements_into_representations::<E>(
-        &worker,
-        &poly.as_ref()
-    )?;
+pub fn commit_using_monomials<E: Engine>(poly: &Polynomial<E::Fr, Coefficients>, crs: &Crs<E, CrsForMonomialForm>, worker: &Worker) -> Result<E::G1Affine, SynthesisError> {
+    let scalars_repr = elements_into_representations::<E>(&worker, &poly.as_ref())?;
 
-    let res = multiexp::dense_multiexp::<E::G1Affine>(
-        &worker,
-        &crs.g1_bases[..scalars_repr.len()],
-        &scalars_repr
-    )?;
+    let res = multiexp::dense_multiexp::<E::G1Affine>(&worker, &crs.g1_bases[..scalars_repr.len()], &scalars_repr)?;
 
     Ok(res.into_affine())
 }
 
-pub fn commit_using_values<E: Engine>(
-    poly: &Polynomial<E::Fr, Values>,
-    crs: &Crs<E, CrsForLagrangeForm>,
-    worker: &Worker
-) -> Result<E::G1Affine, SynthesisError> {
+pub fn commit_using_values<E: Engine>(poly: &Polynomial<E::Fr, Values>, crs: &Crs<E, CrsForLagrangeForm>, worker: &Worker) -> Result<E::G1Affine, SynthesisError> {
     assert_eq!(poly.size(), crs.g1_bases.len());
 
-    let scalars_repr = elements_into_representations::<E>(
-        &worker,
-        &poly.as_ref()
-    )?;
+    let scalars_repr = elements_into_representations::<E>(&worker, &poly.as_ref())?;
 
-    let res = multiexp::dense_multiexp::<E::G1Affine>(
-        &worker,
-        &crs.g1_bases,
-        &scalars_repr
-    )?;
+    let res = multiexp::dense_multiexp::<E::G1Affine>(&worker, &crs.g1_bases, &scalars_repr)?;
 
     Ok(res.into_affine())
 }
 
-pub fn commit_using_raw_values<E: Engine>(
-    values: &[E::Fr],
-    crs: &Crs<E, CrsForLagrangeForm>,
-    worker: &Worker
-) -> Result<E::G1Affine, SynthesisError> {
+pub fn commit_using_raw_values<E: Engine>(values: &[E::Fr], crs: &Crs<E, CrsForLagrangeForm>, worker: &Worker) -> Result<E::G1Affine, SynthesisError> {
     assert_eq!(values.len().next_power_of_two(), crs.g1_bases.len());
-    let scalars_repr = elements_into_representations::<E>(
-        &worker,
-        &values
-    )?;
+    let scalars_repr = elements_into_representations::<E>(&worker, &values)?;
 
-    let res = multiexp::dense_multiexp::<E::G1Affine>(
-        &worker,
-        &crs.g1_bases[0..values.len()],
-        &scalars_repr
-    )?;
+    let res = multiexp::dense_multiexp::<E::G1Affine>(&worker, &crs.g1_bases[0..values.len()], &scalars_repr)?;
 
     Ok(res.into_affine())
 }
 
 use crate::source::QueryDensity;
 
-pub fn commit_using_values_with_density<E: Engine, D, Q> (
-    values: &[E::Fr],
-    density: D,
-    crs: &Crs<E, CrsForLagrangeForm>,
-    worker: &Worker
-) -> Result<E::G1Affine, SynthesisError> 
-    where for<'a> &'a Q: QueryDensity,
-        D: Send + Sync + 'static + Clone + AsRef<Q>
+pub fn commit_using_values_with_density<E: Engine, D, Q>(values: &[E::Fr], density: D, crs: &Crs<E, CrsForLagrangeForm>, worker: &Worker) -> Result<E::G1Affine, SynthesisError>
+where
+    for<'a> &'a Q: QueryDensity,
+    D: Send + Sync + 'static + Clone + AsRef<Q>,
 {
     use futures::Future;
 
     // assert_eq!(values.len(), crs.g1_bases.len());
-    let scalars_repr = elements_into_representations::<E>(
-        &worker,
-        &values
-    )?;
+    let scalars_repr = elements_into_representations::<E>(&worker, &values)?;
 
     // scalars_repr.resize(crs.g1_bases.len(), <E::Fr as PrimeField>::Repr::default());
 
-    let res = multiexp::multiexp(
-        &worker, 
-        (crs.g1_bases.clone(), 0), 
-        density, 
-        Arc::new(scalars_repr)
-    ).wait()?;
+    let res = multiexp::multiexp(&worker, (crs.g1_bases.clone(), 0), density, Arc::new(scalars_repr)).wait()?;
 
     Ok(res.into_affine())
 }
 
-pub fn commit_using_values_on_coset<E: Engine>(
-    poly: &Polynomial<E::Fr, Values>,
-    crs: &Crs<E, CrsForLagrangeFormOnCoset>,
-    worker: &Worker
-) -> Result<E::G1Affine , SynthesisError> {
+pub fn commit_using_values_on_coset<E: Engine>(poly: &Polynomial<E::Fr, Values>, crs: &Crs<E, CrsForLagrangeFormOnCoset>, worker: &Worker) -> Result<E::G1Affine, SynthesisError> {
     assert_eq!(poly.size(), crs.g1_bases.len());
-    let scalars_repr = elements_into_representations::<E>(
-        &worker,
-        &poly.as_ref()
-    )?;
+    let scalars_repr = elements_into_representations::<E>(&worker, &poly.as_ref())?;
 
-    let res = multiexp::dense_multiexp::<E::G1Affine>(
-        &worker,
-        &crs.g1_bases,
-        &scalars_repr
-    )?;
+    let res = multiexp::dense_multiexp::<E::G1Affine>(&worker, &crs.g1_bases, &scalars_repr)?;
 
     Ok(res.into_affine())
 }
@@ -446,7 +365,7 @@ pub fn calculate_batch_opening_quotient_from_monomials<E: Engine>(
     }
 
     let quotient = divide_single::<E>(tmp.as_ref(), at);
-    
+
     Polynomial::from_coeffs(quotient)
 }
 
@@ -455,29 +374,19 @@ pub fn open_from_monomials<E: Engine>(
     at: E::Fr,
     _expected_value: E::Fr,
     crs: &Crs<E, CrsForMonomialForm>,
-    worker: &Worker
+    worker: &Worker,
 ) -> Result<E::G1Affine, SynthesisError> {
     assert!(poly.size().is_power_of_two());
     let division_result = divide_single::<E>(poly.as_ref(), at);
     assert!(division_result.len().is_power_of_two());
     let division_result = Polynomial::from_coeffs(division_result)?;
 
-    let opening_proof = commit_using_monomials(
-        &division_result, 
-        &crs, 
-        &worker
-    )?;
+    let opening_proof = commit_using_monomials(&division_result, &crs, &worker)?;
 
     Ok(opening_proof)
 }
 
-pub fn open_from_values<E: Engine>(
-    poly: &Polynomial<E::Fr, Values>,
-    at: E::Fr,
-    expected_value: E::Fr,
-    crs: &Crs<E, CrsForLagrangeForm>,
-    worker: &Worker
-) -> Result<E::G1Affine, SynthesisError> {
+pub fn open_from_values<E: Engine>(poly: &Polynomial<E::Fr, Values>, at: E::Fr, expected_value: E::Fr, crs: &Crs<E, CrsForLagrangeForm>, worker: &Worker) -> Result<E::G1Affine, SynthesisError> {
     assert!(poly.size().is_power_of_two());
     let division_result = vec![E::Fr::one(); poly.size()];
     let mut division_result = Polynomial::from_values(division_result)?;
@@ -486,9 +395,7 @@ pub fn open_from_values<E: Engine>(
     division_result.batch_inversion(&worker)?;
 
     worker.scope(division_result.size(), |scope, chunk_size| {
-        for (result, values) in division_result.as_mut().chunks_mut(chunk_size)
-                                            .zip(poly.as_ref().chunks(chunk_size))
-        {
+        for (result, values) in division_result.as_mut().chunks_mut(chunk_size).zip(poly.as_ref().chunks(chunk_size)) {
             scope.spawn(move |_| {
                 for (r, &val) in result.iter_mut().zip(values.iter()) {
                     let mut tmp = val;
@@ -510,7 +417,7 @@ pub fn open_from_values_on_coset<E: Engine>(
     at: E::Fr,
     expected_value: E::Fr,
     crs: &Crs<E, CrsForLagrangeFormOnCoset>,
-    worker: &Worker
+    worker: &Worker,
 ) -> Result<E::G1Affine, SynthesisError> {
     assert!(poly.size().is_power_of_two());
     let division_result = vec![coset_factor; poly.size()];
@@ -520,9 +427,7 @@ pub fn open_from_values_on_coset<E: Engine>(
     division_result.batch_inversion(&worker)?;
 
     worker.scope(division_result.size(), |scope, chunk_size| {
-        for (result, values) in division_result.as_mut().chunks_mut(chunk_size)
-                                            .zip(poly.as_ref().chunks(chunk_size))
-        {
+        for (result, values) in division_result.as_mut().chunks_mut(chunk_size).zip(poly.as_ref().chunks(chunk_size)) {
             scope.spawn(move |_| {
                 for (r, &val) in result.iter_mut().zip(values.iter()) {
                     let mut tmp = val;
@@ -544,7 +449,7 @@ pub fn perform_batched_divisor_for_opening<E: Engine>(
     opening_values: &[E::Fr],
     challenge: E::Fr,
     challenge_start: E::Fr,
-    worker: &Worker
+    worker: &Worker,
 ) -> Result<(Polynomial<E::Fr, Values>, E::Fr), SynthesisError> {
     assert!(polynomials.len() == opening_values.len(), "different number of polynomials and opening values");
     // assert!(polynomials.len() > 1, "should aggregate only two or more polynomials");
@@ -588,33 +493,20 @@ pub fn perform_batched_divisor_for_opening<E: Engine>(
 
 pub fn perform_batch_opening_from_values<E: Engine>(
     polynomials: Vec<Polynomial<E::Fr, Values>>,
-    crs: &Crs::<E, CrsForLagrangeForm>,
+    crs: &Crs<E, CrsForLagrangeForm>,
     open_at: E::Fr,
     opening_values: &[E::Fr],
     challenge: E::Fr,
-    worker: &Worker
+    worker: &Worker,
 ) -> Result<E::G1Affine, SynthesisError> {
-    let (aggregation, _) = perform_batched_divisor_for_opening::<E>(
-        polynomials,
-        open_at,
-        opening_values,
-        challenge,
-        E::Fr::one(),
-        &worker
-    )?;
+    let (aggregation, _) = perform_batched_divisor_for_opening::<E>(polynomials, open_at, opening_values, challenge, E::Fr::one(), &worker)?;
 
     let opening_proof = commit_using_values(&aggregation, &crs, &worker)?;
 
     Ok(opening_proof)
 }
 
-pub fn is_valid_opening<E: Engine>(
-    commitment: E::G1Affine,
-    z: E::Fr,
-    opening_value: E::Fr,
-    opening_proof: E::G1Affine,
-    g2_by_x: E::G2Affine
-) -> bool {
+pub fn is_valid_opening<E: Engine>(commitment: E::G1Affine, z: E::Fr, opening_value: E::Fr, opening_proof: E::G1Affine, g2_by_x: E::G2Affine) -> bool {
     // (f(x) - f(z))/(x - z) = op(x)
 
     // f(x) = f(z) + op(x) * (x - z)
@@ -631,29 +523,19 @@ pub fn is_valid_opening<E: Engine>(
     let mut pair_with_x_part = opening_proof;
     pair_with_x_part.negate();
 
-    let result = E::final_exponentiation(
-        &E::miller_loop(
-            &[
-                (&pair_with_1_part.into_affine().prepare(), &E::G2Affine::one().prepare()),
-                (&pair_with_x_part.prepare(), &g2_by_x.prepare()),
-            ]
-    ));
-    
+    let result = E::final_exponentiation(&E::miller_loop(&[
+        (&pair_with_1_part.into_affine().prepare(), &E::G2Affine::one().prepare()),
+        (&pair_with_x_part.prepare(), &g2_by_x.prepare()),
+    ]));
+
     if let Some(res) = result {
         return res == E::Fqk::one();
     }
-    
+
     false
 }
 
-pub fn is_valid_multiopening<E: Engine>(
-    commitments: &[E::G1Affine],
-    z: E::Fr,
-    opening_values: &[E::Fr],
-    opening_proof: E::G1Affine,
-    challenge: E::Fr,
-    g2_by_x: E::G2Affine
-) -> bool {
+pub fn is_valid_multiopening<E: Engine>(commitments: &[E::G1Affine], z: E::Fr, opening_values: &[E::Fr], opening_proof: E::G1Affine, challenge: E::Fr, g2_by_x: E::G2Affine) -> bool {
     assert!(commitments.len() == opening_values.len());
     // \sum_{i} alpha^i (f(x) - f(z))/(x - z) = op(x)
 
@@ -662,14 +544,14 @@ pub fn is_valid_multiopening<E: Engine>(
     // e(\sum_{i} alpha^i (f(x) - f(z)) + z*op(x), 1) * e(-op(x), x) == 1 // e(0, 0)
 
     let mut aggregation = E::G1::zero();
-    
+
     let mut this_challenge = E::Fr::one();
     // later change for efficiency
     for (c, v) in commitments.iter().zip(opening_values.iter()) {
         let mut pair_with_1_part = c.into_projective();
         let gen_by_opening_value = E::G1Affine::one().mul(v.into_repr());
         pair_with_1_part.sub_assign(&gen_by_opening_value);
-        
+
         pair_with_1_part.mul_assign(this_challenge.into_repr());
         aggregation.add_assign(&pair_with_1_part);
 
@@ -683,25 +565,19 @@ pub fn is_valid_multiopening<E: Engine>(
     let mut pair_with_x_part = opening_proof;
     pair_with_x_part.negate();
 
-    let result = E::final_exponentiation(
-        &E::miller_loop(
-            &[
-                (&aggregation.into_affine().prepare(), &E::G2Affine::one().prepare()),
-                (&pair_with_x_part.prepare(), &g2_by_x.prepare()),
-            ]
-    ));
-    
+    let result = E::final_exponentiation(&E::miller_loop(&[
+        (&aggregation.into_affine().prepare(), &E::G2Affine::one().prepare()),
+        (&pair_with_x_part.prepare(), &g2_by_x.prepare()),
+    ]));
+
     if let Some(res) = result {
         return res == E::Fqk::one();
     }
-    
+
     false
 }
 
-pub(crate) fn divide_single<E: Engine>(
-    poly: &[E::Fr],
-    opening_point: E::Fr,
-) -> Vec<E::Fr> {
+pub(crate) fn divide_single<E: Engine>(poly: &[E::Fr], opening_point: E::Fr) -> Vec<E::Fr> {
     // we are only interested in quotient without a reminder, so we actually don't need opening value
     let mut b = opening_point;
     b.negate();
@@ -713,7 +589,7 @@ pub(crate) fn divide_single<E: Engine>(
     for (q, r) in q.iter_mut().rev().skip(1).zip(poly.iter().rev()) {
         if !found_one {
             if r.is_zero() {
-                continue
+                continue;
             } else {
                 found_one = true;
             }
@@ -729,12 +605,10 @@ pub(crate) fn divide_single<E: Engine>(
     q
 }
 
-pub fn make_crs_from_ignition_transcript<S: AsRef<std::ffi::OsStr> + ?Sized>(
-    path: &S
-) -> Result<Crs<crate::pairing::bn256::Bn256, CrsForMonomialForm>, SynthesisError> {
-    use crate::pairing::bn256::{Bn256, Fq, Fq2, Fq12};
-    use crate::pairing::EncodedPoint;
+pub fn make_crs_from_ignition_transcript<S: AsRef<std::ffi::OsStr> + ?Sized>(path: &S) -> Result<Crs<crate::pairing::bn256::Bn256, CrsForMonomialForm>, SynthesisError> {
     use crate::ff::{PrimeField, PrimeFieldRepr};
+    use crate::pairing::bn256::{Bn256, Fq, Fq12, Fq2};
+    use crate::pairing::EncodedPoint;
     use std::io::BufRead;
 
     const CHUNKS: usize = 20;
@@ -772,12 +646,9 @@ pub fn make_crs_from_ignition_transcript<S: AsRef<std::ffi::OsStr> + ?Sized>(
 
         let c1 = Fq::from_raw_repr(fq_repr).expect("c0 for B coeff for G2");
 
-        let b_coeff_fq2 = Fq2 {
-            c0: c0,
-            c1: c1
-        };
+        let b_coeff_fq2 = Fq2 { c0: c0, c1: c1 };
 
-        for _ in 0..5_040_000{
+        for _ in 0..5_040_000 {
             // we have to manually read X and Y coordinates
             for k in 0..4 {
                 fq_repr.as_mut()[k] = reader.read_u64::<BigEndian>().expect("must read u64");
@@ -815,70 +686,53 @@ pub fn make_crs_from_ignition_transcript<S: AsRef<std::ffi::OsStr> + ?Sized>(
                 for k in 0..4 {
                     fq_repr.as_mut()[k] = reader.read_u64::<BigEndian>().expect("must read u64");
                 }
-    
+
                 let x_c0 = Fq::from_repr(fq_repr).expect("must be valid field element encoding");
-    
+
                 for k in 0..4 {
                     fq_repr.as_mut()[k] = reader.read_u64::<BigEndian>().expect("must read u64");
                 }
-    
+
                 let x_c1 = Fq::from_repr(fq_repr).expect("must be valid field element encoding");
-    
+
                 for k in 0..4 {
                     fq_repr.as_mut()[k] = reader.read_u64::<BigEndian>().expect("must read u64");
                 }
-    
+
                 let y_c0 = Fq::from_repr(fq_repr).expect("must be valid field element encoding");
-    
+
                 for k in 0..4 {
                     fq_repr.as_mut()[k] = reader.read_u64::<BigEndian>().expect("must read u64");
                 }
-    
+
                 let y_c1 = Fq::from_repr(fq_repr).expect("must be valid field element encoding");
-    
-                let x = Fq2 {
-                    c0: x_c0,
-                    c1: x_c1
-                };
-    
-                let y = Fq2 {
-                    c0: y_c0,
-                    c1: y_c1
-                };
-    
+
+                let x = Fq2 { c0: x_c0, c1: x_c1 };
+
+                let y = Fq2 { c0: y_c0, c1: y_c1 };
+
                 {
                     let mut lhs = y;
                     lhs.square();
-    
+
                     let mut rhs = x;
                     rhs.square();
                     rhs.mul_assign(&x);
                     rhs.add_assign(&b_coeff_fq2);
-    
+
                     assert!(lhs == rhs);
                 }
-    
+
                 let g2 = <Bn256 as Engine>::G2Affine::from_xy_unchecked(x, y);
 
                 g2_bases.push(g2);
-    
+
                 // sanity check by using pairing
-                {        
+                {
                     // check e(g1, g2^x) == e(g1^{x}, g2)
-                    let valid = Bn256::final_exponentiation(
-                        &Bn256::miller_loop(
-                            &[
-                                (&g1_bases[0].prepare(), &g2.prepare())
-                            ]
-                        )
-                    ).unwrap() == Bn256::final_exponentiation(
-                        &Bn256::miller_loop(
-                            &[
-                                (&g1_bases[1].prepare(), &g2_bases[0].prepare())
-                            ]
-                        )
-                    ).unwrap();
-            
+                    let valid = Bn256::final_exponentiation(&Bn256::miller_loop(&[(&g1_bases[0].prepare(), &g2.prepare())])).unwrap()
+                        == Bn256::final_exponentiation(&Bn256::miller_loop(&[(&g1_bases[1].prepare(), &g2_bases[0].prepare())])).unwrap();
+
                     assert!(valid);
                 }
             }
@@ -887,7 +741,7 @@ pub fn make_crs_from_ignition_transcript<S: AsRef<std::ffi::OsStr> + ?Sized>(
             reader.read_exact(&mut tmp).expect("must skip 128 bytes of irrelevant G2 point");
         }
 
-        // read to end 
+        // read to end
         reader.consume(64);
 
         assert_eq!(reader.fill_buf().unwrap().len(), 0);
@@ -899,20 +753,20 @@ pub fn make_crs_from_ignition_transcript<S: AsRef<std::ffi::OsStr> + ?Sized>(
     let new = Crs::<crate::pairing::bn256::Bn256, CrsForMonomialForm> {
         g1_bases: Arc::new(g1_bases),
         g2_monomial_bases: Arc::new(g2_bases),
-    
-        _marker: std::marker::PhantomData
+
+        _marker: std::marker::PhantomData,
     };
 
-    Ok(new) 
+    Ok(new)
 }
 
 #[cfg(test)]
 pub(crate) mod test {
     use super::*;
+    use crate::ff::{Field, PrimeField};
     use crate::pairing::bn256::{Bn256, Fr};
-    use crate::worker::Worker;
-    use crate::ff::{PrimeField, Field};
     use crate::plonk::polynomials::*;
+    use crate::worker::Worker;
 
     #[test]
     fn test_transformations_of_crs_1() {
@@ -949,7 +803,6 @@ pub(crate) mod test {
         // so bases must be b_0 + b_1 = 1 and b_0 - b_1 = tau / gen
         // so b_0 = 1 + tau/gen/2, b_1 = 1 - tau/gen/2
 
-
         let one = Fr::one();
 
         let mut two = Fr::one();
@@ -971,7 +824,6 @@ pub(crate) mod test {
 
         assert!(commitment == commitment_values);
         assert!(commitment == commitment_values_on_coset);
-
     }
 
     #[test]
@@ -997,7 +849,6 @@ pub(crate) mod test {
 
         assert!(commitment == commitment_values);
         assert!(commitment == commitment_values_on_coset);
-
     }
 
     #[test]
@@ -1023,7 +874,6 @@ pub(crate) mod test {
 
         assert!(commitment == commitment_values);
         assert!(commitment == commitment_values_on_coset);
-
     }
 
     #[test]
@@ -1075,7 +925,7 @@ pub(crate) mod test {
     fn test_open_ignition_setup() {
         let large_setup = make_crs_from_ignition_transcript("/Users/alexvlasov/Downloads/setup").unwrap();
         let base_path = std::path::Path::new("/Users/alexvlasov/Downloads/setup/processed");
-    
+
         for n in 20..=26 {
             let full_path = base_path.join(&format!("setup_2^{}.key", n));
             println!("Opening {}", full_path.to_string_lossy());
@@ -1086,8 +936,8 @@ pub(crate) mod test {
             let truncated_key = Crs::<Bn256, CrsForMonomialForm> {
                 g1_bases: Arc::new(large_setup.g1_bases[..size].to_vec()),
                 g2_monomial_bases: large_setup.g2_monomial_bases.clone(),
-            
-                _marker: std::marker::PhantomData
+
+                _marker: std::marker::PhantomData,
             };
 
             let mut writer = std::io::BufWriter::with_capacity(1 << 24, file);
@@ -1100,7 +950,7 @@ pub(crate) mod test {
         let base_path = std::path::Path::new("/Users/alexvlasov/Downloads/setup/processed");
 
         let worker = crate::worker::Worker::new();
-    
+
         for n in 20..=26 {
             let full_path = base_path.join(&format!("setup_2^{}.key", n));
             println!("Opening {}", full_path.to_string_lossy());
@@ -1124,7 +974,7 @@ pub(crate) mod test {
     #[test]
     fn test_crs_serialization() {
         let worker = Worker::new();
-        let mut buffer = Vec::with_capacity(1<<28);
+        let mut buffer = Vec::with_capacity(1 << 28);
         let crs = Crs::<Bn256, CrsForMonomialForm>::crs_42(1024, &worker);
         crs.write(&mut buffer).expect("must serialize CRS");
 
@@ -1133,31 +983,23 @@ pub(crate) mod test {
         assert!(new == crs);
     }
 
-    use rand::{Rng};
+    use rand::Rng;
 
-    pub(crate) fn make_random_field_elements<F: PrimeField>(
-        worker: &Worker,
-        num_elements: usize,
-    ) -> Vec<F> {
-        use rand::{XorShiftRng, SeedableRng, Rand, Rng, ChaChaRng};
-    
+    pub(crate) fn make_random_field_elements<F: PrimeField>(worker: &Worker, num_elements: usize) -> Vec<F> {
+        use rand::{ChaChaRng, Rand, Rng, SeedableRng, XorShiftRng};
+
         let rng = &mut XorShiftRng::from_seed([0x3dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
         make_random_field_elements_for_rng(worker, num_elements, rng)
     }
 
-    pub(crate) fn make_random_field_elements_for_rng<F: PrimeField, R: Rng>(
-        worker: &Worker,
-        num_elements: usize,
-        mut rng: R
-    ) -> Vec<F> {
+    pub(crate) fn make_random_field_elements_for_rng<F: PrimeField, R: Rng>(worker: &Worker, num_elements: usize, mut rng: R) -> Vec<F> {
         let mut result = vec![F::zero(); num_elements];
 
-        use rand::{XorShiftRng, SeedableRng, Rand, Rng, ChaChaRng};
+        use rand::{ChaChaRng, Rand, Rng, SeedableRng, XorShiftRng};
 
         worker.scope(result.len(), |scope, chunk| {
-            for r in result.chunks_mut(chunk)
-            {
+            for r in result.chunks_mut(chunk) {
                 let seed: [u32; 4] = rng.gen();
                 let subrng = ChaChaRng::from_seed(&seed);
                 scope.spawn(move |_| {
@@ -1169,32 +1011,24 @@ pub(crate) mod test {
             }
         });
 
-        result 
+        result
     }
 
-    fn make_random_g1_points<G: CurveAffine>(
-        worker: &Worker,
-        num_elements: usize,
-    ) -> Vec<G> {
-        use rand::{XorShiftRng, SeedableRng, Rand, Rng, ChaChaRng};
-    
+    fn make_random_g1_points<G: CurveAffine>(worker: &Worker, num_elements: usize) -> Vec<G> {
+        use rand::{ChaChaRng, Rand, Rng, SeedableRng, XorShiftRng};
+
         let rng = &mut XorShiftRng::from_seed([0x3dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
-        make_random_g1_points_for_rng(worker, num_elements, rng) 
+        make_random_g1_points_for_rng(worker, num_elements, rng)
     }
 
-    fn make_random_g1_points_for_rng<G: CurveAffine, R: Rng>(
-        worker: &Worker,
-        num_elements: usize,
-        mut rng: R
-    ) -> Vec<G> {
+    fn make_random_g1_points_for_rng<G: CurveAffine, R: Rng>(worker: &Worker, num_elements: usize, mut rng: R) -> Vec<G> {
         let mut result = vec![G::zero(); num_elements];
 
-        use rand::{XorShiftRng, SeedableRng, Rand, Rng, ChaChaRng};
-    
+        use rand::{ChaChaRng, Rand, Rng, SeedableRng, XorShiftRng};
+
         worker.scope(result.len(), |scope, chunk| {
-            for r in result.chunks_mut(chunk)
-            {
+            for r in result.chunks_mut(chunk) {
                 let seed: [u32; 4] = rng.gen();
                 let subrng = ChaChaRng::from_seed(&seed);
                 scope.spawn(move |_| {
@@ -1207,7 +1041,7 @@ pub(crate) mod test {
             }
         });
 
-        result 
+        result
     }
 
     #[test]
@@ -1228,7 +1062,7 @@ pub(crate) mod test {
 
         for size in vec![1 << 23, 1 << 24, 1 << 25, 1 << 26] {
             for cpus in vec![16, 32, 48, 64] {
-            // for cpus in vec![16, 24, 32] {
+                // for cpus in vec![16, 24, 32] {
                 let s = &scalars[..size];
                 let g = &points[..size];
 
@@ -1240,20 +1074,13 @@ pub(crate) mod test {
 
                 let subtime = Instant::now();
 
-                let scalars_repr = super::elements_into_representations::<Bn256>(
-                    &subworker,
-                    s
-                ).unwrap();
+                let scalars_repr = super::elements_into_representations::<Bn256>(&subworker, s).unwrap();
 
                 println!("Scalars conversion taken {:?}", subtime.elapsed());
 
                 let subtime = Instant::now();
 
-                let _ = multiexp::dense_multiexp::<<Bn256 as Engine>::G1Affine>(
-                    &subworker,
-                    g,
-                    &scalars_repr
-                ).unwrap();
+                let _ = multiexp::dense_multiexp::<<Bn256 as Engine>::G1Affine>(&subworker, g, &scalars_repr).unwrap();
 
                 println!("Multiexp taken {:?}", subtime.elapsed());
 
@@ -1266,8 +1093,8 @@ pub(crate) mod test {
     #[ignore]
     fn test_future_based_multiexp_performance_on_large_data() {
         use crate::pairing::bn256::{Bn256, Fr};
-        use std::time::Instant;
         use std::sync::Arc;
+        use std::time::Instant;
 
         let max_size = 1 << 26;
         let worker = Worker::new();
@@ -1281,7 +1108,7 @@ pub(crate) mod test {
 
         for size in vec![1 << 23, 1 << 24, 1 << 25, 1 << 26] {
             for cpus in vec![16, 32, 48, 64] {
-            // for cpus in vec![16, 24, 32] {
+                // for cpus in vec![16, 24, 32] {
                 let s = &scalars[..size];
                 let g = points[..size].to_vec();
                 let g = Arc::from(g);
@@ -1294,10 +1121,7 @@ pub(crate) mod test {
 
                 let subtime = Instant::now();
 
-                let scalars_repr = super::elements_into_representations::<Bn256>(
-                    &subworker,
-                    s
-                ).unwrap();
+                let scalars_repr = super::elements_into_representations::<Bn256>(&subworker, s).unwrap();
 
                 let scalars_repr = Arc::from(scalars_repr);
 
@@ -1305,11 +1129,7 @@ pub(crate) mod test {
 
                 let subtime = Instant::now();
 
-                let _ = multiexp::future_based_multiexp::<<Bn256 as Engine>::G1Affine>(
-                    &subworker,
-                    Arc::clone(&g),
-                    Arc::clone(&scalars_repr)
-                ).wait();
+                let _ = multiexp::future_based_multiexp::<<Bn256 as Engine>::G1Affine>(&subworker, Arc::clone(&g), Arc::clone(&scalars_repr)).wait();
 
                 println!("Future based multiexp taken {:?}", subtime.elapsed());
 
@@ -1343,10 +1163,7 @@ pub(crate) mod test {
         }
     }
 
-    fn serialize_affine_points_for_fpga<E: Engine, W: std::io::Write>(
-        points: &[E::G1Affine],
-        mut dst: W
-    ) -> Result<(), std::io::Error> {
+    fn serialize_affine_points_for_fpga<E: Engine, W: std::io::Write>(points: &[E::G1Affine], mut dst: W) -> Result<(), std::io::Error> {
         use crate::pairing::ff::PrimeFieldRepr;
 
         println!("First point = {}", points[0]);
@@ -1358,14 +1175,11 @@ pub(crate) mod test {
             let repr = y.into_raw_repr();
             repr.write_le(&mut dst)?;
         }
-        
+
         Ok(())
     }
 
-    fn serialize_scalars_for_fpga<E: Engine, W: std::io::Write>(
-        scalars: &[E::Fr],
-        mut dst: W
-    ) -> Result<(), std::io::Error> {
+    fn serialize_scalars_for_fpga<E: Engine, W: std::io::Write>(scalars: &[E::Fr], mut dst: W) -> Result<(), std::io::Error> {
         use crate::pairing::ff::PrimeFieldRepr;
 
         println!("First scalar = {}", scalars[0]);
@@ -1373,14 +1187,11 @@ pub(crate) mod test {
             let repr = s.into_repr();
             repr.write_le(&mut dst)?;
         }
-        
+
         Ok(())
     }
 
-    fn serialize_projective_points_for_fpga<E: Engine, W: std::io::Write>(
-        points: &[E::G1],
-        mut dst: W
-    ) -> Result<(), std::io::Error> {
+    fn serialize_projective_points_for_fpga<E: Engine, W: std::io::Write>(points: &[E::G1], mut dst: W) -> Result<(), std::io::Error> {
         use crate::pairing::ff::PrimeFieldRepr;
 
         let (x, y, z) = points[1].into_xyz_unchecked();
@@ -1397,13 +1208,13 @@ pub(crate) mod test {
             let repr = z.into_raw_repr();
             repr.write_le(&mut dst)?;
         }
-        
+
         Ok(())
     }
 
     fn simulate_first_buckets<E: Engine>(points: &[E::G1Affine], scalars: &[E::Fr], c: usize, random_point: E::G1Affine) -> Vec<E::G1> {
-        use crate::pairing::ff::ScalarEngine;
         use crate::pairing::ff::PrimeFieldRepr;
+        use crate::pairing::ff::ScalarEngine;
 
         let skip = 0;
         let mask = (1u64 << c) - 1u64;
@@ -1433,8 +1244,8 @@ pub(crate) mod test {
     }
 
     fn test_multiexps_inner<E: Engine>(max_size: usize, sizes: Vec<usize>, num_cpus: Vec<usize>) {
-        use std::time::Instant;
         use std::sync::Arc;
+        use std::time::Instant;
 
         let worker = Worker::new();
 
@@ -1451,18 +1262,11 @@ pub(crate) mod test {
 
                 let subworker = Worker::new_with_cpus(cpus);
 
-                let scalars_repr = super::elements_into_representations::<E>(
-                    &subworker,
-                    s
-                ).unwrap();
+                let scalars_repr = super::elements_into_representations::<E>(&subworker, s).unwrap();
 
                 let subtime = Instant::now();
 
-                let _ = multiexp::dense_multiexp::<E::G1Affine>(
-                    &subworker,
-                    &g,
-                    &scalars_repr
-                ).unwrap();
+                let _ = multiexp::dense_multiexp::<E::G1Affine>(&subworker, &g, &scalars_repr).unwrap();
 
                 println!("Dense simple multiexp of size {} taken {:?} on {} cpus", size, subtime.elapsed(), cpus);
 
@@ -1714,9 +1518,9 @@ pub(crate) mod test {
     //     assert!(max_parallel_jobs >= 1);
 
     //     use rand::{XorShiftRng, SeedableRng, Rand, Rng, ChaChaRng};
-    
+
     //     let rng = &mut XorShiftRng::from_seed([0x3dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
-        
+
     //     for _ in 0..max_parallel_jobs {
     //         let seed: [u32; 4] = rng.gen();
     //         let mut subrng = ChaChaRng::from_seed(&seed);
@@ -1800,15 +1604,15 @@ pub(crate) mod test {
 
     // fn test_l3_shared_multiexp<E: Engine>(max_parallel_jobs: usize, max_size: usize, cpus_per_job: usize, window: usize) {
     //     use std::time::Instant;
-        
+
     //     let mut bases = vec![];
     //     let mut scalars = vec![];
     //     let worker = Worker::new();
 
     //     use rand::{XorShiftRng, SeedableRng, Rand, Rng, ChaChaRng};
-    
+
     //     let rng = &mut XorShiftRng::from_seed([0x3dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
-        
+
     //     for _ in 0..max_parallel_jobs {
     //         let seed: [u32; 4] = rng.gen();
     //         let mut subrng = ChaChaRng::from_seed(&seed);
@@ -1840,17 +1644,17 @@ pub(crate) mod test {
     //             &bases[0][..],
     //             &exps[..],
     //         ).unwrap();
-    
+
     //         let elapsed = subtime.elapsed();
-    
+
     //         println!("L3 shared multiexp for {} jobs of size {} with {} CPUs per job and {} bits window taken {:?}", j, max_size, cpus_per_job, window, elapsed);
     //     }
     // }
 
     fn test_future_based_multiexps_over_window_sizes<E: Engine>(max_size: usize, sizes: Vec<usize>, num_cpus: Vec<usize>, windows: Vec<usize>) {
-        use std::time::Instant;
-        use std::sync::Arc;
         use crate::source::FullDensity;
+        use std::sync::Arc;
+        use std::time::Instant;
 
         let worker = Worker::new();
 
@@ -1868,10 +1672,7 @@ pub(crate) mod test {
                 let s = &scalars[..size];
                 let g = points[..size].to_vec();
 
-                let scalars_repr = super::elements_into_representations::<E>(
-                    &worker,
-                    s
-                ).unwrap();
+                let scalars_repr = super::elements_into_representations::<E>(&worker, s).unwrap();
 
                 let g = Arc::from(g);
                 let s = Arc::from(scalars_repr);
@@ -1883,35 +1684,20 @@ pub(crate) mod test {
 
                     let window = window as u32;
 
-                    let _ = multiexp::future_based_dense_multiexp_over_fixed_width_windows(
-                        &subworker,
-                        Arc::clone(&g),
-                        Arc::clone(&s),
-                        window
-                    ).wait();
+                    let _ = multiexp::future_based_dense_multiexp_over_fixed_width_windows(&subworker, Arc::clone(&g), Arc::clone(&s), window).wait();
 
                     alt_subresults.push((window, subtime.elapsed().as_millis()));
 
                     let subtime = Instant::now();
 
-                    let _ = multiexp::multiexp_with_fixed_width::<_, _, _, _>(
-                        &subworker,
-                        (Arc::clone(&g), 0),
-                        FullDensity,
-                        Arc::clone(&s),
-                        window
-                    ).wait();
+                    let _ = multiexp::multiexp_with_fixed_width::<_, _, _, _>(&subworker, (Arc::clone(&g), 0), FullDensity, Arc::clone(&s), window).wait();
 
                     subresults.push((window, subtime.elapsed().as_millis()));
                 }
 
-                subresults.sort_by(|a, b| {
-                    a.1.cmp(&b.1)
-                });
+                subresults.sort_by(|a, b| a.1.cmp(&b.1));
 
-                alt_subresults.sort_by(|a, b| {
-                    a.1.cmp(&b.1)
-                });
+                alt_subresults.sort_by(|a, b| a.1.cmp(&b.1));
 
                 println!("Standard future based multiexp of size {} on {} CPUs:", size, cpus);
                 for (window, time_ms) in &subresults[0..3] {
@@ -1929,7 +1715,7 @@ pub(crate) mod test {
     #[test]
     #[ignore]
     fn test_different_multiexps() {
-        test_multiexp_bn254(1<<20, vec![1 << 20], vec![3, 4, 6]);
+        test_multiexp_bn254(1 << 20, vec![1 << 20], vec![3, 4, 6]);
     }
 
     #[test]
@@ -1939,7 +1725,7 @@ pub(crate) mod test {
         let worker = Worker::new();
 
         assert!(worker.cpus >= 16, "should be tested only on large machines");
-        
+
         let sizes = vec![1 << 23, 1 << 24, 1 << 25, 1 << 26];
         let cpus = vec![8, 12, 16, 24, 32, 48];
         // test_multiexp_bn254(max_size, sizes, cpus);
@@ -1950,7 +1736,7 @@ pub(crate) mod test {
     // #[ignore]
     // fn test_small_data_different_windows() {
     //     let max_size = 1 << 20;
-        
+
     //     let sizes = vec![1 << 16, 1 << 17, 1 << 18, 1 << 19, 1 << 20];
     //     let cpus = vec![3, 4, 6];
     //     let windows = vec![7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18];
@@ -1964,7 +1750,7 @@ pub(crate) mod test {
     //     let worker = Worker::new();
 
     //     assert!(worker.cpus >= 16, "should be tested only on large machines");
-        
+
     //     let sizes = vec![1 << 20, 1 << 21, 1 << 22, 1 << 23, 1 << 24, 1 << 25, 1 << 26];
     //     let cpus = vec![8, 12, 16, 24, 32, 48];
     //     let windows = vec![7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18];
@@ -1979,7 +1765,7 @@ pub(crate) mod test {
     //     let worker = Worker::new();
 
     //     assert!(worker.cpus >= 16, "should be tested only on large machines");
-        
+
     //     let sizes = vec![1 << 20, 1 << 21, 1 << 22, 1 << 23, 1 << 24, 1 << 25, 1 << 26];
     //     let cpus = vec![8, 12, 16, 24, 32, 48];
     //     let windows = vec![10, 11, 12, 13, 14, 15, 16];
@@ -1995,7 +1781,7 @@ pub(crate) mod test {
     //     let worker = Worker::new();
 
     //     assert!(worker.cpus >= 16, "should be tested only on large machines");
-        
+
     //     let sizes = vec![1 << 20, 1 << 21, 1 << 22, 1 << 23, 1 << 24, 1 << 25, 1 << 26];
     //     let cpus = vec![8, 12, 16, 24, 32, 48];
     //     let windows = vec![7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18];
@@ -2003,15 +1789,11 @@ pub(crate) mod test {
     //     test_future_based_multiexps_over_window_sizes_bn254_compact(max_size, sizes, cpus, windows);
     // }
 
-    fn make_random_points_with_unknown_discrete_log<E: Engine>(
-        dst: &[u8],
-        seed: &[u8],
-        num_points: usize
-    ) -> Vec<E::G1Affine> {
+    fn make_random_points_with_unknown_discrete_log<E: Engine>(dst: &[u8], seed: &[u8], num_points: usize) -> Vec<E::G1Affine> {
         let mut result = vec![];
 
-        use rand::{Rng, SeedableRng};
         use rand::chacha::ChaChaRng;
+        use rand::{Rng, SeedableRng};
         // Create an RNG based on the outcome of the random beacon
         let mut rng = {
             // if we use Blake hasher
@@ -2037,22 +1819,18 @@ pub(crate) mod test {
 
     #[test]
     fn produce_fpga_test_vectors() {
-        use crate::pairing::ff::ScalarEngine;
         use crate::pairing::bls12_381::Bls12;
+        use crate::pairing::ff::ScalarEngine;
 
-        let worker =crate::worker::Worker::new();
+        let worker = crate::worker::Worker::new();
 
-        let random_point = make_random_points_with_unknown_discrete_log::<Bls12>(
-            &b"fpga_dst"[..], 
-            &hex::decode(crate::constants::ETH_BLOCK_10_000_000_HASH).unwrap(), 
-            1
-        )[0];
+        let random_point = make_random_points_with_unknown_discrete_log::<Bls12>(&b"fpga_dst"[..], &hex::decode(crate::constants::ETH_BLOCK_10_000_000_HASH).unwrap(), 1)[0];
 
         let (x, y) = random_point.into_xy_unchecked();
         println!("Random point in Montgomery form: X = {}, Y = {}", x.into_raw_repr(), y.into_raw_repr());
 
         let base_path = std::path::Path::new("./");
-    
+
         for n in vec![6, 7, 20] {
             let points_path = base_path.join(&format!("input_points_2^{}.key", n));
             let scalars_path = base_path.join(&format!("input_scalars_2^{}.key", n));
@@ -2083,17 +1861,13 @@ pub(crate) mod test {
 
     #[test]
     fn produce_bn254_fpga_test_vectors() {
-        use crate::pairing::ff::ScalarEngine;
         use crate::pairing::bn256::{Bn256, Fr};
+        use crate::pairing::ff::ScalarEngine;
 
         let bucket_width = 16;
         let worker = crate::worker::Worker::new();
 
-        let random_point = make_random_points_with_unknown_discrete_log::<Bn256>(
-            &b"fpga_dst"[..], 
-            &hex::decode(crate::constants::ETH_BLOCK_10_000_000_HASH).unwrap(), 
-            1
-        )[0];
+        let random_point = make_random_points_with_unknown_discrete_log::<Bn256>(&b"fpga_dst"[..], &hex::decode(crate::constants::ETH_BLOCK_10_000_000_HASH).unwrap(), 1)[0];
 
         let (x, y) = random_point.into_xy_unchecked();
         println!("Random point in Montgomery form: X = {}, Y = {}", x.into_raw_repr(), y.into_raw_repr());
@@ -2104,7 +1878,7 @@ pub(crate) mod test {
         if (Fr::NUM_BITS as usize) % bucket_width != 0 {
             num_buckets += 1;
         }
-    
+
         for n in vec![6, 7, 20] {
             let points_path = base_path.join(&format!("bn_254_input_points_2^{}_width_{}.key", n, bucket_width));
             let scalars_path = base_path.join(&format!("bn_254_input_scalars_2^{}_width_{}.key", n, bucket_width));
@@ -2142,22 +1916,18 @@ pub(crate) mod test {
     #[test]
     fn produce_fpga_window_12_test_vectors() {
         let width = 12;
-        use crate::pairing::ff::ScalarEngine;
         use crate::pairing::bls12_381::Bls12;
+        use crate::pairing::ff::ScalarEngine;
 
         let worker = crate::worker::Worker::new();
 
-        let random_point = make_random_points_with_unknown_discrete_log::<Bls12>(
-            &b"fpga_dst"[..], 
-            &hex::decode(crate::constants::ETH_BLOCK_10_000_000_HASH).unwrap(), 
-            1
-        )[0];
+        let random_point = make_random_points_with_unknown_discrete_log::<Bls12>(&b"fpga_dst"[..], &hex::decode(crate::constants::ETH_BLOCK_10_000_000_HASH).unwrap(), 1)[0];
 
         let (x, y) = random_point.into_xy_unchecked();
         println!("Random point in Montgomery form: X = {}, Y = {}", x.into_raw_repr(), y.into_raw_repr());
 
         let base_path = std::path::Path::new("./");
-    
+
         for n in vec![6, 7, 20] {
             let points_path = base_path.join(&format!("input_points_2^{}.key", n));
             let scalars_path = base_path.join(&format!("input_scalars_2^{}.key", n));
@@ -2186,4 +1956,3 @@ pub(crate) mod test {
         }
     }
 }
-

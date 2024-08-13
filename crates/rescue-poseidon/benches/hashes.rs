@@ -12,9 +12,7 @@ use franklin_crypto::{
 
 use rand::{Rand, SeedableRng, XorShiftRng};
 use rescue_poseidon::generic_round_function;
-use rescue_poseidon::{
-    PoseidonParams, RescueParams, RescuePrimeParams,
-};
+use rescue_poseidon::{PoseidonParams, RescueParams, RescuePrimeParams};
 
 fn init_rng() -> XorShiftRng {
     const TEST_SEED: [u32; 4] = [0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654];
@@ -73,9 +71,7 @@ fn bench_rescue_round_function_comparison(crit: &mut Criterion) {
     let params = Bn256RescueParams::new_checked_2_into_1();
 
     let mut rescue = StatefulRescue::<Bn256>::new(&params);
-    group.bench_function("Old Rescue", |b| {
-        b.iter(|| rescue.absorb(&test_inputs()))
-    });
+    group.bench_function("Old Rescue", |b| b.iter(|| rescue.absorb(&test_inputs())));
 }
 
 fn bench_rescue_round_function(crit: &mut Criterion) {

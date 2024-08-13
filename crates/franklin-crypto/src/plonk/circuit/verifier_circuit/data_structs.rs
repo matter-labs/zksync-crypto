@@ -1,36 +1,21 @@
-use crate::plonk::circuit::curve::sw_affine::*;
-use crate::plonk::circuit::bigint::field::*;
-use crate::plonk::circuit::bigint::bigint::*;
-use crate::plonk::circuit::allocated_num::*;
-use crate::plonk::circuit::boolean::*;
-use super::affine_point_wrapper::WrappedAffinePoint;
 use super::affine_point_wrapper::aux_data::AuxData;
+use super::affine_point_wrapper::WrappedAffinePoint;
+use crate::plonk::circuit::allocated_num::*;
+use crate::plonk::circuit::bigint::bigint::*;
+use crate::plonk::circuit::bigint::field::*;
+use crate::plonk::circuit::boolean::*;
+use crate::plonk::circuit::curve::sw_affine::*;
 
-use crate::bellman::pairing::{
-    Engine,
-    GenericCurveAffine,
-    GenericCurveProjective,
-};
+use crate::bellman::pairing::{Engine, GenericCurveAffine, GenericCurveProjective};
 
-use crate::bellman::pairing::ff::{
-    Field,
-    PrimeField,
-    BitIterator,
-};
+use crate::bellman::pairing::ff::{BitIterator, Field, PrimeField};
 
-use crate::bellman::{
-    SynthesisError,
-};
+use crate::bellman::SynthesisError;
 
-use crate::bellman::plonk::better_better_cs::cs::{
-    Variable, 
-    ConstraintSystem,
-    PlonkConstraintSystemParams,
-};
+use crate::bellman::plonk::better_better_cs::cs::{ConstraintSystem, PlonkConstraintSystemParams, Variable};
 
-use crate::bellman::plonk::better_cs::keys::{Proof, VerificationKey};
 use crate::bellman::plonk::better_cs::cs::PlonkConstraintSystemParams as OldCSParams;
-
+use crate::bellman::plonk::better_cs::keys::{Proof, VerificationKey};
 
 #[derive(Clone, Debug)]
 pub struct ProofGadget<'a, E: Engine, WP: WrappedAffinePoint<'a, E>> {
@@ -53,7 +38,6 @@ pub struct ProofGadget<'a, E: Engine, WP: WrappedAffinePoint<'a, E>> {
     _m: &'a std::marker::PhantomData<()>,
 }
 
-
 impl<'a, E: Engine, WP: WrappedAffinePoint<'a, E>> ProofGadget<'a, E, WP> {
     pub fn alloc<CS: ConstraintSystem<E>, P: OldCSParams<E>, AD: AuxData<E>>(
         cs: &mut CS,
@@ -61,40 +45,35 @@ impl<'a, E: Engine, WP: WrappedAffinePoint<'a, E>> ProofGadget<'a, E, WP> {
         params: &'a RnsParameters<E, <E::G1Affine as GenericCurveAffine>::Base>,
         aux_data: &AD,
     ) -> Result<Self, SynthesisError> {
-        
-        let input_values = proof.input_values.iter().map(|x| {
-            AllocatedNum::alloc_input(cs, || Ok(*x))
-        }).collect::<Result<Vec<_>, _>>()?;
+        let input_values = proof.input_values.iter().map(|x| AllocatedNum::alloc_input(cs, || Ok(*x))).collect::<Result<Vec<_>, _>>()?;
 
-        let wire_commitments = proof.wire_commitments.iter().map(|x| {
-            WrappedAffinePoint::alloc(cs, Some(*x), params, aux_data)
-        }).collect::<Result<Vec<_>, _>>()?;
+        let wire_commitments = proof
+            .wire_commitments
+            .iter()
+            .map(|x| WrappedAffinePoint::alloc(cs, Some(*x), params, aux_data))
+            .collect::<Result<Vec<_>, _>>()?;
 
         let grand_product_commitment = WrappedAffinePoint::alloc(cs, Some(proof.grand_product_commitment), params, aux_data)?;
-        
-        let quotient_poly_commitments = proof.quotient_poly_commitments.iter().map(|x| {
-            WrappedAffinePoint::alloc(cs, Some(*x), params, aux_data)
-        }).collect::<Result<Vec<_>, _>>()?;
 
-        let wire_values_at_z = proof.wire_values_at_z.iter().map(|x| {
-            AllocatedNum::alloc(cs, || Ok(*x))
-        }).collect::<Result<Vec<_>, _>>()?;
+        let quotient_poly_commitments = proof
+            .quotient_poly_commitments
+            .iter()
+            .map(|x| WrappedAffinePoint::alloc(cs, Some(*x), params, aux_data))
+            .collect::<Result<Vec<_>, _>>()?;
 
-        let wire_values_at_z_omega = proof.wire_values_at_z_omega.iter().map(|x| {
-            AllocatedNum::alloc(cs, || Ok(*x))
-        }).collect::<Result<Vec<_>, _>>()?;
+        let wire_values_at_z = proof.wire_values_at_z.iter().map(|x| AllocatedNum::alloc(cs, || Ok(*x))).collect::<Result<Vec<_>, _>>()?;
 
-        let grand_product_at_z_omega = AllocatedNum::alloc(cs, || Ok(proof.grand_product_at_z_omega))?; 
-        let quotient_polynomial_at_z = AllocatedNum::alloc(cs, || Ok(proof.quotient_polynomial_at_z))?; 
-        let linearization_polynomial_at_z = AllocatedNum::alloc(cs, || Ok(proof.linearization_polynomial_at_z))?;  
+        let wire_values_at_z_omega = proof.wire_values_at_z_omega.iter().map(|x| AllocatedNum::alloc(cs, || Ok(*x))).collect::<Result<Vec<_>, _>>()?;
 
-        let permutation_polynomials_at_z = proof.permutation_polynomials_at_z.iter().map(|x| {
-            AllocatedNum::alloc(cs, || Ok(*x))
-        }).collect::<Result<Vec<_>, _>>()?;
+        let grand_product_at_z_omega = AllocatedNum::alloc(cs, || Ok(proof.grand_product_at_z_omega))?;
+        let quotient_polynomial_at_z = AllocatedNum::alloc(cs, || Ok(proof.quotient_polynomial_at_z))?;
+        let linearization_polynomial_at_z = AllocatedNum::alloc(cs, || Ok(proof.linearization_polynomial_at_z))?;
+
+        let permutation_polynomials_at_z = proof.permutation_polynomials_at_z.iter().map(|x| AllocatedNum::alloc(cs, || Ok(*x))).collect::<Result<Vec<_>, _>>()?;
 
         let opening_at_z_proof = WrappedAffinePoint::alloc(cs, Some(proof.opening_at_z_proof), params, aux_data)?;
         let opening_at_z_omega_proof = WrappedAffinePoint::alloc(cs, Some(proof.opening_at_z_omega_proof), params, aux_data)?;
-       
+
         Ok(ProofGadget {
             num_inputs: proof.num_inputs,
             input_values,
@@ -123,7 +102,6 @@ impl<'a, E: Engine, WP: WrappedAffinePoint<'a, E>> ProofGadget<'a, E, WP> {
         params: &'a RnsParameters<E, <E::G1Affine as GenericCurveAffine>::Base>,
         aux_data: &AD,
     ) -> Result<Self, SynthesisError> {
-
         use crate::plonk::circuit::Assignment;
 
         let state_width = P::STATE_WIDTH;
@@ -147,7 +125,7 @@ impl<'a, E: Engine, WP: WrappedAffinePoint<'a, E>> ProofGadget<'a, E, WP> {
 
             wire_commitments.push(allocated);
         }
-        
+
         let wit = proof.as_ref().and_then(|el| Some(el.grand_product_commitment));
         let grand_product_commitment = WrappedAffinePoint::alloc(cs, wit, params, aux_data)?;
 
@@ -176,16 +154,16 @@ impl<'a, E: Engine, WP: WrappedAffinePoint<'a, E>> ProofGadget<'a, E, WP> {
         }
 
         let wit = proof.as_ref().and_then(|el| Some(el.grand_product_at_z_omega));
-        let grand_product_at_z_omega = AllocatedNum::alloc(cs, || Ok(*wit.get()?))?; 
+        let grand_product_at_z_omega = AllocatedNum::alloc(cs, || Ok(*wit.get()?))?;
 
         let wit = proof.as_ref().and_then(|el| Some(el.quotient_polynomial_at_z));
-        let quotient_polynomial_at_z = AllocatedNum::alloc(cs, || Ok(*wit.get()?))?; 
+        let quotient_polynomial_at_z = AllocatedNum::alloc(cs, || Ok(*wit.get()?))?;
 
         let wit = proof.as_ref().and_then(|el| Some(el.linearization_polynomial_at_z));
-        let linearization_polynomial_at_z = AllocatedNum::alloc(cs, || Ok(*wit.get()?))?; 
+        let linearization_polynomial_at_z = AllocatedNum::alloc(cs, || Ok(*wit.get()?))?;
 
         let mut permutation_polynomials_at_z = vec![];
-        for idx in 0..(state_width-1) {
+        for idx in 0..(state_width - 1) {
             let wit = proof.as_ref().and_then(|el| Some(&el.permutation_polynomials_at_z)).and_then(|el| Some(el[idx]));
             let allocated = AllocatedNum::alloc(cs, || Ok(*wit.get()?))?;
 
@@ -234,33 +212,36 @@ pub struct VerificationKeyGagdet<'a, E: Engine, WP: WrappedAffinePoint<'a, E>> {
     _m: &'a std::marker::PhantomData<()>,
 }
 
-
 impl<'a, E: Engine, WP: WrappedAffinePoint<'a, E>> VerificationKeyGagdet<'a, E, WP> {
-    
     pub fn alloc<CS: ConstraintSystem<E>, P: OldCSParams<E>, AD: AuxData<E>>(
         cs: &mut CS,
-        vk:  VerificationKey<E, P>,
+        vk: VerificationKey<E, P>,
         params: &'a RnsParameters<E, <E::G1Affine as GenericCurveAffine>::Base>,
         aux_data: &AD,
     ) -> Result<Self, SynthesisError> {
+        let selector_commitments = vk
+            .selector_commitments
+            .iter()
+            .map(|x| WrappedAffinePoint::alloc(cs, Some(*x), params, aux_data))
+            .collect::<Result<Vec<_>, _>>()?;
 
-        let selector_commitments = vk.selector_commitments.iter().map(|x| {
-            WrappedAffinePoint::alloc(cs, Some(*x), params, aux_data)
-        }).collect::<Result<Vec<_>, _>>()?;
+        let next_step_selector_commitments = vk
+            .next_step_selector_commitments
+            .iter()
+            .map(|x| WrappedAffinePoint::alloc(cs, Some(*x), params, aux_data))
+            .collect::<Result<Vec<_>, _>>()?;
 
-        let next_step_selector_commitments = vk.next_step_selector_commitments.iter().map(|x| {
-            WrappedAffinePoint::alloc(cs, Some(*x), params, aux_data)
-        }).collect::<Result<Vec<_>, _>>()?;
-
-        let permutation_commitments = vk.permutation_commitments.iter().map(|x| {
-            WrappedAffinePoint::alloc(cs, Some(*x), params, aux_data)
-        }).collect::<Result<Vec<_>, _>>()?;
+        let permutation_commitments = vk
+            .permutation_commitments
+            .iter()
+            .map(|x| WrappedAffinePoint::alloc(cs, Some(*x), params, aux_data))
+            .collect::<Result<Vec<_>, _>>()?;
 
         Ok(VerificationKeyGagdet {
-            n : Some(vk.n),
+            n: Some(vk.n),
             domain_size_as_allocated_num: None,
             omega_as_allocated_num: None,
-            num_inputs : vk.num_inputs,
+            num_inputs: vk.num_inputs,
             selector_commitments,
             next_step_selector_commitments,
             permutation_commitments,
@@ -280,8 +261,7 @@ impl<'a, E: Engine, WP: WrappedAffinePoint<'a, E>> VerificationKeyGagdet<'a, E, 
         non_residues: Vec<E::Fr>,
         aux_data: &AD,
     ) -> Result<Self, SynthesisError> {
-
-        let num_selector_commitments = P::STATE_WIDTH + 2; 
+        let num_selector_commitments = P::STATE_WIDTH + 2;
         let num_next_step_selector_commitments = 1;
 
         let num_permutation_commitments = P::STATE_WIDTH;
@@ -321,10 +301,10 @@ impl<'a, E: Engine, WP: WrappedAffinePoint<'a, E>> VerificationKeyGagdet<'a, E, 
         assert_eq!(w.len(), 0, "must consume all the witness");
 
         Ok(VerificationKeyGagdet {
-            n : None,
+            n: None,
             domain_size_as_allocated_num: Some(domain_size.clone()),
             omega_as_allocated_num: Some(omega.clone()),
-            num_inputs : num_inputs,
+            num_inputs: num_inputs,
             selector_commitments,
             next_step_selector_commitments,
             permutation_commitments,
@@ -339,14 +319,14 @@ pub trait IntoLimbedWitness<E: Engine> {
     fn into_witness(&self) -> Result<Vec<E::Fr>, SynthesisError> {
         unimplemented!()
     }
-    fn witness_size_for_params(params: &RnsParameters<E, <E::G1Affine as GenericCurveAffine>::Base >) -> usize;
-    fn into_witness_for_params(&self, _params: &RnsParameters<E, <E::G1Affine as GenericCurveAffine>::Base >) -> Result<Vec<E::Fr>, SynthesisError> {
+    fn witness_size_for_params(params: &RnsParameters<E, <E::G1Affine as GenericCurveAffine>::Base>) -> usize;
+    fn into_witness_for_params(&self, _params: &RnsParameters<E, <E::G1Affine as GenericCurveAffine>::Base>) -> Result<Vec<E::Fr>, SynthesisError> {
         unimplemented!()
     }
 }
 
 impl<E: Engine, P: OldCSParams<E>> IntoLimbedWitness<E> for VerificationKey<E, P> {
-    fn witness_size_for_params(params: &RnsParameters<E, <E::G1Affine as GenericCurveAffine>::Base >) -> usize {
+    fn witness_size_for_params(params: &RnsParameters<E, <E::G1Affine as GenericCurveAffine>::Base>) -> usize {
         let mut base = 2;
 
         let per_coord = if params.can_allocate_from_double_limb_witness() {
@@ -360,7 +340,7 @@ impl<E: Engine, P: OldCSParams<E>> IntoLimbedWitness<E> for VerificationKey<E, P
             params.num_limbs_for_in_field_representation
         };
 
-        let num_selector_commitments = P::STATE_WIDTH + 2; 
+        let num_selector_commitments = P::STATE_WIDTH + 2;
         let num_next_step_selector_commitments = 1;
 
         let num_permutation_commitments = P::STATE_WIDTH;
@@ -384,9 +364,8 @@ impl<E: Engine, P: OldCSParams<E>> IntoLimbedWitness<E> for VerificationKey<E, P
     }
 }
 
-
 impl<E: Engine, P: OldCSParams<E>> IntoLimbedWitness<E> for Proof<E, P> {
-    fn witness_size_for_params(_params: &RnsParameters<E, <E::G1Affine as GenericCurveAffine>::Base >) -> usize {
+    fn witness_size_for_params(_params: &RnsParameters<E, <E::G1Affine as GenericCurveAffine>::Base>) -> usize {
         unimplemented!();
         // let mut base = 2;
 
@@ -401,7 +380,7 @@ impl<E: Engine, P: OldCSParams<E>> IntoLimbedWitness<E> for Proof<E, P> {
         //     params.num_limbs_for_in_field_representation
         // };
 
-        // let num_selector_commitments = P::STATE_WIDTH + 2; 
+        // let num_selector_commitments = P::STATE_WIDTH + 2;
         // let num_next_step_selector_commitments = 1;
 
         // let num_permutation_commitments = P::STATE_WIDTH;
@@ -458,7 +437,6 @@ impl<'a, E: Engine, WP: WrappedAffinePoint<'a, E>> IntoLimbedCircuitWitness<E> f
     }
 }
 
-
 impl<'a, E: Engine, WP: WrappedAffinePoint<'a, E>> IntoLimbedCircuitWitness<E> for VerificationKeyGagdet<'a, E, WP> {
     fn into_witness<CS: ConstraintSystem<E>>(&self, _cs: &mut CS) -> Result<Vec<Num<E>>, SynthesisError> {
         assert!(self.domain_size_as_allocated_num.is_some(), "can only be called on a gadget with variable parameters");
@@ -489,7 +467,7 @@ fn add_prime_field_elements<'a, E: Engine, F: PrimeField>(src: &[FieldElement<'a
         for limb in el.binary_limbs.iter() {
             let as_num = limb.term.into_num();
             dst.push(as_num);
-        }        
+        }
     }
 }
 
@@ -498,6 +476,6 @@ fn add_points<'a, E: Engine, WP: WrappedAffinePoint<'a, E>>(src: &[WP], dst: &mu
         let p = el.get_point();
         let x = p.x.clone();
         let y = p.y.clone();
-        add_prime_field_elements(&[x, y], dst);   
+        add_prime_field_elements(&[x, y], dst);
     }
 }

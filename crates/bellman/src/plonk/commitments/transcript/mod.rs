@@ -1,8 +1,8 @@
-use blake2s_simd::{Params, State};
 use crate::pairing::ff::{PrimeField, PrimeFieldRepr};
+use blake2s_simd::{Params, State};
 
-pub mod prng;
 pub mod keccak_transcript;
+pub mod prng;
 
 // #[cfg(feature = "redshift")]
 // pub mod rescue_transcript;
@@ -10,13 +10,7 @@ pub mod keccak_transcript;
 // pub mod poseidon_transcript;
 
 lazy_static! {
-    static ref TRANSCRIPT_BLAKE2S_PARAMS: State = {
-        Params::new()
-            .hash_length(32)
-            .key(b"Squeamish Ossifrage")
-            .personal(b"Shaftoe")
-            .to_state()
-    };
+    static ref TRANSCRIPT_BLAKE2S_PARAMS: State = { Params::new().hash_length(32).key(b"Squeamish Ossifrage").personal(b"Shaftoe").to_state() };
 }
 
 pub trait Prng<F: PrimeField>: Sized + Clone {
@@ -40,15 +34,14 @@ pub trait Transcript<F: PrimeField>: Prng<F> + Sized + Clone {
 #[derive(Clone)]
 pub struct Blake2sTranscript<F: PrimeField> {
     state: State,
-    _marker: std::marker::PhantomData<F>
+    _marker: std::marker::PhantomData<F>,
 }
 
 impl<F: PrimeField> Blake2sTranscript<F> {
     const SHAVE_BITS: u32 = 256 - F::CAPACITY;
     // const REPR_SIZE: usize = std::mem::size_of::<F::Repr>();
-    const REPR_SIZE: usize = (((F::NUM_BITS as usize)/ 64) + 1) * 8;
+    const REPR_SIZE: usize = (((F::NUM_BITS as usize) / 64) + 1) * 8;
 }
-
 
 // impl<F: PrimeField> Prng<F> for Blake2sTranscript<F> {
 //     type Input = F;
@@ -69,7 +62,7 @@ impl<F: PrimeField> Blake2sTranscript<F> {
 //     fn get_challenge(&mut self) -> F {
 //         let value = *(self.state.finalize().as_array());
 //         self.state.update(&value[..]);
-        
+
 //         let mut repr = F::Repr::default();
 //         let shaving_mask: u64 = 0xffffffffffffffff >> (Self::SHAVE_BITS % 64);
 //         repr.read_be(&value[..]).expect("will read");
@@ -90,7 +83,7 @@ impl<F: PrimeField> Prng<F> for Blake2sTranscript<F> {
         let state = (*TRANSCRIPT_BLAKE2S_PARAMS).clone();
         Self {
             state,
-            _marker: std::marker::PhantomData
+            _marker: std::marker::PhantomData,
         }
     }
 
@@ -101,7 +94,7 @@ impl<F: PrimeField> Prng<F> for Blake2sTranscript<F> {
     fn get_challenge(&mut self) -> F {
         let value = *(self.state.finalize().as_array());
         self.state.update(&value[..]);
-        
+
         let mut repr = F::Repr::default();
         let shaving_mask: u64 = 0xffffffffffffffff >> (Self::SHAVE_BITS % 64);
         repr.read_be(&value[..]).expect("will read");
@@ -126,7 +119,7 @@ impl<F: PrimeField> Transcript<F> for Blake2sTranscript<F> {
         let repr = element.into_repr();
         let mut bytes: Vec<u8> = vec![0u8; Self::REPR_SIZE];
         repr.write_be(&mut bytes[..]).expect("should write");
-        
+
         self.state.update(&bytes[..]);
     }
 
@@ -143,7 +136,7 @@ impl<F: PrimeField> Transcript<F> for Blake2sTranscript<F> {
         let repr = element.into_repr();
         let mut bytes: Vec<u8> = vec![0u8; Self::REPR_SIZE];
         repr.write_be(&mut bytes[..]).expect("should write");
-        
+
         self.state.update(&bytes[..]);
     }
 }

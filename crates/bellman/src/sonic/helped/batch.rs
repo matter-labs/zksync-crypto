@@ -8,13 +8,13 @@
 //! This submodule contains the `Batch` abstraction for creating a
 //! context for batch verification.
 
-use crate::pairing::ff::{Field};
-use crate::pairing::{Engine, CurveAffine, CurveProjective};
+use crate::pairing::ff::Field;
+use crate::pairing::{CurveAffine, CurveProjective, Engine};
 
 use crate::SynthesisError;
 
+use crate::sonic::cs::Circuit;
 use crate::sonic::cs::{Backend, SynthesisDriver};
-use crate::sonic::cs::{Circuit};
 
 use super::parameters::VerifyingKey;
 
@@ -104,7 +104,7 @@ impl<E: Engine> Batch<E> {
         }
     }
 
-    /// add `(r*P) to the h^(alpha*x) terms, add -(r*point)*P to h^(alpha) terms 
+    /// add `(r*P) to the h^(alpha*x) terms, add -(r*point)*P to h^(alpha) terms
     pub fn add_opening(&mut self, p: E::G1Affine, mut r: E::Fr, point: E::Fr) {
         self.alpha_x.push((p, r));
         r.mul_assign(&point);
@@ -131,31 +131,19 @@ impl<E: Engine> Batch<E> {
     pub fn check_all(mut self) -> bool {
         self.alpha.push((self.g, self.value));
 
-        let alpha_x = multiexp(
-            self.alpha_x.iter().map(|x| &x.0),
-            self.alpha_x.iter().map(|x| &x.1),
-        ).into_affine();
+        let alpha_x = multiexp(self.alpha_x.iter().map(|x| &x.0), self.alpha_x.iter().map(|x| &x.1)).into_affine();
 
         let alpha_x = alpha_x.prepare();
 
-        let alpha = multiexp(
-            self.alpha.iter().map(|x| &x.0),
-            self.alpha.iter().map(|x| &x.1),
-        ).into_affine();
+        let alpha = multiexp(self.alpha.iter().map(|x| &x.0), self.alpha.iter().map(|x| &x.1)).into_affine();
 
         let alpha = alpha.prepare();
 
-        let neg_h = multiexp(
-            self.neg_h.iter().map(|x| &x.0),
-            self.neg_h.iter().map(|x| &x.1),
-        ).into_affine();
+        let neg_h = multiexp(self.neg_h.iter().map(|x| &x.0), self.neg_h.iter().map(|x| &x.1)).into_affine();
 
         let neg_h = neg_h.prepare();
 
-        let neg_x_n_minus_d = multiexp(
-            self.neg_x_n_minus_d.iter().map(|x| &x.0),
-            self.neg_x_n_minus_d.iter().map(|x| &x.1),
-        ).into_affine();
+        let neg_x_n_minus_d = multiexp(self.neg_x_n_minus_d.iter().map(|x| &x.0), self.neg_x_n_minus_d.iter().map(|x| &x.1)).into_affine();
 
         let neg_x_n_minus_d = neg_x_n_minus_d.prepare();
 
@@ -164,6 +152,8 @@ impl<E: Engine> Batch<E> {
             (&alpha, &self.alpha_precomp),
             (&neg_h, &self.neg_h_precomp),
             (&neg_x_n_minus_d, &self.neg_x_n_minus_d_precomp),
-        ])).unwrap() == E::Fqk::one()
+        ]))
+        .unwrap()
+            == E::Fqk::one()
     }
 }

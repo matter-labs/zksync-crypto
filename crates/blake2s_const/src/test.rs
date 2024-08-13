@@ -7,12 +7,7 @@ const THOUSAND_HASH: &str = "37e9dd47498579c5343fd282c13c62ea824cdfc9b0f4f747a41
 
 #[test]
 fn test_update_state() {
-    let io = &[
-        (&b""[..], EMPTY_HASH),
-        (&b"abc"[..], ABC_HASH),
-        (&[0; BLOCKBYTES], ONE_BLOCK_HASH),
-        (&[0; 1000], THOUSAND_HASH),
-    ];
+    let io = &[(&b""[..], EMPTY_HASH), (&b"abc"[..], ABC_HASH), (&[0; BLOCKBYTES], ONE_BLOCK_HASH), (&[0; 1000], THOUSAND_HASH)];
     // Test each input all at once.
     for &(input, output) in io {
         let hash = blake2s(input);
@@ -46,12 +41,7 @@ fn test_update_state() {
 
 #[test]
 fn test_from_const_state() {
-    let io = &[
-        (&b""[..], EMPTY_HASH),
-        (&b"abc"[..], ABC_HASH),
-        (&[0; BLOCKBYTES], ONE_BLOCK_HASH),
-        (&[0; 1000], THOUSAND_HASH),
-    ];
+    let io = &[(&b""[..], EMPTY_HASH), (&b"abc"[..], ABC_HASH), (&[0; BLOCKBYTES], ONE_BLOCK_HASH), (&[0; 1000], THOUSAND_HASH)];
     // Test each input all at once.
     for &(input, output) in io {
         let hash = blake2s_const(input);
@@ -118,16 +108,10 @@ fn test_all_parameters() {
         .last_node(true);
 
     // Check the State API.
-    assert_eq!(
-        "62361e5392ab0eb7dd27e48a6809ee82dc57",
-        &params.to_state().update(b"foo").finalize().to_hex()
-    );
+    assert_eq!("62361e5392ab0eb7dd27e48a6809ee82dc57", &params.to_state().update(b"foo").finalize().to_hex());
 
     // Check the all-at-once API.
-    assert_eq!(
-        "62361e5392ab0eb7dd27e48a6809ee82dc57",
-        &params.hash(b"foo").to_hex()
-    );
+    assert_eq!("62361e5392ab0eb7dd27e48a6809ee82dc57", &params.hash(b"foo").to_hex());
 }
 
 #[test]
@@ -140,16 +124,10 @@ fn test_all_parameters_blake2sp() {
         .key(b"bar");
 
     // Check the State API.
-    assert_eq!(
-        "947d4c671e2794f5e1a57daeca97bb46ed66",
-        &params.to_state().update(b"foo").finalize().to_hex()
-    );
+    assert_eq!("947d4c671e2794f5e1a57daeca97bb46ed66", &params.to_state().update(b"foo").finalize().to_hex());
 
     // Check the all-at-once API.
-    assert_eq!(
-        "947d4c671e2794f5e1a57daeca97bb46ed66",
-        &params.hash(b"foo").to_hex()
-    );
+    assert_eq!("947d4c671e2794f5e1a57daeca97bb46ed66", &params.hash(b"foo").to_hex());
 }
 
 #[test]

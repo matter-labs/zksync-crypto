@@ -1,19 +1,11 @@
-use crate::pairing::{
-    CurveAffine,
-    CurveProjective,
-    Engine
-};
+use crate::pairing::{CurveAffine, CurveProjective, Engine};
 
-use crate::pairing::ff::{
-    PrimeField,
-    Field,
-    PrimeFieldRepr,
-    ScalarEngine};
+use crate::pairing::ff::{Field, PrimeField, PrimeFieldRepr, ScalarEngine};
 
-use std::sync::Arc;
-use std::io;
 use bit_vec::{self, BitVec};
+use std::io;
 use std::iter;
+use std::sync::Arc;
 
 use super::SynthesisError;
 
@@ -48,7 +40,7 @@ impl<G: CurveAffine> Source<G> for (Arc<Vec<G>>, usize) {
         }
 
         if self.0[self.1].is_zero() {
-            return Err(SynthesisError::UnexpectedIdentity)
+            return Err(SynthesisError::UnexpectedIdentity);
         }
 
         to.add_assign_mixed(&self.0[self.1]);
@@ -71,7 +63,7 @@ impl<G: CurveAffine> Source<G> for (Arc<Vec<G>>, usize) {
 
 pub trait QueryDensity {
     /// Returns whether the base exists.
-    type Iter: Iterator<Item=bool>;
+    type Iter: Iterator<Item = bool>;
 
     fn iter(self) -> Self::Iter;
     fn get_query_size(self) -> Option<usize>;
@@ -101,7 +93,7 @@ impl<'a> QueryDensity for &'a FullDensity {
 #[derive(Clone)]
 pub struct DensityTracker {
     pub(crate) bv: BitVec,
-    total_density: usize
+    total_density: usize,
 }
 
 impl<'a> QueryDensity for &'a DensityTracker {
@@ -118,10 +110,7 @@ impl<'a> QueryDensity for &'a DensityTracker {
 
 impl DensityTracker {
     pub fn new() -> DensityTracker {
-        DensityTracker {
-            bv: BitVec::new(),
-            total_density: 0
-        }
+        DensityTracker { bv: BitVec::new(), total_density: 0 }
     }
 
     pub fn add_element(&mut self) {
@@ -150,18 +139,14 @@ impl DensityTracker {
 pub struct DensityTrackerersChain {
     pub(crate) tracker_0: DensityTracker,
     pub(crate) tracker_1: DensityTracker,
-    total_density: usize
+    total_density: usize,
 }
 
 impl DensityTrackerersChain {
     pub fn new(tracker_0: DensityTracker, tracker_1: DensityTracker) -> Self {
         let total_density = tracker_0.total_density + tracker_1.total_density;
 
-        Self {
-            tracker_0,
-            tracker_1,
-            total_density
-        }
+        Self { tracker_0, tracker_1, total_density }
     }
 }
 

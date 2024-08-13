@@ -38,10 +38,10 @@ pub struct Setup<E: Engine, C: Circuit<E>> {
 
     pub non_residues: Vec<E::Fr>,
 
-    #[serde(skip_serializing,skip_deserializing, default)]
+    #[serde(skip_serializing, skip_deserializing, default)]
     #[serde(bound(serialize = ""))]
     #[serde(bound(deserialize = ""))]
-    _marker: std::marker::PhantomData<C>
+    _marker: std::marker::PhantomData<C>,
 }
 
 impl<E: Engine, C: Circuit<E>> std::fmt::Debug for Setup<E, C> {
@@ -70,14 +70,14 @@ impl<E: Engine, C: Circuit<E>> Setup<E, C> {
             gate_setup_monomials: vec![],
             gate_selectors_monomials: vec![],
             permutation_monomials: vec![],
-        
+
             total_lookup_entries_length: 0,
             lookup_selector_monomial: None,
             lookup_tables_monomials: vec![],
             lookup_table_type_monomial: None,
             non_residues: vec![],
-        
-            _marker: std::marker::PhantomData
+
+            _marker: std::marker::PhantomData,
         }
     }
 
@@ -161,10 +161,10 @@ pub struct VerificationKey<E: Engine, C: Circuit<E>> {
     pub non_residues: Vec<E::Fr>,
     pub g2_elements: [E::G2Affine; 2],
 
-    #[serde(skip_serializing,skip_deserializing, default)]
+    #[serde(skip_serializing, skip_deserializing, default)]
     #[serde(bound(serialize = ""))]
     #[serde(bound(deserialize = ""))]
-    _marker: std::marker::PhantomData<C>
+    _marker: std::marker::PhantomData<C>,
 }
 
 impl<E: Engine, C: Circuit<E>> std::fmt::Debug for VerificationKey<E, C> {
@@ -206,11 +206,7 @@ impl<E: Engine, C: Circuit<E>> VerificationKey<E, C> {
         }
     }
 
-    pub fn from_setup(
-        setup: &Setup<E, C>,
-        worker: &Worker,
-        crs: &Crs<E, CrsForMonomialForm>,
-    ) -> Result<Self, SynthesisError> {
+    pub fn from_setup(setup: &Setup<E, C>, worker: &Worker, crs: &Crs<E, CrsForMonomialForm>) -> Result<Self, SynthesisError> {
         let mut new = Self {
             n: setup.n,
             num_inputs: setup.num_inputs,
@@ -224,7 +220,7 @@ impl<E: Engine, C: Circuit<E>> VerificationKey<E, C> {
             lookup_selector_commitment: None,
             lookup_tables_commitments: vec![],
             lookup_table_type_commitment: None,
-        
+
             non_residues: vec![],
             g2_elements: [crs.g2_monomial_bases[0], crs.g2_monomial_bases[1]],
 
@@ -236,7 +232,9 @@ impl<E: Engine, C: Circuit<E>> VerificationKey<E, C> {
             (&setup.gate_selectors_monomials, &mut new.gate_selectors_commitments),
             (&setup.permutation_monomials, &mut new.permutation_commitments),
             (&setup.lookup_tables_monomials, &mut new.lookup_tables_commitments),
-        ].into_iter() {
+        ]
+        .into_iter()
+        {
             for p in p.iter() {
                 let commitment = commit_using_monomials(p, &crs, &worker)?;
                 c.push(commitment);
@@ -369,5 +367,5 @@ impl<'a, E: Engine> AssembledPolynomialStorageForMonomialForms<'a, E> {
         }
 
         Ok(())
-    }   
+    }
 }

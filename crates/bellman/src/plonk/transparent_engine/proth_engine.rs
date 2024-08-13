@@ -4,6 +4,6 @@ use super::impl_macro::*;
 
 use super::TransparentEngine;
 
-transparent_engine_impl!{Transparent252, Fr}
+transparent_engine_impl! {Transparent252, Fr}
 
 impl TransparentEngine for Transparent252 {}

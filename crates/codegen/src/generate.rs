@@ -36,7 +36,7 @@ struct TemplateVars {
     d_next_coeff_idx: usize,
 }
 
-pub enum Encoding{
+pub enum Encoding {
     Json,
     Default,
 }
@@ -44,13 +44,9 @@ pub enum Encoding{
 pub fn generate(vk_path: PathBuf, output_dir: PathBuf, encoding_type: Encoding, template_files_path: Vec<&str>) {
     let mut reader = std::fs::File::open(vk_path).expect("vk file");
 
-    let vk = match encoding_type{
-        Encoding::Json => {
-            serde_json::from_reader(reader).expect("read vk from json encoded data")
-        },
-        Encoding::Default => {
-            VerificationKey::<Bn256, DummyCircuit>::read(&mut reader).expect("read vk from default encoded data")
-        },
+    let vk = match encoding_type {
+        Encoding::Json => serde_json::from_reader(reader).expect("read vk from json encoded data"),
+        Encoding::Default => VerificationKey::<Bn256, DummyCircuit>::read(&mut reader).expect("read vk from default encoded data"),
     };
     // we know from the fact that vk belongs to a
     // - standart main gate when there are 7 selectors
@@ -64,11 +60,7 @@ pub fn generate(vk_path: PathBuf, output_dir: PathBuf, encoding_type: Encoding, 
         unimplemented!()
     };
 
-    let num_gates = if vk.gate_selectors_commitments.len() == 0 {
-        1
-    } else {
-        vk.gate_selectors_commitments.len()
-    };
+    let num_gates = if vk.gate_selectors_commitments.len() == 0 { 1 } else { vk.gate_selectors_commitments.len() };
 
     let has_rescue_custom_gate = if num_gates > 1 { true } else { false };
 
@@ -84,30 +76,25 @@ pub fn generate(vk_path: PathBuf, output_dir: PathBuf, encoding_type: Encoding, 
         false
     };
 
-    let (num_main_gate_selectors, ab_coeff_idx, constant_coeff_idx, d_next_coeff_idx, ac_coeff_idx) =
-        match main_gate {
-            MainGateType::Standard => (
-                7,
-                Width4MainGateWithDNext::AB_MULTIPLICATION_TERM_COEFF_INDEX,
-                Width4MainGateWithDNext::CONSTANT_TERM_COEFF_INDEX,
-                Width4MainGateWithDNext::D_NEXT_TERM_COEFF_INDEX,
-                None,
-            ),
-            MainGateType::SelectorOptimized => (
-                8,
-                SelectorOptimizedWidth4MainGateWithDNext::AB_MULTIPLICATION_TERM_COEFF_INDEX,
-                SelectorOptimizedWidth4MainGateWithDNext::CONSTANT_TERM_COEFF_INDEX,
-                SelectorOptimizedWidth4MainGateWithDNext::D_NEXT_TERM_COEFF_INDEX,
-                Some(SelectorOptimizedWidth4MainGateWithDNext::AC_MULTIPLICATION_TERM_COEFF_INDEX),
-            ),
-        };
+    let (num_main_gate_selectors, ab_coeff_idx, constant_coeff_idx, d_next_coeff_idx, ac_coeff_idx) = match main_gate {
+        MainGateType::Standard => (
+            7,
+            Width4MainGateWithDNext::AB_MULTIPLICATION_TERM_COEFF_INDEX,
+            Width4MainGateWithDNext::CONSTANT_TERM_COEFF_INDEX,
+            Width4MainGateWithDNext::D_NEXT_TERM_COEFF_INDEX,
+            None,
+        ),
+        MainGateType::SelectorOptimized => (
+            8,
+            SelectorOptimizedWidth4MainGateWithDNext::AB_MULTIPLICATION_TERM_COEFF_INDEX,
+            SelectorOptimizedWidth4MainGateWithDNext::CONSTANT_TERM_COEFF_INDEX,
+            SelectorOptimizedWidth4MainGateWithDNext::D_NEXT_TERM_COEFF_INDEX,
+            Some(SelectorOptimizedWidth4MainGateWithDNext::AC_MULTIPLICATION_TERM_COEFF_INDEX),
+        ),
+    };
 
     let is_selector_optimized_main_gate = ac_coeff_idx.is_some();
-    let ac_coeff_idx = if let Some(coeff) = ac_coeff_idx {
-        coeff
-    } else {
-        0
-    };
+    let ac_coeff_idx = if let Some(coeff) = ac_coeff_idx { coeff } else { 0 };
 
     let vars = TemplateVars {
         num_gates,
@@ -124,19 +111,11 @@ pub fn generate(vk_path: PathBuf, output_dir: PathBuf, encoding_type: Encoding, 
     render(vars, vk, output_dir, template_files_path)
 }
 
-fn render(
-    vars: TemplateVars,
-    vk: VerificationKey<Bn256, DummyCircuit>,
-    output_dir: PathBuf,
-    template_files_path: Vec<&str>,
-) {
+fn render(vars: TemplateVars, vk: VerificationKey<Bn256, DummyCircuit>, output_dir: PathBuf, template_files_path: Vec<&str>) {
     let mut map = MapWrapper::new();
     let mut handlebars = Handlebars::new();
 
-    map.insert(
-        "is_selector_optimized_main_gate",
-        vars.is_selector_optimized_main_gate,
-    );
+    map.insert("is_selector_optimized_main_gate", vars.is_selector_optimized_main_gate);
     // main gate + custom rescue
     map.insert("NUM_GATES", vars.num_gates);
     map.insert("has_lookup", vars.has_lookup);
@@ -146,10 +125,7 @@ fn render(
     map.insert("D_NEXT_TERM_COEFF_INDEX", vars.d_next_coeff_idx);
     assert_eq!(vars.ab_coeff_idx, 4);
     map.insert("MAIN_GATE_AC_COEFF_IDX", vars.ac_coeff_idx);
-    assert_eq!(
-        vk.gate_setup_commitments.len(),
-        vars.num_main_gate_selectors
-    );
+    assert_eq!(vk.gate_setup_commitments.len(), vars.num_main_gate_selectors);
     map.insert("NUM_MAIN_GATE_SELECTORS", vars.num_main_gate_selectors);
     // a, b, c, d
     println!("VK STATE WIDTH {}", vk.state_width);
@@ -162,25 +138,25 @@ fn render(
     let mut num_commitments_at_z_omega = 1 + 2;
 
     let mut num_alpha_challenges = 1 + 2;
-    if vars.has_rescue_custom_gate{
+    if vars.has_rescue_custom_gate {
         num_commitments_at_z += 1;
         num_alpha_challenges += 3;
     }
-    if vars.has_lookup{
+    if vars.has_lookup {
         num_commitments_at_z += 3;
         num_alpha_challenges += 3;
         num_commitments_at_z_omega += 3;
     }
-    
+
     map.insert("rescue_alpha_idx", 1);
     map.insert("num_commitments_at_z", num_commitments_at_z);
     map.insert("num_commitments_at_z_omega", num_commitments_at_z_omega);
     map.insert("NUM_ALPHA_CHALLENGES", num_alpha_challenges);
-    if vars.has_rescue_custom_gate{
+    if vars.has_rescue_custom_gate {
         map.insert("copy_permutation_alpha_idx", 4);
         map.insert("lookup_alpha_idx", 6);
-    }else{
-        map.insert("copy_permutation_alpha_idx", 1);        
+    } else {
+        map.insert("copy_permutation_alpha_idx", 1);
         map.insert("lookup_alpha_idx", 3);
     }
 
@@ -189,10 +165,7 @@ fn render(
     assert!(vk.num_inputs > 0);
     let domain: Domain<Fr> = Domain::new_for_size(vk.n as u64).expect("a domain");
     map.insert("domain_size".into(), domain.size);
-    map.insert(
-        "domain_generator".into(),
-        FieldElement::from(domain.generator),
-    );
+    map.insert("domain_generator".into(), FieldElement::from(domain.generator));
 
     // G1Points
     let mut gate_setup_commitments = vec![];
@@ -212,7 +185,7 @@ fn render(
         permutation_commitments.push(G1Point::from_affine_point(cmt.clone()))
     }
     map.insert("permutation_commitments", permutation_commitments);
-    
+
     if vk.total_lookup_entries_length > 0 {
         assert!(vk.lookup_selector_commitment.is_some());
         assert!(vk.lookup_tables_commitments.len() > 0);
@@ -221,10 +194,7 @@ fn render(
         map.insert("has_lookup", true);
         map.insert(
             "lookup_selector_commitment",
-            G1Point::from_affine_point(
-                vk.lookup_selector_commitment
-                    .unwrap_or(<Bn256 as Engine>::G1Affine::zero()),
-            ),
+            G1Point::from_affine_point(vk.lookup_selector_commitment.unwrap_or(<Bn256 as Engine>::G1Affine::zero())),
         );
         if vk.total_lookup_entries_length > 0 {
             assert!(vk.lookup_selector_commitment.is_some());
@@ -236,10 +206,7 @@ fn render(
         map.insert("lookup_tables_commitments", lookup_tables_commitments);
         map.insert(
             "lookup_table_type_commitment",
-            G1Point::from_affine_point(
-                vk.lookup_table_type_commitment
-                    .unwrap_or(<Bn256 as Engine>::G1Affine::zero()),
-            ),
+            G1Point::from_affine_point(vk.lookup_table_type_commitment.unwrap_or(<Bn256 as Engine>::G1Affine::zero())),
         );
     }
 
@@ -264,16 +231,11 @@ fn render(
         // register template from a file and assign a name to it
         handlebars
             .register_template_file("contract", template_file_path.clone())
-            .expect(&format!(
-                "must read the template at path {}",
-                template_file_path
-            ));
+            .expect(&format!("must read the template at path {}", template_file_path));
 
         let rendered = handlebars.render("contract", &map.inner).unwrap();
 
-        writer
-            .write(rendered.as_bytes())
-            .expect("must write to file");
+        writer.write(rendered.as_bytes()).expect("must write to file");
     }
 }
 

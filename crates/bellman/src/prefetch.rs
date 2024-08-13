@@ -11,7 +11,7 @@ cfg_if! {
             use std::arch::x86::_mm_prefetch;
             #[cfg(target_arch = "x86_64")]
             use std::arch::x86_64::_mm_prefetch;
-            
+
 
             unsafe {
                 #[cfg(target_arch = "x86_64")]
@@ -27,7 +27,7 @@ cfg_if! {
             use std::arch::x86::_mm_prefetch;
             #[cfg(target_arch = "x86_64")]
             use std::arch::x86_64::_mm_prefetch;
-            
+
 
             unsafe {
                 #[cfg(target_arch = "x86_64")]
@@ -43,7 +43,7 @@ cfg_if! {
             use std::arch::x86::_mm_prefetch;
             #[cfg(target_arch = "x86_64")]
             use std::arch::x86_64::_mm_prefetch;
-            
+
 
             unsafe {
                 #[cfg(target_arch = "x86_64")]
@@ -59,7 +59,7 @@ cfg_if! {
             use std::arch::x86::_mm_prefetch;
             #[cfg(target_arch = "x86_64")]
             use std::arch::x86_64::_mm_prefetch;
-            
+
 
             unsafe {
                 #[cfg(target_arch = "x86_64")]
@@ -75,7 +75,7 @@ cfg_if! {
             use std::arch::x86::_mm_prefetch;
             #[cfg(target_arch = "x86_64")]
             use std::arch::x86_64::_mm_prefetch;
-            
+
 
             unsafe {
                 #[cfg(target_arch = "x86_64")]
@@ -91,7 +91,7 @@ cfg_if! {
             use std::arch::x86::_mm_prefetch;
             #[cfg(target_arch = "x86_64")]
             use std::arch::x86_64::_mm_prefetch;
-            
+
 
             unsafe {
                 #[cfg(target_arch = "x86_64")]

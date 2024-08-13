@@ -1,13 +1,12 @@
-use std::sync::Arc;
+use super::utils;
+use crate::bellman::pairing::bls12_381::Bls12;
+use crate::bellman::pairing::bn256::Bn256;
 use crate::bellman::pairing::ff::*;
 use crate::bellman::pairing::ff::{PrimeField, PrimeFieldRepr};
 use crate::bellman::Engine;
-use crate::sha3::{digest::ExtendableOutput, digest::Update, Sha3XofReader, Shake128};
-use crate::bellman::pairing::bn256::Bn256;
-use crate::bellman::pairing::bls12_381::Bls12;
 use crate::lazy_static::lazy_static;
-use super::utils;
-
+use crate::sha3::{digest::ExtendableOutput, digest::Update, Sha3XofReader, Shake128};
+use std::sync::Arc;
 
 #[derive(Clone, Debug)]
 pub struct ReinforcedConcreteParams<F: PrimeField> {
@@ -61,7 +60,7 @@ impl<F: PrimeField> ReinforcedConcreteParams<F> {
             norm_shift_i,
             sbox: Self::pad_sbox(sbox, si),
             d,
-            p_prime
+            p_prime,
         }
     }
 
@@ -89,13 +88,7 @@ impl<F: PrimeField> ReinforcedConcreteParams<F> {
     }
 
     fn instantiate_rc(shake: &mut Sha3XofReader) -> Vec<Vec<F>> {
-        (0..=Self::TOTAL_ROUNDS)
-            .map(|_| {
-                (0..Self::T)
-                    .map(|_| utils::field_element_from_shake(shake))
-                    .collect()
-            })
-            .collect()
+        (0..=Self::TOTAL_ROUNDS).map(|_| (0..Self::T).map(|_| utils::field_element_from_shake(shake)).collect()).collect()
     }
 
     pub fn get_t(&self) -> usize {
@@ -107,7 +100,6 @@ impl<F: PrimeField> ReinforcedConcreteParams<F> {
     }
 }
 
-
 #[derive(Clone, Debug)]
 pub struct ReinforcedConcrete<F: PrimeField> {
     pub(crate) params: Arc<ReinforcedConcreteParams<F>>,
@@ -116,9 +108,7 @@ pub struct ReinforcedConcrete<F: PrimeField> {
 impl<F: PrimeField> ReinforcedConcrete<F> {
     pub fn new(params: &Arc<ReinforcedConcreteParams<F>>) -> Self {
         debug_assert!(ReinforcedConcreteParams::<F>::T == 3);
-        ReinforcedConcrete {
-            params: Arc::clone(params),
-        }
+        ReinforcedConcrete { params: Arc::clone(params) }
     }
 
     pub fn concrete(&self, state: &mut [F; 3], round: usize) {
@@ -127,10 +117,7 @@ impl<F: PrimeField> ReinforcedConcrete<F> {
         let mut sum = state[0];
         state.iter().skip(1).for_each(|el| sum.add_assign(el));
 
-        for (el, rc) in state
-            .iter_mut()
-            .zip(self.params.round_constants[round].iter())
-        {
+        for (el, rc) in state.iter_mut().zip(self.params.round_constants[round].iter()) {
             el.add_assign(&sum);
             el.add_assign(rc); // add round constant
         }
@@ -180,12 +167,7 @@ impl<F: PrimeField> ReinforcedConcrete<F> {
         let mut repr = val.into_repr();
 
         for i in (1..self.params.si.len()).rev() {
-            let (r, m) = utils::divide_long_using_recip::<F>(
-                &repr,
-                self.params.divisor_i[i],
-                self.params.reciprokal_i[i],
-                self.params.norm_shift_i[i],
-            );
+            let (r, m) = utils::divide_long_using_recip::<F>(&repr, self.params.divisor_i[i], self.params.reciprokal_i[i], self.params.norm_shift_i[i]);
             repr = r;
             res[i] = m;
         }
@@ -196,10 +178,7 @@ impl<F: PrimeField> ReinforcedConcrete<F> {
         if cfg!(debug_assertions) {
             let repr_ref = repr.as_ref();
             debug_assert!(repr_ref[0] < self.params.si[0] as u64);
-            repr_ref
-                .iter()
-                .skip(1)
-                .for_each(|el| debug_assert!(*el == 0));
+            repr_ref.iter().skip(1).for_each(|el| debug_assert!(*el == 0));
         }
 
         res
@@ -245,16 +224,11 @@ impl<F: PrimeField> ReinforcedConcrete<F> {
         }
 
         // bar round
-        current_state = self.bars(&current_state); 
-        self.concrete(
-            &mut current_state,
-            ReinforcedConcreteParams::<F>::PRE_ROUNDS + 1,
-        );
+        current_state = self.bars(&current_state);
+        self.concrete(&mut current_state, ReinforcedConcreteParams::<F>::PRE_ROUNDS + 1);
 
         // final rounds
-        for i in ReinforcedConcreteParams::<F>::PRE_ROUNDS + 2
-            ..=ReinforcedConcreteParams::<F>::TOTAL_ROUNDS
-        {
+        for i in ReinforcedConcreteParams::<F>::PRE_ROUNDS + 2..=ReinforcedConcreteParams::<F>::TOTAL_ROUNDS {
             current_state = self.bricks(&current_state);
             self.concrete(&mut current_state, i);
         }
@@ -274,7 +248,6 @@ impl<F: PrimeField> ReinforcedConcrete<F> {
         self.permutation(&current_state)
     }
 }
-
 
 lazy_static! {
     // BLS12
@@ -370,8 +343,7 @@ lazy_static! {
         Arc::new(ReinforcedConcreteParams::new(5, &BN256_SI, &BN256_SBOX, BN256_AB.as_ref()));
 }
 
-
-pub trait DefaultRcParams : Engine {
+pub trait DefaultRcParams: Engine {
     fn get_default_rc_params() -> Arc<ReinforcedConcreteParams<<Self as ScalarEngine>::Fr>>;
 }
 
@@ -386,4 +358,3 @@ impl DefaultRcParams for Bls12 {
         RC_BLS_PARAMS.clone()
     }
 }
-

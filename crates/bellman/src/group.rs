@@ -1,16 +1,8 @@
-use crate::pairing::{
-    Engine,
-    CurveProjective
-};
+use crate::pairing::{CurveProjective, Engine};
 
-use crate::pairing::ff::{
-    Field, 
-    PrimeField
-};
+use crate::pairing::ff::{Field, PrimeField};
 
-use super::{
-    SynthesisError
-};
+use super::SynthesisError;
 
 pub trait Group<E: Engine>: Sized + Copy + Clone + Send + Sync {
     fn group_zero() -> Self;
@@ -27,7 +19,7 @@ impl<G: CurveProjective> PartialEq for Point<G> {
     }
 }
 
-impl<G: CurveProjective> Copy for Point<G> { }
+impl<G: CurveProjective> Copy for Point<G> {}
 
 impl<G: CurveProjective> Clone for Point<G> {
     fn clone(&self) -> Point<G> {
@@ -58,7 +50,7 @@ impl<E: Engine> PartialEq for Scalar<E> {
     }
 }
 
-impl<E: Engine> Copy for Scalar<E> { }
+impl<E: Engine> Copy for Scalar<E> {}
 
 impl<E: Engine> Clone for Scalar<E> {
     fn clone(&self) -> Scalar<E> {

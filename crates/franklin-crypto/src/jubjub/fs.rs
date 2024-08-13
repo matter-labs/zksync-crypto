@@ -1,8 +1,8 @@
-use byteorder::{ByteOrder, LittleEndian};
-use bellman::pairing::ff::{adc, sbb, mac_with_carry};
-use bellman::pairing::ff::{BitIterator, Field, PrimeField, SqrtField, PrimeFieldRepr, PrimeFieldDecodingError, LegendreSymbol};
-use bellman::pairing::ff::LegendreSymbol::*;
 use super::ToUniform;
+use bellman::pairing::ff::LegendreSymbol::*;
+use bellman::pairing::ff::{adc, mac_with_carry, sbb};
+use bellman::pairing::ff::{BitIterator, Field, LegendreSymbol, PrimeField, PrimeFieldDecodingError, PrimeFieldRepr, SqrtField};
+use byteorder::{ByteOrder, LittleEndian};
 
 // s = 6554484396890773809930967563523245729705921265872317281365359162392183254199
 const MODULUS: FsRepr = FsRepr([0xd0970e5ed6f72cb7, 0xa6682093ccc81082, 0x6673b0101343b00, 0xe7db4ea6533afa9]);
@@ -46,8 +46,7 @@ impl ::rand::Rand for FsRepr {
     }
 }
 
-impl ::std::fmt::Display for FsRepr
-{
+impl ::std::fmt::Display for FsRepr {
     fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
         write!(f, "0x")?;
         for i in self.0.iter().rev() {
@@ -86,9 +85,9 @@ impl Ord for FsRepr {
     fn cmp(&self, other: &FsRepr) -> ::std::cmp::Ordering {
         for (a, b) in self.0.iter().rev().zip(other.0.iter().rev()) {
             if a < b {
-                return ::std::cmp::Ordering::Less
+                return ::std::cmp::Ordering::Less;
             } else if a > b {
-                return ::std::cmp::Ordering::Greater
+                return ::std::cmp::Ordering::Greater;
             }
         }
 
@@ -230,8 +229,7 @@ impl PrimeFieldRepr for FsRepr {
 #[derive(Copy, Clone, PartialEq, Eq, Debug, Hash, Default)]
 pub struct Fs(FsRepr);
 
-impl ::std::fmt::Display for Fs
-{
+impl ::std::fmt::Display for Fs {
     fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
         write!(f, "Fs({})", self.into_repr())
     }
@@ -246,7 +244,7 @@ impl ::rand::Rand for Fs {
             tmp.0.as_mut()[3] &= 0xffffffffffffffff >> REPR_SHAVE_BITS;
 
             if tmp.is_valid() {
-                return tmp
+                return tmp;
             }
         }
     }
@@ -260,7 +258,8 @@ impl From<Fs> for FsRepr {
 
 impl ::serde::Serialize for Fs {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-        where S: ::serde::Serializer 
+    where
+        S: ::serde::Serializer,
     {
         let repr = self.into_repr();
         repr.serialize(serializer)
@@ -269,7 +268,8 @@ impl ::serde::Serialize for Fs {
 
 impl<'de> ::serde::Deserialize<'de> for Fs {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where D: ::serde::Deserializer<'de> 
+    where
+        D: ::serde::Deserializer<'de>,
     {
         let repr = FsRepr::deserialize(deserializer)?;
         let new = Self::from_repr(repr).expect("serialized representation is expected to be valid");
@@ -303,9 +303,7 @@ impl PrimeField for Fs {
 
     fn into_repr(&self) -> FsRepr {
         let mut r = *self;
-        r.mont_reduce((self.0).0[0], (self.0).0[1],
-                      (self.0).0[2], (self.0).0[3],
-                      0, 0, 0, 0);
+        r.mont_reduce((self.0).0[0], (self.0).0[1], (self.0).0[2], (self.0).0[3], 0, 0, 0, 0);
         r.0
     }
 
@@ -447,8 +445,7 @@ impl Field for Fs {
     }
 
     #[inline]
-    fn mul_assign(&mut self, other: &Fs)
-    {
+    fn mul_assign(&mut self, other: &Fs) {
         let mut carry = 0;
         let r0 = mac_with_carry(0, (self.0).0[0], (other.0).0[0], &mut carry);
         let r1 = mac_with_carry(0, (self.0).0[0], (other.0).0[1], &mut carry);
@@ -477,8 +474,7 @@ impl Field for Fs {
     }
 
     #[inline]
-    fn square(&mut self)
-    {
+    fn square(&mut self) {
         let mut carry = 0;
         let r1 = mac_with_carry(0, (self.0).0[0], (self.0).0[1], &mut carry);
         let r2 = mac_with_carry(0, (self.0).0[0], (self.0).0[2], &mut carry);
@@ -531,18 +527,7 @@ impl Fs {
     }
 
     #[inline(always)]
-    fn mont_reduce(
-        &mut self,
-        r0: u64,
-        mut r1: u64,
-        mut r2: u64,
-        mut r3: u64,
-        mut r4: u64,
-        mut r5: u64,
-        mut r6: u64,
-        mut r7: u64
-    )
-    {
+    fn mont_reduce(&mut self, r0: u64, mut r1: u64, mut r2: u64, mut r3: u64, mut r4: u64, mut r5: u64, mut r6: u64, mut r7: u64) {
         // The Montgomery reduction here is based on Algorithm 14.32 in
         // Handbook of Applied Cryptography
         // <http://cacr.uwaterloo.ca/hac/about/chap14.pdf>.
@@ -623,13 +608,16 @@ impl ToUniform for Fs {
 }
 
 impl SqrtField for Fs {
-
     fn legendre(&self) -> LegendreSymbol {
         // s = self^((s - 1) // 2)
         let s = self.pow([0x684b872f6b7b965b, 0x53341049e6640841, 0x83339d80809a1d80, 0x73eda753299d7d4]);
-        if s == Self::zero() { Zero }
-        else if s == Self::one() { QuadraticResidue }
-        else { QuadraticNonResidue }
+        if s == Self::zero() {
+            Zero
+        } else if s == Self::one() {
+            QuadraticResidue
+        } else {
+            QuadraticNonResidue
+        }
     }
 
     fn sqrt(&self) -> Option<Self> {
@@ -642,18 +630,14 @@ impl SqrtField for Fs {
         a0.square();
         a0.mul_assign(self);
 
-        if a0 == NEGATIVE_ONE
-        {
+        if a0 == NEGATIVE_ONE {
             None
-        }
-        else
-        {
+        } else {
             a1.mul_assign(self);
             Some(a1)
         }
     }
 }
-
 
 #[test]
 fn test_neg_one() {
@@ -664,7 +648,7 @@ fn test_neg_one() {
 }
 
 #[cfg(test)]
-use rand::{SeedableRng, XorShiftRng, Rand};
+use rand::{Rand, SeedableRng, XorShiftRng};
 
 #[test]
 fn test_fs_repr_ordering() {
@@ -739,30 +723,15 @@ fn test_fs_repr_div2() {
 fn test_fs_repr_shr() {
     let mut a = FsRepr([0xb33fbaec482a283f, 0x997de0d3a88cb3df, 0x9af62d2a9a0e5525, 0x36003ab08de70da1]);
     a.shr(0);
-    assert_eq!(
-        a,
-        FsRepr([0xb33fbaec482a283f, 0x997de0d3a88cb3df, 0x9af62d2a9a0e5525, 0x36003ab08de70da1])
-    );
+    assert_eq!(a, FsRepr([0xb33fbaec482a283f, 0x997de0d3a88cb3df, 0x9af62d2a9a0e5525, 0x36003ab08de70da1]));
     a.shr(1);
-    assert_eq!(
-        a,
-        FsRepr([0xd99fdd762415141f, 0xccbef069d44659ef, 0xcd7b16954d072a92, 0x1b001d5846f386d0])
-    );
+    assert_eq!(a, FsRepr([0xd99fdd762415141f, 0xccbef069d44659ef, 0xcd7b16954d072a92, 0x1b001d5846f386d0]));
     a.shr(50);
-    assert_eq!(
-        a,
-        FsRepr([0xbc1a7511967bf667, 0xc5a55341caa4b32f, 0x75611bce1b4335e, 0x6c0])
-    );
+    assert_eq!(a, FsRepr([0xbc1a7511967bf667, 0xc5a55341caa4b32f, 0x75611bce1b4335e, 0x6c0]));
     a.shr(130);
-    assert_eq!(
-        a,
-        FsRepr([0x1d5846f386d0cd7, 0x1b0, 0x0, 0x0])
-    );
+    assert_eq!(a, FsRepr([0x1d5846f386d0cd7, 0x1b0, 0x0, 0x0]));
     a.shr(64);
-    assert_eq!(
-        a,
-        FsRepr([0x1b0, 0x0, 0x0, 0x0])
-    );
+    assert_eq!(a, FsRepr([0x1b0, 0x0, 0x0, 0x0]));
 }
 
 #[test]
@@ -1236,10 +1205,7 @@ fn test_fs_repr_display() {
         format!("{}", FsRepr([0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff])),
         "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff".to_string()
     );
-    assert_eq!(
-        format!("{}", FsRepr([0, 0, 0, 0])),
-        "0x0000000000000000000000000000000000000000000000000000000000000000".to_string()
-    );
+    assert_eq!(format!("{}", FsRepr([0, 0, 0, 0])), "0x0000000000000000000000000000000000000000000000000000000000000000".to_string());
 }
 
 #[test]
@@ -1268,9 +1234,6 @@ fn test_fs_root_of_unity() {
         Fs::multiplicative_generator().pow([0x684b872f6b7b965b, 0x53341049e6640841, 0x83339d80809a1d80, 0x73eda753299d7d4]),
         Fs::root_of_unity()
     );
-    assert_eq!(
-        Fs::root_of_unity().pow([1 << Fs::S]),
-        Fs::one()
-    );
+    assert_eq!(Fs::root_of_unity().pow([1 << Fs::S]), Fs::one());
     assert!(Fs::multiplicative_generator().sqrt().is_none());
 }

@@ -1,7 +1,7 @@
+use super::cs::GateInternal;
 use crate::pairing::ff::*;
 use crate::pairing::*;
 use crate::plonk::polynomials::*;
-use super::cs::GateInternal;
 
 #[derive(Copy, Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub enum PolyIdentifier {
@@ -20,23 +20,19 @@ impl PartialEq for PolyIdentifier {
         match (self, other) {
             (PolyIdentifier::VariablesPolynomial(a), PolyIdentifier::VariablesPolynomial(b)) => a.eq(&b),
             (PolyIdentifier::GateSetupPolynomial(a_id, a), PolyIdentifier::GateSetupPolynomial(b_id, b)) => {
-                if a.eq(&b) == true {                    
+                if a.eq(&b) == true {
                     a == b
                 } else {
                     false
                 }
-            },
-            (PolyIdentifier::GateSelector(a_id), PolyIdentifier::GateSelector(b_id)) => {                
-                *a_id == *b_id
-            },
+            }
+            (PolyIdentifier::GateSelector(a_id), PolyIdentifier::GateSelector(b_id)) => *a_id == *b_id,
             (PolyIdentifier::LookupSelector, PolyIdentifier::LookupSelector) => true,
             (PolyIdentifier::LookupTableEntriesPolynomial(a), PolyIdentifier::LookupTableEntriesPolynomial(b)) => a.eq(&b),
             (PolyIdentifier::PermutationPolynomial(a), PolyIdentifier::PermutationPolynomial(b)) => a.eq(&b),
-            (PolyIdentifier::NamedSetupPolynomial(a_id), PolyIdentifier::NamedSetupPolynomial(b_id)) => {
-                *a_id == *b_id
-            },
+            (PolyIdentifier::NamedSetupPolynomial(a_id), PolyIdentifier::NamedSetupPolynomial(b_id)) => *a_id == *b_id,
             (PolyIdentifier::WitnessPolynomial(a), PolyIdentifier::WitnessPolynomial(b)) => a.eq(&b),
-            _ => false
+            _ => false,
         }
     }
 }
@@ -57,12 +53,11 @@ impl std::hash::Hash for PolyIdentifier {
                 std::mem::discriminant(a).hash(state);
                 state.write(str_id.as_bytes());
                 state.write_usize(*id);
-            },
-            a @ PolyIdentifier::GateSelector(str_id)
-            | a @ PolyIdentifier::NamedSetupPolynomial(str_id) => {
+            }
+            a @ PolyIdentifier::GateSelector(str_id) | a @ PolyIdentifier::NamedSetupPolynomial(str_id) => {
                 std::mem::discriminant(a).hash(state);
                 state.write(str_id.as_bytes());
-            },
+            }
             a @ PolyIdentifier::LookupSelector => {
                 std::mem::discriminant(a).hash(state);
             }
@@ -75,10 +70,10 @@ pub const LOOKUP_TABLE_TYPE_POLYNOMIAL: &'static str = "LOOKUP_TABLE_TYPE_POLYNO
 #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct TimeDilation(pub usize);
 #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-#[serde(bound( deserialize = "'de: 'static"))]
+#[serde(bound(deserialize = "'de: 'static"))]
 pub struct PolynomialInConstraint(pub PolyIdentifier, pub TimeDilation);
 
-impl PolynomialInConstraint{
+impl PolynomialInConstraint {
     pub const fn from_id(id: PolyIdentifier) -> Self {
         Self(id, TimeDilation(0))
     }
@@ -106,23 +101,15 @@ impl<'a, F: PrimeField, P: PolynomialForm> PolynomialProxy<'a, F, P> {
 
     pub fn as_ref(&self) -> &Polynomial<F, P> {
         match self {
-            PolynomialProxy::Borrowed(b) => {
-                &*b
-            },
-            PolynomialProxy::Owned(o) => {
-                &o
-            }
+            PolynomialProxy::Borrowed(b) => &*b,
+            PolynomialProxy::Owned(o) => &o,
         }
     }
 
     pub fn as_data_ref(&self) -> &[F] {
         match self {
-            PolynomialProxy::Borrowed(b) => {
-                b.as_ref()
-            },
-            PolynomialProxy::Owned(o) => {
-                o.as_ref()
-            }
+            PolynomialProxy::Borrowed(b) => b.as_ref(),
+            PolynomialProxy::Owned(o) => o.as_ref(),
         }
     }
 
@@ -130,46 +117,30 @@ impl<'a, F: PrimeField, P: PolynomialForm> PolynomialProxy<'a, F, P> {
         match self {
             PolynomialProxy::Borrowed(..) => {
                 unreachable!("Can not borrow mutable for non-owned proxy")
-            },
-            PolynomialProxy::Owned(o) => {
-                o.as_mut()
             }
+            PolynomialProxy::Owned(o) => o.as_mut(),
         }
     }
 
     pub fn into_poly(self) -> Polynomial<F, P> {
         match self {
-            PolynomialProxy::Borrowed(b) => {
-                b.clone()
-            },
-            PolynomialProxy::Owned(o) => {
-                o
-            }
+            PolynomialProxy::Borrowed(b) => b.clone(),
+            PolynomialProxy::Owned(o) => o,
         }
     }
 
     pub fn clone_as_owned(&self) -> Self {
         match self {
-            PolynomialProxy::Borrowed(ref b) => {
-                PolynomialProxy::Owned((*b).clone())
-            },
-            PolynomialProxy::Owned(o) => {
-                PolynomialProxy::Owned(o.clone())
-            }
+            PolynomialProxy::Borrowed(ref b) => PolynomialProxy::Owned((*b).clone()),
+            PolynomialProxy::Owned(o) => PolynomialProxy::Owned(o.clone()),
         }
     }
 }
 
-pub fn clone_as_borrowed<'a, 'b: 'a, F: PrimeField, P: PolynomialForm>(
-    src: &'a PolynomialProxy<'b, F, P>
-) -> PolynomialProxy<'a, F, P> {
+pub fn clone_as_borrowed<'a, 'b: 'a, F: PrimeField, P: PolynomialForm>(src: &'a PolynomialProxy<'b, F, P>) -> PolynomialProxy<'a, F, P> {
     match src {
-        PolynomialProxy::Borrowed(ref b) => {
-            PolynomialProxy::Borrowed(*b)
-        },
-        PolynomialProxy::Owned(ref o) => {
-            PolynomialProxy::Borrowed(o)
-        }
+        PolynomialProxy::Borrowed(ref b) => PolynomialProxy::Borrowed(*b),
+        PolynomialProxy::Owned(ref o) => PolynomialProxy::Borrowed(o),
     }
 }
 
@@ -186,7 +157,6 @@ pub fn clone_as_borrowed<'a, 'b: 'a, F: PrimeField, P: PolynomialForm>(
 //     }
 // }
 
-
 pub struct AssembledPolynomialStorage<'a, E: Engine> {
     pub state_map: std::collections::HashMap<PolyIdentifier, PolynomialProxy<'a, E::Fr, Values>>,
     pub witness_map: std::collections::HashMap<PolyIdentifier, PolynomialProxy<'a, E::Fr, Values>>,
@@ -195,7 +165,7 @@ pub struct AssembledPolynomialStorage<'a, E: Engine> {
     pub gate_selectors: std::collections::HashMap<PolyIdentifier, PolynomialProxy<'a, E::Fr, Values>>,
     pub named_polys: std::collections::HashMap<PolyIdentifier, PolynomialProxy<'a, E::Fr, Values>>,
     pub is_bitreversed: bool,
-    pub lde_factor: usize
+    pub lde_factor: usize,
 }
 
 pub struct AssembledPolynomialStorageForMonomialForms<'a, E: Engine> {
@@ -209,30 +179,14 @@ pub struct AssembledPolynomialStorageForMonomialForms<'a, E: Engine> {
 impl<'a, E: Engine> AssembledPolynomialStorage<'a, E> {
     pub fn get_poly(&self, id: PolyIdentifier) -> &Polynomial<E::Fr, Values> {
         match id {
-            p @ PolyIdentifier::VariablesPolynomial(..) => {
-                self.state_map.get(&p).expect(&format!("poly {:?} must exist", p)).as_ref()
-            },
-            p @ PolyIdentifier::WitnessPolynomial(..) => {
-                self.witness_map.get(&p).expect(&format!("poly {:?} must exist", p)).as_ref()
-            },
-            p @ PolyIdentifier::GateSetupPolynomial(..) => {
-                self.setup_map.get(&p).expect(&format!("poly {:?} must exist", p)).as_ref()
-            },
-            p @ PolyIdentifier::GateSelector(..) => {
-                self.gate_selectors.get(&p).expect(&format!("poly {:?} must exist", p)).as_ref()
-            },
-            p @ PolyIdentifier::PermutationPolynomial(..) => {
-                self.setup_map.get(&p).expect(&format!("poly {:?} must exist", p)).as_ref()
-            },
-            p @ PolyIdentifier::LookupSelector => {
-                self.named_polys.get(&p).expect(&format!("poly {:?} must exist", p)).as_ref()
-            },
-            p @ PolyIdentifier::LookupTableEntriesPolynomial(..) => {
-                self.named_polys.get(&p).expect(&format!("poly {:?} must exist", p)).as_ref()
-            },
-            p @ PolyIdentifier::NamedSetupPolynomial(..) => {
-                self.named_polys.get(&p).expect(&format!("poly {:?} must exist", p)).as_ref()
-            },
+            p @ PolyIdentifier::VariablesPolynomial(..) => self.state_map.get(&p).expect(&format!("poly {:?} must exist", p)).as_ref(),
+            p @ PolyIdentifier::WitnessPolynomial(..) => self.witness_map.get(&p).expect(&format!("poly {:?} must exist", p)).as_ref(),
+            p @ PolyIdentifier::GateSetupPolynomial(..) => self.setup_map.get(&p).expect(&format!("poly {:?} must exist", p)).as_ref(),
+            p @ PolyIdentifier::GateSelector(..) => self.gate_selectors.get(&p).expect(&format!("poly {:?} must exist", p)).as_ref(),
+            p @ PolyIdentifier::PermutationPolynomial(..) => self.setup_map.get(&p).expect(&format!("poly {:?} must exist", p)).as_ref(),
+            p @ PolyIdentifier::LookupSelector => self.named_polys.get(&p).expect(&format!("poly {:?} must exist", p)).as_ref(),
+            p @ PolyIdentifier::LookupTableEntriesPolynomial(..) => self.named_polys.get(&p).expect(&format!("poly {:?} must exist", p)).as_ref(),
+            p @ PolyIdentifier::NamedSetupPolynomial(..) => self.named_polys.get(&p).expect(&format!("poly {:?} must exist", p)).as_ref(),
             _ => {
                 unreachable!()
             }
@@ -260,7 +214,7 @@ impl<'a, E: Engine> AssembledPolynomialStorage<'a, E> {
             scratch_space: std::collections::HashMap::new(),
             named_polys: std::collections::HashMap::new(),
             is_bitreversed: bitreversed,
-            lde_factor
+            lde_factor,
         }
     }
 
@@ -272,22 +226,22 @@ impl<'a, E: Engine> AssembledPolynomialStorage<'a, E> {
             match id {
                 p @ PolyIdentifier::GateSetupPolynomial(..) => {
                     self.setup_map.insert(p.clone(), proxy);
-                },
+                }
                 p @ PolyIdentifier::GateSelector(..) => {
                     self.setup_map.insert(p.clone(), proxy);
-                },
+                }
                 p @ PolyIdentifier::PermutationPolynomial(..) => {
                     self.setup_map.insert(p.clone(), proxy);
-                },
+                }
                 p @ PolyIdentifier::LookupSelector => {
                     self.named_polys.insert(p.clone(), proxy);
-                },
+                }
                 p @ PolyIdentifier::LookupTableEntriesPolynomial(..) => {
                     self.named_polys.insert(p.clone(), proxy);
-                },
+                }
                 p @ PolyIdentifier::NamedSetupPolynomial(..) => {
                     self.named_polys.insert(p.clone(), proxy);
-                },
+                }
                 _ => {
                     unreachable!()
                 }
@@ -299,30 +253,14 @@ impl<'a, E: Engine> AssembledPolynomialStorage<'a, E> {
 impl<'a, E: Engine> AssembledPolynomialStorageForMonomialForms<'a, E> {
     pub fn get_poly(&self, id: PolyIdentifier) -> &Polynomial<E::Fr, Coefficients> {
         match id {
-            p @ PolyIdentifier::VariablesPolynomial(..) => {
-                self.state_map.get(&p).expect(&format!("poly {:?} must exist", p)).as_ref()
-            },
-            p @ PolyIdentifier::WitnessPolynomial(..) => {
-                self.witness_map.get(&p).expect(&format!("poly {:?} must exist", p)).as_ref()
-            },
-            p @ PolyIdentifier::GateSetupPolynomial(..) => {
-                self.setup_map.get(&p).expect(&format!("poly {:?} must exist", p)).as_ref()
-            },
-            p @ PolyIdentifier::GateSelector(..) => {
-                self.gate_selectors.get(&p).expect(&format!("poly {:?} must exist", p)).as_ref()
-            },
-            p @ PolyIdentifier::PermutationPolynomial(..) => {
-                self.setup_map.get(&p).expect(&format!("poly {:?} must exist", p)).as_ref()
-            },
-            p @ PolyIdentifier::LookupSelector => {
-                self.named_polys.get(&p).expect(&format!("poly {:?} must exist", p)).as_ref()
-            },
-            p @ PolyIdentifier::LookupTableEntriesPolynomial(..) => {
-                self.named_polys.get(&p).expect(&format!("poly {:?} must exist", p)).as_ref()
-            },
-            p @ PolyIdentifier::NamedSetupPolynomial(..) => {
-                self.named_polys.get(&p).expect(&format!("poly {:?} must exist", p)).as_ref()
-            },
+            p @ PolyIdentifier::VariablesPolynomial(..) => self.state_map.get(&p).expect(&format!("poly {:?} must exist", p)).as_ref(),
+            p @ PolyIdentifier::WitnessPolynomial(..) => self.witness_map.get(&p).expect(&format!("poly {:?} must exist", p)).as_ref(),
+            p @ PolyIdentifier::GateSetupPolynomial(..) => self.setup_map.get(&p).expect(&format!("poly {:?} must exist", p)).as_ref(),
+            p @ PolyIdentifier::GateSelector(..) => self.gate_selectors.get(&p).expect(&format!("poly {:?} must exist", p)).as_ref(),
+            p @ PolyIdentifier::PermutationPolynomial(..) => self.setup_map.get(&p).expect(&format!("poly {:?} must exist", p)).as_ref(),
+            p @ PolyIdentifier::LookupSelector => self.named_polys.get(&p).expect(&format!("poly {:?} must exist", p)).as_ref(),
+            p @ PolyIdentifier::LookupTableEntriesPolynomial(..) => self.named_polys.get(&p).expect(&format!("poly {:?} must exist", p)).as_ref(),
+            p @ PolyIdentifier::NamedSetupPolynomial(..) => self.named_polys.get(&p).expect(&format!("poly {:?} must exist", p)).as_ref(),
         }
     }
 
@@ -350,19 +288,19 @@ impl<'a, E: Engine> AssembledPolynomialStorageForMonomialForms<'a, E> {
             match id {
                 p @ PolyIdentifier::GateSetupPolynomial(..) => {
                     self.setup_map.insert(p.clone(), proxy);
-                },
+                }
                 p @ PolyIdentifier::GateSelector(..) => {
                     self.setup_map.insert(p.clone(), proxy);
-                },
+                }
                 p @ PolyIdentifier::PermutationPolynomial(..) => {
                     self.setup_map.insert(p.clone(), proxy);
-                },
+                }
                 p @ PolyIdentifier::LookupSelector => {
                     self.named_polys.insert(p.clone(), proxy);
-                },
+                }
                 p @ PolyIdentifier::LookupTableEntriesPolynomial(..) => {
                     self.named_polys.insert(p.clone(), proxy);
-                },
+                }
                 p @ PolyIdentifier::NamedSetupPolynomial(..) => {
                     self.named_polys.insert(p.clone(), proxy);
                 }

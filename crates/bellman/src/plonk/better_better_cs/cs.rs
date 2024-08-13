@@ -1,26 +1,26 @@
-use crate::pairing::ff::{Field, PrimeField, PrimeFieldRepr};
-use crate::pairing::{Engine, CurveAffine, CurveProjective};
 use crate::bit_vec::BitVec;
+use crate::pairing::ff::{Field, PrimeField, PrimeFieldRepr};
+use crate::pairing::{CurveAffine, CurveProjective, Engine};
 
-use crate::{SynthesisError};
+use crate::SynthesisError;
 #[cfg(feature = "allocator")]
 use std::alloc::{Allocator, Global};
 use std::collections::HashMap;
 use std::marker::PhantomData;
 
-use crate::worker::Worker;
 use crate::plonk::domains::*;
 use crate::plonk::polynomials::*;
+use crate::worker::Worker;
 
-pub use crate::plonk::cs::variable::*;
+pub use super::lookup_tables::*;
 use crate::plonk::better_cs::utils::*;
-pub use super::lookup_tables::{*};
+pub use crate::plonk::cs::variable::*;
 
 use crate::plonk::fft::cooley_tukey_ntt::*;
 
-use super::utils::*;
 pub use super::data_structures::*;
 pub use super::setup::*;
+use super::utils::*;
 
 pub use super::gates::main_gate_with_d_next::*;
 
@@ -56,9 +56,7 @@ pub trait Circuit<E: Engine> {
     type MainGate: MainGate<E>;
     fn synthesize<CS: ConstraintSystem<E> + 'static>(&self, cs: &mut CS) -> Result<(), SynthesisError>;
     fn declare_used_gates() -> Result<Vec<Box<dyn GateInternal<E>>>, SynthesisError> {
-        Ok(
-            vec![Self::MainGate::default().into_internal()]
-        )
+        Ok(vec![Self::MainGate::default().into_internal()])
     }
 }
 
@@ -66,7 +64,7 @@ pub trait Circuit<E: Engine> {
 pub enum Coefficient {
     PlusOne,
     MinusOne,
-    Other
+    Other,
 }
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
@@ -84,12 +82,7 @@ pub(crate) struct PolynomialOpeningRequest {
     pub(crate) dilation: TimeDilation,
 }
 
-pub trait GateInternal<E: Engine>: Send 
-    + Sync 
-    + 'static 
-    + std::any::Any 
-    + std::fmt::Debug
-{
+pub trait GateInternal<E: Engine>: Send + Sync + 'static + std::any::Any + std::fmt::Debug {
     fn name(&self) -> &'static str;
     fn degree(&self) -> usize;
     fn can_include_public_inputs(&self) -> bool;
@@ -106,26 +99,26 @@ pub trait GateInternal<E: Engine>: Send
     fn num_quotient_terms(&self) -> usize;
     fn verify_on_row<'a>(&self, row: usize, poly_storage: &AssembledPolynomialStorage<'a, E>, last_row: bool) -> E::Fr;
     fn contribute_into_quotient<'a, 'b>(
-        &self, 
+        &self,
         domain_size: usize,
         poly_storage: &mut AssembledPolynomialStorage<'a, E>,
-        monomials_storage: & AssembledPolynomialStorageForMonomialForms<'b, E>,
+        monomials_storage: &AssembledPolynomialStorageForMonomialForms<'b, E>,
         challenges: &[E::Fr],
         omegas_bitreversed: &BitReversedOmegas<E::Fr>,
         omegas_inv_bitreversed: &OmegasInvBitreversed<E::Fr>,
-        worker: &Worker
+        worker: &Worker,
     ) -> Result<Polynomial<E::Fr, Values>, SynthesisError>;
     fn contribute_into_linearization<'a>(
-        &self, 
+        &self,
         domain_size: usize,
         at: E::Fr,
         queried_values: &std::collections::HashMap<PolynomialInConstraint, E::Fr>,
-        monomials_storage: & AssembledPolynomialStorageForMonomialForms<'a, E>,
+        monomials_storage: &AssembledPolynomialStorageForMonomialForms<'a, E>,
         challenges: &[E::Fr],
-        worker: &Worker
+        worker: &Worker,
     ) -> Result<Polynomial<E::Fr, Coefficients>, SynthesisError>;
     fn contribute_into_verification_equation(
-        &self, 
+        &self,
         domain_size: usize,
         at: E::Fr,
         queried_values: &std::collections::HashMap<PolynomialInConstraint, E::Fr>,
@@ -134,7 +127,7 @@ pub trait GateInternal<E: Engine>: Send
     fn put_public_inputs_into_selector_id(&self) -> Option<usize>;
     fn box_clone(&self) -> Box<dyn GateInternal<E>>;
     fn contribute_into_linearization_commitment(
-        &self, 
+        &self,
         domain_size: usize,
         at: E::Fr,
         queried_values: &std::collections::HashMap<PolynomialInConstraint, E::Fr>,
@@ -143,12 +136,7 @@ pub trait GateInternal<E: Engine>: Send
     ) -> Result<E::G1, SynthesisError>;
 }
 
-pub trait Gate<E: Engine>: GateInternal<E>
-    + Sized
-    + Clone
-    + std::hash::Hash
-    + std::default::Default 
-{
+pub trait Gate<E: Engine>: GateInternal<E> + Sized + Clone + std::hash::Hash + std::default::Default {
     fn as_internal(&self) -> &dyn GateInternal<E> {
         self as &dyn GateInternal<E>
     }
@@ -158,7 +146,7 @@ pub trait Gate<E: Engine>: GateInternal<E>
     }
 }
 
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 
 pub const DEFAULT_SMALLVEC_CAPACITY: usize = 8;
@@ -173,39 +161,36 @@ pub trait MainGate<E: Engine>: Gate<E> {
     fn index_for_constant_term() -> usize;
     fn range_of_next_step_linear_terms() -> std::ops::Range<usize>;
     fn format_term(instance: MainGateTerm<E>, padding: Variable) -> Result<(SmallVec<[Variable; DEFAULT_SMALLVEC_CAPACITY]>, SmallVec<[E::Fr; DEFAULT_SMALLVEC_CAPACITY]>), SynthesisError>;
-    fn format_linear_term_with_duplicates(instance: MainGateTerm<E>, padding: Variable) -> Result<(SmallVec<[Variable; DEFAULT_SMALLVEC_CAPACITY]>, SmallVec<[E::Fr; DEFAULT_SMALLVEC_CAPACITY]>), SynthesisError>;
+    fn format_linear_term_with_duplicates(
+        instance: MainGateTerm<E>,
+        padding: Variable,
+    ) -> Result<(SmallVec<[Variable; DEFAULT_SMALLVEC_CAPACITY]>, SmallVec<[E::Fr; DEFAULT_SMALLVEC_CAPACITY]>), SynthesisError>;
     fn dummy_vars_to_inscribe(dummy: Variable) -> SmallVec<[Variable; DEFAULT_SMALLVEC_CAPACITY]>;
     fn empty_coefficients() -> SmallVec<[E::Fr; DEFAULT_SMALLVEC_CAPACITY]>;
     fn contribute_into_quotient_for_public_inputs<'a, 'b>(
-        &self, 
+        &self,
         domain_size: usize,
         public_inputs: &[E::Fr],
         poly_storage: &mut AssembledPolynomialStorage<'b, E>,
-        monomial_storage: & AssembledPolynomialStorageForMonomialForms<'a, E>,
+        monomial_storage: &AssembledPolynomialStorageForMonomialForms<'a, E>,
         challenges: &[E::Fr],
         omegas_bitreversed: &BitReversedOmegas<E::Fr>,
         omegas_inv_bitreversed: &OmegasInvBitreversed<E::Fr>,
-        worker: &Worker
+        worker: &Worker,
     ) -> Result<Polynomial<E::Fr, Values>, SynthesisError>;
     fn contribute_into_linearization_for_public_inputs<'a>(
-        &self, 
+        &self,
         domain_size: usize,
         public_inputs: &[E::Fr],
         at: E::Fr,
         queried_values: &std::collections::HashMap<PolynomialInConstraint, E::Fr>,
-        monomials_storage: & AssembledPolynomialStorageForMonomialForms<'a, E>,
+        monomials_storage: &AssembledPolynomialStorageForMonomialForms<'a, E>,
         challenges: &[E::Fr],
-        worker: &Worker
+        worker: &Worker,
     ) -> Result<Polynomial<E::Fr, Coefficients>, SynthesisError>;
-    fn add_inputs_into_quotient(
-        &self, 
-        domain_size: usize,
-        public_inputs: &[E::Fr],
-        at: E::Fr,
-        challenges: &[E::Fr],
-    ) -> Result<E::Fr, SynthesisError>;
+    fn add_inputs_into_quotient(&self, domain_size: usize, public_inputs: &[E::Fr], at: E::Fr, challenges: &[E::Fr]) -> Result<E::Fr, SynthesisError>;
     // fn contribute_into_verification_equation_for_public_inputs(
-    //     &self, 
+    //     &self,
     //     domain_size: usize,
     //     public_inputs: &[E::Fr],
     //     at: E::Fr,
@@ -213,7 +198,7 @@ pub trait MainGate<E: Engine>: Gate<E> {
     //     challenges: &[E::Fr],
     // ) -> Result<E::Fr, SynthesisError>;
     fn contribute_into_linearization_commitment_for_public_inputs(
-        &self, 
+        &self,
         domain_size: usize,
         public_inputs: &[E::Fr],
         at: E::Fr,
@@ -224,7 +209,10 @@ pub trait MainGate<E: Engine>: Gate<E> {
 }
 
 impl<E: Engine> std::hash::Hash for dyn GateInternal<E> {
-    fn hash<H>(&self, state: &mut H) where H: std::hash::Hasher {
+    fn hash<H>(&self, state: &mut H)
+    where
+        H: std::hash::Hasher,
+    {
         self.type_id().hash(state);
         self.name().hash(state);
         self.degree().hash(state);
@@ -233,9 +221,7 @@ impl<E: Engine> std::hash::Hash for dyn GateInternal<E> {
 
 impl<E: Engine> PartialEq for dyn GateInternal<E> {
     fn eq(&self, other: &Self) -> bool {
-        self.type_id() == other.type_id() &&
-        self.name() == other.name() &&
-        self.degree() == other.degree()
+        self.type_id() == other.type_id() && self.name() == other.name() && self.degree() == other.degree()
     }
 }
 
@@ -251,12 +237,12 @@ pub struct LinearCombinationOfTerms(pub Vec<PolynomialMultiplicativeTerm>);
 
 impl LinearCombinationOfTerms {
     fn terms(&self) -> &[PolynomialMultiplicativeTerm] {
-       &self.0[..]
+        &self.0[..]
     }
 }
 
 #[derive(Clone, Debug)]
-pub enum ArithmeticTerm<E: Engine>{
+pub enum ArithmeticTerm<E: Engine> {
     Product(smallvec::SmallVec<[Variable; 2]>, E::Fr),
     SingleVariable(Variable, E::Fr),
     Constant(E::Fr),
@@ -281,17 +267,17 @@ impl<E: Engine> ArithmeticTerm<E> {
                 terms.push(other);
 
                 ArithmeticTerm::Product(terms, coeff)
-            },
+            }
             ArithmeticTerm::SingleVariable(this, coeff) => {
                 let terms = smallvec::smallvec![this, other];
 
                 ArithmeticTerm::Product(terms, coeff)
-            },
+            }
             ArithmeticTerm::Constant(coeff) => {
                 let terms = smallvec::smallvec![other];
 
                 ArithmeticTerm::Product(terms, coeff)
-            },
+            }
         }
     }
 
@@ -299,13 +285,13 @@ impl<E: Engine> ArithmeticTerm<E> {
         match self {
             ArithmeticTerm::Product(_, ref mut coeff) => {
                 coeff.mul_assign(by);
-            },
+            }
             ArithmeticTerm::SingleVariable(_, ref mut coeff) => {
                 coeff.mul_assign(by);
-            },
+            }
             ArithmeticTerm::Constant(ref mut coeff) => {
                 coeff.mul_assign(by);
-            },
+            }
         }
     }
 }
@@ -313,11 +299,11 @@ impl<E: Engine> ArithmeticTerm<E> {
 const DEFAULT_SMALLVEC_CAPACITY_FOR_TERM: usize = 8;
 
 #[derive(Clone, Debug)]
-pub struct MainGateTerm<E: Engine>{
+pub struct MainGateTerm<E: Engine> {
     pub(crate) terms: smallvec::SmallVec<[ArithmeticTerm<E>; DEFAULT_SMALLVEC_CAPACITY_FOR_TERM]>,
     pub(crate) vars_scratch: std::collections::HashMap<Variable, usize>,
     pub(crate) num_multiplicative_terms: usize,
-    pub(crate) num_constant_terms: usize
+    pub(crate) num_constant_terms: usize,
 }
 
 impl<E: Engine> MainGateTerm<E> {
@@ -326,7 +312,7 @@ impl<E: Engine> MainGateTerm<E> {
             terms: smallvec::smallvec![],
             vars_scratch: std::collections::HashMap::with_capacity(DEFAULT_SMALLVEC_CAPACITY_FOR_TERM),
             num_multiplicative_terms: 0,
-            num_constant_terms: 0
+            num_constant_terms: 0,
         }
     }
 
@@ -339,15 +325,15 @@ impl<E: Engine> MainGateTerm<E> {
             ArithmeticTerm::Product(_, _) => {
                 self.num_multiplicative_terms += 1;
                 self.terms.push(other);
-            },
+            }
             ArithmeticTerm::SingleVariable(var, coeff) => {
-                // deduplicate 
+                // deduplicate
                 if self.vars_scratch.get(&var).is_some() {
                     let index = *self.vars_scratch.get(&var).unwrap();
                     match &mut self.terms[index] {
                         ArithmeticTerm::SingleVariable(_, ref mut c) => {
                             c.add_assign(&coeff);
-                        },
+                        }
                         _ => {
                             unreachable!()
                         }
@@ -357,14 +343,14 @@ impl<E: Engine> MainGateTerm<E> {
                     self.vars_scratch.insert(var, self.terms.len());
                     self.terms.push(other);
                 }
-            },
+            }
             ArithmeticTerm::Constant(_) => {
                 self.num_constant_terms += 1;
                 self.terms.push(other);
-            },
+            }
         }
-        
-        debug_assert!(self.num_constant_terms <= 1, "must duplicate constants");        
+
+        debug_assert!(self.num_constant_terms <= 1, "must duplicate constants");
     }
 
     pub fn add_assign_allowing_duplicates(&mut self, other: ArithmeticTerm<E>) {
@@ -372,81 +358,75 @@ impl<E: Engine> MainGateTerm<E> {
             ArithmeticTerm::Product(_, _) => {
                 self.num_multiplicative_terms += 1;
                 self.terms.push(other);
-            },
+            }
             ArithmeticTerm::SingleVariable(_, _) => {
                 // we just push and don't even count this variable as duplicatable
                 self.terms.push(other);
-            },
+            }
             ArithmeticTerm::Constant(_) => {
                 self.num_constant_terms += 1;
                 self.terms.push(other);
-            },
+            }
         }
-        
-        debug_assert!(self.num_constant_terms <= 1, "must duplicate constants");        
+
+        debug_assert!(self.num_constant_terms <= 1, "must duplicate constants");
     }
 
     pub fn sub_assign(&mut self, mut other: ArithmeticTerm<E>) {
         match &mut other {
             ArithmeticTerm::Product(_, ref mut coeff) => {
                 coeff.negate();
-            },
+            }
             ArithmeticTerm::SingleVariable(_, ref mut coeff) => {
                 coeff.negate();
-            },
+            }
             ArithmeticTerm::Constant(ref mut coeff) => {
-                coeff.negate(); 
-            },
+                coeff.negate();
+            }
         }
 
         self.add_assign(other);
 
-        debug_assert!(self.num_constant_terms <= 1, "must not duplicate constants");        
+        debug_assert!(self.num_constant_terms <= 1, "must not duplicate constants");
     }
 
     pub fn sub_assign_allowing_duplicates(&mut self, mut other: ArithmeticTerm<E>) {
         match &mut other {
             ArithmeticTerm::Product(_, ref mut coeff) => {
                 coeff.negate();
-            },
+            }
             ArithmeticTerm::SingleVariable(_, ref mut coeff) => {
                 coeff.negate();
-            },
+            }
             ArithmeticTerm::Constant(ref mut coeff) => {
-                coeff.negate(); 
-            },
+                coeff.negate();
+            }
         }
 
         self.add_assign_allowing_duplicates(other);
 
-        debug_assert!(self.num_constant_terms <= 1, "must not duplicate constants");        
+        debug_assert!(self.num_constant_terms <= 1, "must not duplicate constants");
     }
 }
 
-pub fn get_from_map_unchecked<'a, 'b: 'a, E: Engine>(
-    key_with_dilation: PolynomialInConstraint,
-    ldes_map: &'a AssembledPolynomialStorage<'b, E>
-) -> &'a Polynomial<E::Fr, Values> {
-
+pub fn get_from_map_unchecked<'a, 'b: 'a, E: Engine>(key_with_dilation: PolynomialInConstraint, ldes_map: &'a AssembledPolynomialStorage<'b, E>) -> &'a Polynomial<E::Fr, Values> {
     let (key, dilation_value) = key_with_dilation.into_id_and_raw_dilation();
 
     let r = if dilation_value == 0 {
         match key {
-            k @ PolyIdentifier::VariablesPolynomial(..) => {
-                ldes_map.state_map.get(&k).expect(&format!("Must get poly {:?} from ldes storage", &k)).as_ref()
-            },
-            k @ PolyIdentifier::WitnessPolynomial(..) => {
-                ldes_map.witness_map.get(&k).expect(&format!("Must get poly {:?} from ldes storage", &k)).as_ref()
-            },           
-            k @ PolyIdentifier::GateSetupPolynomial(..) => {
-                ldes_map.setup_map.get(&k).expect(&format!("Must get poly {:?} from ldes storage", &k)).as_ref()
-            },
+            k @ PolyIdentifier::VariablesPolynomial(..) => ldes_map.state_map.get(&k).expect(&format!("Must get poly {:?} from ldes storage", &k)).as_ref(),
+            k @ PolyIdentifier::WitnessPolynomial(..) => ldes_map.witness_map.get(&k).expect(&format!("Must get poly {:?} from ldes storage", &k)).as_ref(),
+            k @ PolyIdentifier::GateSetupPolynomial(..) => ldes_map.setup_map.get(&k).expect(&format!("Must get poly {:?} from ldes storage", &k)).as_ref(),
             _ => {
                 unreachable!();
             }
         }
     } else {
-        ldes_map.scratch_space.get(&key_with_dilation).expect(&format!("Must get poly {:?} from lde storage", &key_with_dilation)).as_ref()
+        ldes_map
+            .scratch_space
+            .get(&key_with_dilation)
+            .expect(&format!("Must get poly {:?} from lde storage", &key_with_dilation))
+            .as_ref()
     };
 
     r
@@ -459,8 +439,8 @@ pub fn ensure_in_map_or_create<'a, 'b, E: Engine>(
     omegas_bitreversed: &BitReversedOmegas<E::Fr>,
     lde_factor: usize,
     coset_factor: E::Fr,
-    monomials_map: & AssembledPolynomialStorageForMonomialForms<'a, E>,
-    ldes_map: &mut AssembledPolynomialStorage<'b, E>
+    monomials_map: &AssembledPolynomialStorageForMonomialForms<'a, E>,
+    ldes_map: &mut AssembledPolynomialStorage<'b, E>,
 ) -> Result<(), SynthesisError> {
     assert!(ldes_map.is_bitreversed);
     assert_eq!(ldes_map.lde_factor, lde_factor);
@@ -475,17 +455,17 @@ pub fn ensure_in_map_or_create<'a, 'b, E: Engine>(
                 if ldes_map.state_map.get(&k).is_some() {
                     contains_in_scratch_or_maps = true;
                 }
-            },
+            }
             k @ PolyIdentifier::WitnessPolynomial(..) => {
                 if ldes_map.witness_map.get(&k).is_some() {
                     contains_in_scratch_or_maps = true;
                 }
-            },           
+            }
             k @ PolyIdentifier::GateSetupPolynomial(..) => {
                 if ldes_map.setup_map.get(&k).is_some() {
                     contains_in_scratch_or_maps = true;
                 }
-            },
+            }
             _ => {
                 unreachable!();
             }
@@ -500,15 +480,9 @@ pub fn ensure_in_map_or_create<'a, 'b, E: Engine>(
         // optimistic case: we have already calculated value without dilation
         // but now need to just rotate
         let lde_without_dilation = match key {
-            k @ PolyIdentifier::VariablesPolynomial(..) => {
-                ldes_map.state_map.get(&k)
-            },
-            k @ PolyIdentifier::WitnessPolynomial(..) => {
-                ldes_map.witness_map.get(&k)
-            },           
-            k @ PolyIdentifier::GateSetupPolynomial(..) => {
-                ldes_map.setup_map.get(&k)
-            },
+            k @ PolyIdentifier::VariablesPolynomial(..) => ldes_map.state_map.get(&k),
+            k @ PolyIdentifier::WitnessPolynomial(..) => ldes_map.witness_map.get(&k),
+            k @ PolyIdentifier::GateSetupPolynomial(..) => ldes_map.setup_map.get(&k),
             _ => {
                 unreachable!();
             }
@@ -539,32 +513,21 @@ pub fn ensure_in_map_or_create<'a, 'b, E: Engine>(
             // perform LDE and push
 
             let monomial = match key {
-                k @ PolyIdentifier::VariablesPolynomial(..) => {
-                    monomials_map.state_map.get(&k).unwrap().as_ref()
-                },
-                k @ PolyIdentifier::WitnessPolynomial(..) => {
-                    monomials_map.witness_map.get(&k).unwrap().as_ref()
-                },           
-                k @ PolyIdentifier::GateSetupPolynomial(..) => {
-                    monomials_map.setup_map.get(&k).unwrap().as_ref()
-                },
+                k @ PolyIdentifier::VariablesPolynomial(..) => monomials_map.state_map.get(&k).unwrap().as_ref(),
+                k @ PolyIdentifier::WitnessPolynomial(..) => monomials_map.witness_map.get(&k).unwrap().as_ref(),
+                k @ PolyIdentifier::GateSetupPolynomial(..) => monomials_map.setup_map.get(&k).unwrap().as_ref(),
                 _ => {
                     unreachable!();
                 }
             };
-        
-            let lde = monomial.clone().bitreversed_lde_using_bitreversed_ntt(
-                &worker, 
-                lde_factor, 
-                omegas_bitreversed, 
-                &coset_factor
-            )?;
-        
+
+            let lde = monomial.clone().bitreversed_lde_using_bitreversed_ntt(&worker, lde_factor, omegas_bitreversed, &coset_factor)?;
+
             let final_lde = if dilation_value != 0 {
                 let rotation_factor = dilation_value * lde_factor;
                 let f = lde.clone_shifted_assuming_bitreversed(rotation_factor, worker)?;
                 drop(lde);
-        
+
                 f
             } else {
                 lde
@@ -578,13 +541,13 @@ pub fn ensure_in_map_or_create<'a, 'b, E: Engine>(
                 match key {
                     k @ PolyIdentifier::VariablesPolynomial(..) => {
                         ldes_map.state_map.insert(k, proxy);
-                    },
+                    }
                     k @ PolyIdentifier::WitnessPolynomial(..) => {
                         ldes_map.witness_map.insert(k, proxy);
-                    },           
+                    }
                     k @ PolyIdentifier::GateSetupPolynomial(..) => {
                         ldes_map.setup_map.insert(k, proxy);
-                    },
+                    }
                     _ => {
                         unreachable!();
                     }
@@ -652,19 +615,15 @@ pub trait ConstraintSystem<E: Engine> {
     where
         F: FnOnce() -> Result<E::Fr, SynthesisError>;
 
-    fn new_single_gate_for_trace_step<G: Gate<E>>(&mut self, 
+    fn new_single_gate_for_trace_step<G: Gate<E>>(
+        &mut self,
         equation: &G,
         coefficients_assignments: &[E::Fr],
         variables_assignments: &[Variable],
-        witness_assignments: &[E::Fr]
+        witness_assignments: &[E::Fr],
     ) -> Result<(), SynthesisError> {
         self.begin_gates_batch_for_step()?;
-        self.new_gate_in_batch(
-            equation,
-            coefficients_assignments,
-            variables_assignments,
-            witness_assignments
-        )?;
+        self.new_gate_in_batch(equation, coefficients_assignments, variables_assignments, witness_assignments)?;
         self.end_gates_batch_for_step()
     }
 
@@ -675,29 +634,16 @@ pub trait ConstraintSystem<E: Engine> {
 
         let mg = Self::MainGate::default();
 
-        self.new_single_gate_for_trace_step(
-            &mg,
-            &coeffs,
-            &vars,
-            &[]
-        )
+        self.new_single_gate_for_trace_step(&mg, &coeffs, &vars, &[])
     }
 
     fn begin_gates_batch_for_step(&mut self) -> Result<(), SynthesisError>;
-    fn new_gate_in_batch<G: Gate<E>>(&mut self, 
-        equation: &G,
-        coefficients_assignments: &[E::Fr],
-        variables_assignments: &[Variable],
-        witness_assignments: &[E::Fr]
-    ) -> Result<(), SynthesisError>;
+    fn new_gate_in_batch<G: Gate<E>>(&mut self, equation: &G, coefficients_assignments: &[E::Fr], variables_assignments: &[Variable], witness_assignments: &[E::Fr]) -> Result<(), SynthesisError>;
     fn end_gates_batch_for_step(&mut self) -> Result<(), SynthesisError>;
 
-    fn allocate_variables_without_gate(&mut self, 
-        variables_assignments: &[Variable],
-        witness_assignments: &[E::Fr]
-    ) -> Result<(), SynthesisError>;
+    fn allocate_variables_without_gate(&mut self, variables_assignments: &[Variable], witness_assignments: &[E::Fr]) -> Result<(), SynthesisError>;
 
-    fn get_value(&self, _variable: Variable) -> Result<E::Fr, SynthesisError> { 
+    fn get_value(&self, _variable: Variable) -> Result<E::Fr, SynthesisError> {
         Err(SynthesisError::AssignmentMissing)
     }
 
@@ -707,10 +653,10 @@ pub trait ConstraintSystem<E: Engine> {
     fn get_explicit_one(&mut self) -> Result<Variable, SynthesisError>;
 
     fn add_table(&mut self, table: LookupTableApplication<E>) -> Result<Arc<LookupTableApplication<E>>, SynthesisError>;
-    fn get_table(&self, functional_name: &str) -> Result<Arc<LookupTableApplication<E>>, SynthesisError>; 
+    fn get_table(&self, functional_name: &str) -> Result<Arc<LookupTableApplication<E>>, SynthesisError>;
 
     fn add_multitable(&mut self, table: MultiTableApplication<E>) -> Result<(), SynthesisError>;
-    fn get_multitable(&self, functional_name: &str) -> Result<Arc<MultiTableApplication<E>>, SynthesisError>; 
+    fn get_multitable(&self, functional_name: &str) -> Result<Arc<MultiTableApplication<E>>, SynthesisError>;
 
     fn apply_single_lookup_gate(&mut self, variables: &[Variable], gate: Arc<LookupTableApplication<E>>) -> Result<(), SynthesisError>;
     fn apply_multi_lookup_gate(&mut self, variables: &[Variable], gate: Arc<MultiTableApplication<E>>) -> Result<(), SynthesisError>;
@@ -722,10 +668,10 @@ pub trait ConstraintSystem<E: Engine> {
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct PlonkCsWidth4WithNextStepParams;
 impl<E: Engine> PlonkConstraintSystemParams<E> for PlonkCsWidth4WithNextStepParams {
-    const STATE_WIDTH: usize =  4;
+    const STATE_WIDTH: usize = 4;
     const WITNESS_WIDTH: usize = 0;
     const HAS_WITNESS_POLYNOMIALS: bool = false;
-    const HAS_CUSTOM_GATES: bool =  false;
+    const HAS_CUSTOM_GATES: bool = false;
     const CAN_ACCESS_NEXT_TRACE_STEP: bool = true;
 }
 
@@ -733,34 +679,33 @@ impl<E: Engine> PlonkConstraintSystemParams<E> for PlonkCsWidth4WithNextStepPara
 pub struct PlonkCsWidth4WithNextStepAndCustomGatesParams;
 
 impl<E: Engine> PlonkConstraintSystemParams<E> for PlonkCsWidth4WithNextStepAndCustomGatesParams {
-    const STATE_WIDTH: usize =  4;
+    const STATE_WIDTH: usize = 4;
     const WITNESS_WIDTH: usize = 0;
     const HAS_WITNESS_POLYNOMIALS: bool = false;
     const HAS_CUSTOM_GATES: bool = true;
     const CAN_ACCESS_NEXT_TRACE_STEP: bool = true;
 }
 
-#[cfg(not(feature="allocator"))]
+#[cfg(not(feature = "allocator"))]
 macro_rules! new_vec_with_allocator {
     ($capacity:expr) => {
         Vec::with_capacity($capacity)
-    }
+    };
 }
 
-#[cfg(feature="allocator")]
+#[cfg(feature = "allocator")]
 macro_rules! new_vec_with_allocator {
     ($capacity:expr) => {
         Vec::with_capacity_in($capacity, A::default())
-    }
+    };
 }
-
 
 use crate::plonk::polynomials::*;
 
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
-#[cfg_attr(feature = "allocator",serde(bound(serialize = "A: serde::Serialize", deserialize = "'de: 'static, A: serde::Deserialize<'de>")))]
+#[cfg_attr(feature = "allocator", serde(bound(serialize = "A: serde::Serialize", deserialize = "'de: 'static, A: serde::Deserialize<'de>")))]
 #[cfg_attr(not(feature = "allocator"), serde(bound(deserialize = "'de: 'static")))]
-pub struct PolynomialStorage<E: Engine, #[cfg(feature = "allocator")]A: Allocator + Default = Global> {
+pub struct PolynomialStorage<E: Engine, #[cfg(feature = "allocator")] A: Allocator + Default = Global> {
     #[cfg(feature = "allocator")]
     #[cfg_attr(feature = "allocator", serde(serialize_with = "serialize_hashmap_with_allocator"))]
     #[cfg_attr(feature = "allocator", serde(deserialize_with = "deserialize_hashmap_with_allocator"))]
@@ -809,7 +754,7 @@ impl_poly_storage! {
                 setup_map: std::collections::HashMap::new(),
             }
         }
-    
+
         pub fn get_value(&self, poly: &PolynomialInConstraint, n: usize) -> Result<E::Fr, SynthesisError> {
             match poly {
                 PolynomialInConstraint(PolyIdentifier::VariablesPolynomial(_), TimeDilation(_)) => {
@@ -823,7 +768,7 @@ impl_poly_storage! {
                         .ok_or(SynthesisError::AssignmentMissing)?
                         .get(final_index)
                         .ok_or(SynthesisError::AssignmentMissing)?;
-    
+
                     Ok(value)
                 },
                 PolynomialInConstraint(PolyIdentifier::WitnessPolynomial(_), TimeDilation(_)) => {
@@ -834,7 +779,7 @@ impl_poly_storage! {
                 }
             }
         }
-    
+
         pub fn get_variable(&self, poly: &PolynomialInConstraint, n: usize) -> Result<Variable, SynthesisError> {
             match poly {
                 PolynomialInConstraint(PolyIdentifier::VariablesPolynomial(idx), TimeDilation(dilation)) => {
@@ -845,7 +790,7 @@ impl_poly_storage! {
                         .ok_or(SynthesisError::AssignmentMissing)?
                         .get(final_index)
                         .ok_or(SynthesisError::AssignmentMissing)?;
-    
+
                     Ok(value)
                 },
                 _ => {
@@ -859,7 +804,7 @@ impl_poly_storage! {
 #[serde(bound(serialize = "dyn GateInternal<E>: serde::Serialize", deserialize = "'de: 'static, dyn GateInternal<E>: serde::Deserialize<'de>"))]
 pub struct GateDensityStorage<E: Engine>(pub std::collections::HashMap<Box<dyn GateInternal<E>>, BitVec>);
 
-impl<E: Engine> Default for GateDensityStorage<E>{
+impl<E: Engine> Default for GateDensityStorage<E> {
     fn default() -> Self {
         Self(std::collections::HashMap::new())
     }
@@ -884,9 +829,15 @@ pub type ProvingAssembly<E, P, MG> = Assembly<E, P, MG, SynthesisModeProve>;
 pub type SetupAssembly<E, P, MG> = Assembly<E, P, MG, SynthesisModeGenerateSetup>;
 
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
-#[cfg_attr(feature = "allocator", serde(bound(serialize = "MG: serde::Serialize, A: serde::Serialize", deserialize = "'de: 'static, MG: serde::Deserialize<'de>, A: serde::Deserialize<'de>")))]
+#[cfg_attr(
+    feature = "allocator",
+    serde(bound(
+        serialize = "MG: serde::Serialize, A: serde::Serialize",
+        deserialize = "'de: 'static, MG: serde::Deserialize<'de>, A: serde::Deserialize<'de>"
+    ))
+)]
 #[cfg_attr(not(feature = "allocator"), serde(bound(serialize = "MG: serde::Serialize", deserialize = "'de: 'static, MG: serde::Deserialize<'de>")))]
-pub struct Assembly<E: Engine, P: PlonkConstraintSystemParams<E>, MG: MainGate<E>, S: SynthesisMode, #[cfg(feature = "allocator")]A: Allocator + Default = Global> {
+pub struct Assembly<E: Engine, P: PlonkConstraintSystemParams<E>, MG: MainGate<E>, S: SynthesisMode, #[cfg(feature = "allocator")] A: Allocator + Default = Global> {
     #[cfg(feature = "allocator")]
     pub inputs_storage: PolynomialStorage<E, A>,
     #[cfg(not(feature = "allocator"))]
@@ -955,7 +906,7 @@ pub struct Assembly<E: Engine, P: PlonkConstraintSystemParams<E>, MG: MainGate<E
     _marker_a: std::marker::PhantomData<A>,
 }
 
-cfg_if!{
+cfg_if! {
     if #[cfg(feature = "allocator")]{
         use serde::de::{Visitor, SeqAccess, MapAccess};
 
@@ -963,7 +914,7 @@ cfg_if!{
             m1: PhantomData<T>,
             m2: PhantomData<B>,
         }
-        
+
         impl<T, B: Allocator> VecVisitor<T, B>{
             pub fn new() -> Self{
                 Self{
@@ -972,18 +923,18 @@ cfg_if!{
                 }
             }
         }
-        
+
         impl<'de, T, B> Visitor<'de> for VecVisitor<T, B>
         where
             T: Deserialize<'de>,
             B: Allocator + Default,
         {
             type Value = Vec<T, B>;
-        
+
             fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
                 formatter.write_str("a sequence")
             }
-        
+
             fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
             where
                 A: SeqAccess<'de>,
@@ -991,25 +942,25 @@ cfg_if!{
                 let size_hint = seq.size_hint();
                 let size_hint = std::cmp::min(size_hint.unwrap_or(0), 4096);
                 let mut values = Vec::with_capacity_in(size_hint, B::default());
-        
+
                 while let Ok(result) = seq.next_element() {
                     match result{
                         Some(value) => values.push(value),
                         None => (),
                     }
                 }
-        
-        
+
+
                 Ok(values)
             }
         }
-        
+
         struct TwoDVecVisitor<T, B: Allocator> {
             m1: PhantomData<T>,
             m2: PhantomData<B>,
         }
-        
-        
+
+
         impl<T, B: Allocator> TwoDVecVisitor<T, B>{
             pub fn new() -> Self{
                 Self{
@@ -1018,18 +969,18 @@ cfg_if!{
                 }
             }
         }
-        
+
         impl<'de, T, B> Visitor<'de> for TwoDVecVisitor<T, B>
         where
             T: Deserialize<'de>,
             B: Allocator + Default,
         {
             type Value = Vec<Vec<T, B>>;
-        
+
             fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
                 formatter.write_str("a sequence")
             }
-        
+
             fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
             where
                 A: SeqAccess<'de>,
@@ -1037,10 +988,10 @@ cfg_if!{
                 let size_hint = seq.size_hint();
                 let size_hint = std::cmp::min(size_hint.unwrap_or(0), 4096);
                 let mut final_result = Vec::with_capacity(size_hint);
-                
-        
+
+
                 while let Ok(result)  = seq.next_element::<Vec<T>>() {
-                    match result{                
+                    match result{
                         Some(sub_vec) => {
                             let size_hint = seq.size_hint();
                             let size_hint = std::cmp::min(size_hint.unwrap_or(0), 4096);
@@ -1048,22 +999,22 @@ cfg_if!{
                             for el in sub_vec{
                                 values.push(el)
                             }
-                            final_result.push(values);                    
+                            final_result.push(values);
                     },
                         None => (),
                     }
                 }
-        
+
                 Ok(final_result)
             }
         }
-        
+
         struct MapVisitor<K, T, B: Allocator> {
             m0: PhantomData<K>,
             m1: PhantomData<T>,
             m2: PhantomData<B>,
         }
-        
+
         impl<K, T, B: Allocator> MapVisitor<K, T, B>{
             pub fn new() -> Self{
                 Self{
@@ -1073,7 +1024,7 @@ cfg_if!{
                 }
             }
         }
-        
+
         impl<'de, K, T, B> Visitor<'de> for MapVisitor<K, T, B>
         where
             T: Deserialize<'de>,
@@ -1081,11 +1032,11 @@ cfg_if!{
             B: Allocator + Default
         {
             type Value = HashMap<K, Vec<T, B>>;
-        
+
             fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
                 formatter.write_str("a 2d sequence")
             }
-        
+
             fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
             where
                 A: MapAccess<'de>,
@@ -1093,7 +1044,7 @@ cfg_if!{
                 let size_hint = map.size_hint();
                 let size_hint = std::cmp::min(size_hint.unwrap_or(0), 4096);
                 let mut final_map = HashMap::with_capacity(size_hint);
-        
+
                 while let Ok(entry) = map.next_entry::<K, Vec<T>>() {
                     let mut values = vec![];
                     match entry{
@@ -1105,20 +1056,20 @@ cfg_if!{
                         None => (),
                     }
                 }
-        
-        
+
+
                 Ok(final_map)
             }
         }
-        
+
         fn serialize_vec_with_allocator<T: serde::Serialize, S, A: Allocator + serde::Serialize>(data: &Vec<T, A>, serializer: S) -> Result<S::Ok, S::Error> where S: serde::Serializer {
             data.serialize(serializer)
         }
-        
+
         fn deserialize_vec_with_allocator<'de, D, T: serde::Deserialize<'de>, A: Allocator + Default + serde::Deserialize<'de>>(deserializer: D) -> Result<Vec<T, A>, D::Error> where D: serde::Deserializer<'de> {
             deserializer.deserialize_seq(VecVisitor::new())
         }
-        
+
         fn serialize_2d_vec_with_allocator<T: serde::Serialize, S, A: Allocator + serde::Serialize>(data: &Vec<Vec<T, A>>, serializer: S) -> Result<S::Ok, S::Error> where S: serde::Serializer {
             use serde::ser::SerializeSeq;
             let mut seq = serializer.serialize_seq(Some(data.len()))?;
@@ -1129,14 +1080,14 @@ cfg_if!{
             }
             seq.end()
         }
-        
-        fn deserialize_2d_vec_with_allocator<'de, D, T: serde::Deserialize<'de>, A: Allocator + Default + serde::Deserialize<'de>>(deserializer: D) -> Result<Vec<Vec<T, A>>, D::Error> where D: serde::Deserializer<'de> {    
+
+        fn deserialize_2d_vec_with_allocator<'de, D, T: serde::Deserialize<'de>, A: Allocator + Default + serde::Deserialize<'de>>(deserializer: D) -> Result<Vec<Vec<T, A>>, D::Error> where D: serde::Deserializer<'de> {
             deserializer.deserialize_seq(TwoDVecVisitor::new())
         }
-        
+
         fn serialize_hashmap_with_allocator<K: serde::Serialize, T: serde::Serialize, S, A: Allocator + Default + serde::Serialize>(data: &HashMap<K, Vec<T, A>>, serializer: S) -> Result<S::Ok, S::Error> where S: serde::Serializer {
             use serde::ser::{SerializeMap, SerializeSeq};
-        
+
             let mut s = serializer.serialize_map(Some(data.len()))?;
             for (k, v) in data{
                 s.serialize_key(k)?;
@@ -1146,19 +1097,18 @@ cfg_if!{
             }
             s.end()
         }
-        
+
         fn deserialize_hashmap_with_allocator<'de, D,K: serde::Deserialize<'de>, T: serde::Deserialize<'de>, A: Allocator + Default>(deserializer: D) -> Result<HashMap<K, Vec<T, A>>, D::Error> where D: serde::Deserializer<'de> {
             deserializer.deserialize_map(MapVisitor::new())
         }
     }
 }
 
-
 macro_rules! impl_assembly {
     {impl Assembly $inherent:tt} => {
         #[cfg(feature = "allocator")]
         impl<E: Engine, P: PlonkConstraintSystemParams<E>, MG: MainGate<E>, S: SynthesisMode, A: Allocator + Default + 'static + Send + Sync> Assembly<E, P, MG, S, A> $inherent
-        
+
         #[cfg(not(feature = "allocator"))]
         impl<E: Engine, P: PlonkConstraintSystemParams<E>, MG: MainGate<E>, S: SynthesisMode> Assembly<E, P, MG, S> $inherent
     };
@@ -1171,32 +1121,32 @@ macro_rules! impl_assembly {
     }
 }
 
-impl_assembly!{
+impl_assembly! {
     impl ConstraintSystem {
         type Params = P;
         type MainGate = MG;
-    
+
         // allocate a variable
         #[inline]
         fn alloc<F>(&mut self, value: F) -> Result<Variable, SynthesisError>
         where
-            F: FnOnce() -> Result<E::Fr, SynthesisError> 
+            F: FnOnce() -> Result<E::Fr, SynthesisError>
         {
-    
+
             self.num_aux += 1;
             let index = self.num_aux;
             if S::PRODUCE_WITNESS {
                 let value = value()?;
                 self.aux_assingments.push(value);
             }
-    
+
             Ok(Variable(Index::Aux(index)))
         }
-    
+
         // allocate an input variable
         fn alloc_input<F>(&mut self, value: F) -> Result<Variable, SynthesisError>
         where
-            F: FnOnce() -> Result<E::Fr, SynthesisError> 
+            F: FnOnce() -> Result<E::Fr, SynthesisError>
         {
             self.num_inputs += 1;
             let index = self.num_inputs;
@@ -1204,46 +1154,46 @@ impl_assembly!{
                 let value = value()?;
                 self.input_assingments.push(value);
             }
-            
+
             let input_var = Variable(Index::Input(index));
-    
+
             let mut main_gate = MainGateTerm::<E>::new();
             main_gate.sub_assign(ArithmeticTerm::from_variable(input_var));
-    
+
             let dummy = Self::get_dummy_variable();
             let (variables_assignments, coefficients_assignments) = MG::format_term(main_gate, dummy).expect("must make empty padding gate");
-    
+
             let n = self.num_input_gates;
             Self::allocate_into_storage(
-                &MG::default(), 
-                &mut self.inputs_storage, 
-                n, 
-                &coefficients_assignments, 
-                &variables_assignments, 
+                &MG::default(),
+                &mut self.inputs_storage,
+                n,
+                &coefficients_assignments,
+                &variables_assignments,
                 &[]
             )?;
-    
+
             self.num_input_gates += 1;
-    
+
             Ok(input_var)
         }
-    
+
         #[inline]
         fn get_main_gate(&self) -> &MG {
             &self.main_gate
         }
-    
+
         #[inline]
         fn begin_gates_batch_for_step(&mut self) -> Result<(), SynthesisError> {
             debug_assert!(self.trace_step_for_batch.is_none());
             let n = self.num_aux_gates;
             self.num_aux_gates += 1;
             self.trace_step_for_batch = Some(n);
-    
+
             Ok(())
         }
-    
-        fn new_gate_in_batch<G: Gate<E>>(&mut self, 
+
+        fn new_gate_in_batch<G: Gate<E>>(&mut self,
             gate: &G,
             coefficients_assignments: &[E::Fr],
             variables_assignments: &[Variable],
@@ -1251,10 +1201,10 @@ impl_assembly!{
         ) -> Result<(), SynthesisError> {
             // check that gate is ok for config
             // debug_assert!(check_gate_is_allowed_for_params::<E, P, G>(&gate), format!("supplied params do not work with gate {:?}", gate));
-    
+
             let n = self.trace_step_for_batch.unwrap();
             // make zero-enumerated index
-            
+
             Self::allocate_into_storage(
                 gate,
                 &mut self.aux_storage,
@@ -1263,9 +1213,9 @@ impl_assembly!{
                 variables_assignments,
                 witness_assignments,
             )?;
-    
+
             self.add_gate_into_list(gate);
-    
+
             if S::PRODUCE_SETUP {
                 if let Some(tracker) = self.aux_gate_density.0.get_mut(gate.as_internal() as &dyn GateInternal<E>) {
                     if tracker.len() != n {
@@ -1282,21 +1232,21 @@ impl_assembly!{
                     debug_assert_eq!(n+1, tracker.len());
                 }
             }
-    
+
             Ok(())
         }
-    
-        fn allocate_variables_without_gate(&mut self, 
+
+        fn allocate_variables_without_gate(&mut self,
             variables_assignments: &[Variable],
             witness_assignments: &[E::Fr]
         ) -> Result<(), SynthesisError> {
             let n = self.trace_step_for_batch.expect("may only be called in a batch");
             // make zero-enumerated index
-    
+
             let empty_coefficients = Self::MainGate::empty_coefficients();
-    
+
             let gate = Self::MainGate::default();
-    
+
             Self::allocate_into_storage(
                 &gate,
                 &mut self.aux_storage,
@@ -1305,10 +1255,10 @@ impl_assembly!{
                 variables_assignments,
                 witness_assignments,
             )?;
-    
+
             if S::PRODUCE_SETUP {
                 let apply_gate = false;
-    
+
                 let tracker = self.aux_gate_density.0.get_mut(gate.as_internal() as &dyn GateInternal<E>).unwrap();
                 if tracker.len() != n {
                     let padding = n - tracker.len();
@@ -1317,18 +1267,18 @@ impl_assembly!{
                 tracker.push(apply_gate);
                 debug_assert_eq!(n+1, tracker.len());
             }
-    
+
             Ok(())
         }
-    
+
         fn end_gates_batch_for_step(&mut self) -> Result<(), SynthesisError> {
             debug_assert!(self.trace_step_for_batch.is_some());
             let n = self.trace_step_for_batch.take().unwrap();
             debug_assert_eq!(n+1, self.num_aux_gates, "invalid batch id");
-    
+
             Ok(())
         }
-    
+
         #[inline]
         fn get_value(&self, var: Variable) -> Result<E::Fr, SynthesisError> {
             if !S::PRODUCE_WITNESS {
@@ -1337,10 +1287,10 @@ impl_assembly!{
             let value = match var {
                 Variable(Index::Aux(0)) => {
                     // use crate::rand::Rng;
-    
+
                     // let mut rng = crate::rand::thread_rng();
                     // let value: E::Fr = rng.gen();
-    
+
                     // value
                     E::Fr::zero()
                     // return Err(SynthesisError::AssignmentMissing);
@@ -1355,57 +1305,57 @@ impl_assembly!{
                     self.aux_assingments[aux - 1]
                 }
             };
-    
+
             Ok(value)
         }
-    
+
         #[inline]
         fn get_dummy_variable() -> Variable {
             Self::dummy_variable()
         }
-    
+
         fn get_explicit_zero(&mut self) -> Result<Variable, SynthesisError> {
             if let Some(var) = self.explicit_zero_variable {
                 return Ok(var);
             }
-    
+
             let value = E::Fr::zero();
             let zero = self.alloc(|| Ok(value))?;
-    
+
             let self_term = ArithmeticTerm::from_variable(zero);
             let other_term = ArithmeticTerm::constant(value);
             let mut term = MainGateTerm::new();
             term.add_assign(self_term);
             term.sub_assign(other_term);
-    
+
             self.allocate_main_gate(term)?;
-    
+
             self.explicit_zero_variable = Some(zero);
-    
+
             Ok(zero)
         }
-    
+
         fn get_explicit_one(&mut self) -> Result<Variable, SynthesisError> {
             if let Some(var) = self.explicit_one_variable {
                 return Ok(var);
             }
-    
+
             let value = E::Fr::one();
             let one = self.alloc(|| Ok(value))?;
-    
+
             let self_term = ArithmeticTerm::from_variable(one);
             let other_term = ArithmeticTerm::constant(value);
             let mut term = MainGateTerm::new();
             term.add_assign(self_term);
             term.sub_assign(other_term);
-    
+
             self.allocate_main_gate(term)?;
-    
+
             self.explicit_one_variable = Some(one);
-    
+
             Ok(one)
         }
-    
+
         fn add_table(&mut self, table: LookupTableApplication<E>) -> Result<Arc<LookupTableApplication<E>>, SynthesisError> {
             assert!(table.applies_over().len() == 3, "only support tables of width 3");
             assert!(table.can_be_combined(), "can only add tables that are combinable");
@@ -1413,7 +1363,7 @@ impl_assembly!{
             let table_name = table.functional_name();
             let table_id = table.table_id();
             let number_of_entries = table.size();
-    
+
             // ensure sorted format when we add table
             let mut entries = Self::ensure_sorted_table(&table);
             assert_eq!(entries.len(), 3);
@@ -1426,43 +1376,43 @@ impl_assembly!{
                 entries_as_arrays.push([a, b, c]);
                 entries_into_table_row.insert([a, b, c], idx);
             }
-    
+
             let shared = Arc::from(table);
             let res = shared.clone();
-    
+
             self.tables.push(shared);
             self.individual_table_canonical_sorted_entries.insert(table_name.clone(), entries_as_arrays);
-            self.individual_table_entries_lookups.insert(table_name.clone(), entries_into_table_row);            
+            self.individual_table_entries_lookups.insert(table_name.clone(), entries_into_table_row);
             let buffer_for_current_table = if let Some(mut buffer) =  self.reusable_buffer_for_lookup_entries.pop(){
                 buffer.clear();
 
                 buffer
             }else{
                 // println!("allocating new buffer for table {}", table_name);
-                
+
                 new_vec_with_allocator!(0)
             };
-            
+
             self.individual_table_entries.insert(table_name.clone(), buffer_for_current_table);
             self.known_table_names.push(table_name.clone());
             self.table_selectors.insert(table_name.clone(), BitVec::new());
             self.known_table_ids.insert(table_name, table_id);
-    
+
             self.total_length_of_all_tables += number_of_entries;
-    
+
             Ok(res)
         }
-    
+
         fn get_table(&self, name: &str) -> Result<Arc<LookupTableApplication<E>>, SynthesisError> {
             for t in self.tables.iter() {
                 if t.functional_name() == name {
                     return Ok(Arc::clone(t));
                 }
             }
-    
+
             Err(SynthesisError::AssignmentMissing)
         }
-    
+
         fn add_multitable(&mut self, table: MultiTableApplication<E>) -> Result<(), SynthesisError> {
             let table_name = table.functional_name();
             let mut exists = false;
@@ -1475,37 +1425,37 @@ impl_assembly!{
             self.multitables.push(Arc::from(table));
             self.multitable_selectors.insert(table_name.clone(), BitVec::new());
             self.individual_table_entries.insert(table_name.clone(), new_vec_with_allocator!(0));
-    
+
             Ok(())
         }
-    
+
         fn get_multitable(&self, functional_name: &str) -> Result<Arc<MultiTableApplication<E>>, SynthesisError> {
             for t in self.multitables.iter() {
                 if t.functional_name() == functional_name {
                     return Ok(Arc::clone(t));
                 }
             }
-    
+
             Err(SynthesisError::AssignmentMissing)
         }
-    
+
         #[track_caller]
         fn apply_single_lookup_gate(&mut self, variables: &[Variable], table: Arc<LookupTableApplication<E>>) -> Result<(), SynthesisError> {
             let n = self.trace_step_for_batch.expect("may only add table constraint in a transaction");
             // make zero-enumerated index
-    
+
             if S::PRODUCE_SETUP {
                 debug_assert!(self.tables.contains(&table));
                 assert!(table.can_be_combined() == true);
                 assert!(table.applies_over().len() == 3);
-    
+
                 let table_name = table.functional_name();
                 let table_id = table.table_id();
-            
+
                 // we need to:
                 // - mark that this table applies at this row
                 // - add values into the list to later on make a sorted polynomial
-    
+
                 let tracker = self.table_selectors.get_mut(&table_name).unwrap();
                 if tracker.len() != n {
                     let padding = n - tracker.len();
@@ -1513,15 +1463,15 @@ impl_assembly!{
                 }
                 tracker.push(true);
                 debug_assert_eq!(n+1, tracker.len());
-    
+
                 // keep track of what table is applied at what row
                 self.table_ids_poly.resize(n, E::Fr::zero());
                 self.table_ids_poly.push(table_id);
             }
-    
+
             if S::PRODUCE_WITNESS {
                 let table_name = table.functional_name();
-    
+
                 // add values for lookup table sorting later
                 let keys_and_values_len = table.applies_over().len();
                 let mut table_entries = arrayvec::ArrayVec::<_, 3>::new();
@@ -1531,53 +1481,53 @@ impl_assembly!{
                 }
                 use std::convert::TryInto;
                 let table_entries_as_array: [_; 3] = table_entries.into_inner().unwrap();
-    
+
                 let entries = self.individual_table_entries.get_mut(&table_name).unwrap();
                 assert_eq!(variables.len(), table.applies_over().len());
 
                 // // This check is substituted by the lookup from values into index below
                 // let valid_entries = table.is_valid_entry(&table_entries_as_array[..keys_and_values_len]);
                 // assert!(valid_entries);
-    
+
                 // if !valid_entries {
                 //     return Err(SynthesisError::Unsatisfiable);
                 // }
 
                 let row_idx = self.individual_table_entries_lookups.get(&table_name).unwrap().get(&table_entries_as_array);
                 assert!(row_idx.is_some(), "table most likely doesn't contain a row for {:?}", table_entries_as_array);
-    
+
                 entries.push(*row_idx.unwrap() as u32);
             }
-    
+
             self.num_table_lookups += 1;
-    
+
             Ok(())
         }
-        
+
         #[track_caller]
         fn apply_multi_lookup_gate(&mut self, variables: &[Variable], table: Arc<MultiTableApplication<E>>) -> Result<(), SynthesisError> {
             unimplemented!("not implementing multitable for now");
         }
-    
+
         fn get_current_step_number(&self) -> usize {
             self.n()
         }
-    
+
         fn get_current_aux_gate_number(&self) -> usize {
             self.num_aux_gates
         }
     }
-    
+
 }
 
-impl_assembly!{
+impl_assembly! {
     impl Assembly{
         fn allocate_into_storage<G: Gate<E>>(
             gate: &G,
             #[cfg(feature = "allocator")]
-            storage: &mut PolynomialStorage<E, A>, 
+            storage: &mut PolynomialStorage<E, A>,
             #[cfg(not(feature = "allocator"))]
-            storage: &mut PolynomialStorage<E>, 
+            storage: &mut PolynomialStorage<E>,
             n: usize,
             coefficients_assignments: &[E::Fr],
             variables_assignments: &[Variable],
@@ -1623,7 +1573,7 @@ impl_assembly!{
                 let poly_ref = storage.witness_map.entry(key).or_insert(vec![]);
                 if poly_ref.len() < n {
                     poly_ref.resize(n, E::Fr::zero());
-                } 
+                }
                 poly_ref.push(*witness_it.next().unwrap_or(&zero));
             }
 
@@ -1642,17 +1592,17 @@ impl_assembly!{
                 for &p in gate.all_queried_polynomials().into_iter() {
                     self.all_queried_polys_in_constraints.insert(p);
                 }
-                
+
                 self.sorted_gates.push(gate.clone().into_internal());
 
                 let degree = gate.degree();
                 if self.max_constraint_degree < degree {
                     self.max_constraint_degree = degree;
                 }
-            }        
+            }
         }
 
-        pub fn new() -> Self {            
+        pub fn new() -> Self {
             let mut tmp = Self {
                 inputs_storage: PolynomialStorage::new(),
                 aux_storage: PolynomialStorage::new(),
@@ -1713,7 +1663,7 @@ impl_assembly!{
             tmp.add_gate_into_list(&MG::default());
 
             tmp
-        }        
+        }
 
         pub fn new_specialized_for_proving_assembly_and_state_4(domain_size: usize, aux_size: usize, num_lookup_tables: usize, max_num_lookup_entries: usize) -> Self {
             assert!(domain_size <= 1 << <E::Fr as PrimeField>::S);
@@ -1811,18 +1761,18 @@ impl_assembly!{
 
             let new_size = *new_size_candidates.iter().max().unwrap();
             assert!(
-                new_size <= 1usize << E::Fr::S, 
-                "Padded circuit size is {}, that is larget than number of roots of unity 2^{}. Padded from {} gates and {} lookup table accesses", 
-                new_size, 
+                new_size <= 1usize << E::Fr::S,
+                "Padded circuit size is {}, that is larget than number of roots of unity 2^{}. Padded from {} gates and {} lookup table accesses",
+                new_size,
                 E::Fr::S,
                 self.n(),
                 total_number_of_table_entries,
             );
             assert!(
-                new_size <= (1usize << E::Fr::S) / <Self as ConstraintSystem<E>>::Params::STATE_WIDTH, 
-                "Circuit size is {}, that is larget than number of roots of unity 2^{} for copy-permutation over {} polys. Padded from {} gates and {} lookup table accesses", 
-                new_size, 
-                E::Fr::S, 
+                new_size <= (1usize << E::Fr::S) / <Self as ConstraintSystem<E>>::Params::STATE_WIDTH,
+                "Circuit size is {}, that is larget than number of roots of unity 2^{} for copy-permutation over {} polys. Padded from {} gates and {} lookup table accesses",
+                new_size,
+                E::Fr::S,
                 <Self as ConstraintSystem<E>>::Params::STATE_WIDTH,
                 self.n(),
                 total_number_of_table_entries,
@@ -1887,19 +1837,19 @@ impl_assembly!{
 
             let new_size = *new_size_candidates.iter().max().unwrap();
             assert!(
-                new_size <= 1usize << E::Fr::S, 
+                new_size <= 1usize << E::Fr::S,
                 "
-                size is {}, that is larget than number of roots of unity 2^{}. Padded from {} gates and {} lookup table accesses", 
-                new_size, 
+                size is {}, that is larget than number of roots of unity 2^{}. Padded from {} gates and {} lookup table accesses",
+                new_size,
                 E::Fr::S,
                 self.n(),
                 total_number_of_table_entries,
             );
             assert!(
-                new_size <= (1usize << E::Fr::S) / <Self as ConstraintSystem<E>>::Params::STATE_WIDTH, 
-                "Circuit size is {}, that is larget than number of roots of unity 2^{} for copy-permutation over {} polys. Padded from {} gates and {} lookup table accesses", 
-                new_size, 
-                E::Fr::S, 
+                new_size <= (1usize << E::Fr::S) / <Self as ConstraintSystem<E>>::Params::STATE_WIDTH,
+                "Circuit size is {}, that is larget than number of roots of unity 2^{} for copy-permutation over {} polys. Padded from {} gates and {} lookup table accesses",
+                new_size,
+                E::Fr::S,
                 <Self as ConstraintSystem<E>>::Params::STATE_WIDTH,
                 self.n(),
                 total_number_of_table_entries,
@@ -1946,11 +1896,11 @@ impl_assembly!{
 
                     // pad special purpose table selector poly
                     self.table_ids_poly.resize(new_size_for_aux, E::Fr::zero());
-                }            
+                }
             }
 
             assert!((self.n()+1).is_power_of_two(), "padded circuit size is not power of two. self.n() = {}", self.n());
-            
+
             self.is_finalized = true;
         }
 
@@ -2128,7 +2078,7 @@ impl_assembly!{
                 permutations[i] = permutation.clone();
 
                 for (original, new) in partition.into_iter()
-                                        .zip(permutation.into_iter()) 
+                                        .zip(permutation.into_iter())
                 {
                     // (column_idx, trace_step_idx)
                     let new_zero_enumerated = new.1 - 1;
@@ -2249,7 +2199,7 @@ impl_assembly!{
             }
 
             let gate_selector_values = self.output_gate_selectors(&worker)?;
-            
+
             if known_gates_list.len() > 1 {
                 assert_eq!(gate_selector_values.len(), known_gates_list.len(), "numbers of selectors and known gates mismatch");
             }
@@ -2302,10 +2252,10 @@ impl_assembly!{
         }
 
         pub fn perform_setup(
-            &self, 
+            &self,
             worker: &Worker
         ) -> Result<
-        (std::collections::HashMap<PolyIdentifier, Polynomial<E::Fr, Values>>, Vec<Polynomial<E::Fr, Values>>), 
+        (std::collections::HashMap<PolyIdentifier, Polynomial<E::Fr, Values>>, Vec<Polynomial<E::Fr, Values>>),
         SynthesisError
         > {
             let map = self.make_setup_polynomials(true)?;
@@ -2356,17 +2306,17 @@ impl_assembly!{
             Ok(poly_values)
         }
 
-        pub fn calculate_t_polynomial_values_for_single_application_tables(&self) -> 
+        pub fn calculate_t_polynomial_values_for_single_application_tables(&self) ->
             Result<Vec<Vec<E::Fr>>, SynthesisError> {
 
             if !S::PRODUCE_SETUP {
                 return Err(SynthesisError::AssignmentMissing);
             }
-            
+
             if self.tables.len() == 0 {
                 return Ok(vec![])
             }
-            
+
             // we should pass over every table and append it
 
             let mut width = 0;
@@ -2432,14 +2382,14 @@ impl_assembly!{
             result
         }
 
-        // pub fn calculate_interleaved_t_polys(&self) -> 
+        // pub fn calculate_interleaved_t_polys(&self) ->
         //     Result<Vec<Vec<E::Fr>>, SynthesisError> {
         //     assert!(self.is_finalized);
-            
+
         //     if self.tables.len() == 0 {
         //         return Ok(vec![])
         //     }
-            
+
         //     // we should pass over every table and append it
 
         //     let mut width = 0;
@@ -2492,7 +2442,7 @@ impl_assembly!{
 
         //                     break 'inner;
         //                 } else {
-        //                     // go for a next one 
+        //                     // go for a next one
         //                     place_into_idx += 1;
         //                 }
         //             }
@@ -2503,7 +2453,7 @@ impl_assembly!{
         // }
 
         // pub fn calculate_s_poly_contributions_from_witness(&self) ->
-        //     Result<Vec<Vec<E::Fr>>, SynthesisError> 
+        //     Result<Vec<Vec<E::Fr>>, SynthesisError>
         // {
         //     if self.tables.len() == 0 {
         //         return Ok(vec![]);
@@ -2553,7 +2503,7 @@ impl_assembly!{
         // }
 
         pub fn calculate_s_poly_contributions_from_witness(&self, delinearization_challenge: E::Fr) ->
-            Result<Vec<E::Fr>, SynthesisError> 
+            Result<Vec<E::Fr>, SynthesisError>
         {
             if self.tables.len() == 0 {
                 return Ok(vec![]);
@@ -2613,7 +2563,7 @@ impl_assembly!{
 
         pub fn calculate_table_type_values(
             &self
-        ) -> 
+        ) ->
             Result<Vec<E::Fr>, SynthesisError>
         {
             assert!(self.is_finalized);
@@ -2686,7 +2636,7 @@ impl_assembly!{
         pub fn calculate_masked_lookup_entries(
             &self,
             storage: &AssembledPolynomialStorage<E>
-        ) -> 
+        ) ->
             Result<Vec<Vec<E::Fr>>, SynthesisError>
         {
             assert!(self.is_finalized);
@@ -2733,7 +2683,7 @@ impl_assembly!{
             &self,
             storage: &AssembledPolynomialStorage<E>,
             selector: &PolynomialProxy<'a, E::Fr, Values>
-        ) -> 
+        ) ->
             Result<Vec<Vec<E::Fr>>, SynthesisError>
         {
             assert!(self.is_finalized);
@@ -2898,14 +2848,14 @@ impl_assembly!{
         }
 
         pub fn make_assembled_poly_storage<'a>(
-            &self, 
-            worker: &Worker, 
+            &self,
+            worker: &Worker,
             with_finalization: bool
         ) -> Result<AssembledPolynomialStorage<'a, E>, SynthesisError> {
             if with_finalization {
                 assert!(self.is_finalized);
             }
-            
+
             let (state_polys, witness_polys) = self.make_state_and_witness_polynomials(&worker, with_finalization)?;
 
             let mut state_polys_map = std::collections::HashMap::new();
@@ -2972,8 +2922,8 @@ impl_assembly!{
 
             for (&k, v) in value_form_storage.state_map.iter() {
                 let mon_form = v.as_ref().clone_padded_to_domain()?.ifft_using_bitreversed_ntt(
-                    &worker, 
-                    omegas_inv, 
+                    &worker,
+                    omegas_inv,
                     &E::Fr::one()
                 )?;
                 let mon_form = PolynomialProxy::from_owned(mon_form);
@@ -2982,8 +2932,8 @@ impl_assembly!{
 
             for (&k, v) in value_form_storage.witness_map.iter() {
                 let mon_form = v.as_ref().clone_padded_to_domain()?.ifft_using_bitreversed_ntt(
-                    &worker, 
-                    omegas_inv, 
+                    &worker,
+                    omegas_inv,
                     &E::Fr::one()
                 )?;
                 let mon_form = PolynomialProxy::from_owned(mon_form);
@@ -2993,8 +2943,8 @@ impl_assembly!{
             if include_setup {
                 for (&k, v) in value_form_storage.gate_selectors.iter() {
                     let mon_form = v.as_ref().clone_padded_to_domain()?.ifft_using_bitreversed_ntt(
-                        &worker, 
-                        omegas_inv, 
+                        &worker,
+                        omegas_inv,
                         &E::Fr::one()
                     )?;
                     let mon_form = PolynomialProxy::from_owned(mon_form);
@@ -3003,8 +2953,8 @@ impl_assembly!{
 
                 for (&k, v) in value_form_storage.setup_map.iter() {
                     let mon_form = v.as_ref().clone_padded_to_domain()?.ifft_using_bitreversed_ntt(
-                        &worker, 
-                        omegas_inv, 
+                        &worker,
+                        omegas_inv,
                         &E::Fr::one()
                     )?;
                     let mon_form = PolynomialProxy::from_owned(mon_form);
@@ -3021,38 +2971,30 @@ impl_assembly!{
 mod test {
     use super::*;
 
-    use crate::pairing::Engine;
     use crate::pairing::ff::PrimeField;
+    use crate::pairing::Engine;
 
-    struct TestCircuit4<E:Engine>{
-        _marker: PhantomData<E>
+    struct TestCircuit4<E: Engine> {
+        _marker: PhantomData<E>,
     }
 
     impl<E: Engine> Circuit<E> for TestCircuit4<E> {
         type MainGate = Width4MainGateWithDNext;
 
         fn synthesize<CS: ConstraintSystem<E>>(&self, cs: &mut CS) -> Result<(), SynthesisError> {
-            let a = cs.alloc(|| {
-                Ok(E::Fr::from_str("10").unwrap())
-            })?;
+            let a = cs.alloc(|| Ok(E::Fr::from_str("10").unwrap()))?;
 
             println!("A = {:?}", a);
 
-            let b = cs.alloc(|| {
-                Ok(E::Fr::from_str("20").unwrap())
-            })?;
+            let b = cs.alloc(|| Ok(E::Fr::from_str("20").unwrap()))?;
 
             println!("B = {:?}", b);
 
-            let c = cs.alloc(|| {
-                Ok(E::Fr::from_str("200").unwrap())
-            })?;
+            let c = cs.alloc(|| Ok(E::Fr::from_str("200").unwrap()))?;
 
             println!("C = {:?}", c);
 
-            let d = cs.alloc(|| {
-                Ok(E::Fr::from_str("100").unwrap())
-            })?;
+            let d = cs.alloc(|| Ok(E::Fr::from_str("100").unwrap()))?;
 
             println!("D = {:?}", d);
 
@@ -3074,7 +3016,7 @@ mod test {
 
             cs.allocate_main_gate(term)?;
 
-            // c - a*b == 0 
+            // c - a*b == 0
 
             let mut ab_term = ArithmeticTerm::from_variable(a).mul_by_variable(b);
             ab_term.scale(&negative_one);
@@ -3085,7 +3027,7 @@ mod test {
 
             cs.allocate_main_gate(term)?;
 
-            // d - 100 == 0 
+            // d - 100 == 0
 
             let hundred = ArithmeticTerm::constant(E::Fr::from_str("100").unwrap());
             let d_term = ArithmeticTerm::from_variable(d);
@@ -3099,11 +3041,9 @@ mod test {
             //     Ok(E::Fr::from_str("20").unwrap())
             // })?;
 
-            let gamma = cs.alloc(|| {
-                Ok(E::Fr::from_str("20").unwrap())
-            })?;
+            let gamma = cs.alloc(|| Ok(E::Fr::from_str("20").unwrap()))?;
 
-            // gamma - b == 0 
+            // gamma - b == 0
 
             let gamma_term = ArithmeticTerm::from_variable(gamma);
             let b_term = ArithmeticTerm::from_variable(b);
@@ -3127,11 +3067,7 @@ mod test {
             // here d is equal = 2a, so we need to place b there
             // and compensate it with -b somewhere before
 
-            cs.new_single_gate_for_trace_step(&CS::MainGate::default(), 
-                &coeffs, 
-                &vars, 
-                &[]
-            )?;
+            cs.new_single_gate_for_trace_step(&CS::MainGate::default(), &coeffs, &vars, &[])?;
 
             let mut term = MainGateTerm::<E>::new();
             term.add_assign(ArithmeticTerm::from_variable(b));
@@ -3141,30 +3077,21 @@ mod test {
             coeffs[3] = negative_one;
             vars[3] = b;
 
-            cs.new_single_gate_for_trace_step(&CS::MainGate::default(), 
-                &coeffs, 
-                &vars, 
-                &[]
-            )?;
+            cs.new_single_gate_for_trace_step(&CS::MainGate::default(), &coeffs, &vars, &[])?;
 
             Ok(())
         }
     }
 
-    struct TestCircuit4WithLookups<E:Engine>{
-        _marker: PhantomData<E>
+    struct TestCircuit4WithLookups<E: Engine> {
+        _marker: PhantomData<E>,
     }
 
     impl<E: Engine> Circuit<E> for TestCircuit4WithLookups<E> {
         type MainGate = Width4MainGateWithDNext;
 
         fn declare_used_gates() -> Result<Vec<Box<dyn GateInternal<E>>>, SynthesisError> {
-            Ok(
-                vec![
-                    Width4MainGateWithDNext::default().into_internal(),
-                    TestBitGate::default().into_internal()
-                ]
-            )
+            Ok(vec![Width4MainGateWithDNext::default().into_internal(), TestBitGate::default().into_internal()])
         }
 
         fn synthesize<CS: ConstraintSystem<E>>(&self, cs: &mut CS) -> Result<(), SynthesisError> {
@@ -3182,44 +3109,30 @@ mod test {
             cs.add_table(xor_table)?;
             cs.add_table(and_table)?;
 
-            let a = cs.alloc(|| {
-                Ok(E::Fr::from_str("10").unwrap())
-            })?;
+            let a = cs.alloc(|| Ok(E::Fr::from_str("10").unwrap()))?;
 
             println!("A = {:?}", a);
 
-            let b = cs.alloc(|| {
-                Ok(E::Fr::from_str("20").unwrap())
-            })?;
+            let b = cs.alloc(|| Ok(E::Fr::from_str("20").unwrap()))?;
 
             println!("B = {:?}", b);
 
-            let c = cs.alloc(|| {
-                Ok(E::Fr::from_str("200").unwrap())
-            })?;
+            let c = cs.alloc(|| Ok(E::Fr::from_str("200").unwrap()))?;
 
             println!("C = {:?}", c);
 
-            let d = cs.alloc(|| {
-                Ok(E::Fr::from_str("100").unwrap())
-            })?;
+            let d = cs.alloc(|| Ok(E::Fr::from_str("100").unwrap()))?;
 
             println!("D = {:?}", d);
 
-            let e = cs.alloc(|| {
-                Ok(E::Fr::from_str("2").unwrap())
-            })?;
+            let e = cs.alloc(|| Ok(E::Fr::from_str("2").unwrap()))?;
 
             let binary_x_value = E::Fr::from_str("3").unwrap();
             let binary_y_value = E::Fr::from_str("1").unwrap();
 
-            let binary_x = cs.alloc(|| {
-                Ok(binary_x_value)
-            })?;
+            let binary_x = cs.alloc(|| Ok(binary_x_value))?;
 
-            let binary_y = cs.alloc(|| {
-                Ok(binary_y_value)
-            })?;
+            let binary_y = cs.alloc(|| Ok(binary_y_value))?;
 
             let one = E::Fr::one();
 
@@ -3239,7 +3152,7 @@ mod test {
 
             cs.allocate_main_gate(term)?;
 
-            // c - a*b == 0 
+            // c - a*b == 0
 
             let mut ab_term = ArithmeticTerm::from_variable(a).mul_by_variable(b);
             ab_term.scale(&negative_one);
@@ -3259,24 +3172,19 @@ mod test {
 
                 let and_result_value = table.query(&[binary_x_value, binary_y_value])?[0];
 
-                let binary_z = cs.alloc(|| {
-                    Ok(and_result_value)
-                })?;
+                let binary_z = cs.alloc(|| Ok(and_result_value))?;
 
                 cs.begin_gates_batch_for_step()?;
 
                 let vars = [binary_x, binary_y, binary_z, dummy];
-                cs.allocate_variables_without_gate(
-                    &vars,
-                    &[]
-                )?;
+                cs.allocate_variables_without_gate(&vars, &[])?;
 
                 cs.apply_single_lookup_gate(&vars[..num_keys_and_values], table)?;
 
                 cs.end_gates_batch_for_step()?;
             }
 
-            // d - 100 == 0 
+            // d - 100 == 0
 
             let hundred = ArithmeticTerm::constant(E::Fr::from_str("100").unwrap());
             let d_term = ArithmeticTerm::from_variable(d);
@@ -3302,12 +3210,7 @@ mod test {
 
                 let (vars, coeffs) = CS::MainGate::format_linear_term_with_duplicates(term, dummy)?;
 
-                cs.new_gate_in_batch(
-                    &CS::MainGate::default(),
-                    &coeffs,
-                    &vars,
-                    &[]
-                )?;
+                cs.new_gate_in_batch(&CS::MainGate::default(), &coeffs, &vars, &[])?;
 
                 cs.apply_single_lookup_gate(&vars[..num_keys_and_values], table)?;
 
@@ -3321,17 +3224,12 @@ mod test {
 
                 let xor_result_value = table.query(&[binary_x_value, binary_y_value])?[0];
 
-                let binary_z = cs.alloc(|| {
-                    Ok(xor_result_value)
-                })?;
+                let binary_z = cs.alloc(|| Ok(xor_result_value))?;
 
                 cs.begin_gates_batch_for_step()?;
 
                 let vars = [binary_x, binary_y, binary_z, dummy];
-                cs.allocate_variables_without_gate(
-                    &vars,
-                    &[]
-                )?;
+                cs.allocate_variables_without_gate(&vars, &[])?;
 
                 cs.apply_single_lookup_gate(&vars[..num_keys_and_values], table)?;
 
@@ -3340,31 +3238,21 @@ mod test {
 
             let one = cs.get_explicit_one()?;
 
-            cs.new_single_gate_for_trace_step(
-                &TestBitGate::default(),
-                &[],
-                &[one],
-                &[],
-            )?;
+            cs.new_single_gate_for_trace_step(&TestBitGate::default(), &[], &[one], &[])?;
 
             Ok(())
         }
     }
 
-
-    struct TestCircuit4WithLookupsManyGatesSmallTable<E:Engine>{
-        _marker: PhantomData<E>
+    struct TestCircuit4WithLookupsManyGatesSmallTable<E: Engine> {
+        _marker: PhantomData<E>,
     }
 
     impl<E: Engine> Circuit<E> for TestCircuit4WithLookupsManyGatesSmallTable<E> {
         type MainGate = Width4MainGateWithDNext;
 
         fn declare_used_gates() -> Result<Vec<Box<dyn GateInternal<E>>>, SynthesisError> {
-            Ok(
-                vec![
-                    Width4MainGateWithDNext::default().into_internal(),
-                ]
-            )
+            Ok(vec![Width4MainGateWithDNext::default().into_internal()])
         }
 
         fn synthesize<CS: ConstraintSystem<E>>(&self, cs: &mut CS) -> Result<(), SynthesisError> {
@@ -3382,34 +3270,24 @@ mod test {
             cs.add_table(xor_table)?;
             cs.add_table(and_table)?;
 
-            let a = cs.alloc(|| {
-                Ok(E::Fr::from_str("10").unwrap())
-            })?;
+            let a = cs.alloc(|| Ok(E::Fr::from_str("10").unwrap()))?;
 
-            let b = cs.alloc(|| {
-                Ok(E::Fr::from_str("20").unwrap())
-            })?;
+            let b = cs.alloc(|| Ok(E::Fr::from_str("20").unwrap()))?;
 
-            let c = cs.alloc(|| {
-                Ok(E::Fr::from_str("200").unwrap())
-            })?;
+            let c = cs.alloc(|| Ok(E::Fr::from_str("200").unwrap()))?;
 
             let binary_x_value = E::Fr::from_str("3").unwrap();
             let binary_y_value = E::Fr::from_str("1").unwrap();
 
-            let binary_x = cs.alloc(|| {
-                Ok(binary_x_value)
-            })?;
+            let binary_x = cs.alloc(|| Ok(binary_x_value))?;
 
-            let binary_y = cs.alloc(|| {
-                Ok(binary_y_value)
-            })?;
+            let binary_y = cs.alloc(|| Ok(binary_y_value))?;
 
             let mut negative_one = E::Fr::one();
             negative_one.negate();
 
             for _ in 0..((1 << 11) - 100) {
-                // c - a*b == 0 
+                // c - a*b == 0
 
                 let mut ab_term = ArithmeticTerm::from_variable(a).mul_by_variable(b);
                 ab_term.scale(&negative_one);
@@ -3430,17 +3308,12 @@ mod test {
 
                 let and_result_value = table.query(&[binary_x_value, binary_y_value])?[0];
 
-                let binary_z = cs.alloc(|| {
-                    Ok(and_result_value)
-                })?;
+                let binary_z = cs.alloc(|| Ok(and_result_value))?;
 
                 cs.begin_gates_batch_for_step()?;
 
                 let vars = [binary_x, binary_y, binary_z, dummy];
-                cs.allocate_variables_without_gate(
-                    &vars,
-                    &[]
-                )?;
+                cs.allocate_variables_without_gate(&vars, &[])?;
 
                 cs.apply_single_lookup_gate(&vars[..num_keys_and_values], table)?;
 
@@ -3463,12 +3336,7 @@ mod test {
 
                 let (vars, coeffs) = CS::MainGate::format_linear_term_with_duplicates(term, dummy)?;
 
-                cs.new_gate_in_batch(
-                    &CS::MainGate::default(),
-                    &coeffs,
-                    &vars,
-                    &[]
-                )?;
+                cs.new_gate_in_batch(&CS::MainGate::default(), &coeffs, &vars, &[])?;
 
                 cs.apply_single_lookup_gate(&vars[..num_keys_and_values], table)?;
 
@@ -3482,17 +3350,12 @@ mod test {
 
                 let xor_result_value = table.query(&[binary_x_value, binary_y_value])?[0];
 
-                let binary_z = cs.alloc(|| {
-                    Ok(xor_result_value)
-                })?;
+                let binary_z = cs.alloc(|| Ok(xor_result_value))?;
 
                 cs.begin_gates_batch_for_step()?;
 
                 let vars = [binary_x, binary_y, binary_z, dummy];
-                cs.allocate_variables_without_gate(
-                    &vars,
-                    &[]
-                )?;
+                cs.allocate_variables_without_gate(&vars, &[])?;
 
                 cs.apply_single_lookup_gate(&vars[..num_keys_and_values], table)?;
 
@@ -3510,9 +3373,7 @@ mod test {
 
         let mut assembly = TrivialAssembly::<Bn256, PlonkCsWidth4WithNextStepParams, Width4MainGateWithDNext>::new();
 
-        let circuit = TestCircuit4::<Bn256> {
-            _marker: PhantomData
-        };
+        let circuit = TestCircuit4::<Bn256> { _marker: PhantomData };
 
         circuit.synthesize(&mut assembly).expect("must work");
 
@@ -3520,7 +3381,7 @@ mod test {
 
         // println!("Assembly state polys = {:?}", assembly.storage.state_map);
 
-        // println!("Assembly setup polys = {:?}", assembly.storage.setup_map);    
+        // println!("Assembly setup polys = {:?}", assembly.storage.setup_map);
 
         println!("Assembly contains {} gates", assembly.n());
         assembly.finalize();
@@ -3536,15 +3397,13 @@ mod test {
     #[test]
     fn test_setup_and_prove_custom_gate_and_tables() {
         use crate::pairing::bn256::{Bn256, Fr};
-        use crate::worker::Worker;
-        use crate::plonk::better_better_cs::verifier::*;
         use crate::plonk::better_better_cs::setup::VerificationKey;
+        use crate::plonk::better_better_cs::verifier::*;
+        use crate::worker::Worker;
 
         let mut assembly = SetupAssembly::<Bn256, PlonkCsWidth4WithNextStepParams, Width4MainGateWithDNext>::new();
 
-        let circuit = TestCircuit4WithLookups::<Bn256> {
-            _marker: PhantomData
-        };
+        let circuit = TestCircuit4WithLookups::<Bn256> { _marker: PhantomData };
 
         circuit.synthesize(&mut assembly).expect("must work");
 
@@ -3565,25 +3424,18 @@ mod test {
 
         let size = assembly.n().next_power_of_two();
 
-        use crate::plonk::commitments::transcript::keccak_transcript::RollingKeccakTranscript;
         use crate::kate_commitment::*;
+        use crate::plonk::commitments::transcript::keccak_transcript::RollingKeccakTranscript;
 
         let crs_mons = Crs::<Bn256, CrsForMonomialForm>::crs_42(size, &worker);
 
-        let proof = assembly.create_proof::<TestCircuit4WithLookups<Bn256>, RollingKeccakTranscript<Fr>>(
-            &worker, 
-            &setup, 
-            &crs_mons, 
-            None
-        ).unwrap();
+        let proof = assembly
+            .create_proof::<TestCircuit4WithLookups<Bn256>, RollingKeccakTranscript<Fr>>(&worker, &setup, &crs_mons, None)
+            .unwrap();
 
         let vk = VerificationKey::from_setup(&setup, &worker, &crs_mons).unwrap();
 
-        let valid = verify::<Bn256, TestCircuit4WithLookups<Bn256>, RollingKeccakTranscript<Fr>>(
-            &vk,
-            &proof,
-            None,
-        ).unwrap();
+        let valid = verify::<Bn256, TestCircuit4WithLookups<Bn256>, RollingKeccakTranscript<Fr>>(&vk, &proof, None).unwrap();
 
         assert!(valid);
         println!("Done!");
@@ -3592,15 +3444,13 @@ mod test {
     #[test]
     fn test_setup_and_prove_single_gate_and_tables() {
         use crate::pairing::bn256::{Bn256, Fr};
-        use crate::worker::Worker;
-        use crate::plonk::better_better_cs::verifier::*;
         use crate::plonk::better_better_cs::setup::VerificationKey;
+        use crate::plonk::better_better_cs::verifier::*;
+        use crate::worker::Worker;
 
         let mut assembly = SetupAssembly::<Bn256, PlonkCsWidth4WithNextStepParams, Width4MainGateWithDNext>::new();
 
-        let circuit = TestCircuit4WithLookupsManyGatesSmallTable::<Bn256> {
-            _marker: PhantomData
-        };
+        let circuit = TestCircuit4WithLookupsManyGatesSmallTable::<Bn256> { _marker: PhantomData };
 
         circuit.synthesize(&mut assembly).expect("must work");
 
@@ -3621,25 +3471,18 @@ mod test {
 
         let size = assembly.n().next_power_of_two();
 
-        use crate::plonk::commitments::transcript::keccak_transcript::RollingKeccakTranscript;
         use crate::kate_commitment::*;
+        use crate::plonk::commitments::transcript::keccak_transcript::RollingKeccakTranscript;
 
         let crs_mons = Crs::<Bn256, CrsForMonomialForm>::crs_42(size, &worker);
 
-        let proof = assembly.create_proof::<TestCircuit4WithLookupsManyGatesSmallTable<Bn256>, RollingKeccakTranscript<Fr>>(
-            &worker, 
-            &setup, 
-            &crs_mons, 
-            None
-        ).unwrap();
+        let proof = assembly
+            .create_proof::<TestCircuit4WithLookupsManyGatesSmallTable<Bn256>, RollingKeccakTranscript<Fr>>(&worker, &setup, &crs_mons, None)
+            .unwrap();
 
         let vk = VerificationKey::from_setup(&setup, &worker, &crs_mons).unwrap();
 
-        let valid = verify::<Bn256, TestCircuit4WithLookupsManyGatesSmallTable<Bn256>, RollingKeccakTranscript<Fr>>(
-            &vk,
-            &proof,
-            None,
-        ).unwrap();
+        let valid = verify::<Bn256, TestCircuit4WithLookupsManyGatesSmallTable<Bn256>, RollingKeccakTranscript<Fr>>(&vk, &proof, None).unwrap();
 
         assert!(valid);
     }
@@ -3647,15 +3490,13 @@ mod test {
     #[test]
     fn test_bench_long_synthesis() {
         use crate::pairing::bn256::{Bn256, Fr};
-        use crate::worker::Worker;
-        use crate::plonk::better_better_cs::verifier::*;
         use crate::plonk::better_better_cs::setup::VerificationKey;
+        use crate::plonk::better_better_cs::verifier::*;
+        use crate::worker::Worker;
 
         let mut assembly = TrivialAssembly::<Bn256, PlonkCsWidth4WithNextStepParams, Width4MainGateWithDNext>::new();
 
-        let circuit = TestCircuit4::<Bn256> {
-            _marker: PhantomData
-        };
+        let circuit = TestCircuit4::<Bn256> { _marker: PhantomData };
 
         circuit.synthesize(&mut assembly).expect("must work");
 
@@ -3681,9 +3522,7 @@ mod test {
         }
 
         fn all_queried_polynomials(&self) -> &'static [PolynomialInConstraint] {
-            const A: [PolynomialInConstraint; 1] = [
-                PolynomialInConstraint::from_id(PolyIdentifier::VariablesPolynomial(0)),
-            ];
+            const A: [PolynomialInConstraint; 1] = [PolynomialInConstraint::from_id(PolyIdentifier::VariablesPolynomial(0))];
 
             &A
         }
@@ -3693,9 +3532,7 @@ mod test {
         }
 
         fn variable_polynomials(&self) -> &'static [PolyIdentifier] {
-            const A: [PolyIdentifier; 1] = [
-                PolyIdentifier::VariablesPolynomial(0),
-            ];
+            const A: [PolyIdentifier; 1] = [PolyIdentifier::VariablesPolynomial(0)];
 
             &A
         }
@@ -3718,8 +3555,8 @@ mod test {
 
         fn verify_on_row<'a>(&self, row: usize, poly_storage: &AssembledPolynomialStorage<'a, E>, _last_row: bool) -> E::Fr {
             let q_a = poly_storage.get_poly_at_step(PolyIdentifier::VariablesPolynomial(0), row);
-            
-            // (A - 1) * A 
+
+            // (A - 1) * A
             let mut tmp = q_a;
             tmp.sub_assign(&E::Fr::one());
             tmp.mul_assign(&q_a);
@@ -3728,14 +3565,14 @@ mod test {
         }
 
         fn contribute_into_quotient<'a, 'b>(
-            &self, 
+            &self,
             domain_size: usize,
             poly_storage: &mut AssembledPolynomialStorage<'a, E>,
-            monomials_storage: & AssembledPolynomialStorageForMonomialForms<'b, E>,
+            monomials_storage: &AssembledPolynomialStorageForMonomialForms<'b, E>,
             challenges: &[E::Fr],
             omegas_bitreversed: &BitReversedOmegas<E::Fr>,
             _omegas_inv_bitreversed: &OmegasInvBitreversed<E::Fr>,
-            worker: &Worker
+            worker: &Worker,
         ) -> Result<Polynomial<E::Fr, Values>, SynthesisError> {
             assert!(domain_size.is_power_of_two());
             assert_eq!(challenges.len(), <Self as GateInternal<E>>::num_quotient_terms(&self));
@@ -3746,41 +3583,28 @@ mod test {
             assert!(poly_storage.is_bitreversed);
 
             let coset_factor = E::Fr::multiplicative_generator();
-           
+
             for &p in <Self as GateInternal<E>>::all_queried_polynomials(&self).into_iter() {
-                ensure_in_map_or_create(&worker, 
-                    p, 
-                    domain_size, 
-                    omegas_bitreversed, 
-                    lde_factor, 
-                    coset_factor, 
-                    monomials_storage, 
-                    poly_storage
-                )?;
+                ensure_in_map_or_create(&worker, p, domain_size, omegas_bitreversed, lde_factor, coset_factor, monomials_storage, poly_storage)?;
             }
 
             let ldes_storage = &*poly_storage;
 
-            // (A - 1) * A 
-            let a_ref = get_from_map_unchecked(
-                PolynomialInConstraint::from_id(PolyIdentifier::VariablesPolynomial(0)),
-                ldes_storage
-            );
+            // (A - 1) * A
+            let a_ref = get_from_map_unchecked(PolynomialInConstraint::from_id(PolyIdentifier::VariablesPolynomial(0)), ldes_storage);
 
             let mut tmp = a_ref.clone();
             drop(a_ref);
 
             let one = E::Fr::one();
 
-            tmp.map(&worker,
-                |el| {
-                    let mut tmp = *el;
-                    tmp.sub_assign(&one);
-                    tmp.mul_assign(&*el);
+            tmp.map(&worker, |el| {
+                let mut tmp = *el;
+                tmp.sub_assign(&one);
+                tmp.mul_assign(&*el);
 
-                    *el = tmp;
-                }, 
-            );
+                *el = tmp;
+            });
 
             tmp.scale(&worker, challenges[0]);
 
@@ -3788,32 +3612,33 @@ mod test {
         }
 
         fn contribute_into_linearization<'a>(
-            &self, 
+            &self,
             _domain_size: usize,
             _at: E::Fr,
             _queried_values: &std::collections::HashMap<PolynomialInConstraint, E::Fr>,
-            _monomials_storage: & AssembledPolynomialStorageForMonomialForms<'a, E>,
+            _monomials_storage: &AssembledPolynomialStorageForMonomialForms<'a, E>,
             _challenges: &[E::Fr],
-            _worker: &Worker
+            _worker: &Worker,
         ) -> Result<Polynomial<E::Fr, Coefficients>, SynthesisError> {
             unreachable!("this gate does not contribute into linearization");
         }
         fn contribute_into_verification_equation(
-            &self, 
+            &self,
             _domain_size: usize,
             _at: E::Fr,
             queried_values: &std::collections::HashMap<PolynomialInConstraint, E::Fr>,
             challenges: &[E::Fr],
         ) -> Result<E::Fr, SynthesisError> {
             assert_eq!(challenges.len(), 1);
-            // (A-1) * A 
-            let a_value = *queried_values.get(&PolynomialInConstraint::from_id(PolyIdentifier::VariablesPolynomial(0)))
+            // (A-1) * A
+            let a_value = *queried_values
+                .get(&PolynomialInConstraint::from_id(PolyIdentifier::VariablesPolynomial(0)))
                 .ok_or(SynthesisError::AssignmentMissing)?;
             let mut result = a_value;
             result.sub_assign(&E::Fr::one());
             result.mul_assign(&a_value);
             result.mul_assign(&challenges[0]);
-            
+
             Ok(result)
         }
 
@@ -3825,7 +3650,7 @@ mod test {
             Box::from(self.clone())
         }
         fn contribute_into_linearization_commitment(
-            &self, 
+            &self,
             _domain_size: usize,
             _at: E::Fr,
             _queried_values: &std::collections::HashMap<PolynomialInConstraint, E::Fr>,

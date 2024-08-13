@@ -34,12 +34,10 @@ impl<E: Engine> GateInternal<E> for Width4MainGateWithDNext {
             PolynomialInConstraint::from_id(PolyIdentifier::GateSetupPolynomial(GATE_NAME, 4)),
             PolynomialInConstraint::from_id(PolyIdentifier::GateSetupPolynomial(GATE_NAME, 5)),
             PolynomialInConstraint::from_id(PolyIdentifier::GateSetupPolynomial(GATE_NAME, 6)),
-
             PolynomialInConstraint::from_id(PolyIdentifier::VariablesPolynomial(0)),
             PolynomialInConstraint::from_id(PolyIdentifier::VariablesPolynomial(1)),
             PolynomialInConstraint::from_id(PolyIdentifier::VariablesPolynomial(2)),
             PolynomialInConstraint::from_id(PolyIdentifier::VariablesPolynomial(3)),
-
             PolynomialInConstraint::from_id_and_dilation(PolyIdentifier::VariablesPolynomial(3), 1),
         ];
 
@@ -95,12 +93,11 @@ impl<E: Engine> GateInternal<E> for Width4MainGateWithDNext {
 
     #[inline]
     fn needs_opened_for_linearization(&self) -> &'static [PolynomialInConstraint] {
-        const ALL_OPENED_FOR_LINEARIZATION: [PolynomialInConstraint; 5]  = [
+        const ALL_OPENED_FOR_LINEARIZATION: [PolynomialInConstraint; 5] = [
             PolynomialInConstraint::from_id(PolyIdentifier::VariablesPolynomial(0)),
             PolynomialInConstraint::from_id(PolyIdentifier::VariablesPolynomial(1)),
             PolynomialInConstraint::from_id(PolyIdentifier::VariablesPolynomial(2)),
             PolynomialInConstraint::from_id(PolyIdentifier::VariablesPolynomial(3)),
-
             PolynomialInConstraint::from_id_and_dilation(PolyIdentifier::VariablesPolynomial(3), 1),
         ];
 
@@ -129,18 +126,16 @@ impl<E: Engine> GateInternal<E> for Width4MainGateWithDNext {
         let c_value = poly_storage.get_poly_at_step(PolyIdentifier::VariablesPolynomial(2), row);
         let d_value = poly_storage.get_poly_at_step(PolyIdentifier::VariablesPolynomial(3), row);
         let d_next_value = if last_row == false {
-            Some(poly_storage.get_poly_at_step(PolyIdentifier::VariablesPolynomial(3), row+1))
+            Some(poly_storage.get_poly_at_step(PolyIdentifier::VariablesPolynomial(3), row + 1))
         } else {
             None
-        }; 
+        };
 
         // println!("A = {}, B = {}, C = {}, D = {}, D_Next = {:?}", a_value, b_value, c_value, d_value, d_next_value);
 
         let mut total = E::Fr::zero();
 
-        for (q, v) in [a_value, b_value, c_value, d_value].iter()
-                    .zip([q_a, q_b, q_c, q_d].iter())
-        {
+        for (q, v) in [a_value, b_value, c_value, d_value].iter().zip([q_a, q_b, q_c, q_d].iter()) {
             let mut tmp = *q;
             tmp.mul_assign(v);
             total.add_assign(&tmp);
@@ -166,31 +161,31 @@ impl<E: Engine> GateInternal<E> for Width4MainGateWithDNext {
     }
 
     fn contribute_into_quotient(
-        &self, 
+        &self,
         _domain_size: usize,
         _poly_storage: &mut AssembledPolynomialStorage<E>,
-        _monomial_storage: & AssembledPolynomialStorageForMonomialForms<E>,
+        _monomial_storage: &AssembledPolynomialStorageForMonomialForms<E>,
         _challenges: &[E::Fr],
         _omegas_bitreversed: &BitReversedOmegas<E::Fr>,
         _omegas_inv_bitreversed: &OmegasInvBitreversed<E::Fr>,
-        _worker: &Worker
+        _worker: &Worker,
     ) -> Result<Polynomial<E::Fr, Values>, SynthesisError> {
         unreachable!("this type of gate can only be used as a main gate");
     }
 
     fn contribute_into_linearization(
-        &self, 
+        &self,
         _domain_size: usize,
         _at: E::Fr,
         _queried_values: &std::collections::HashMap<PolynomialInConstraint, E::Fr>,
-        _monomials_storage: & AssembledPolynomialStorageForMonomialForms<E>,
+        _monomials_storage: &AssembledPolynomialStorageForMonomialForms<E>,
         _challenges: &[E::Fr],
-        _worker: &Worker
+        _worker: &Worker,
     ) -> Result<Polynomial<E::Fr, Coefficients>, SynthesisError> {
         unreachable!("this gate is indended to be the main gate and should use main gate functions")
     }
     fn contribute_into_verification_equation(
-        &self, 
+        &self,
         _domain_size: usize,
         _at: E::Fr,
         _queried_values: &std::collections::HashMap<PolynomialInConstraint, E::Fr>,
@@ -207,7 +202,7 @@ impl<E: Engine> GateInternal<E> for Width4MainGateWithDNext {
         Box::from(self.clone())
     }
     fn contribute_into_linearization_commitment(
-        &self, 
+        &self,
         domain_size: usize,
         at: E::Fr,
         queried_values: &std::collections::HashMap<PolynomialInConstraint, E::Fr>,
@@ -218,9 +213,7 @@ impl<E: Engine> GateInternal<E> for Width4MainGateWithDNext {
     }
 }
 
-impl<E: Engine> Gate<E> for Width4MainGateWithDNext {
-
-}
+impl<E: Engine> Gate<E> for Width4MainGateWithDNext {}
 
 impl<E: Engine> MainGate<E> for Width4MainGateWithDNext {
     const NUM_LINEAR_TERMS: usize = 4;
@@ -253,19 +246,19 @@ impl<E: Engine> MainGate<E> for Width4MainGateWithDNext {
 
         let mut used_in_multiplication = [padding; 2];
 
-        debug_assert!(instance.num_constant_terms <= allowed_constants, "must not containt more constants than allowed");  
-        debug_assert!(instance.num_multiplicative_terms <= allowed_multiplications, "must not containt more multiplications than allowed"); 
-        debug_assert!(instance.terms.len() <= allowed_constants + allowed_multiplications + allowed_linear, "gate can not fit that many terms"); 
+        debug_assert!(instance.num_constant_terms <= allowed_constants, "must not containt more constants than allowed");
+        debug_assert!(instance.num_multiplicative_terms <= allowed_multiplications, "must not containt more multiplications than allowed");
+        debug_assert!(instance.terms.len() <= allowed_constants + allowed_multiplications + allowed_linear, "gate can not fit that many terms");
 
         if instance.num_multiplicative_terms != 0 {
-            let index = instance.terms.iter().position(
-                |t| {
-                    match t {
-                        ArithmeticTerm::Product(_, _) => true,
-                        _ => false,
-                    }
-                }
-            ).unwrap();
+            let index = instance
+                .terms
+                .iter()
+                .position(|t| match t {
+                    ArithmeticTerm::Product(_, _) => true,
+                    _ => false,
+                })
+                .unwrap();
 
             let term = instance.terms.swap_remove(index);
             match term {
@@ -279,7 +272,7 @@ impl<E: Engine> MainGate<E> for Width4MainGateWithDNext {
                     flattened_coefficients[4] = coeff;
                     bitmap.set(0);
                     bitmap.set(1);
-                },
+                }
                 _ => {
                     unreachable!("must be multiplicative term");
                 }
@@ -287,20 +280,20 @@ impl<E: Engine> MainGate<E> for Width4MainGateWithDNext {
         }
 
         if instance.num_constant_terms != 0 {
-            let index = instance.terms.iter().position(
-                |t| {
-                    match t {
-                        ArithmeticTerm::Constant(_) => true,
-                        _ => false,
-                    }
-                }
-            ).unwrap();
+            let index = instance
+                .terms
+                .iter()
+                .position(|t| match t {
+                    ArithmeticTerm::Constant(_) => true,
+                    _ => false,
+                })
+                .unwrap();
 
             let term = instance.terms.swap_remove(index);
             match term {
                 ArithmeticTerm::Constant(coeff) => {
                     flattened_coefficients[5] = coeff;
-                },
+                }
                 _ => {
                     unreachable!("must be constant term");
                 }
@@ -311,13 +304,13 @@ impl<E: Engine> MainGate<E> for Width4MainGateWithDNext {
         for term in instance.terms.into_iter() {
             match term {
                 ArithmeticTerm::SingleVariable(var, coeff) => {
-                    let index = flattened_variables.iter().position(
-                        |&t| t == var
-                    );
+                    let index = flattened_variables.iter().position(|&t| t == var);
                     if let Some(index) = index {
                         // there is some variable there already, so it must have come from multiplication
-                        assert!(used_in_multiplication[0] == var || used_in_multiplication[1] == var,
-                            "variable in linear term must only happen already if it was in multiplication");
+                        assert!(
+                            used_in_multiplication[0] == var || used_in_multiplication[1] == var,
+                            "variable in linear term must only happen already if it was in multiplication"
+                        );
                         flattened_coefficients[index] = coeff;
                     } else {
                         let idx = bitmap.get_next_unused();
@@ -325,7 +318,7 @@ impl<E: Engine> MainGate<E> for Width4MainGateWithDNext {
                         flattened_coefficients[idx] = coeff;
                         bitmap.set(idx);
                     }
-                },
+                }
                 _ => {
                     unreachable!("must be additive term");
                 }
@@ -335,7 +328,10 @@ impl<E: Engine> MainGate<E> for Width4MainGateWithDNext {
         Ok((flattened_variables, flattened_coefficients))
     }
 
-    fn format_linear_term_with_duplicates(mut instance: MainGateTerm<E>, padding: Variable) -> Result<(SmallVec<[Variable; DEFAULT_SMALLVEC_CAPACITY]>, SmallVec<[E::Fr; DEFAULT_SMALLVEC_CAPACITY]>), SynthesisError> {
+    fn format_linear_term_with_duplicates(
+        mut instance: MainGateTerm<E>,
+        padding: Variable,
+    ) -> Result<(SmallVec<[Variable; DEFAULT_SMALLVEC_CAPACITY]>, SmallVec<[E::Fr; DEFAULT_SMALLVEC_CAPACITY]>), SynthesisError> {
         let mut flattened_variables = smallvec::smallvec![padding; 4];
         let mut flattened_coefficients = smallvec::smallvec![E::Fr::zero(); 7];
         let mut bitmap = SimpleBitmap::new();
@@ -344,25 +340,25 @@ impl<E: Engine> MainGate<E> for Width4MainGateWithDNext {
         let allowed_multiplications = 0;
         let allowed_constants = 1;
 
-        debug_assert!(instance.num_constant_terms <= allowed_constants, "must not containt more constants than allowed");  
-        assert!(instance.num_multiplicative_terms <= allowed_multiplications, "must not containt multiplications"); 
-        debug_assert!(instance.terms.len() <= allowed_constants + allowed_multiplications + allowed_linear, "gate can not fit that many terms"); 
+        debug_assert!(instance.num_constant_terms <= allowed_constants, "must not containt more constants than allowed");
+        assert!(instance.num_multiplicative_terms <= allowed_multiplications, "must not containt multiplications");
+        debug_assert!(instance.terms.len() <= allowed_constants + allowed_multiplications + allowed_linear, "gate can not fit that many terms");
 
         if instance.num_constant_terms != 0 {
-            let index = instance.terms.iter().position(
-                |t| {
-                    match t {
-                        ArithmeticTerm::Constant(_) => true,
-                        _ => false,
-                    }
-                }
-            ).unwrap();
+            let index = instance
+                .terms
+                .iter()
+                .position(|t| match t {
+                    ArithmeticTerm::Constant(_) => true,
+                    _ => false,
+                })
+                .unwrap();
 
             let term = instance.terms.swap_remove(index);
             match term {
                 ArithmeticTerm::Constant(coeff) => {
                     flattened_coefficients[5] = coeff;
-                },
+                }
                 _ => {
                     unreachable!("must be multiplicative term");
                 }
@@ -376,7 +372,7 @@ impl<E: Engine> MainGate<E> for Width4MainGateWithDNext {
                     flattened_variables[idx] = var;
                     flattened_coefficients[idx] = coeff;
                     bitmap.set(idx);
-                },
+                }
                 _ => {
                     unreachable!("must be multiplicative term");
                 }
@@ -395,15 +391,15 @@ impl<E: Engine> MainGate<E> for Width4MainGateWithDNext {
     }
 
     fn contribute_into_quotient_for_public_inputs<'a, 'b>(
-        &self, 
+        &self,
         domain_size: usize,
         public_inputs: &[E::Fr],
         poly_storage: &mut AssembledPolynomialStorage<'a, E>,
-        monomials_storage: & AssembledPolynomialStorageForMonomialForms<'b, E>,
+        monomials_storage: &AssembledPolynomialStorageForMonomialForms<'b, E>,
         challenges: &[E::Fr],
         omegas_bitreversed: &BitReversedOmegas<E::Fr>,
         omegas_inv_bitreversed: &OmegasInvBitreversed<E::Fr>,
-        worker: &Worker
+        worker: &Worker,
     ) -> Result<Polynomial<E::Fr, Values>, SynthesisError> {
         assert!(domain_size.is_power_of_two());
         assert_eq!(challenges.len(), <Self as GateInternal<E>>::num_quotient_terms(&self));
@@ -432,40 +428,21 @@ impl<E: Engine> MainGate<E> for Width4MainGateWithDNext {
         drop(constants_poly_ref);
 
         // LDE
-        let mut t_1 = inputs_poly.bitreversed_lde_using_bitreversed_ntt(
-            &worker, 
-            lde_factor, 
-            omegas_bitreversed, 
-            &coset_factor
-        )?;
+        let mut t_1 = inputs_poly.bitreversed_lde_using_bitreversed_ntt(&worker, lde_factor, omegas_bitreversed, &coset_factor)?;
 
         for &p in <Self as GateInternal<E>>::all_queried_polynomials(&self).into_iter() {
             // skip public constants poly (was used in public inputs)
             if p == PolynomialInConstraint::from_id(PolyIdentifier::GateSetupPolynomial(name, 5)) {
                 continue;
             }
-            ensure_in_map_or_create(&worker, 
-                p, 
-                domain_size, 
-                omegas_bitreversed, 
-                lde_factor, 
-                coset_factor, 
-                monomials_storage, 
-                poly_storage
-            )?;
+            ensure_in_map_or_create(&worker, p, domain_size, omegas_bitreversed, lde_factor, coset_factor, monomials_storage, poly_storage)?;
         }
 
         let ldes_storage = &*poly_storage;
 
         // Q_A * A
-        let q_a_ref = get_from_map_unchecked(
-            PolynomialInConstraint::from_id(PolyIdentifier::GateSetupPolynomial(name, 0)),
-            ldes_storage
-        );
-        let a_ref = get_from_map_unchecked(
-            PolynomialInConstraint::from_id(PolyIdentifier::VariablesPolynomial(0)),
-            ldes_storage
-        );
+        let q_a_ref = get_from_map_unchecked(PolynomialInConstraint::from_id(PolyIdentifier::GateSetupPolynomial(name, 0)), ldes_storage);
+        let a_ref = get_from_map_unchecked(PolynomialInConstraint::from_id(PolyIdentifier::VariablesPolynomial(0)), ldes_storage);
         let mut tmp = q_a_ref.clone();
         tmp.mul_assign(&worker, a_ref);
         t_1.add_assign(&worker, &tmp);
@@ -473,14 +450,8 @@ impl<E: Engine> MainGate<E> for Width4MainGateWithDNext {
         drop(a_ref);
 
         // Q_B * B
-        let q_b_ref = get_from_map_unchecked(
-            PolynomialInConstraint::from_id(PolyIdentifier::GateSetupPolynomial(name, 1)),
-            ldes_storage
-        );
-        let b_ref = get_from_map_unchecked(
-            PolynomialInConstraint::from_id(PolyIdentifier::VariablesPolynomial(1)),
-            ldes_storage
-        );
+        let q_b_ref = get_from_map_unchecked(PolynomialInConstraint::from_id(PolyIdentifier::GateSetupPolynomial(name, 1)), ldes_storage);
+        let b_ref = get_from_map_unchecked(PolynomialInConstraint::from_id(PolyIdentifier::VariablesPolynomial(1)), ldes_storage);
         tmp.reuse_allocation(q_b_ref);
         tmp.mul_assign(&worker, b_ref);
         t_1.add_assign(&worker, &tmp);
@@ -488,14 +459,8 @@ impl<E: Engine> MainGate<E> for Width4MainGateWithDNext {
         drop(b_ref);
 
         // // Q_C * C
-        let q_c_ref = get_from_map_unchecked(
-            PolynomialInConstraint::from_id(PolyIdentifier::GateSetupPolynomial(name, 2)),
-            ldes_storage
-        );
-        let c_ref = get_from_map_unchecked(
-            PolynomialInConstraint::from_id(PolyIdentifier::VariablesPolynomial(2)),
-            ldes_storage
-        );
+        let q_c_ref = get_from_map_unchecked(PolynomialInConstraint::from_id(PolyIdentifier::GateSetupPolynomial(name, 2)), ldes_storage);
+        let c_ref = get_from_map_unchecked(PolynomialInConstraint::from_id(PolyIdentifier::VariablesPolynomial(2)), ldes_storage);
         tmp.reuse_allocation(q_c_ref);
         tmp.mul_assign(&worker, c_ref);
         t_1.add_assign(&worker, &tmp);
@@ -503,14 +468,8 @@ impl<E: Engine> MainGate<E> for Width4MainGateWithDNext {
         drop(c_ref);
 
         // // Q_D * D
-        let q_d_ref = get_from_map_unchecked(
-            PolynomialInConstraint::from_id(PolyIdentifier::GateSetupPolynomial(name, 3)),
-            ldes_storage
-        );
-        let d_ref = get_from_map_unchecked(
-            PolynomialInConstraint::from_id(PolyIdentifier::VariablesPolynomial(3)),
-            ldes_storage
-        );
+        let q_d_ref = get_from_map_unchecked(PolynomialInConstraint::from_id(PolyIdentifier::GateSetupPolynomial(name, 3)), ldes_storage);
+        let d_ref = get_from_map_unchecked(PolynomialInConstraint::from_id(PolyIdentifier::VariablesPolynomial(3)), ldes_storage);
         tmp.reuse_allocation(q_d_ref);
         tmp.mul_assign(&worker, d_ref);
         t_1.add_assign(&worker, &tmp);
@@ -518,18 +477,9 @@ impl<E: Engine> MainGate<E> for Width4MainGateWithDNext {
         drop(d_ref);
 
         // Q_M * A * B
-        let q_m_ref = get_from_map_unchecked(
-            PolynomialInConstraint::from_id(PolyIdentifier::GateSetupPolynomial(name, 4)),
-            ldes_storage
-        );
-        let a_ref = get_from_map_unchecked(
-            PolynomialInConstraint::from_id(PolyIdentifier::VariablesPolynomial(0)),
-            ldes_storage
-        );
-        let b_ref = get_from_map_unchecked(
-            PolynomialInConstraint::from_id(PolyIdentifier::VariablesPolynomial(1)),
-            ldes_storage
-        );
+        let q_m_ref = get_from_map_unchecked(PolynomialInConstraint::from_id(PolyIdentifier::GateSetupPolynomial(name, 4)), ldes_storage);
+        let a_ref = get_from_map_unchecked(PolynomialInConstraint::from_id(PolyIdentifier::VariablesPolynomial(0)), ldes_storage);
+        let b_ref = get_from_map_unchecked(PolynomialInConstraint::from_id(PolyIdentifier::VariablesPolynomial(1)), ldes_storage);
         tmp.reuse_allocation(q_m_ref);
         tmp.mul_assign(&worker, a_ref);
         tmp.mul_assign(&worker, b_ref);
@@ -539,14 +489,8 @@ impl<E: Engine> MainGate<E> for Width4MainGateWithDNext {
         drop(b_ref);
 
         // Q_D_next * D_next
-        let q_d_next_ref = get_from_map_unchecked(
-            PolynomialInConstraint::from_id(PolyIdentifier::GateSetupPolynomial(name, 6)),
-            ldes_storage
-        );
-        let d_next_ref = get_from_map_unchecked(
-            PolynomialInConstraint::from_id_and_dilation(PolyIdentifier::VariablesPolynomial(3), 1),
-            ldes_storage
-        );
+        let q_d_next_ref = get_from_map_unchecked(PolynomialInConstraint::from_id(PolyIdentifier::GateSetupPolynomial(name, 6)), ldes_storage);
+        let d_next_ref = get_from_map_unchecked(PolynomialInConstraint::from_id_and_dilation(PolyIdentifier::VariablesPolynomial(3), 1), ldes_storage);
         tmp.reuse_allocation(q_d_next_ref);
         tmp.mul_assign(&worker, d_next_ref);
         t_1.add_assign(&worker, &tmp);
@@ -559,28 +503,33 @@ impl<E: Engine> MainGate<E> for Width4MainGateWithDNext {
     }
 
     fn contribute_into_linearization_for_public_inputs(
-        &self, 
+        &self,
         _domain_size: usize,
         _public_inputs: &[E::Fr],
         _at: E::Fr,
         queried_values: &std::collections::HashMap<PolynomialInConstraint, E::Fr>,
-        monomials_storage: & AssembledPolynomialStorageForMonomialForms<E>,
+        monomials_storage: &AssembledPolynomialStorageForMonomialForms<E>,
         challenges: &[E::Fr],
-        worker: &Worker
+        worker: &Worker,
     ) -> Result<Polynomial<E::Fr, Coefficients>, SynthesisError> {
         // we actually do not depend on public inputs, but we use this form for consistency
         assert_eq!(challenges.len(), 1);
 
-        let a_value = *queried_values.get(&PolynomialInConstraint::from_id(PolyIdentifier::VariablesPolynomial(0)))
-        .ok_or(SynthesisError::AssignmentMissing)?;
-        let b_value = *queried_values.get(&PolynomialInConstraint::from_id(PolyIdentifier::VariablesPolynomial(1)))
-        .ok_or(SynthesisError::AssignmentMissing)?;
-        let c_value = *queried_values.get(&PolynomialInConstraint::from_id(PolyIdentifier::VariablesPolynomial(2)))
-        .ok_or(SynthesisError::AssignmentMissing)?;
-        let d_value = *queried_values.get(&PolynomialInConstraint::from_id(PolyIdentifier::VariablesPolynomial(3)))
-        .ok_or(SynthesisError::AssignmentMissing)?;
-        let d_next_value = *queried_values.get(&PolynomialInConstraint::from_id_and_dilation(PolyIdentifier::VariablesPolynomial(3), 1))
-        .ok_or(SynthesisError::AssignmentMissing)?;
+        let a_value = *queried_values
+            .get(&PolynomialInConstraint::from_id(PolyIdentifier::VariablesPolynomial(0)))
+            .ok_or(SynthesisError::AssignmentMissing)?;
+        let b_value = *queried_values
+            .get(&PolynomialInConstraint::from_id(PolyIdentifier::VariablesPolynomial(1)))
+            .ok_or(SynthesisError::AssignmentMissing)?;
+        let c_value = *queried_values
+            .get(&PolynomialInConstraint::from_id(PolyIdentifier::VariablesPolynomial(2)))
+            .ok_or(SynthesisError::AssignmentMissing)?;
+        let d_value = *queried_values
+            .get(&PolynomialInConstraint::from_id(PolyIdentifier::VariablesPolynomial(3)))
+            .ok_or(SynthesisError::AssignmentMissing)?;
+        let d_next_value = *queried_values
+            .get(&PolynomialInConstraint::from_id_and_dilation(PolyIdentifier::VariablesPolynomial(3), 1))
+            .ok_or(SynthesisError::AssignmentMissing)?;
 
         let name = <Self as GateInternal<E>>::name(&self);
 
@@ -618,13 +567,7 @@ impl<E: Engine> MainGate<E> for Width4MainGateWithDNext {
 
         Ok(result)
     }
-    fn add_inputs_into_quotient(
-        &self, 
-        domain_size: usize,
-        public_inputs: &[E::Fr],
-        at: E::Fr,
-        challenges: &[E::Fr],
-    ) -> Result<E::Fr, SynthesisError> {
+    fn add_inputs_into_quotient(&self, domain_size: usize, public_inputs: &[E::Fr], at: E::Fr, challenges: &[E::Fr]) -> Result<E::Fr, SynthesisError> {
         if public_inputs.len() == 0 {
             return Ok(E::Fr::zero());
         }
@@ -644,7 +587,7 @@ impl<E: Engine> MainGate<E> for Width4MainGateWithDNext {
         Ok(contribution)
     }
     fn contribute_into_linearization_commitment_for_public_inputs<'a>(
-        &self, 
+        &self,
         _domain_size: usize,
         _public_inputs: &[E::Fr],
         _at: E::Fr,
@@ -657,16 +600,21 @@ impl<E: Engine> MainGate<E> for Width4MainGateWithDNext {
 
         let mut aggregate = E::G1::zero();
 
-        let a_value = *queried_values.get(&PolynomialInConstraint::from_id(PolyIdentifier::VariablesPolynomial(0)))
-        .ok_or(SynthesisError::AssignmentMissing)?;
-        let b_value = *queried_values.get(&PolynomialInConstraint::from_id(PolyIdentifier::VariablesPolynomial(1)))
-        .ok_or(SynthesisError::AssignmentMissing)?;
-        let c_value = *queried_values.get(&PolynomialInConstraint::from_id(PolyIdentifier::VariablesPolynomial(2)))
-        .ok_or(SynthesisError::AssignmentMissing)?;
-        let d_value = *queried_values.get(&PolynomialInConstraint::from_id(PolyIdentifier::VariablesPolynomial(3)))
-        .ok_or(SynthesisError::AssignmentMissing)?;
-        let d_next_value = *queried_values.get(&PolynomialInConstraint::from_id_and_dilation(PolyIdentifier::VariablesPolynomial(3), 1))
-        .ok_or(SynthesisError::AssignmentMissing)?;
+        let a_value = *queried_values
+            .get(&PolynomialInConstraint::from_id(PolyIdentifier::VariablesPolynomial(0)))
+            .ok_or(SynthesisError::AssignmentMissing)?;
+        let b_value = *queried_values
+            .get(&PolynomialInConstraint::from_id(PolyIdentifier::VariablesPolynomial(1)))
+            .ok_or(SynthesisError::AssignmentMissing)?;
+        let c_value = *queried_values
+            .get(&PolynomialInConstraint::from_id(PolyIdentifier::VariablesPolynomial(2)))
+            .ok_or(SynthesisError::AssignmentMissing)?;
+        let d_value = *queried_values
+            .get(&PolynomialInConstraint::from_id(PolyIdentifier::VariablesPolynomial(3)))
+            .ok_or(SynthesisError::AssignmentMissing)?;
+        let d_next_value = *queried_values
+            .get(&PolynomialInConstraint::from_id_and_dilation(PolyIdentifier::VariablesPolynomial(3), 1))
+            .ok_or(SynthesisError::AssignmentMissing)?;
 
         let name = <Self as GateInternal<E>>::name(&self);
 
