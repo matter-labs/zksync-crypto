@@ -1,0 +1,37 @@
+name: "Rust CI"
+on:
+  pull_request:
+
+jobs:
+  build:
+    name: CI
+    strategy:
+      matrix:
+        # Needs big runners to run tests
+        # Only macos-13-xlarge is Apple Silicon, as per:
+        # https://docs.github.com/en/actions/using-github-hosted-runners/about-larger-runners/about-larger-runners#about-macos-larger-runners
+        os: [ubuntu-22.04-github-hosted-16core, macos-13-xlarge]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: nightly-2024-08-01
+          components: rustfmt, clippy, rust-src
+
+      - name: Install sccache
+        uses: mozilla-actions/sccache-action@v0.0.4
+
+      - name: Format
+        run: cargo fmt --all -- --check
+
+      # Note: `bellman`, `blake2s_const`, `franklin-crypto`, `codegen` currently have failing tests, so they're temporarily
+      # excluded from the CI.
+
+      - name: Run tests (boojum)
+        run: cargo test -p boojum
+
+      - name: Run tests (rescue-poseidon)
+        run: cargo test -p rescue_poseidon
