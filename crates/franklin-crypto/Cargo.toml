@@ -5,6 +5,7 @@ homepage = "https://github.com/matter-labs/franklin-crypto"
 license = "MIT/Apache-2.0"
 name = "franklin-crypto"
 version = "0.2.2"
+edition = "2015"
 
 [lib]
 crate-type = ["lib", "staticlib"]

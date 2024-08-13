@@ -25,7 +25,7 @@ serde = {version = "1", features = ["derive", "rc"]}
 pairing = {package = "pairing_ce", version = "=0.28.6" }
 # pairing = {package = "pairing_ce", path = "../pairing"}
 
-futures = {package = "futures", version = "0.3", default_features = false, features = ["executor"]}
+futures = {package = "futures", version = "0.3", default-features = false, features = ["executor"]}
 crossbeam = {version = "0.7", optional = true}
 prefetch = {version = "0.2", optional = true}
 web-sys = {version = "0.3", optional = true, features = ["console", "Performance", "Window"]}
@@ -48,9 +48,3 @@ marlin = ["tiny-keccak", "blake2s_const"]
 wasm = ["web-sys"]
 asm = ["pairing/asm"]
 allocator = []
-
-[profile.release]
-debug = true
-
-[profile.bench]
-debug = true

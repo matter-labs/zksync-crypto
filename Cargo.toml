@@ -3,3 +3,15 @@ members = [
     "crates/*"
 ]
 resolver = "2"
+
+[profile.release]
+debug = true
+codegen-units = 1
+lto = "fat"
+opt-level = 3
+
+[profile.bench]
+debug = false
+codegen-units = 1
+lto = "fat"
+opt-level = 3
