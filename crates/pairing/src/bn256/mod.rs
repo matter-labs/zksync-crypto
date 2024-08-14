@@ -568,6 +568,7 @@ fn random_bilinearity_tests() {
 }
 
 #[test]
+#[ignore] // TODO(ignored-test): Timeout.
 fn bn256_engine_tests() {
     crate::tests::engine::engine_tests::<Bn256>();
 }

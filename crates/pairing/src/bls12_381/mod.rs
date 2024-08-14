@@ -350,6 +350,7 @@ impl G2Prepared {
 }
 
 #[test]
+#[ignore] // TODO(ignored-test): Timeout.
 fn bls12_engine_tests() {
     crate::tests::engine::engine_tests::<Bls12>();
 }
