@@ -2,7 +2,7 @@ use super::super::utils::log2_floor;
 use super::*;
 use crate::pairing::ff::{PrimeField, PrimeFieldRepr};
 use crate::worker::Worker;
-use blake2s_const::blake2s_const;
+use blake2s_simd::blake2s;
 
 #[derive(Debug)]
 pub struct FriSpecificBlake2sTree<F: PrimeField> {
@@ -58,7 +58,7 @@ impl<F: PrimeField> FriSpecificBlake2sTree<F> {
 
     fn hash_into_leaf(values: &[F], scratch_space: &mut [u8]) -> [u8; 32] {
         Self::encode_leaf_values(values, scratch_space);
-        *blake2s_const(scratch_space).as_array()
+        *blake2s(scratch_space).as_array()
     }
 
     fn make_full_path(&self, leaf_index: usize, leaf_pair_hash: [u8; 32]) -> Vec<[u8; 32]> {
@@ -147,7 +147,7 @@ impl<F: PrimeField> IopInstance<F> for FriSpecificBlake2sTree<F> {
                         for (o, i) in o.iter_mut().zip(i.chunks(2)) {
                             hash_input[0..32].copy_from_slice(&i[0]);
                             hash_input[32..64].copy_from_slice(&i[1]);
-                            *o = *blake2s_const(&hash_input).as_array();
+                            *o = *blake2s(&hash_input).as_array();
                         }
                     });
                 }
@@ -168,7 +168,7 @@ impl<F: PrimeField> IopInstance<F> for FriSpecificBlake2sTree<F> {
                         for (o, i) in o.iter_mut().zip(i.chunks(2)) {
                             hash_input[0..32].copy_from_slice(&i[0]);
                             hash_input[32..64].copy_from_slice(&i[1]);
-                            *o = *blake2s_const(&hash_input).as_array();
+                            *o = *blake2s(&hash_input).as_array();
                         }
                     });
                 }
@@ -239,7 +239,7 @@ impl<F: PrimeField> IopInstance<F> for FriSpecificBlake2sTree<F> {
                     left.copy_from_slice(&el[..]);
                 }
             }
-            hash = *blake2s_const(&hash_input).as_array();
+            hash = *blake2s(&hash_input).as_array();
             idx >>= 1;
         }
 

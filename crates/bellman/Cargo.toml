@@ -33,7 +33,6 @@ tiny-keccak = {version = "1.5", optional = true}
 blake2-rfc = {version = "0.2.18", optional = true}
 blake2s_simd = {version = "0.5"}
 lazy_static = {version = "1", optional = true}
-blake2s_const = {version = "=0.8.0", optional = true, path = "../blake2s_const/"}
 hex = "0.4"
 
 [features]
@@ -42,9 +41,9 @@ multicore = ["crossbeam", "futures/thread-pool"]
 sonic = ["tiny-keccak", "blake2-rfc"]
 gm17 = []
 nolog = []
-plonk = ["lazy_static", "tiny-keccak", "blake2s_const"]
+plonk = ["lazy_static", "tiny-keccak"]
 redshift = ["multicore", "plonk"]
-marlin = ["tiny-keccak", "blake2s_const"]
+marlin = ["tiny-keccak"]
 wasm = ["web-sys"]
 asm = ["pairing/asm"]
 allocator = []

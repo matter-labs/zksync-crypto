@@ -37,7 +37,7 @@ jobs:
       - name: Format
         run: cargo fmt --all -- --check
 
-      # Note: `bellman`, `blake2s_const`, `franklin-crypto`, `codegen` currently have failing tests, so they're temporarily
+      # Note: `bellman`, `franklin-crypto`, `codegen` currently have failing tests, so they're temporarily
       # excluded from the CI.
 
       - name: Run tests (boojum)
