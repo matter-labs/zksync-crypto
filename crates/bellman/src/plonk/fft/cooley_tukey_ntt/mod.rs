@@ -492,6 +492,7 @@ mod test {
     }
 
     #[test]
+    #[ignore] // TODO(ignored-test): Timeout.
     fn test_bench_ct_serial_fft() {
         use super::BitReversedOmegas;
         use super::CTPrecomputations;
@@ -588,6 +589,7 @@ mod test {
     }
 
     #[test]
+    #[ignore] // TODO(ignored-test): Timeout.
     fn test_bench_ct_parallel_fft() {
         use super::BitReversedOmegas;
         use super::CTPrecomputations;

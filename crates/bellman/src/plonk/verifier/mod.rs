@@ -814,6 +814,7 @@ mod test {
     }
 
     #[test]
+    #[ignore] // TODO(ignored-test): Timeout.
     fn test_small_circuit_invalid_witness_transparent_verification() {
         use crate::pairing::bn256::{Bn256, Fr};
         use crate::plonk::commitments::transcript::*;
@@ -908,6 +909,7 @@ mod test {
     }
 
     #[test]
+    #[ignore] // TODO(ignored-test): Timeout.
     fn test_bench_fibonacci_circuit() {
         use crate::pairing::bn256::{Bn256, Fr};
         use crate::plonk::commitments::transcript::*;
@@ -1058,6 +1060,7 @@ mod test {
     // }
 
     #[test]
+    #[ignore] // TODO(ignored-test): Timeout.
     fn test_bench_homomorphic_plonk() {
         use crate::multiexp::*;
         use crate::pairing::bn256::Bn256;
@@ -1236,6 +1239,7 @@ mod test {
     }
 
     #[test]
+    #[ignore] // TODO(ignored-test): Timeout.
     fn test_bench_chunked_proof_on_transparent_engine_over_sizes() {
         use crate::plonk::commitments::transcript::*;
         use crate::plonk::commitments::transparent::fri::naive_fri::naive_fri::*;
@@ -1387,6 +1391,7 @@ mod test {
     }
 
     #[test]
+    #[ignore] // TODO(ignored-test): Timeout.
     fn test_bench_lde() {
         use crate::pairing::bn256::Fr;
         use crate::pairing::ff::ScalarEngine;

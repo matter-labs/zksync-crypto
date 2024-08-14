@@ -1677,6 +1677,7 @@ mod test {
     }
 
     #[test]
+    #[ignore] // TODO(ignored-test): Timeout.
     fn test_bench_plonk_bls12() {
         use crate::pairing::bls12_381::{Bls12, Fr};
         use crate::pairing::Engine;
@@ -1801,6 +1802,7 @@ mod test {
     }
 
     #[test]
+    #[ignore] // TODO(ignored-test): Timeout.
     fn test_bench_plonk_bn254() {
         use crate::pairing::bn256::{Bn256, Fr};
         use crate::pairing::Engine;

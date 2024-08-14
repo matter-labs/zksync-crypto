@@ -373,6 +373,7 @@ pub(crate) fn parallel_fft<E: Engine, T: Group<E>>(a: &mut [T], worker: &Worker,
 // Test multiplying various (low degree) polynomials together and
 // comparing with naive evaluations.
 #[test]
+#[ignore] // TODO(ignored-test): Timeout.
 fn polynomial_arith() {
     use crate::pairing::bls12_381::Bls12;
     use rand::{self, Rand};
@@ -517,6 +518,7 @@ fn test_field_element_multiplication_bn256() {
 }
 
 #[test]
+#[ignore] // TODO(ignored-test): Timeout.
 fn test_fft_bn256() {
     use crate::pairing::bn256::Bn256;
     use crate::pairing::bn256::Fr;

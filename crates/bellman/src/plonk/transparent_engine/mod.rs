@@ -58,6 +58,7 @@ pub(crate) mod proth_engine;
 #[cfg(test)]
 mod test {
     #[test]
+    #[ignore] // TODO(ignored-test): Timeout.
     fn test_bench_proth_lde() {
         use super::proth::Fr as FrOptimized;
         use super::Fr as FrMontNaive;
@@ -127,6 +128,7 @@ mod test {
     }
 
     #[test]
+    #[ignore] // TODO(ignored-test): Timeout.
     fn test_bench_precomputations_for_proth_fft() {
         use super::proth::Fr as FrOptimized;
         use super::Fr as FrMontNaive;
@@ -177,6 +179,7 @@ mod test {
     }
 
     #[test]
+    #[ignore] // TODO(ignored-test): Timeout.
     fn test_bench_precomputations_for_proth_lde() {
         use super::proth::Fr as FrOptimized;
         use super::Fr as FrMontNaive;
@@ -223,6 +226,7 @@ mod test {
     }
 
     #[test]
+    #[ignore] // TODO(ignored-test): Timeout.
     fn test_bench_ct_ploth_lde() {
         use super::proth::Fr;
         use crate::plonk::commitments::transparent::utils::*;
@@ -350,6 +354,7 @@ mod test {
     // }
 
     #[test]
+    #[ignore] // TODO(ignored-test): Timeout.
     fn test_bench_partial_reduction_bitreversed_lde() {
         use super::proth::Fr;
         use super::PartialTwoBitReductionField;

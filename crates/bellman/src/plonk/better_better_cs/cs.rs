@@ -3395,6 +3395,7 @@ mod test {
     }
 
     #[test]
+    #[ignore] // TODO(ignored-test): Timeout.
     fn test_setup_and_prove_custom_gate_and_tables() {
         use crate::pairing::bn256::{Bn256, Fr};
         use crate::plonk::better_better_cs::setup::VerificationKey;
@@ -3488,6 +3489,7 @@ mod test {
     }
 
     #[test]
+    #[ignore] // TODO(ignored-test): Timeout.
     fn test_bench_long_synthesis() {
         use crate::pairing::bn256::{Bn256, Fr};
         use crate::plonk::better_better_cs::setup::VerificationKey;

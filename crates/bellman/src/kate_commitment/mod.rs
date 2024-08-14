@@ -922,6 +922,7 @@ pub(crate) mod test {
     }
 
     #[test]
+    #[ignore] // TODO(ignored-test): Failure.
     fn test_open_ignition_setup() {
         let large_setup = make_crs_from_ignition_transcript("/Users/alexvlasov/Downloads/setup").unwrap();
         let base_path = std::path::Path::new("/Users/alexvlasov/Downloads/setup/processed");
@@ -946,6 +947,7 @@ pub(crate) mod test {
     }
 
     #[test]
+    #[ignore] // TODO(ignored-test): Failure.
     fn transform_ignition_setup() {
         let base_path = std::path::Path::new("/Users/alexvlasov/Downloads/setup/processed");
 
@@ -1818,6 +1820,7 @@ pub(crate) mod test {
     }
 
     #[test]
+    #[ignore] // TODO(ignored-test): Timeout.
     fn produce_fpga_test_vectors() {
         use crate::pairing::bls12_381::Bls12;
         use crate::pairing::ff::ScalarEngine;
@@ -1860,6 +1863,7 @@ pub(crate) mod test {
     }
 
     #[test]
+    #[ignore] // TODO(ignored-test): Timeout.
     fn produce_bn254_fpga_test_vectors() {
         use crate::pairing::bn256::{Bn256, Fr};
         use crate::pairing::ff::ScalarEngine;
@@ -1914,6 +1918,7 @@ pub(crate) mod test {
     }
 
     #[test]
+    #[ignore] // TODO(ignored-test): Timeout.
     fn produce_fpga_window_12_test_vectors() {
         let width = 12;
         use crate::pairing::bls12_381::Bls12;

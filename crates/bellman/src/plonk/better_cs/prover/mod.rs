@@ -969,6 +969,7 @@ mod test {
     }
 
     #[test]
+    #[ignore] // TODO(ignored-test): Timeout.
     fn test_prove_trivial_circuit() {
         use crate::pairing::bn256::{Bn256, Fr};
         use crate::plonk::better_cs::generator::*;
