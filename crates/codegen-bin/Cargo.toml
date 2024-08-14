@@ -12,6 +12,3 @@ zksync_solidity_vk_codegen = { path = "../codegen" }
 structopt = "0.3"
 dialoguer = "0.8"
 
-[[bin]]
-name = "generate"
-path = "src/main.rs"
