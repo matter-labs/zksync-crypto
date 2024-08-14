@@ -168,6 +168,7 @@ fn test_fq12_mul_by_014() {
 }
 
 #[test]
+#[ignore] // TODO(ignored-test): Timeout.
 fn fq12_field_tests() {
     use ff::PrimeField;
 

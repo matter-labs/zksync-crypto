@@ -37,11 +37,8 @@ jobs:
       - name: Format
         run: cargo fmt --all -- --check
 
-      # Note: `bellman`, `blake2s_const`, `franklin-crypto`, `codegen` currently have failing tests, so they're temporarily
-      # excluded from the CI.
+      - name: Install nextest
+        run: cargo install cargo-nextest
 
-      - name: Run tests (boojum)
-        run: cargo test -p boojum
-
-      - name: Run tests (rescue-poseidon)
-        run: cargo test -p rescue_poseidon
+      - name: Run tests
+        run: cargo nextest run --no-fail-fast

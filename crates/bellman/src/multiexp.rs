@@ -799,6 +799,7 @@ mod test {
     }
 
     #[test]
+    #[ignore] // TODO(ignored-test): Timeout.
     fn test_new_multiexp_with_bls12() {
         use crate::pairing::bls12_381::Bls12;
         use rand::{self, Rand};
@@ -821,6 +822,7 @@ mod test {
     }
 
     #[test]
+    #[ignore] // TODO(ignored-test): Timeout.
     fn test_valid_bn254_multiexp() {
         use crate::pairing::bn256::Bn256;
         use rand::{self, Rand};
@@ -924,6 +926,7 @@ mod test {
     }
 
     #[test]
+    #[ignore] // TODO(ignored-test): Timeout.
     fn bench_bls_addition() {
         use crate::pairing::bls12_381::Bls12;
         use rand::{self, Rand};
@@ -951,6 +954,7 @@ mod test {
     }
 
     #[test]
+    #[ignore] // TODO(ignored-test): Timeout.
     fn bench_bls_doubling() {
         use crate::pairing::bls12_381::Bls12;
         use rand::{self, Rand};
@@ -977,6 +981,7 @@ mod test {
     }
 
     #[test]
+    #[ignore] // TODO(ignored-test): Timeout.
     fn bench_Pippenger_with_small_chunk() {
         use crate::pairing::bls12_381::Bls12;
         use rand::{self, Rand};

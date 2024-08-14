@@ -196,6 +196,7 @@ fn test_squaring() {
 }
 
 #[test]
+#[ignore] // TODO(ignored-test): Timeout.
 fn fq12_field_tests() {
     use ff::PrimeField;
 

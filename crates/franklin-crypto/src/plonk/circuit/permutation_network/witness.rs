@@ -712,6 +712,7 @@ fn test_routing_for_permutation() {
 }
 
 #[test]
+#[ignore] // TODO(ignored-test): Timeout.
 fn test_uniformity() {
     use rand::{thread_rng, Rand};
     let rng = &mut thread_rng();

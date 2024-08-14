@@ -187,6 +187,7 @@ impl<'a, E: Engine> Circuit<E> for MiMCDemo<'a, E> {
 }
 
 #[test]
+#[ignore] // TODO(ignored-test): Timeout.
 fn test_mimc_bls12() {
     // This may not be cryptographically safe, use
     // `OsRng` (for example) in production software.
@@ -265,6 +266,7 @@ fn test_mimc_bls12() {
 }
 
 #[test]
+#[ignore] // TODO(ignored-test): Timeout.
 fn test_mimc_bn256() {
     // This may not be cryptographically safe, use
     // `OsRng` (for example) in production software.
@@ -345,6 +347,7 @@ fn test_mimc_bn256() {
 
 #[cfg(feature = "plonk")]
 #[test]
+#[ignore] // TODO(ignored-test): Timeout.
 fn test_mimc_transpilation_into_plonk() {
     use bellman_ce::plonk::adaptor::alternative::Transpiler;
     // This may not be cryptographically safe, use

@@ -19,13 +19,6 @@ under [MIT][pairing-mit] and [Apache 2.0][pairing-apache] licenses.
 [pairing-mit]: https://github.com/zkcrypto/pairing/blob/17973bdd64a44a4829dd6b150f2d54246709b1da/LICENSE-MIT
 [pairing-apache]: https://github.com/zkcrypto/pairing/blob/17973bdd64a44a4829dd6b150f2d54246709b1da/LICENSE-APACHE
 
-## blake2_simd
-
-[blake2_simd: high-performance implementations of BLAKE2b/s/bp/sp in pure Rust with dynamic SIMD](https://github.com/oconnor663/blake2_simd)
-licensed under [MIT][blake2-mit] license.
-
-[blake2-mit]: https://github.com/oconnor663/blake2_simd/blob/1dfcf325200cf281d9313ae79734c828d914d241/LICENSE
-
 ## plonky2
 
 [plonky2: Plonky2, a SNARK implementation based on techniques from PLONK and FRI](https://github.com/mir-protocol/plonky2)
