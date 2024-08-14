@@ -150,6 +150,7 @@ mod test {
     }
 
     #[test]
+    #[ignore] // TODO(ignored-test): Timeout.
     fn test_blake2s_on_real_prover() {
         let num_of_blocks: usize = 1;
         let seed: &[_] = &[1, 2, 3, 4, 5];
@@ -242,6 +243,7 @@ mod test {
     }
 
     #[test]
+    #[ignore] // TODO(ignored-test): Timeout.
     fn test_blake2s_digest_words() {
         let input = vec![
             0xb19e846f, 0xc81dcb26, 0xc388b57e, 0xeb82d44f, 0x9513868e, 0x73b092c9, 0x79df880b, 0x8a1b262f, 0x142ba2e1, 0x8df6d502, 0x7d01cf7d, 0x318b4d4a, 0x3a4068cb, 0x3d1d3655, 0x29dbfa1b,

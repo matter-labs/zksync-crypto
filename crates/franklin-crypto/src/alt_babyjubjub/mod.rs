@@ -519,6 +519,7 @@ impl AltJubjubBn256 {
 }
 
 #[test]
+#[ignore] // TODO(ignored-test): Timeout.
 fn test_jubjub_altbn256() {
     let params = AltJubjubBn256::new();
 

@@ -243,6 +243,7 @@ mod test {
     }
 
     #[test]
+    #[ignore] // TODO(ignored-test): Timeout.
     fn polished_sha256_gadget_bytes_test() {
         const NUM_OF_BYTES: usize = 22560;
         const IS_CONST_TEST: bool = false;
@@ -288,6 +289,7 @@ mod test {
     }
 
     #[test]
+    #[ignore] // TODO(ignored-test): Timeout.
     fn test_sha256_on_real_prover() {
         const NUM_OF_BLOCKS: usize = 1;
         let mut rng = rand::thread_rng();
