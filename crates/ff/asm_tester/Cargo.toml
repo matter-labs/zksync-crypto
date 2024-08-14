@@ -1,0 +1,19 @@
+[package]
+name = "asm_tester"
+version = "0.1.0"
+authors = ["Alex Vlasov <alex.m.vlasov@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+ff = {package = "ff_ce", path = "../", features = ["asm_derive"]}
+rand = "0.4"
+serde = "1"
+
+[dev-dependencies]
+criterion = "0.3"
+
+[[bench]]
+name = "multiplication"
+harness = false

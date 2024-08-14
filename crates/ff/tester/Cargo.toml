@@ -1,0 +1,21 @@
+[package]
+name = "ff_ce_tester"
+version = "0.1.0"
+authors = ["Alex Vlasov <alex.m.vlasov@gmail.com>"]
+description = "Stub for testing ff_ce"
+documentation = "https://docs.rs/ff/"
+homepage = "https://github.com/matter-labs/ff"
+license = "MIT/Apache-2.0"
+repository = "https://github.com/matter-labs/ff"
+edition = "2018"
+
+[dependencies]
+ff = {package = "ff_ce", path = "../", features = ["derive"]}
+rand = "0.4"
+
+[dev-dependencies]
+criterion = "0.3"
+
+[[bench]]
+name = "multiplication"
+harness = false
