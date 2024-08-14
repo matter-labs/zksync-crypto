@@ -1657,6 +1657,7 @@ mod benches {
     }
 
     #[test]
+    #[ignore] // TODO(ignored-test): Timeout.
     fn synth_bench_1() {
         let limit = 1 << 25;
         let mut storage =
