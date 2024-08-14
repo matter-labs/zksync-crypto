@@ -1,0 +1,20 @@
+[package]
+name = "snark_wrapper"
+version = "0.1.2"
+edition = "2021"
+authors = ["The Matter Labs Team <hello@matterlabs.dev>"]
+homepage = "https://zksync.io/"
+repository = "https://github.com/matter-labs/zksync-era"
+license = "MIT OR Apache-2.0"
+keywords = ["blockchain", "zksync"]
+categories = ["cryptography"]
+description = "ZKsync snark wrapper"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+derivative = "2"
+rand = "0.4"
+
+rescue_poseidon = "=0.5.2"
+# rescue_poseidon = {path = "../rescue-poseidon"}

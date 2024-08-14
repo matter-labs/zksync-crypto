@@ -3,6 +3,14 @@ listed below.
 
 We are extremely grateful to the authors of these projects!
 
+## ff
+
+[ff: Traits and utilities for working with finite fields](https://github.com/zkcrypto/ff) dual-licensed
+under [MIT][ff-mit] and [Apache 2.0][ff-apache] licenses.
+
+[ff-mit]: https://github.com/zkcrypto/ff/blob/b853db2c05a5901a8199012f80f5ee3784f52549/LICENSE-MIT
+[ff-apache]: https://github.com/zkcrypto/ff/blob/b853db2c05a5901a8199012f80f5ee3784f52549/LICENSE-APACHE
+
 ## bellman
 
 [bellman: zk-SNARK library](https://github.com/zkcrypto/bellman) dual-licensed under

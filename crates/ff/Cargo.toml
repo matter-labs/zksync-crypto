@@ -1,0 +1,30 @@
+[package]
+name = "ff_ce"
+version = "0.14.3"
+authors = ["Sean Bowe <ewillbefull@gmail.com>",
+    "Alex Gluchowski <alex@gluchowski.net>",
+    "Alex Vlasov <alex.m.vlasov@gmail.com>"]
+description = "Library for building and interfacing with finite fields"
+documentation = "https://docs.rs/ff/"
+homepage = "https://github.com/matter-labs/ff"
+license = "MIT/Apache-2.0"
+repository = "https://github.com/matter-labs/ff"
+edition = "2018"
+exclude = [
+    "ff_derive_const",
+    "tester",
+    "asm_tester"
+]
+
+[dependencies]
+byteorder = "1"
+rand = "0.4"
+ff_derive_ce = { version = "0.11", optional = true }
+# ff_derive_ce = { path = "ff_derive", optional = true }
+hex = {version = "0.4"}
+serde = "1"
+
+[features]
+default = []
+derive = ["ff_derive_ce"]
+asm_derive = ["derive", "ff_derive_ce/asm"]
