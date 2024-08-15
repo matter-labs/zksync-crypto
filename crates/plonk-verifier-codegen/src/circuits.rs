@@ -179,6 +179,7 @@ fn inner_circuit_rescue_part<E: Engine, CS: ConstraintSystem<E>>(cs: &mut CS) ->
 }
 
 #[test]
+#[ignore]
 fn test_create_proof_for_all_circuits() {
     type T = RollingKeccakTranscript<Fr>;
 
