@@ -1,10 +1,7 @@
 use proc_macro2::{Ident, Literal, Span, TokenStream};
 use proc_macro_error::abort_call_site;
 use quote::quote;
-use syn::{
-    parse_macro_input, token::Comma, Attribute, Data, DeriveInput, Fields, GenericParam, Generics,
-    Type, TypeArray, TypePath,
-};
+use syn::{parse_macro_input, token::Comma, Attribute, Data, DeriveInput, Fields, GenericParam, Generics, Type, TypeArray, TypePath};
 
 use crate::utils::*;
 
@@ -14,29 +11,18 @@ const PRETTY_COMPARISON_ATTR: &'static str = "DerivePrettyComparison";
 pub(crate) fn derive_allocatable(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let derived_input = parse_macro_input!(input as DeriveInput);
 
-    let DeriveInput {
-        ident,
-        data,
-        generics,
-        attrs,
-        ..
-    } = derived_input.clone();
+    let DeriveInput { ident, data, generics, attrs, .. } = derived_input.clone();
 
-    let serde_remove_bounds =
-        if let Some(serde_remove_bounds) = fetch_attr_nopanic(SERDE_REMOVE_BOUNDS, &attrs) {
-            let serde_remove_bounds =
-                syn::parse_str::<syn::Expr>(&serde_remove_bounds).expect("has attr as Expr");
+    let serde_remove_bounds = if let Some(serde_remove_bounds) = fetch_attr_nopanic(SERDE_REMOVE_BOUNDS, &attrs) {
+        let serde_remove_bounds = syn::parse_str::<syn::Expr>(&serde_remove_bounds).expect("has attr as Expr");
 
-            serde_remove_bounds == syn::parse_str::<syn::Expr>("true").unwrap()
-        } else {
-            false
-        };
+        serde_remove_bounds == syn::parse_str::<syn::Expr>("true").unwrap()
+    } else {
+        false
+    };
 
-    let derive_pretty_comparison = if let Some(derive_pretty_comparison) =
-        fetch_attr_from_list(PRETTY_COMPARISON_ATTR, &attrs)
-    {
-        let derive_pretty_comparison =
-            syn::parse_str::<syn::Expr>(&derive_pretty_comparison).expect("has attr as Expr");
+    let derive_pretty_comparison = if let Some(derive_pretty_comparison) = fetch_attr_from_list(PRETTY_COMPARISON_ATTR, &attrs) {
+        let derive_pretty_comparison = syn::parse_str::<syn::Expr>(&derive_pretty_comparison).expect("has attr as Expr");
 
         derive_pretty_comparison == syn::parse_str::<syn::Expr>("true").unwrap()
     } else {
@@ -58,45 +44,29 @@ pub(crate) fn derive_allocatable(input: proc_macro::TokenStream) -> proc_macro::
                     let field_ident = field.ident.clone().expect("a field ident");
 
                     let allocation_line = match field.ty {
-                        Type::Path(ref _path_ty) => {
-                            derive_allocate_by_type_path(&field_ident, _path_ty)
-                        }
-                        Type::Array(ref _arr_ty) => {
-                            derive_allocate_by_array_type(&field_ident, _arr_ty)
-                        }
+                        Type::Path(ref _path_ty) => derive_allocate_by_type_path(&field_ident, _path_ty),
+                        Type::Array(ref _arr_ty) => derive_allocate_by_array_type(&field_ident, _arr_ty),
                         _ => abort_call_site!("only array and path types are allowed"),
                     };
                     allocations.extend(allocation_line);
 
                     let allocation_without_value_line = match field.ty {
-                        Type::Path(ref _path_ty) => {
-                            derive_allocate_without_value_by_type_path(&field_ident, _path_ty)
-                        }
-                        Type::Array(ref _arr_ty) => {
-                            derive_allocate_without_value_by_array_type(&field_ident, _arr_ty)
-                        }
+                        Type::Path(ref _path_ty) => derive_allocate_without_value_by_type_path(&field_ident, _path_ty),
+                        Type::Array(ref _arr_ty) => derive_allocate_without_value_by_array_type(&field_ident, _arr_ty),
                         _ => abort_call_site!("only array and path types are allowed"),
                     };
                     allocations_without_value.extend(allocation_without_value_line);
 
                     let allocations_as_constant_line = match field.ty {
-                        Type::Path(ref _path_ty) => {
-                            derive_allocate_as_constant_by_type_path(&field_ident, _path_ty)
-                        }
-                        Type::Array(ref _arr_ty) => {
-                            derive_allocate_as_constant_by_array_type(&field_ident, _arr_ty)
-                        }
+                        Type::Path(ref _path_ty) => derive_allocate_as_constant_by_type_path(&field_ident, _path_ty),
+                        Type::Array(ref _arr_ty) => derive_allocate_as_constant_by_array_type(&field_ident, _arr_ty),
                         _ => abort_call_site!("only array and path types are allowed"),
                     };
                     allocations_as_constant.extend(allocations_as_constant_line);
 
                     let placeholder_init_line = match field.ty {
-                        Type::Path(ref _path_ty) => {
-                            derive_placeholder_witness_by_type(&field_ident, _path_ty)
-                        }
-                        Type::Array(ref _arr_ty) => {
-                            derive_placeholder_witness_by_array_type(&field_ident, _arr_ty)
-                        }
+                        Type::Path(ref _path_ty) => derive_placeholder_witness_by_type(&field_ident, _path_ty),
+                        Type::Array(ref _arr_ty) => derive_placeholder_witness_by_array_type(&field_ident, _arr_ty),
                         _ => abort_call_site!("only array and path types are allowed"),
                     };
 
@@ -225,7 +195,7 @@ pub(crate) fn derive_allocatable(input: proc_macro::TokenStream) -> proc_macro::
     };
 
     if derive_pretty_comparison {
-        expanded.extend(quote!{
+        expanded.extend(quote! {
             impl #generics PrettyComparison<F> for #ident<#type_params_of_allocated_struct> #where_clause {
                 fn find_diffs(a: &Self::Witness, b: &Self::Witness) -> Vec<String> {
                     let mut comparison_lines = vec![];
@@ -369,20 +339,14 @@ pub(crate) fn get_equivalent_type_recursive(original_ty: &Type) -> (Type, SerdeD
                 <#ty as CSAllocatable<F>>::Witness
             };
             let ts = proc_macro::TokenStream::from(ts);
-            (
-                Type::Path(syn::parse::<TypePath>(ts).unwrap()),
-                SerdeDeriveToUse::BigArray,
-            )
+            (Type::Path(syn::parse::<TypePath>(ts).unwrap()), SerdeDeriveToUse::BigArray)
         }
         Type::Path(ty) => {
             let ts = quote! {
                 <#ty as CSAllocatable<F>>::Witness
             };
             let ts = proc_macro::TokenStream::from(ts);
-            (
-                Type::Path(syn::parse::<TypePath>(ts).unwrap()),
-                SerdeDeriveToUse::Default,
-            )
+            (Type::Path(syn::parse::<TypePath>(ts).unwrap()), SerdeDeriveToUse::Default)
         }
         _ => abort_call_site!("only array and path types are allowed"),
     }

@@ -1,10 +1,7 @@
 use proc_macro2::{Span, TokenStream};
 use proc_macro_error::abort_call_site;
 use quote::quote;
-use syn::{
-    parse_macro_input, punctuated::Punctuated, token::Comma, DeriveInput, GenericParam, Generics,
-    Type, WhereClause,
-};
+use syn::{parse_macro_input, punctuated::Punctuated, token::Comma, DeriveInput, GenericParam, Generics, Type, WhereClause};
 
 use crate::utils::*;
 
@@ -12,13 +9,7 @@ const BOUND_ATTR_NAME: &'static str = "WitnessHookBound";
 
 pub(crate) fn derive_witness_hook(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let derived_input = parse_macro_input!(input as DeriveInput);
-    let DeriveInput {
-        ident,
-        generics,
-        data,
-        attrs,
-        ..
-    } = derived_input.clone();
+    let DeriveInput { ident, generics, data, attrs, .. } = derived_input.clone();
 
     let mut struct_initializations = TokenStream::new();
     let mut field_selections = TokenStream::new();

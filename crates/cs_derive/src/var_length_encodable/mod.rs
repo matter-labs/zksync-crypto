@@ -1,26 +1,15 @@
 use proc_macro2::{Span, TokenStream};
 use proc_macro_error::abort_call_site;
 use quote::quote;
-use syn::{
-    parse_macro_input, punctuated::Punctuated, token::Comma, DeriveInput, GenericParam, Type,
-    WhereClause,
-};
+use syn::{parse_macro_input, punctuated::Punctuated, token::Comma, DeriveInput, GenericParam, Type, WhereClause};
 
 use crate::utils::*;
 
 const BOUND_ATTR_NAME: &'static str = "CSVarLengthEncodableBound";
 
-pub(crate) fn derive_var_length_encodable(
-    input: proc_macro::TokenStream,
-) -> proc_macro::TokenStream {
+pub(crate) fn derive_var_length_encodable(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let derived_input = parse_macro_input!(input as DeriveInput);
-    let DeriveInput {
-        ident,
-        generics,
-        data,
-        attrs,
-        ..
-    } = derived_input.clone();
+    let DeriveInput { ident, generics, data, attrs, .. } = derived_input.clone();
 
     let mut length_impls = TokenStream::new();
     let mut field_impls = TokenStream::new();
