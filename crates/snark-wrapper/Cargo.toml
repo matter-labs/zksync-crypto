@@ -13,8 +13,7 @@ description = "ZKsync snark wrapper"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+rescue_poseidon = { version = "=0.5.2", path = "../rescue-poseidon" }
+
 derivative = "2"
 rand = "0.4"
-
-rescue_poseidon = "=0.5.2"
-# rescue_poseidon = {path = "../rescue-poseidon"}
