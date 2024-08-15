@@ -1,4 +1,4 @@
-use super::super::{get_temp_with_literal};
+use super::super::get_temp_with_literal;
 
 pub(crate) fn mul_impl(mont_inv: u64, modulus_static_prefix: &str) -> proc_macro2::TokenStream {
     let mut gen = proc_macro2::TokenStream::new();
@@ -8,7 +8,7 @@ pub(crate) fn mul_impl(mont_inv: u64, modulus_static_prefix: &str) -> proc_macro
     let m2 = get_temp_with_literal(modulus_static_prefix, 2);
     let m3 = get_temp_with_literal(modulus_static_prefix, 3);
 
-    gen.extend(quote!{
+    gen.extend(quote! {
         #[allow(clippy::too_many_lines)]
         #[inline(always)]
         #[cfg(target_arch = "x86_64")]
@@ -30,27 +30,27 @@ pub(crate) fn mul_impl(mont_inv: u64, modulus_static_prefix: &str) -> proc_macro
                     "mulx r9, r8, qword ptr [{b_ptr} + 8]",
                     "mulx r10, r15, qword ptr [{b_ptr} + 16]",
                     "mulx r12, rdi, qword ptr [{b_ptr} + 24]",
-                    "mov rdx, r13", 
+                    "mov rdx, r13",
                     "mov r11, {inv}",
-                    "mulx r11, rdx, r11", 
-                    "adcx r14, r8", 
-                    "adox r10, rdi", 
+                    "mulx r11, rdx, r11",
+                    "adcx r14, r8",
+                    "adox r10, rdi",
                     "adcx r15, r9",
                     "mov r11, 0",
                     "adox r12, r11",
                     "adcx r10, r11",
-                    "mulx r9, r8, qword ptr [rip + {q0_ptr}]", 
-                    "mulx r11, rdi, qword ptr [rip + {q1_ptr}]", 
-                    "adox r13, r8", 
+                    "mulx r9, r8, qword ptr [rip + {q0_ptr}]",
+                    "mulx r11, rdi, qword ptr [rip + {q1_ptr}]",
+                    "adox r13, r8",
                     "adcx r14, rdi",
-                    "adox r14, r9", 
-                    "adcx r15, r11", 
-                    "mulx r9, r8, qword ptr [rip + {q2_ptr}]", 
-                    "mulx r11, rdi, qword ptr [rip + {q3_ptr}]", 
-                    "adox r15, r8", 
+                    "adox r14, r9",
+                    "adcx r15, r11",
+                    "mulx r9, r8, qword ptr [rip + {q2_ptr}]",
+                    "mulx r11, rdi, qword ptr [rip + {q3_ptr}]",
+                    "adox r15, r8",
                     "adcx r10, rdi",
-                    "adox r10, r9", 
-                    "adcx r12, r11", 
+                    "adox r10, r9",
+                    "adcx r12, r11",
                     "mov r9, 0",
                     "adox r12, r9",
 
@@ -171,11 +171,11 @@ pub(crate) fn mul_impl(mont_inv: u64, modulus_static_prefix: &str) -> proc_macro
                     "sbb r11, rdx",
 
                     // if CF == 1 then original result was ok (reduction wa not necessary)
-                    // so if not carry (CMOVNQ) then we copy 
+                    // so if not carry (CMOVNQ) then we copy
                     "cmovnc r12, r8",
                     "cmovnc r13, r9",
                     "cmovnc r14, r10",
-                    "cmovnc r15, r11",  
+                    "cmovnc r15, r11",
                     // end of reduction
                     q0_ptr = sym #m0,
                     q1_ptr = sym #m1,
@@ -184,15 +184,15 @@ pub(crate) fn mul_impl(mont_inv: u64, modulus_static_prefix: &str) -> proc_macro
                     inv = const #mont_inv,
                     a_ptr = in(reg) a.as_ptr(),
                     b_ptr = in(reg) b.as_ptr(),
-                    out("rdx") _, 
-                    out("rdi") _, 
-                    out("r8") _, 
-                    out("r9") _, 
-                    out("r10") _, 
-                    out("r11") _, 
-                    out("r12") r0, 
-                    out("r13") r1, 
-                    out("r14") r2, 
+                    out("rdx") _,
+                    out("rdi") _,
+                    out("r8") _,
+                    out("r9") _,
+                    out("r10") _,
+                    out("r11") _,
+                    out("r12") r0,
+                    out("r13") r1,
+                    out("r14") r2,
                     out("r15") r3,
                     options(pure, readonly, nostack)
                 );
@@ -214,7 +214,7 @@ pub(crate) fn sqr_impl(mont_inv: u64, modulus_static_prefix: &str) -> proc_macro
     let m2 = get_temp_with_literal(modulus_static_prefix, 2);
     let m3 = get_temp_with_literal(modulus_static_prefix, 3);
 
-    gen.extend(quote!{
+    gen.extend(quote! {
         #[allow(clippy::too_many_lines)]
         #[inline(always)]
         #[cfg(target_arch = "x86_64")]
@@ -235,28 +235,28 @@ pub(crate) fn sqr_impl(mont_inv: u64, modulus_static_prefix: &str) -> proc_macro
                     "mulx r10, r9, qword ptr [{a_ptr} + 8]",
                     "mulx r15, r8, qword ptr [{a_ptr} + 16]",
                     "mulx r12, r11, qword ptr [{a_ptr} + 24]",
-                    "adox r10, r8", 
-                    "adcx r11, r15", 
+                    "adox r10, r8",
+                    "adcx r11, r15",
                     "mov rdx, qword ptr [{a_ptr} + 8]",
                     "mulx r15, r8, qword ptr [{a_ptr} + 16]",
                     "mulx rcx, rdi, qword ptr [{a_ptr} + 24]",
                     "mov rdx, qword ptr [{a_ptr} + 16]",
                     "mulx r14, r13, qword ptr [{a_ptr} + 24]",
-                    "adox r11, r8", 
-                    "adcx r12, rdi", 
-                    "adox r12, r15", 
+                    "adox r11, r8",
+                    "adcx r12, rdi",
+                    "adox r12, r15",
                     "adcx r13, rcx",
                     "mov r8, 0",
                     "adox r13, r8",
-                    "adcx r14, r8", 
+                    "adcx r14, r8",
 
                     // double
                     "adox r9, r9",
-                    "adcx r12, r12", 
+                    "adcx r12, r12",
                     "adox r10, r10",
-                    "adcx r13, r13", 
+                    "adcx r13, r13",
                     "adox r11, r11",
-                    "adcx r14, r14", 
+                    "adcx r14, r14",
 
                     // square contributions
                     "mov rdx, qword ptr [{a_ptr} + 0]",
@@ -279,38 +279,38 @@ pub(crate) fn sqr_impl(mont_inv: u64, modulus_static_prefix: &str) -> proc_macro
                     // reduction round 0
                     "mov rdx, r8",
                     "mov rdi, {inv}",
-                    "mulx rdi, rdx, rdi", 
-                    "mulx rcx, rdi, qword ptr [rip + {q0_ptr}]", 
+                    "mulx rdi, rdx, rdi",
+                    "mulx rcx, rdi, qword ptr [rip + {q0_ptr}]",
                     "adox r8, rdi",
-                    "mulx rdi, r8, qword ptr [rip + {q3_ptr}]", 
+                    "mulx rdi, r8, qword ptr [rip + {q3_ptr}]",
                     "adcx r12, rdi",
                     "adox r9, rcx",
                     "mov rdi, 0",
                     "adcx r13, rdi",
-                    "mulx rcx, rdi, qword ptr [rip + {q1_ptr}]", 
+                    "mulx rcx, rdi, qword ptr [rip + {q1_ptr}]",
                     "adox r10, rcx",
                     "adcx r9, rdi",
                     "adox r11, r8",
-                    "mulx rcx, rdi, qword ptr [rip + {q2_ptr}]", 
+                    "mulx rcx, rdi, qword ptr [rip + {q2_ptr}]",
                     "adcx r10, rdi",
                     "adcx r11, rcx",
 
                     // reduction round 1
                     "mov rdx, r9",
                     "mov rdi, {inv}",
-                    "mulx rdi, rdx, rdi", 
-                    "mulx rcx, rdi, qword ptr [rip + {q2_ptr}]", 
+                    "mulx rdi, rdx, rdi",
+                    "mulx rcx, rdi, qword ptr [rip + {q2_ptr}]",
                     "adox r12, rcx",
-                    "mulx rcx, r8, qword ptr [rip + {q3_ptr}]", 
+                    "mulx rcx, r8, qword ptr [rip + {q3_ptr}]",
                     "adcx r12, r8",
                     "adox r13, rcx",
                     "mov r8, 0",
                     "adcx r13, r8",
                     "adox r14, r8",
-                    "mulx rcx, r8, qword ptr [rip + {q0_ptr}]", 
+                    "mulx rcx, r8, qword ptr [rip + {q0_ptr}]",
                     "adcx r9, r8",
                     "adox r10, rcx",
-                    "mulx rcx, r8, qword ptr [rip + {q1_ptr}]", 
+                    "mulx rcx, r8, qword ptr [rip + {q1_ptr}]",
                     "adcx r10, r8",
                     "adox r11, rcx",
                     "adcx r11, rdi",
@@ -318,19 +318,19 @@ pub(crate) fn sqr_impl(mont_inv: u64, modulus_static_prefix: &str) -> proc_macro
                     // reduction round 2
                     "mov rdx, r10",
                     "mov rdi, {inv}",
-                    "mulx rdi, rdx, rdi", 
-                    "mulx rcx, rdi, qword ptr [rip + {q1_ptr}]", 
-                    "mulx r9, r8, qword ptr [rip + {q2_ptr}]", 
+                    "mulx rdi, rdx, rdi",
+                    "mulx rcx, rdi, qword ptr [rip + {q1_ptr}]",
+                    "mulx r9, r8, qword ptr [rip + {q2_ptr}]",
                     "adox r12, rcx",
                     "adcx r12, r8",
                     "adox r13, r9",
-                    "mulx r9, r8, qword ptr [rip + {q3_ptr}]", 
+                    "mulx r9, r8, qword ptr [rip + {q3_ptr}]",
                     "adcx r13, r8",
                     "adox r14, r9",
                     "mov r8, 0",
                     "adcx r14, r8",
                     "adox r15, r8",
-                    "mulx r9, r8, qword ptr [rip + {q0_ptr}]", 
+                    "mulx r9, r8, qword ptr [rip + {q0_ptr}]",
                     "adcx r10, r8",
                     "adox r11, r9",
                     "mov r8, 0",
@@ -340,22 +340,22 @@ pub(crate) fn sqr_impl(mont_inv: u64, modulus_static_prefix: &str) -> proc_macro
                     // reduction round 3
                     "mov rdx, r11",
                     "mov rdi, {inv}",
-                    "mulx rdi, rdx, rdi", 
-                    "mulx rcx, rdi, qword ptr [rip + {q0_ptr}]", 
-                    "mulx r9, r8, qword ptr [rip + {q1_ptr}]", 
+                    "mulx rdi, rdx, rdi",
+                    "mulx rcx, rdi, qword ptr [rip + {q0_ptr}]",
+                    "mulx r9, r8, qword ptr [rip + {q1_ptr}]",
                     "adox r11, rdi",
                     "adcx r12, r8",
                     "adox r12, rcx",
                     "adcx r13, r9",
-                    "mulx r9, r8, qword ptr [rip + {q2_ptr}]", 
-                    "mulx r11, r10, qword ptr [rip + {q3_ptr}]", 
+                    "mulx r9, r8, qword ptr [rip + {q2_ptr}]",
+                    "mulx r11, r10, qword ptr [rip + {q3_ptr}]",
                     "adox r13, r8",
                     "adcx r14, r10",
                     "mov r8, 0",
                     "adox r14, r9",
                     "adcx r15, r11",
                     "adox r15, r8",
-                    
+
                     // reduction. We use sub/sbb
                     "mov r8, r12",
                     "mov rdx, qword ptr [rip + {q0_ptr}]",
@@ -371,11 +371,11 @@ pub(crate) fn sqr_impl(mont_inv: u64, modulus_static_prefix: &str) -> proc_macro
                     "sbb r11, rdx",
 
                     // if CF == 1 then original result was ok (reduction wa not necessary)
-                    // so if not carry (CMOVNQ) then we copy 
+                    // so if not carry (CMOVNQ) then we copy
                     "cmovnc r12, r8",
                     "cmovnc r13, r9",
                     "cmovnc r14, r10",
-                    "cmovnc r15, r11",  
+                    "cmovnc r15, r11",
                     // end of reduction
                     q0_ptr = sym #m0,
                     q1_ptr = sym #m1,
@@ -383,16 +383,16 @@ pub(crate) fn sqr_impl(mont_inv: u64, modulus_static_prefix: &str) -> proc_macro
                     q3_ptr = sym #m3,
                     inv = const #mont_inv,
                     a_ptr = in(reg) a.as_ptr(),
-                    out("rcx") _, 
-                    out("rdx") _, 
-                    out("rdi") _, 
-                    out("r8") _, 
-                    out("r9") _, 
-                    out("r10") _, 
-                    out("r11") _, 
-                    out("r12") r0, 
-                    out("r13") r1, 
-                    out("r14") r2, 
+                    out("rcx") _,
+                    out("rdx") _,
+                    out("rdi") _,
+                    out("r8") _,
+                    out("r9") _,
+                    out("r10") _,
+                    out("r11") _,
+                    out("r12") r0,
+                    out("r13") r1,
+                    out("r14") r2,
                     out("r15") r3,
                     options(pure, readonly, nostack)
                 );
@@ -414,7 +414,7 @@ pub(crate) fn add_impl(modulus_static_prefix: &str) -> proc_macro2::TokenStream 
     let m2 = get_temp_with_literal(modulus_static_prefix, 2);
     let m3 = get_temp_with_literal(modulus_static_prefix, 3);
 
-    gen.extend(quote!{
+    gen.extend(quote! {
         #[allow(clippy::too_many_lines)]
         #[inline(always)]
         #[cfg(target_arch = "x86_64")]
@@ -455,7 +455,7 @@ pub(crate) fn add_impl(modulus_static_prefix: &str) -> proc_macro2::TokenStream 
                     "cmovc r12, r8",
                     "cmovc r13, r9",
                     "cmovc r14, r10",
-                    "cmovc r15, r11",  
+                    "cmovc r15, r11",
 
                     q0_ptr = sym #m0,
                     q1_ptr = sym #m1,
@@ -464,13 +464,13 @@ pub(crate) fn add_impl(modulus_static_prefix: &str) -> proc_macro2::TokenStream 
                     // end of reduction
                     a_ptr = in(reg) a.as_ptr(),
                     b_ptr = in(reg) b.as_ptr(),
-                    out("r8") _, 
-                    out("r9") _, 
-                    out("r10") _, 
-                    out("r11") _, 
-                    out("r12") r0, 
-                    out("r13") r1, 
-                    out("r14") r2, 
+                    out("r8") _,
+                    out("r9") _,
+                    out("r10") _,
+                    out("r11") _,
+                    out("r12") r0,
+                    out("r13") r1,
+                    out("r14") r2,
                     out("r15") r3,
                     options(pure, readonly, nostack)
                 );
@@ -504,7 +504,7 @@ pub(crate) fn add_impl(modulus_static_prefix: &str) -> proc_macro2::TokenStream 
             //         "cmovnc r12, r8",
             //         "cmovnc r13, r9",
             //         "cmovnc r14, r10",
-            //         "cmovnc r15, r11",  
+            //         "cmovnc r15, r11",
 
             //         q0_ptr = sym #m0,
             //         q1_ptr = sym #m1,
@@ -513,14 +513,14 @@ pub(crate) fn add_impl(modulus_static_prefix: &str) -> proc_macro2::TokenStream 
             //         // end of reduction
             //         a_ptr = in(reg) a.as_ptr(),
             //         b_ptr = in(reg) b.as_ptr(),
-            //         out("rdx") _, 
-            //         out("r8") _, 
-            //         out("r9") _, 
-            //         out("r10") _, 
-            //         out("r11") _, 
-            //         out("r12") r0, 
-            //         out("r13") r1, 
-            //         out("r14") r2, 
+            //         out("rdx") _,
+            //         out("r8") _,
+            //         out("r9") _,
+            //         out("r10") _,
+            //         out("r11") _,
+            //         out("r12") r0,
+            //         out("r13") r1,
+            //         out("r14") r2,
             //         out("r15") r3,
             //         options(pure, readonly, nostack)
             //     );
@@ -541,7 +541,7 @@ pub(crate) fn double_impl(modulus_static_prefix: &str) -> proc_macro2::TokenStre
     let m2 = get_temp_with_literal(modulus_static_prefix, 2);
     let m3 = get_temp_with_literal(modulus_static_prefix, 3);
 
-    gen.extend(quote!{
+    gen.extend(quote! {
         #[allow(clippy::too_many_lines)]
         #[inline(always)]
         #[cfg(target_arch = "x86_64")]
@@ -583,7 +583,7 @@ pub(crate) fn double_impl(modulus_static_prefix: &str) -> proc_macro2::TokenStre
                     "cmovc r12, r8",
                     "cmovc r13, r9",
                     "cmovc r14, r10",
-                    "cmovc r15, r11",  
+                    "cmovc r15, r11",
 
                     q0_ptr = sym #m0,
                     q1_ptr = sym #m1,
@@ -591,13 +591,13 @@ pub(crate) fn double_impl(modulus_static_prefix: &str) -> proc_macro2::TokenStre
                     q3_ptr = sym #m3,
                     // end of reduction
                     a_ptr = in(reg) a.as_ptr(),
-                    out("r8") _, 
-                    out("r9") _, 
-                    out("r10") _, 
-                    out("r11") _, 
-                    out("r12") r0, 
-                    out("r13") r1, 
-                    out("r14") r2, 
+                    out("r8") _,
+                    out("r9") _,
+                    out("r10") _,
+                    out("r11") _,
+                    out("r12") r0,
+                    out("r13") r1,
+                    out("r14") r2,
                     out("r15") r3,
                     options(pure, readonly, nostack)
                 );
@@ -631,7 +631,7 @@ pub(crate) fn double_impl(modulus_static_prefix: &str) -> proc_macro2::TokenStre
             //         "cmovnc r12, r8",
             //         "cmovnc r13, r9",
             //         "cmovnc r14, r10",
-            //         "cmovnc r15, r11",  
+            //         "cmovnc r15, r11",
 
             //         q0_ptr = sym #m0,
             //         q1_ptr = sym #m1,
@@ -639,14 +639,14 @@ pub(crate) fn double_impl(modulus_static_prefix: &str) -> proc_macro2::TokenStre
             //         q3_ptr = sym #m3,
             //         // end of reduction
             //         a_ptr = in(reg) a.as_ptr(),
-            //         out("rdx") _, 
-            //         out("r8") _, 
-            //         out("r9") _, 
-            //         out("r10") _, 
-            //         out("r11") _, 
-            //         out("r12") r0, 
-            //         out("r13") r1, 
-            //         out("r14") r2, 
+            //         out("rdx") _,
+            //         out("r8") _,
+            //         out("r9") _,
+            //         out("r10") _,
+            //         out("r11") _,
+            //         out("r12") r0,
+            //         out("r13") r1,
+            //         out("r14") r2,
             //         out("r15") r3,
             //         options(pure, readonly, nostack)
             //     );
@@ -667,7 +667,7 @@ pub(crate) fn sub_impl(modulus_static_prefix: &str) -> proc_macro2::TokenStream 
     let m2 = get_temp_with_literal(modulus_static_prefix, 2);
     let m3 = get_temp_with_literal(modulus_static_prefix, 3);
 
-    gen.extend(quote!{
+    gen.extend(quote! {
         #[allow(clippy::too_many_lines)]
         #[inline(always)]
         #[cfg(target_arch = "x86_64")]
@@ -712,7 +712,7 @@ pub(crate) fn sub_impl(modulus_static_prefix: &str) -> proc_macro2::TokenStream 
                     "cmovnc r12, r8",
                     "cmovnc r13, r9",
                     "cmovnc r14, r10",
-                    "cmovnc r15, r11", 
+                    "cmovnc r15, r11",
 
                     q0_ptr = sym #m0,
                     q1_ptr = sym #m1,
@@ -721,13 +721,13 @@ pub(crate) fn sub_impl(modulus_static_prefix: &str) -> proc_macro2::TokenStream 
                     // end of reduction
                     a_ptr = in(reg) a.as_ptr(),
                     b_ptr = in(reg) b.as_ptr(),
-                    out("r8") _, 
-                    out("r9") _, 
-                    out("r10") _, 
-                    out("r11") _, 
-                    out("r12") r0, 
-                    out("r13") r1, 
-                    out("r14") r2, 
+                    out("r8") _,
+                    out("r9") _,
+                    out("r10") _,
+                    out("r11") _,
+                    out("r12") r0,
+                    out("r13") r1,
+                    out("r14") r2,
                     out("r15") r3,
                     options(pure, readonly, nostack)
                 );

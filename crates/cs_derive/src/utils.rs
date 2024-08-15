@@ -86,10 +86,7 @@ pub(crate) fn fetch_attr_nopanic(name: &str, attrs: &[syn::Attribute]) -> Option
     None
 }
 
-pub(crate) fn has_proper_small_field_parameter<P>(
-    generic_params: &Punctuated<GenericParam, P>,
-    expected: &GenericParam,
-) -> bool {
+pub(crate) fn has_proper_small_field_parameter<P>(generic_params: &Punctuated<GenericParam, P>, expected: &GenericParam) -> bool {
     for p in generic_params.iter() {
         if p == expected {
             return true;
@@ -98,10 +95,7 @@ pub(crate) fn has_proper_small_field_parameter<P>(
     return false;
 }
 
-pub(crate) fn get_type_params_from_generics<P: Clone + Default>(
-    generics: &Generics,
-    punc: &P,
-) -> Punctuated<Ident, P> {
+pub(crate) fn get_type_params_from_generics<P: Clone + Default>(generics: &Generics, punc: &P) -> Punctuated<Ident, P> {
     let type_params = generics.type_params();
     let const_params = generics.const_params();
 
@@ -128,10 +122,7 @@ pub(crate) fn get_witness_ident(original_ident: &Ident) -> Ident {
     syn::parse_str(&witness_ident_str).unwrap()
 }
 
-pub(crate) fn get_type_params_from_generics_output_params<P: Clone + Default>(
-    generics: &Generics,
-    punc: &P,
-) -> Punctuated<GenericParam, P> {
+pub(crate) fn get_type_params_from_generics_output_params<P: Clone + Default>(generics: &Generics, punc: &P) -> Punctuated<GenericParam, P> {
     let type_params = generics.type_params();
     let const_params = generics.const_params();
 

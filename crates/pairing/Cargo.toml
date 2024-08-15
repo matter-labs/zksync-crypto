@@ -10,17 +10,17 @@ authors = [
 license = "MIT/Apache-2.0"
 
 description = "Pairing-friendly elliptic curve library"
-documentation = "https://docs.rs/pairing/"
+documentation = "https://docs.rs/pairing_ce/"
 homepage = "https://github.com/matter-labs/pairing"
 repository = "https://github.com/matter-labs/pairing"
 edition = "2018"
 
 [dependencies]
+ff = { package = "ff_ce", version = "0.14.*", features = ["derive"], path = "../ff" }
+
 rand = "0.4"
 byteorder = "1"
 cfg-if = "1.0"
-ff = {package = "ff_ce", version = "0.14.*", features = ["derive"]}
-# ff = { path = '../ff', package = "ff_ce", features = ["derive"]}
 serde = {version = "1", features = ["derive"]}
 
 [features]

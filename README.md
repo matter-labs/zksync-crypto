@@ -2,10 +2,11 @@
 
 This repository contains the cryptography libraries for ZKsync project.
 
+- [ff](./crates/ff) and [ff_derive](./crates/ff_derive/)
 - [pairing](./crates/pairing/)
 - [bellman](./crates/bellman/)
 - [franklin-crypto](./crates/franklin-crypto/)
-- [boojum](./crates/boojum/)
+- [boojum](./crates/boojum/) and [cs_derive](./crates/cs_derive/)
 - [rescue-poseidon](./crates/rescue-poseidon/)
 - [Solidity verification contract generator](./crates/codegen) and [CLI application](./crates/codegen-bin/).
 

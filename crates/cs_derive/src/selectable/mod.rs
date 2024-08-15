@@ -1,28 +1,18 @@
 use proc_macro2::{Span, TokenStream};
 use proc_macro_error::abort_call_site;
 use quote::quote;
-use syn::{
-    parse_macro_input, punctuated::Punctuated, token::Comma, DeriveInput, GenericParam, Generics,
-    Type, WhereClause,
-};
+use syn::{parse_macro_input, punctuated::Punctuated, token::Comma, DeriveInput, GenericParam, Generics, Type, WhereClause};
 
 use crate::utils::*;
 
-const BOUND_ATTR_NAME: &'static str = "WitnessHookBound";
+const BOUND_ATTR_NAME: &'static str = "CSSelectableBound";
 
-pub(crate) fn derive_witness_hook(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+pub(crate) fn derive_select(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let derived_input = parse_macro_input!(input as DeriveInput);
-    let DeriveInput {
-        ident,
-        generics,
-        data,
-        attrs,
-        ..
-    } = derived_input.clone();
+    let DeriveInput { ident, generics, data, attrs, .. } = derived_input.clone();
 
     let mut struct_initializations = TokenStream::new();
     let mut field_selections = TokenStream::new();
-    let mut field_callings = TokenStream::new();
 
     let extra_bound = if let Some(bound) = fetch_attr_from_list(BOUND_ATTR_NAME, &attrs) {
         let bound = syn::parse_str::<WhereClause>(&bound).expect("must parse bound as WhereClause");
@@ -42,23 +32,15 @@ pub(crate) fn derive_witness_hook(input: proc_macro::TokenStream) -> proc_macro:
                     match field.ty {
                         Type::Array(ref _array_ty) => {
                             let field_select = quote! {
-                                let #field_ident = WitnessHookable::<F>::witness_hook(&self.#field_ident, cs);
+                                let #field_ident = Selectable::<F>::conditionally_select(cs, flag, &a.#field_ident, &b.#field_ident);
                             };
                             field_selections.extend(field_select);
-                            let field_calling = quote! {
-                                let #field_ident = (#field_ident)()?;
-                            };
-                            field_callings.extend(field_calling);
                         }
                         Type::Path(_) => {
                             let field_select = quote! {
-                                let #field_ident = WitnessHookable::<F>::witness_hook(&self.#field_ident, cs);
+                                let #field_ident = Selectable::<F>::conditionally_select(cs, flag, &a.#field_ident, &b.#field_ident);
                             };
                             field_selections.extend(field_select);
-                            let field_calling = quote! {
-                                let #field_ident = (#field_ident)()?;
-                            };
-                            field_callings.extend(field_calling);
                         }
                         _ => abort_call_site!("only array and path types are allowed"),
                     };
@@ -99,24 +81,13 @@ pub(crate) fn derive_witness_hook(input: proc_macro::TokenStream) -> proc_macro:
     };
 
     let expanded = quote! {
-        impl #generics WitnessHookable<F> for #ident<#type_params_of_allocated_struct> #bound {
-            fn witness_hook #function_generics(
-                &self,
-                cs: &CS,
-            ) -> Box<dyn FnOnce() -> Option<Self::Witness> + 'static> {
-                #field_selections;
+        impl #generics Selectable<F> for #ident<#type_params_of_allocated_struct> #bound {
+            fn conditionally_select #function_generics(cs: &mut CS, flag: Boolean<F>, a: &Self, b: &Self) -> Self {
+                #field_selections
 
-                Box::new(
-                    move || {
-                        #field_callings;
-
-                        Some(
-                            Self::Witness {
-                                #struct_initializations
-                            }
-                        )
-                    }
-                )
+                Self {
+                    #struct_initializations
+                }
             }
         }
     };
