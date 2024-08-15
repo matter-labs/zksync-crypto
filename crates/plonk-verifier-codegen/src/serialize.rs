@@ -1,5 +1,7 @@
-use rescue_poseidon::franklin_crypto::bellman::{CurveAffine, Engine, PrimeField, PrimeFieldRepr, pairing::bn256::{Bn256, Fq, Fq2, Fr}};
-
+use rescue_poseidon::franklin_crypto::bellman::{
+    pairing::bn256::{Bn256, Fq, Fq2, Fr},
+    CurveAffine, Engine, PrimeField, PrimeFieldRepr,
+};
 
 use serde::ser::{Serialize, SerializeStruct, Serializer};
 
@@ -29,9 +31,7 @@ impl Serialize for FieldElement {
 
 fn field_element_to_hex<F: PrimeField>(el: &F) -> String {
     let mut buf = [0u8; 32];
-    el.into_repr()
-        .write_be(&mut buf[..])
-        .expect("consume buffer");
+    el.into_repr().write_be(&mut buf[..]).expect("consume buffer");
 
     let mut result = String::from("0x");
     result.push_str(&hex::encode(buf));

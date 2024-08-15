@@ -20,9 +20,8 @@ use std::path::PathBuf;
 use serde::ser::Serialize;
 
 use crate::circuits::{
-    MockCircuitSelectorOptimized, MockCircuitSelectorOptimizedWithLookup,
-    MockCircuitSelectorOptimizedWithLookupAndRescue, MockCircuitSelectorOptimizedWithRescue,
-    MockCircuitWithLookup, MockCircuitWithLookupAndRescue, MockCircuitWithRescue,
+    MockCircuitSelectorOptimized, MockCircuitSelectorOptimizedWithLookup, MockCircuitSelectorOptimizedWithLookupAndRescue, MockCircuitSelectorOptimizedWithRescue, MockCircuitWithLookup,
+    MockCircuitWithLookupAndRescue, MockCircuitWithRescue,
 };
 use crate::{
     circuits::MockCircuit,
@@ -53,19 +52,12 @@ pub enum Encoding {
 // Generally it is okey to use MockCircuit in type definitions
 // and then transmute it to the corresponding type of circuit
 // by inspecting some values
-pub fn generate(
-    vk_path: PathBuf,
-    proof_path: Option<PathBuf>,
-    output_dir: PathBuf,
-    encoding_type: Encoding,
-    mut template_files_path: Vec<&str>,
-) {
+pub fn generate(vk_path: PathBuf, proof_path: Option<PathBuf>, output_dir: PathBuf, encoding_type: Encoding, mut template_files_path: Vec<&str>) {
     let mut reader = std::fs::File::open(vk_path).expect("vk file");
 
     let vk = match encoding_type {
         Encoding::Json => serde_json::from_reader(reader).expect("read vk from json encoded data"),
-        Encoding::Default => VerificationKey::<Bn256, MockCircuit>::read(&mut reader)
-            .expect("read vk from default encoded data"),
+        Encoding::Default => VerificationKey::<Bn256, MockCircuit>::read(&mut reader).expect("read vk from default encoded data"),
     };
 
     // we know from the fact that vk belongs to a
@@ -81,11 +73,7 @@ pub fn generate(
     };
 
     let has_rescue_custom_gate = if vk.gate_selectors_commitments.len() > 1 {
-        assert_eq!(
-            vk.gate_selectors_commitments.len(),
-            2,
-            "only sbox custom gate is supported"
-        );
+        assert_eq!(vk.gate_selectors_commitments.len(), 2, "only sbox custom gate is supported");
         true
     } else {
         assert!(vk.gate_selectors_commitments.is_empty());
@@ -104,30 +92,25 @@ pub fn generate(
         false
     };
 
-    let (num_main_gate_selectors, ab_coeff_idx, constant_coeff_idx, d_next_coeff_idx, ac_coeff_idx) =
-        match main_gate {
-            MainGateType::Standard => (
-                7,
-                Width4MainGateWithDNext::AB_MULTIPLICATION_TERM_COEFF_INDEX,
-                Width4MainGateWithDNext::CONSTANT_TERM_COEFF_INDEX,
-                Width4MainGateWithDNext::D_NEXT_TERM_COEFF_INDEX,
-                None,
-            ),
-            MainGateType::SelectorOptimized => (
-                8,
-                SelectorOptimizedWidth4MainGateWithDNext::AB_MULTIPLICATION_TERM_COEFF_INDEX,
-                SelectorOptimizedWidth4MainGateWithDNext::CONSTANT_TERM_COEFF_INDEX,
-                SelectorOptimizedWidth4MainGateWithDNext::D_NEXT_TERM_COEFF_INDEX,
-                Some(SelectorOptimizedWidth4MainGateWithDNext::AC_MULTIPLICATION_TERM_COEFF_INDEX),
-            ),
-        };
+    let (num_main_gate_selectors, ab_coeff_idx, constant_coeff_idx, d_next_coeff_idx, ac_coeff_idx) = match main_gate {
+        MainGateType::Standard => (
+            7,
+            Width4MainGateWithDNext::AB_MULTIPLICATION_TERM_COEFF_INDEX,
+            Width4MainGateWithDNext::CONSTANT_TERM_COEFF_INDEX,
+            Width4MainGateWithDNext::D_NEXT_TERM_COEFF_INDEX,
+            None,
+        ),
+        MainGateType::SelectorOptimized => (
+            8,
+            SelectorOptimizedWidth4MainGateWithDNext::AB_MULTIPLICATION_TERM_COEFF_INDEX,
+            SelectorOptimizedWidth4MainGateWithDNext::CONSTANT_TERM_COEFF_INDEX,
+            SelectorOptimizedWidth4MainGateWithDNext::D_NEXT_TERM_COEFF_INDEX,
+            Some(SelectorOptimizedWidth4MainGateWithDNext::AC_MULTIPLICATION_TERM_COEFF_INDEX),
+        ),
+    };
 
     let is_selector_optimized_main_gate = ac_coeff_idx.is_some();
-    let ac_coeff_idx = if let Some(coeff) = ac_coeff_idx {
-        coeff
-    } else {
-        0
-    };
+    let ac_coeff_idx = if let Some(coeff) = ac_coeff_idx { coeff } else { 0 };
 
     let vars = TemplateVars {
         has_rescue_custom_gate,
@@ -147,28 +130,15 @@ pub fn generate(
     if let Some(proof_path) = proof_path {
         let mut reader = std::fs::File::open(proof_path).expect("proof file");
         let proof = match encoding_type {
-            Encoding::Json => {
-                serde_json::from_reader(reader).expect("read proof from json encoded data")
-            }
-            Encoding::Default => Proof::<Bn256, MockCircuit>::read(&mut reader)
-                .expect("read proof from default encoded data"),
+            Encoding::Json => serde_json::from_reader(reader).expect("read proof from json encoded data"),
+            Encoding::Default => Proof::<Bn256, MockCircuit>::read(&mut reader).expect("read proof from default encoded data"),
         };
         unsafe { verify_proof(&vk, &proof, main_gate) };
-        render_expected_proofs(
-            proof,
-            proof_template_dir,
-            &output_dir,
-            has_rescue_custom_gate,
-            has_lookup,
-        );
+        render_expected_proofs(proof, proof_template_dir, &output_dir, has_rescue_custom_gate, has_lookup);
     }
 }
 
-unsafe fn verify_proof(
-    vk: &VerificationKey<Bn256, MockCircuit>,
-    proof: &Proof<Bn256, MockCircuit>,
-    main_gate_type: MainGateType,
-) {
+unsafe fn verify_proof(vk: &VerificationKey<Bn256, MockCircuit>, proof: &Proof<Bn256, MockCircuit>, main_gate_type: MainGateType) {
     use rescue_poseidon::franklin_crypto::bellman::plonk::better_better_cs::verifier::verify;
 
     assert_eq!(vk.n, proof.n);
@@ -177,89 +147,40 @@ unsafe fn verify_proof(
     let has_lookup = vk.total_lookup_entries_length > 0;
     assert_eq!(has_lookup, proof.lookup_grand_product_commitment.is_some());
     assert_eq!(has_lookup, proof.lookup_s_poly_commitment.is_some());
-    assert_eq!(
-        has_lookup,
-        proof.lookup_grand_product_opening_at_z_omega.is_some()
-    );
+    assert_eq!(has_lookup, proof.lookup_grand_product_opening_at_z_omega.is_some());
     assert_eq!(has_lookup, proof.lookup_s_poly_opening_at_z_omega.is_some());
-    assert_eq!(
-        has_lookup,
-        proof.lookup_selector_poly_opening_at_z.is_some()
-    );
+    assert_eq!(has_lookup, proof.lookup_selector_poly_opening_at_z.is_some());
     assert_eq!(has_lookup, proof.lookup_t_poly_opening_at_z.is_some());
     assert_eq!(has_lookup, proof.lookup_t_poly_opening_at_z_omega.is_some());
-    assert_eq!(
-        has_lookup,
-        proof.lookup_table_type_poly_opening_at_z.is_some()
-    );
+    assert_eq!(has_lookup, proof.lookup_table_type_poly_opening_at_z.is_some());
 
     let has_custom_gate = vk.gate_selectors_commitments.len() > 0;
 
     let is_valid = match main_gate_type {
         MainGateType::Standard => {
             if !has_lookup && !has_custom_gate {
-                verify::<Bn256, MockCircuit, RollingKeccakTranscript<Fr>>(
-                    std::mem::transmute(vk),
-                    std::mem::transmute(proof),
-                    None,
-                )
-                .unwrap()
+                verify::<Bn256, MockCircuit, RollingKeccakTranscript<Fr>>(std::mem::transmute(vk), std::mem::transmute(proof), None).unwrap()
             } else if has_lookup && !has_custom_gate {
-                verify::<Bn256, MockCircuitWithLookup, RollingKeccakTranscript<Fr>>(
-                    std::mem::transmute(vk),
-                    std::mem::transmute(proof),
-                    None,
-                )
-                .unwrap()
+                verify::<Bn256, MockCircuitWithLookup, RollingKeccakTranscript<Fr>>(std::mem::transmute(vk), std::mem::transmute(proof), None).unwrap()
             } else if has_custom_gate && !has_lookup {
-                verify::<Bn256, MockCircuitWithRescue, RollingKeccakTranscript<Fr>>(
-                    std::mem::transmute(vk),
-                    std::mem::transmute(proof),
-                    None,
-                )
-                .unwrap()
+                verify::<Bn256, MockCircuitWithRescue, RollingKeccakTranscript<Fr>>(std::mem::transmute(vk), std::mem::transmute(proof), None).unwrap()
             } else {
                 assert!(has_lookup);
                 assert!(has_custom_gate);
-                verify::<Bn256, MockCircuitWithLookupAndRescue, RollingKeccakTranscript<Fr>>(
-                    std::mem::transmute(vk),
-                    std::mem::transmute(proof),
-                    None,
-                )
-                .unwrap()
+                verify::<Bn256, MockCircuitWithLookupAndRescue, RollingKeccakTranscript<Fr>>(std::mem::transmute(vk), std::mem::transmute(proof), None).unwrap()
             }
         }
         MainGateType::SelectorOptimized => {
             if !has_lookup && !has_custom_gate {
-                verify::<Bn256, MockCircuitSelectorOptimized, RollingKeccakTranscript<Fr>>(
-                    std::mem::transmute(vk),
-                    std::mem::transmute(proof),
-                    None,
-                )
-                .unwrap()
+                verify::<Bn256, MockCircuitSelectorOptimized, RollingKeccakTranscript<Fr>>(std::mem::transmute(vk), std::mem::transmute(proof), None).unwrap()
             } else if has_lookup && !has_custom_gate {
-                verify::<
-                    Bn256,
-                    MockCircuitSelectorOptimizedWithLookup,
-                    RollingKeccakTranscript<Fr>,
-                >(std::mem::transmute(vk), std::mem::transmute(proof), None)
-                .unwrap()
+                verify::<Bn256, MockCircuitSelectorOptimizedWithLookup, RollingKeccakTranscript<Fr>>(std::mem::transmute(vk), std::mem::transmute(proof), None).unwrap()
             } else if has_custom_gate && !has_lookup {
-                verify::<
-                    Bn256,
-                    MockCircuitSelectorOptimizedWithRescue,
-                    RollingKeccakTranscript<Fr>,
-                >(std::mem::transmute(vk), std::mem::transmute(proof), None)
-                .unwrap()
+                verify::<Bn256, MockCircuitSelectorOptimizedWithRescue, RollingKeccakTranscript<Fr>>(std::mem::transmute(vk), std::mem::transmute(proof), None).unwrap()
             } else {
                 assert!(has_lookup);
                 assert!(has_custom_gate);
-                verify::<
-                    Bn256,
-                    MockCircuitSelectorOptimizedWithLookupAndRescue,
-                    RollingKeccakTranscript<Fr>,
-                >(std::mem::transmute(vk), std::mem::transmute(proof), None)
-                .unwrap()
+                verify::<Bn256, MockCircuitSelectorOptimizedWithLookupAndRescue, RollingKeccakTranscript<Fr>>(std::mem::transmute(vk), std::mem::transmute(proof), None).unwrap()
             }
         }
     };
@@ -267,13 +188,7 @@ unsafe fn verify_proof(
     assert!(is_valid, "proof verification failed at codegen");
 }
 
-fn length_of_serialized_proof_from_vk(
-    vk: &VerificationKey<Bn256, MockCircuit>,
-    has_custom_gate: bool,
-    has_lookup: bool,
-    has_dnext: bool,
-    quotient_degree: usize,
-) -> usize {
+fn length_of_serialized_proof_from_vk(vk: &VerificationKey<Bn256, MockCircuit>, has_custom_gate: bool, has_lookup: bool, has_dnext: bool, quotient_degree: usize) -> usize {
     assert_eq!(vk.state_width, quotient_degree);
 
     let mut num_commitments = vk.state_width; // trace
@@ -325,30 +240,14 @@ fn compute_quotient_degree(state_width: usize, has_custom_gate: bool, has_lookup
 
     let lookup_quotient_degree = if has_lookup { 2 } else { 0 };
 
-    [
-        main_gate_quotient_degree,
-        copy_perm_quotient_degree,
-        lookup_quotient_degree,
-    ]
-    .iter()
-    .cloned()
-    .max()
-    .unwrap()
+    [main_gate_quotient_degree, copy_perm_quotient_degree, lookup_quotient_degree].iter().cloned().max().unwrap()
 }
 
-fn render_verifier(
-    vars: TemplateVars,
-    vk: &VerificationKey<Bn256, MockCircuit>,
-    output_dir: &PathBuf,
-    template_files_path: &[&str],
-) {
+fn render_verifier(vars: TemplateVars, vk: &VerificationKey<Bn256, MockCircuit>, output_dir: &PathBuf, template_files_path: &[&str]) {
     let mut map = MapWrapper::new();
     let mut handlebars = Handlebars::new();
 
-    map.insert(
-        "is_selector_optimized_main_gate",
-        vars.is_selector_optimized_main_gate,
-    );
+    map.insert("is_selector_optimized_main_gate", vars.is_selector_optimized_main_gate);
     // main gate + custom rescue
     map.insert("has_lookup", vars.has_lookup);
     map.insert("has_rescue_custom_gate", vars.has_rescue_custom_gate);
@@ -357,10 +256,7 @@ fn render_verifier(
     map.insert("D_NEXT_TERM_COEFF_INDEX", vars.d_next_coeff_idx);
     assert_eq!(vars.ab_coeff_idx, 4);
     map.insert("MAIN_GATE_AC_COEFF_IDX", vars.ac_coeff_idx);
-    assert_eq!(
-        vk.gate_setup_commitments.len(),
-        vars.num_main_gate_selectors
-    );
+    assert_eq!(vk.gate_setup_commitments.len(), vars.num_main_gate_selectors);
     map.insert("NUM_MAIN_GATE_SELECTORS", vars.num_main_gate_selectors);
     // a, b, c, d
     println!("VK STATE WIDTH {}", vk.state_width);
@@ -368,15 +264,8 @@ fn render_verifier(
     map.insert("DNEXT_INDEX", vk.state_width - 1);
     map.insert("NUM_G2_ELS", vk.g2_elements.len());
     map.insert("NUM_LOOKUP_TABLES", vk.lookup_tables_commitments.len());
-    let quotient_degree =
-        compute_quotient_degree(vk.state_width, vars.has_rescue_custom_gate, vars.has_lookup);
-    let serialized_proof_length = length_of_serialized_proof_from_vk(
-        vk,
-        vars.has_rescue_custom_gate,
-        vars.has_lookup,
-        vars.d_next_coeff_idx > 0,
-        quotient_degree,
-    );
+    let quotient_degree = compute_quotient_degree(vk.state_width, vars.has_rescue_custom_gate, vars.has_lookup);
+    let serialized_proof_length = length_of_serialized_proof_from_vk(vk, vars.has_rescue_custom_gate, vars.has_lookup, vars.d_next_coeff_idx > 0, quotient_degree);
     map.insert("SERIALIZED_PROOF_LENGTH", serialized_proof_length);
     let mut num_commitments_at_z = 2 + 4 + 3;
     let mut num_commitments_at_z_omega = 1 + 2;
@@ -409,10 +298,7 @@ fn render_verifier(
     // assert!(vk.num_inputs > 0);
     let domain: Domain<Fr> = Domain::new_for_size(vk.n as u64).expect("a domain");
     map.insert("domain_size".into(), domain.size);
-    map.insert(
-        "domain_generator".into(),
-        FieldElement::from(domain.generator),
-    );
+    map.insert("domain_generator".into(), FieldElement::from(domain.generator));
 
     // G1Points
     let mut gate_setup_commitments = vec![];
@@ -441,10 +327,7 @@ fn render_verifier(
         map.insert("has_lookup", true);
         map.insert(
             "lookup_selector_commitment",
-            G1Point::from_affine_point(
-                vk.lookup_selector_commitment
-                    .unwrap_or(<Bn256 as Engine>::G1Affine::zero()),
-            ),
+            G1Point::from_affine_point(vk.lookup_selector_commitment.unwrap_or(<Bn256 as Engine>::G1Affine::zero())),
         );
         if vk.total_lookup_entries_length > 0 {
             assert!(vk.lookup_selector_commitment.is_some());
@@ -456,10 +339,7 @@ fn render_verifier(
         map.insert("lookup_tables_commitments", lookup_tables_commitments);
         map.insert(
             "lookup_table_type_commitment",
-            G1Point::from_affine_point(
-                vk.lookup_table_type_commitment
-                    .unwrap_or(<Bn256 as Engine>::G1Affine::zero()),
-            ),
+            G1Point::from_affine_point(vk.lookup_table_type_commitment.unwrap_or(<Bn256 as Engine>::G1Affine::zero())),
         );
     }
 
@@ -486,35 +366,21 @@ fn render_verifier(
         // register template from a file and assign a name to it
         handlebars
             .register_template_file("contract", template_file_path)
-            .expect(&format!(
-                "must read the template at path {}",
-                template_file_path
-            ));
+            .expect(&format!("must read the template at path {}", template_file_path));
 
         let rendered = handlebars.render("contract", &map.inner).unwrap();
 
-        writer
-            .write(rendered.as_bytes())
-            .expect("must write to file");
+        writer.write(rendered.as_bytes()).expect("must write to file");
     }
 }
 
-fn render_expected_proofs(
-    proof: Proof<Bn256, MockCircuit>,
-    proof_template_dir: &str,
-    output_dir: &PathBuf,
-    has_custom_gate: bool,
-    has_lookup: bool,
-) {
+fn render_expected_proofs(proof: Proof<Bn256, MockCircuit>, proof_template_dir: &str, output_dir: &PathBuf, has_custom_gate: bool, has_lookup: bool) {
     let output_file = format!("{}/test/HardcodedValues.sol", output_dir.to_string_lossy());
     let mut writer = std::fs::File::create(output_file).expect("output file");
     let mut handlebars = Handlebars::new();
     handlebars
         .register_template_file("contract", proof_template_dir)
-        .expect(&format!(
-            "must read the template at path {}",
-            proof_template_dir
-        ));
+        .expect(&format!("must read the template at path {}", proof_template_dir));
     let json_proof = transform_proof_into_json(proof);
     let serialized_inputs = json_proof.inputs.clone();
     let serialized_proof = serialize_proof(json_proof.clone(), has_custom_gate, has_lookup);
@@ -532,9 +398,7 @@ fn render_expected_proofs(
     };
     let rendered = handlebars.render("contract", &hardcoded_values).unwrap();
 
-    writer
-        .write(rendered.as_bytes())
-        .expect("must write to file");
+    writer.write(rendered.as_bytes()).expect("must write to file");
 }
 
 #[derive(Clone, Default, serde::Serialize)]
@@ -587,10 +451,7 @@ pub struct JsonProof {
 }
 
 pub fn to_hex<F: PrimeField>(el: &F) -> String {
-    format!(
-        "0x{}",
-        rescue_poseidon::franklin_crypto::bellman::to_hex(el)
-    )
+    format!("0x{}", rescue_poseidon::franklin_crypto::bellman::to_hex(el))
 }
 
 pub fn point_into_xy(point: &G1Affine) -> [String; 2] {
@@ -603,100 +464,34 @@ pub fn transform_proof_into_json(proof: Proof<Bn256, MockCircuit>) -> JsonProof 
     let mut json_proof = JsonProof::default();
     json_proof.n = proof.n;
     json_proof.inputs = proof.inputs.iter().map(|v| to_hex(v)).collect();
-    json_proof.state_polys_commitments = proof
-        .state_polys_commitments
-        .iter()
-        .map(|p| point_into_xy(p))
-        .collect();
+    json_proof.state_polys_commitments = proof.state_polys_commitments.iter().map(|p| point_into_xy(p)).collect();
 
-    json_proof.copy_permutation_grand_product_commitment =
-        point_into_xy(&proof.copy_permutation_grand_product_commitment);
+    json_proof.copy_permutation_grand_product_commitment = point_into_xy(&proof.copy_permutation_grand_product_commitment);
 
-    json_proof.lookup_s_poly_commitment = proof
-        .lookup_s_poly_commitment
-        .as_ref()
-        .map(|p| point_into_xy(p))
-        .unwrap_or_default();
-    json_proof.lookup_grand_product_commitment = proof
-        .lookup_grand_product_commitment
-        .as_ref()
-        .map(|p| point_into_xy(p))
-        .unwrap_or_default();
+    json_proof.lookup_s_poly_commitment = proof.lookup_s_poly_commitment.as_ref().map(|p| point_into_xy(p)).unwrap_or_default();
+    json_proof.lookup_grand_product_commitment = proof.lookup_grand_product_commitment.as_ref().map(|p| point_into_xy(p)).unwrap_or_default();
 
-    json_proof.quotient_poly_parts_commitments = proof
-        .quotient_poly_parts_commitments
-        .iter()
-        .map(|p| point_into_xy(p))
-        .collect();
+    json_proof.quotient_poly_parts_commitments = proof.quotient_poly_parts_commitments.iter().map(|p| point_into_xy(p)).collect();
 
     json_proof.opening_proof_at_z = point_into_xy(&proof.opening_proof_at_z);
     json_proof.opening_proof_at_z_omega = point_into_xy(&proof.opening_proof_at_z_omega);
 
-    json_proof.state_polys_openings_at_z = proof
-        .state_polys_openings_at_z
-        .iter()
-        .map(|v| to_hex(v))
-        .collect();
-    assert_eq!(
-        proof.state_polys_openings_at_dilations.len(),
-        1,
-        "only one dilation is allowed"
-    );
-    json_proof.state_polys_openings_at_z_omega = proof
-        .state_polys_openings_at_dilations
-        .iter()
-        .map(|(_, _, v)| to_hex(v))
-        .collect();
-    json_proof.gate_setup_openings_at_z = proof
-        .gate_setup_openings_at_z
-        .iter()
-        .map(|(_, _, v)| to_hex(v))
-        .collect();
-    json_proof.gate_selectors_openings_at_z = proof
-        .gate_selectors_openings_at_z
-        .iter()
-        .map(|(_, v)| to_hex(v))
-        .collect();
-    json_proof.copy_permutation_polys_openings_at_z = proof
-        .copy_permutation_polys_openings_at_z
-        .iter()
-        .map(|v| to_hex(v))
-        .collect();
-    json_proof.copy_permutation_grand_product_opening_at_z_omega =
-        to_hex(&proof.copy_permutation_grand_product_opening_at_z_omega);
+    json_proof.state_polys_openings_at_z = proof.state_polys_openings_at_z.iter().map(|v| to_hex(v)).collect();
+    assert_eq!(proof.state_polys_openings_at_dilations.len(), 1, "only one dilation is allowed");
+    json_proof.state_polys_openings_at_z_omega = proof.state_polys_openings_at_dilations.iter().map(|(_, _, v)| to_hex(v)).collect();
+    json_proof.gate_setup_openings_at_z = proof.gate_setup_openings_at_z.iter().map(|(_, _, v)| to_hex(v)).collect();
+    json_proof.gate_selectors_openings_at_z = proof.gate_selectors_openings_at_z.iter().map(|(_, v)| to_hex(v)).collect();
+    json_proof.copy_permutation_polys_openings_at_z = proof.copy_permutation_polys_openings_at_z.iter().map(|v| to_hex(v)).collect();
+    json_proof.copy_permutation_grand_product_opening_at_z_omega = to_hex(&proof.copy_permutation_grand_product_opening_at_z_omega);
 
-    json_proof.lookup_s_poly_opening_at_z_omega = proof
-        .lookup_s_poly_opening_at_z_omega
-        .as_ref()
-        .map(|v| to_hex(v))
-        .unwrap_or_default();
+    json_proof.lookup_s_poly_opening_at_z_omega = proof.lookup_s_poly_opening_at_z_omega.as_ref().map(|v| to_hex(v)).unwrap_or_default();
 
-    json_proof.lookup_grand_product_opening_at_z_omega = proof
-        .lookup_grand_product_opening_at_z_omega
-        .as_ref()
-        .map(|v| to_hex(v))
-        .unwrap_or_default();
+    json_proof.lookup_grand_product_opening_at_z_omega = proof.lookup_grand_product_opening_at_z_omega.as_ref().map(|v| to_hex(v)).unwrap_or_default();
 
-    json_proof.lookup_t_poly_opening_at_z = proof
-        .lookup_t_poly_opening_at_z
-        .as_ref()
-        .map(|v| to_hex(v))
-        .unwrap_or_default();
-    json_proof.lookup_t_poly_opening_at_z_omega = proof
-        .lookup_t_poly_opening_at_z_omega
-        .as_ref()
-        .map(|v| to_hex(v))
-        .unwrap_or_default();
-    json_proof.lookup_selector_poly_opening_at_z = proof
-        .lookup_selector_poly_opening_at_z
-        .as_ref()
-        .map(|v| to_hex(v))
-        .unwrap_or_default();
-    json_proof.lookup_table_type_poly_opening_at_z = proof
-        .lookup_table_type_poly_opening_at_z
-        .as_ref()
-        .map(|v| to_hex(v))
-        .unwrap_or_default();
+    json_proof.lookup_t_poly_opening_at_z = proof.lookup_t_poly_opening_at_z.as_ref().map(|v| to_hex(v)).unwrap_or_default();
+    json_proof.lookup_t_poly_opening_at_z_omega = proof.lookup_t_poly_opening_at_z_omega.as_ref().map(|v| to_hex(v)).unwrap_or_default();
+    json_proof.lookup_selector_poly_opening_at_z = proof.lookup_selector_poly_opening_at_z.as_ref().map(|v| to_hex(v)).unwrap_or_default();
+    json_proof.lookup_table_type_poly_opening_at_z = proof.lookup_table_type_poly_opening_at_z.as_ref().map(|v| to_hex(v)).unwrap_or_default();
 
     json_proof.quotient_poly_opening_at_z = to_hex(&proof.quotient_poly_opening_at_z);
     json_proof.linearization_poly_opening_at_z = to_hex(&proof.linearization_poly_opening_at_z);
@@ -731,11 +526,7 @@ pub fn serialize_proof(proof: JsonProof, has_custom_gate: bool, has_lookup: bool
     } = proof;
 
     let mut serialized_proof = vec![];
-    serialized_proof.extend(
-        state_polys_commitments
-            .iter()
-            .flat_map(|inner| inner.iter().cloned()),
-    );
+    serialized_proof.extend(state_polys_commitments.iter().flat_map(|inner| inner.iter().cloned()));
 
     serialized_proof.extend(copy_permutation_grand_product_commitment);
     if has_lookup {
@@ -743,11 +534,7 @@ pub fn serialize_proof(proof: JsonProof, has_custom_gate: bool, has_lookup: bool
         serialized_proof.extend(lookup_grand_product_commitment);
     }
 
-    serialized_proof.extend(
-        quotient_poly_parts_commitments
-            .iter()
-            .flat_map(|inner| inner.iter().cloned()),
-    );
+    serialized_proof.extend(quotient_poly_parts_commitments.iter().flat_map(|inner| inner.iter().cloned()));
 
     serialized_proof.extend(state_polys_openings_at_z);
     serialized_proof.extend(state_polys_openings_at_z_omega);

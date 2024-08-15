@@ -5,10 +5,8 @@ use rescue_poseidon::franklin_crypto::{
         plonk::{
             better_better_cs::{
                 cs::{
-                    ArithmeticTerm, Circuit, ConstraintSystem, Gate, GateInternal,
-                    LookupTableApplication, MainGate, MainGateTerm, PlonkConstraintSystemParams,
-                    PlonkCsWidth4WithNextStepAndCustomGatesParams, PlonkCsWidth4WithNextStepParams,
-                    PolyIdentifier, TrivialAssembly, VerificationKey, Width4MainGateWithDNext,
+                    ArithmeticTerm, Circuit, ConstraintSystem, Gate, GateInternal, LookupTableApplication, MainGate, MainGateTerm, PlonkConstraintSystemParams,
+                    PlonkCsWidth4WithNextStepAndCustomGatesParams, PlonkCsWidth4WithNextStepParams, PolyIdentifier, TrivialAssembly, VerificationKey, Width4MainGateWithDNext,
                 },
                 gates::selector_optimized_with_d_next::SelectorOptimizedWidth4MainGateWithDNext,
                 proof::Proof,
@@ -72,27 +70,22 @@ macro_rules! circuit_inner {
 macro_rules! circuit {
     ($id:ident, $main_gate:ty) => {
         circuit_inner!($id, $main_gate, false, inner_circuit_main_gate_part);
-        paste!{
+        paste! {
             circuit_inner!([<$id WithLookup>], $main_gate, false,  inner_circuit_lookup_part);
         }
-        paste!{
+        paste! {
             circuit_inner!([<$id WithRescue>], $main_gate, true, inner_circuit_rescue_part);
         }
-        paste!{
+        paste! {
             circuit_inner!([<$id WithLookupAndRescue>], $main_gate, true, inner_circuit_lookup_part, inner_circuit_rescue_part);
         }
-    }
+    };
 }
 
 circuit!(MockCircuit, Width4MainGateWithDNext);
-circuit!(
-    MockCircuitSelectorOptimized,
-    SelectorOptimizedWidth4MainGateWithDNext
-);
+circuit!(MockCircuitSelectorOptimized, SelectorOptimizedWidth4MainGateWithDNext);
 
-fn inner_circuit_main_gate_part<E: Engine, CS: ConstraintSystem<E>>(
-    cs: &mut CS,
-) -> Result<(), SynthesisError> {
+fn inner_circuit_main_gate_part<E: Engine, CS: ConstraintSystem<E>>(cs: &mut CS) -> Result<(), SynthesisError> {
     for _ in 0..32 {
         let a = Num::alloc(cs, Some(E::Fr::one()))?;
         let b = Num::alloc(cs, Some(E::Fr::zero()))?;
@@ -119,25 +112,17 @@ fn inner_circuit_main_gate_part<E: Engine, CS: ConstraintSystem<E>>(
 
     let mut term = MainGateTerm::<E>::new();
     term.add_assign(ArithmeticTerm::from_variable(expected));
-    term.sub_assign(ArithmeticTerm::from_variable(
-        actual.get_variable().get_variable(),
-    ));
+    term.sub_assign(ArithmeticTerm::from_variable(actual.get_variable().get_variable()));
     cs.allocate_main_gate(term)?;
 
     Ok(())
 }
 
-fn inner_circuit_lookup_part<E: Engine, CS: ConstraintSystem<E>>(
-    cs: &mut CS,
-) -> Result<(), SynthesisError> {
+fn inner_circuit_lookup_part<E: Engine, CS: ConstraintSystem<E>>(cs: &mut CS) -> Result<(), SynthesisError> {
     // add dummy lookup table queries
     let dummy = CS::get_dummy_variable();
     // need to create a table (any)
-    let columns = vec![
-        PolyIdentifier::VariablesPolynomial(0),
-        PolyIdentifier::VariablesPolynomial(1),
-        PolyIdentifier::VariablesPolynomial(2),
-    ];
+    let columns = vec![PolyIdentifier::VariablesPolynomial(0), PolyIdentifier::VariablesPolynomial(1), PolyIdentifier::VariablesPolynomial(2)];
     let range_table = LookupTableApplication::new_range_table_of_width_3(2, columns.clone())?;
     let _range_table_name = range_table.functional_name();
 
@@ -182,9 +167,7 @@ fn inner_circuit_lookup_part<E: Engine, CS: ConstraintSystem<E>>(
     Ok(())
 }
 
-fn inner_circuit_rescue_part<E: Engine, CS: ConstraintSystem<E>>(
-    cs: &mut CS,
-) -> Result<(), SynthesisError> {
+fn inner_circuit_rescue_part<E: Engine, CS: ConstraintSystem<E>>(cs: &mut CS) -> Result<(), SynthesisError> {
     // make single rescue hash to satisfy gate requirements of declaration
     let mut params = RescueParams::default();
     params.use_custom_gate(CustomGate::QuinticWidth4);
@@ -200,83 +183,32 @@ fn test_create_proof_for_all_circuits() {
     type T = RollingKeccakTranscript<Fr>;
 
     let base_dir = std::env::var("PLONK_VERIFIER_DATA_DIR").expect("output dir for output files");
-    let out_dir = format!(
-        "{}/std",
-        base_dir,
-    );
+    let out_dir = format!("{}/std", base_dir,);
     println!("out dir {}", out_dir);
     println!("Std main gate");
-    create_proof_for_circuit::<_, PlonkCsWidth4WithNextStepParams, Width4MainGateWithDNext, T>(
-        MockCircuit {},
-        &format!("{}/std", &out_dir),
-    );
+    create_proof_for_circuit::<_, PlonkCsWidth4WithNextStepParams, Width4MainGateWithDNext, T>(MockCircuit {}, &format!("{}/std", &out_dir));
     println!("Std main gate with lookup");
-    create_proof_for_circuit::<_, PlonkCsWidth4WithNextStepParams, Width4MainGateWithDNext, T>(
-        MockCircuitWithLookup {},
-        &format!("{}/std_with_lookup", &out_dir),
-    );
+    create_proof_for_circuit::<_, PlonkCsWidth4WithNextStepParams, Width4MainGateWithDNext, T>(MockCircuitWithLookup {}, &format!("{}/std_with_lookup", &out_dir));
     println!("Std main gate with sbox custom gate");
-    create_proof_for_circuit::<
-        _,
-        PlonkCsWidth4WithNextStepAndCustomGatesParams,
-        Width4MainGateWithDNext,
-        T,
-    >(
-        MockCircuitWithRescue {},
-        &format!("{}/std_with_rescue", &out_dir),
-    );
+    create_proof_for_circuit::<_, PlonkCsWidth4WithNextStepAndCustomGatesParams, Width4MainGateWithDNext, T>(MockCircuitWithRescue {}, &format!("{}/std_with_rescue", &out_dir));
     println!("Std main gate with lookup and sbox custom gate");
-    create_proof_for_circuit::<
-        _,
-        PlonkCsWidth4WithNextStepAndCustomGatesParams,
-        Width4MainGateWithDNext,
-        T,
-    >(
-        MockCircuitWithLookupAndRescue {},
-        &format!("{}/std_with_lookup_and_rescue", &out_dir),
-    );
+    create_proof_for_circuit::<_, PlonkCsWidth4WithNextStepAndCustomGatesParams, Width4MainGateWithDNext, T>(MockCircuitWithLookupAndRescue {}, &format!("{}/std_with_lookup_and_rescue", &out_dir));
 
-    let out_dir = format!(
-        "{}/optimized",
-        base_dir,
-    );
+    let out_dir = format!("{}/optimized", base_dir,);
     println!("SelectorOptimized main gate");
-    create_proof_for_circuit::<
-        _,
-        PlonkCsWidth4WithNextStepAndCustomGatesParams,
-        SelectorOptimizedWidth4MainGateWithDNext,
-        T,
-    >(
-        MockCircuitSelectorOptimized {},
-        &format!("{}/optimized", &out_dir),
-    );
+    create_proof_for_circuit::<_, PlonkCsWidth4WithNextStepAndCustomGatesParams, SelectorOptimizedWidth4MainGateWithDNext, T>(MockCircuitSelectorOptimized {}, &format!("{}/optimized", &out_dir));
     println!("SelectorOptimized main gate with lookup");
-    create_proof_for_circuit::<
-        _,
-        PlonkCsWidth4WithNextStepAndCustomGatesParams,
-        SelectorOptimizedWidth4MainGateWithDNext,
-        T,
-    >(
+    create_proof_for_circuit::<_, PlonkCsWidth4WithNextStepAndCustomGatesParams, SelectorOptimizedWidth4MainGateWithDNext, T>(
         MockCircuitSelectorOptimizedWithLookup {},
         &format!("{}/optimized_with_lookup", &out_dir),
     );
     println!("SelectorOptimized main gate with sbox custom gate");
-    create_proof_for_circuit::<
-        _,
-        PlonkCsWidth4WithNextStepAndCustomGatesParams,
-        SelectorOptimizedWidth4MainGateWithDNext,
-        T,
-    >(
+    create_proof_for_circuit::<_, PlonkCsWidth4WithNextStepAndCustomGatesParams, SelectorOptimizedWidth4MainGateWithDNext, T>(
         MockCircuitSelectorOptimizedWithRescue {},
         &format!("{}/optimized_with_rescue", &out_dir),
     );
     println!("SelectorOptimized main gate with lookup and sbox custom gate");
-    create_proof_for_circuit::<
-        _,
-        PlonkCsWidth4WithNextStepAndCustomGatesParams,
-        SelectorOptimizedWidth4MainGateWithDNext,
-        T,
-    >(
+    create_proof_for_circuit::<_, PlonkCsWidth4WithNextStepAndCustomGatesParams, SelectorOptimizedWidth4MainGateWithDNext, T>(
         MockCircuitSelectorOptimizedWithLookupAndRescue {},
         &format!("{}/optimized_with_lookup_and_rescue", &out_dir),
     );
@@ -285,10 +217,8 @@ fn test_create_proof_for_all_circuits() {
 fn init_crs(worker: &Worker, domain_size: usize) -> Crs<Bn256, CrsForMonomialForm> {
     let mon_crs = if let Ok(crs_file_path) = std::env::var("CRS_FILE") {
         println!("using crs file at {crs_file_path}");
-        let crs_file =
-            std::fs::File::open(&crs_file_path).expect(&format!("crs file at {}", crs_file_path));
-        let mon_crs = Crs::<Bn256, CrsForMonomialForm>::read(crs_file)
-            .expect(&format!("read crs file at {}", crs_file_path));
+        let crs_file = std::fs::File::open(&crs_file_path).expect(&format!("crs file at {}", crs_file_path));
+        let mon_crs = Crs::<Bn256, CrsForMonomialForm>::read(crs_file).expect(&format!("read crs file at {}", crs_file_path));
         assert!(domain_size <= mon_crs.g1_bases.len());
 
         mon_crs
@@ -299,12 +229,7 @@ fn init_crs(worker: &Worker, domain_size: usize) -> Crs<Bn256, CrsForMonomialFor
     mon_crs
 }
 
-fn create_proof_for_circuit<
-    C: Circuit<Bn256>,
-    P: PlonkConstraintSystemParams<Bn256> + 'static,
-    MG: MainGate<Bn256>,
-    T: Transcript<Fr>,
->(
+fn create_proof_for_circuit<C: Circuit<Bn256>, P: PlonkConstraintSystemParams<Bn256> + 'static, MG: MainGate<Bn256>, T: Transcript<Fr>>(
     circuit: C,
     out_dir: &str,
 ) -> (VerificationKey<Bn256, C>, Proof<Bn256, C>) {
@@ -325,20 +250,14 @@ fn create_proof_for_circuit<
     let vk = VerificationKey::from_setup(&setup, &worker, &crs).expect("vk from setup");
 
     println!("Generating proof");
-    let proof = assembly
-        .create_proof::<C, T>(&worker, &setup, &crs, None)
-        .expect("proof");
+    let proof = assembly.create_proof::<C, T>(&worker, &setup, &crs, None).expect("proof");
 
     save_proof_and_vk_into_file(&proof, &vk, &out_dir);
 
     (vk, proof)
 }
 
-pub fn save_proof_and_vk_into_file<C: Circuit<Bn256>>(
-    proof: &Proof<Bn256, C>,
-    vk: &VerificationKey<Bn256, C>,
-    output_path: &str,
-) {
+pub fn save_proof_and_vk_into_file<C: Circuit<Bn256>>(proof: &Proof<Bn256, C>, vk: &VerificationKey<Bn256, C>, output_path: &str) {
     let proof_file_path = format!("{}_proof.json", output_path);
     let proof_file = std::fs::File::create(&proof_file_path).unwrap();
     serde_json::to_writer(proof_file, &proof).unwrap();

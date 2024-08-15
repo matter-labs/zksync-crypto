@@ -11,9 +11,7 @@ use ethereum_types::U256;
 use rescue_poseidon::franklin_crypto::bellman::pairing::bn256::{Bn256, Fr};
 use rescue_poseidon::franklin_crypto::bellman::pairing::ff::*;
 use rescue_poseidon::franklin_crypto::bellman::pairing::*;
-use rescue_poseidon::franklin_crypto::bellman::plonk::better_better_cs::cs::{
-    Circuit, VerificationKey,
-};
+use rescue_poseidon::franklin_crypto::bellman::plonk::better_better_cs::cs::{Circuit, VerificationKey};
 use rescue_poseidon::franklin_crypto::bellman::plonk::better_better_cs::proof::Proof;
 
 fn render_scalar_to_hex<F: PrimeField>(el: &F) -> String {
@@ -40,12 +38,7 @@ fn render_g2_affine_to_hex(point: &<bn256::Bn256 as Engine>::G2Affine) -> [Strin
 
     let (x, y) = <<bn256::Bn256 as Engine>::G2Affine as CurveAffine>::into_xy_unchecked(*point);
 
-    [
-        render_scalar_to_hex(&x.c0),
-        render_scalar_to_hex(&x.c1),
-        render_scalar_to_hex(&y.c0),
-        render_scalar_to_hex(&y.c1)
-    ]
+    [render_scalar_to_hex(&x.c0), render_scalar_to_hex(&x.c1), render_scalar_to_hex(&y.c0), render_scalar_to_hex(&y.c1)]
 }
 
 fn serialize_g1_for_ethereum(point: &<bn256::Bn256 as Engine>::G1Affine) -> (U256, U256) {
@@ -70,10 +63,7 @@ fn serialize_g1_for_ethereum(point: &<bn256::Bn256 as Engine>::G1Affine) -> (U25
 
 fn serialize_fe_for_ethereum(field_element: &Fr) -> U256 {
     let mut be_bytes = [0u8; 32];
-    field_element
-        .into_repr()
-        .write_be(&mut be_bytes[..])
-        .expect("get new root BE bytes");
+    field_element.into_repr().write_be(&mut be_bytes[..]).expect("get new root BE bytes");
     U256::from_big_endian(&be_bytes[..])
 }
 
@@ -141,7 +131,6 @@ pub fn serialize_proof<T: Circuit<Bn256>>(proof: &Proof<Bn256, T>) -> (Vec<U256>
     serialized_proof.push(serialize_fe_for_ethereum(&proof.lookup_table_type_poly_opening_at_z.unwrap()));
     serialized_proof.push(serialize_fe_for_ethereum(&proof.quotient_poly_opening_at_z));
     serialized_proof.push(serialize_fe_for_ethereum(&proof.linearization_poly_opening_at_z));
-
 
     let (x, y) = serialize_g1_for_ethereum(&proof.opening_proof_at_z);
     serialized_proof.push(x);
