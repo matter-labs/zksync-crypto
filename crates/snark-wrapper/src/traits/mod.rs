@@ -9,3 +9,4 @@ use crate::franklin_crypto::plonk::circuit::goldilocks::*;
 pub mod circuit;
 pub mod transcript;
 pub mod tree_hasher;
+pub mod pow;

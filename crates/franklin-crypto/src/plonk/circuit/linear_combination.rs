@@ -729,6 +729,25 @@ pub fn enforce_zero_naive<E: Engine, CS: ConstraintSystem<E>>(
     assert!(CS::Params::CAN_ACCESS_NEXT_TRACE_STEP == false);
     assert_eq!(CS::Params::STATE_WIDTH, 3);
 
+    if terms.len() < 2{
+        let (c0, a) = terms[0];
+        let sum = LinearCombination::evaluate_term_value(cs, &[(c0, a)], constant); 
+         let sum = AllocatedNum::alloc(cs, || {
+             sum
+         })?;
+         if let Some(sum) = sum.get_value(){
+            assert!(sum.is_zero());
+         }
+
+        let mut gate_term = MainGateTerm::new();
+        gate_term.add_assign(ArithmeticTerm::from_variable_and_coeff(a, c0));
+        gate_term.add_assign(ArithmeticTerm::Constant(constant));        
+        gate_term.sub_assign(ArithmeticTerm::from_variable(sum.get_variable()));            
+        cs.allocate_main_gate(gate_term)?;   
+
+        return Ok(())
+    }
+
     let mut intermediate_sums = vec![];
     let mut constant = Some(constant);
 
@@ -749,12 +768,12 @@ pub fn enforce_zero_naive<E: Engine, CS: ConstraintSystem<E>>(
 
         let mut gate_term = MainGateTerm::new();
         gate_term.add_assign(ArithmeticTerm::from_variable_and_coeff(*a, *c0));
-        gate_term.add_assign(ArithmeticTerm::from_variable_and_coeff(*b, *c1));
-        gate_term.sub_assign(ArithmeticTerm::from_variable(sum.get_variable()));            
+        gate_term.add_assign(ArithmeticTerm::from_variable_and_coeff(*b, *c1));        
         if let Some(constant) = constant.take(){
-            gate_term.sub_assign(ArithmeticTerm::Constant(constant));
+            gate_term.add_assign(ArithmeticTerm::Constant(constant));
 
         }
+        gate_term.sub_assign(ArithmeticTerm::from_variable(sum.get_variable()));            
         cs.allocate_main_gate(gate_term)?;
 
         intermediate_sums.push(sum);
@@ -782,12 +801,12 @@ pub fn enforce_zero_naive<E: Engine, CS: ConstraintSystem<E>>(
 
         let mut gate_term = MainGateTerm::new();
         gate_term.add_assign(ArithmeticTerm::from_variable_and_coeff(a, c0));
-        gate_term.add_assign(ArithmeticTerm::from_variable_and_coeff(b.get_variable(), c1));
-        gate_term.sub_assign(ArithmeticTerm::from_variable(sum.get_variable()));            
+        gate_term.add_assign(ArithmeticTerm::from_variable_and_coeff(b.get_variable(), c1));        
         if let Some(constant) = constant.take(){
-            gate_term.sub_assign(ArithmeticTerm::Constant(constant));
+            gate_term.add_assign(ArithmeticTerm::Constant(constant));
 
         }
+        gate_term.sub_assign(ArithmeticTerm::from_variable(sum.get_variable()));            
         cs.allocate_main_gate(gate_term)?;        
         
         intermediate_sums.push(sum);

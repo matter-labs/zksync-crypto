@@ -24,9 +24,11 @@ use crate::franklin_crypto::plonk::circuit::goldilocks::GoldilocksField;
 use crate::franklin_crypto::plonk::circuit::linear_combination::LinearCombination;
 use crate::franklin_crypto::plonk::circuit::Assignment;
 
+use crate::implementations::poseidon2::pow::ConcretePoseidon2SpongeGadget;
 use crate::traits::circuit::*;
 use crate::traits::transcript::CircuitGLTranscript;
 use crate::traits::tree_hasher::CircuitGLTreeHasher;
+use crate::traits::*;
 use crate::verifier_structs::allocated_vk::AllocatedVerificationKey;
 use crate::verifier_structs::challenges::{ChallengesHolder, EvaluationsHolder};
 use crate::verifier_structs::constants::ConstantsHolder;
@@ -39,10 +41,11 @@ pub(crate) mod utils;
 
 use first_step::*;
 use fri::*;
+use pow::RecursivePoWRunner;
 use quotient_contributions::*;
 use utils::*;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize)]
 pub struct WrapperCircuit<
     E: Engine,
     HS: TreeHasher<GL, Output = E::Fr>,
@@ -91,7 +94,7 @@ impl<
         let proof: AllocatedProof<E, H> = AllocatedProof::allocate_from_witness(cs, &self.witness, &verifier, &fixed_parameters, &proof_config)?;
 
         // Verify proof
-        let correct = crate::verifier::verify::<E, CS, H, TR>(cs, self.transcript_params.clone(), &proof_config, &proof, &verifier, &fixed_parameters, &vk)?;
+        let correct = crate::verifier::verify::<E, CS, H, TR, ConcretePoseidon2SpongeGadget<E>>(cs, self.transcript_params.clone(), &proof_config, &proof, &verifier, &fixed_parameters, &vk)?;
         Boolean::enforce_equal(cs, &correct, &Boolean::constant(true))?;
 
         // Aggregate PI
@@ -101,13 +104,57 @@ impl<
     }
 }
 
-pub fn verify<
+#[derive(Clone)]
+pub struct WrapperCircuitWidth3NoLookupNoCustomGate<
     E: Engine,
-    CS: ConstraintSystem<E> + 'static,
-    H: CircuitGLTreeHasher<E>,
+    HS: TreeHasher<GL, Output = E::Fr>,
+    H: CircuitGLTreeHasher<E, CircuitOutput = Num<E>, NonCircuitSimulator = HS>,
     TR: CircuitGLTranscript<E, CircuitCompatibleCap = H::CircuitOutput>,
-    // TODO POW
->(
+    PWF: ProofWrapperFunction<E>,
+> {
+    pub witness: Option<Proof<GL, HS, GLExt2>>,
+    pub vk: VerificationKey<GL, H::NonCircuitSimulator>,
+    pub fixed_parameters: VerificationKeyCircuitGeometry,
+    pub transcript_params: TR::TranscriptParameters,
+    pub wrapper_function: PWF,
+}
+
+impl<
+        E: Engine,
+        HS: TreeHasher<GL, Output = E::Fr>,
+        H: CircuitGLTreeHasher<E, CircuitOutput = Num<E>, NonCircuitSimulator = HS>,
+        TR: CircuitGLTranscript<E, CircuitCompatibleCap = H::CircuitOutput>,
+        PWF: ProofWrapperFunction<E>,
+    > Circuit<E> for WrapperCircuitWidth3NoLookupNoCustomGate<E, HS, H, TR, PWF>
+{
+    type MainGate = rescue_poseidon::franklin_crypto::bellman::plonk::better_better_cs::gates::naive_main_gate::NaiveMainGate;
+
+    fn declare_used_gates() -> Result<Vec<Box<dyn GateInternal<E>>>, SynthesisError> {
+        Ok(vec![Self::MainGate::default().into_internal()])
+    }
+
+    fn synthesize<CS: ConstraintSystem<E> + 'static>(&self, cs: &mut CS) -> Result<(), SynthesisError> {
+        // Prepare for proof verification
+        let verifier_builder = self.wrapper_function.builder_for_wrapper();
+        let verifier = verifier_builder.create_wrapper_verifier(cs);
+
+        let proof_config = self.wrapper_function.proof_config_for_compression_step();
+        let fixed_parameters = self.fixed_parameters.clone();
+
+        let vk = AllocatedVerificationKey::<E, H>::allocate_constant(&self.vk, &fixed_parameters);
+        let proof: AllocatedProof<E, H> = AllocatedProof::allocate_from_witness(cs, &self.witness, &verifier, &fixed_parameters, &proof_config)?;
+        // Verify proof
+        let correct = crate::verifier::verify::<E, CS, H, TR, ConcretePoseidon2SpongeGadget<E>>(cs, self.transcript_params.clone(), &proof_config, &proof, &verifier, &fixed_parameters, &vk)?;
+        Boolean::enforce_equal(cs, &correct, &Boolean::constant(true))?;
+
+        // Aggregate PI
+        let _pi = aggregate_public_inputs(cs, &proof.public_inputs)?;
+
+        Ok(())
+    }
+}
+
+pub fn verify<E: Engine, CS: ConstraintSystem<E> + 'static, H: CircuitGLTreeHasher<E>, TR: CircuitGLTranscript<E, CircuitCompatibleCap = H::CircuitOutput>, POW: RecursivePoWRunner<E>>(
     cs: &mut CS,
     transcript_params: TR::TranscriptParameters,
     proof_config: &ProofConfig,
@@ -128,8 +175,7 @@ pub fn verify<
     let public_input_opening_tuples = verify_first_step(cs, proof, vk, &mut challenges, &mut transcript, verifier, fixed_parameters, &constants)?;
 
     validity_flags.extend(check_quotient_contributions_in_z(cs, proof, &challenges, verifier, fixed_parameters, &constants)?);
-
-    validity_flags.extend(verify_fri_part::<E, CS, H, TR>(
+    validity_flags.extend(verify_fri_part::<E, CS, H, TR, POW>(
         cs,
         proof,
         vk,
@@ -155,10 +201,9 @@ fn aggregate_public_inputs<E: Engine, CS: ConstraintSystem<E>>(cs: &mut CS, publ
     );
 
     // Firstly we check that public inputs have correct size
-    use crate::franklin_crypto::plonk::circuit::bigint_new::enforce_range_check_using_bitop_table;
+    use rescue_poseidon::franklin_crypto::plonk::circuit::goldilocks::range_check_for_num_bits;
     for pi in public_inputs.iter() {
-        let table = cs.get_table(BITWISE_LOGICAL_OPS_TABLE_NAME).unwrap();
-        enforce_range_check_using_bitop_table(cs, &pi.into_num().get_variable(), chunk_bit_size, table, false)?;
+        range_check_for_num_bits(cs, &pi.into_num(), 64)?;
     }
 
     // compute aggregated pi value

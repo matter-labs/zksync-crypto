@@ -955,13 +955,14 @@ impl<E: Engine> Num<E> {
         // so the constraints would be
         // cond(a-c) + (1-cond)*(b-c)  = 0
         // cond*(a - b) + b - c = 0
+        // cond*(b - a) + a - c = 0
 
         let mut minus_one = E::Fr::one();
         minus_one.negate();
 
         match (a, b) {
             (Num::Variable(a_var), Num::Variable(b_var)) => {
-                let c = AllocatedNum::conditionally_select_with_naive_gate(cs, a_var, b_var, &condition)?;
+                let c = AllocatedNum::conditionally_select_for_naive_main_gate(cs, a_var, b_var, &condition)?;
                 return Ok(Num::Variable(c));
             }
             (Num::Variable(a_var), Num::Constant(b_const)) => {
@@ -1033,8 +1034,8 @@ impl<E: Engine> Num<E> {
                         return Ok(Num::Variable(c));
                     }
                     Boolean::Not(cond) => {
-                        // cond*(a_const - b_const) + a_const - c_const = 0;
-                        let c = AllocatedNum::alloc(cs, || if *cond.get_value().get()? { Ok(*a_const) } else { Ok(*b_const) })?;
+                        // cond*(b_const - a_const) + a_const - c_const = 0;
+                        let c = AllocatedNum::alloc(cs, || if *cond.get_value().get()? { Ok(*b_const) } else { Ok(*a_const) })?;
 
                         let mut term = MainGateTerm::<E>::new();
                         term.sub_assign(ArithmeticTerm::from_variable_and_coeff(cond.get_variable(), a_minus_b.clone()));
@@ -2095,7 +2096,7 @@ impl<E: Engine> AllocatedNum<E> {
     /// Takes two allocated numbers (a, b) and returns
     /// (b, a) if the condition is true, and (a, b)
     /// otherwise in case of a width3 cs.
-    fn conditionally_select_with_naive_gate<CS>(cs: &mut CS, a: &Self, b: &Self, condition: &Boolean) -> Result<Self, SynthesisError>
+    fn conditionally_select_for_naive_main_gate<CS>(cs: &mut CS, a: &Self, b: &Self, condition: &Boolean) -> Result<Self, SynthesisError>
     where
         CS: ConstraintSystem<E>,
     {
@@ -2111,9 +2112,6 @@ impl<E: Engine> AllocatedNum<E> {
         // so the constraints would be        
         // cond*(a - b) + b - c = 0
         // cond*(b - a) + a - c = 0
-
-        let mut minus_one = E::Fr::one();
-        minus_one.negate();
 
         let a_minus_b = a.sub(cs, &b)?;
 
@@ -2162,7 +2160,7 @@ impl<E: Engine> AllocatedNum<E> {
         }
 
         if is_naive_main_gate::<E, CS>() {
-            return Self::conditionally_select_with_naive_gate(cs, a, b, condition);
+            return Self::conditionally_select_for_naive_main_gate(cs, a, b, condition);
         }
 
         if is_selector_specialized_gate::<E, CS>() {
