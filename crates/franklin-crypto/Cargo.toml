@@ -4,7 +4,7 @@ description = "Cryptographic library for SNARK gadgets"
 homepage = "https://github.com/matter-labs/franklin-crypto"
 license = "MIT/Apache-2.0"
 name = "franklin-crypto"
-version = "0.2.2"
+version.workspace = true
 edition = "2015"
 
 [lib]
@@ -17,8 +17,8 @@ plonk = ["bellman/plonk"]
 allocator = ["bellman/allocator"]
 
 [dependencies]
-boojum = { version = "=0.2.2", path = "../boojum" }
-bellman = { package = "bellman_ce", version = "=0.8.0", path = "../bellman" }
+boojum.workspace = true
+bellman.workspace = true
 
 derivative = "2"
 rand = "0.4"

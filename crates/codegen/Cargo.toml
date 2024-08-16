@@ -1,6 +1,6 @@
 [package]
 name = "zksync_solidity_vk_codegen"
-version = "0.1.0"
+version.workspace = true
 edition = "2018"
 license = "MIT OR Apache-2.0"
 description = "ZKsync solidity codegen for vks"
@@ -8,8 +8,8 @@ description = "ZKsync solidity codegen for vks"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-franklin-crypto = { version = "=0.2.2", features = ["plonk"], path = "../franklin-crypto" }
-rescue_poseidon = { version = "=0.5.2", path = "../rescue-poseidon" }
+franklin-crypto = { workspace = true, features = ["plonk"] }
+rescue_poseidon.workspace = true
 
 handlebars = "3.5.5"
 serde = "1"
