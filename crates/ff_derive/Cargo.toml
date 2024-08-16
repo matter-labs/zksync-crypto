@@ -1,6 +1,6 @@
 [package]
 name = "ff_derive_ce"
-version = "0.11.2"
+version.workspace = true
 authors = ["Sean Bowe <ewillbefull@gmail.com>",    
     "Alex Gluchowski <alex@gluchowski.net>",
     "Alex Vlasov <alex.m.vlasov@gmail.com>"]

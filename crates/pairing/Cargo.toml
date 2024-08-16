@@ -1,6 +1,6 @@
 [package]
 name = "pairing_ce"
-version = "0.28.6"
+version.workspace = true
 authors = [
     "Sean Bowe <ewillbefull@gmail.com>",
     "Jack Grigg <jack@z.cash>",
@@ -16,7 +16,7 @@ repository = "https://github.com/matter-labs/pairing"
 edition = "2018"
 
 [dependencies]
-ff = { package = "ff_ce", version = "0.14.*", features = ["derive"], path = "../ff" }
+ff = { workspace = true, features = ["derive"] }
 
 rand = "0.4"
 byteorder = "1"
