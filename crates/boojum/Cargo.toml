@@ -1,6 +1,6 @@
 [package]
 name = "boojum"
-version = "0.2.2"
+version.workspace = true
 edition = "2021"
 authors = ["The Matter Labs Team <hello@matterlabs.dev>"]
 homepage = "https://zksync.io/"
@@ -12,8 +12,8 @@ description = "Boojum cryptographic library"
 exclude = [ "profiling-target" ]
 
 [dependencies]
-cs_derive = { version = "=0.2.2", path = "../cs_derive" }
-pairing = { package = "pairing_ce", version = "=0.28.6", path = "../pairing" }
+cs_derive.workspace = true
+pairing.workspace = true
 
 derivative = "2"
 serde = { version = "1", features = ["derive"] }

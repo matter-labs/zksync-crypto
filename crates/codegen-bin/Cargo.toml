@@ -1,6 +1,6 @@
 [package]
 name = "codegen-bin"
-version = "0.1.0"
+version.workspace = true
 edition = "2018"
 license = "MIT OR Apache-2.0"
 publish = false
@@ -8,7 +8,7 @@ publish = false
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-zksync_solidity_vk_codegen = { path = "../codegen" }
+zksync_solidity_vk_codegen.workspace = true
 structopt = "0.3"
 dialoguer = "0.8"
 

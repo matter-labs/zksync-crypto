@@ -2,7 +2,7 @@
 name = "rescue_poseidon"
 description = "Sponge construction based Algebraic Hash Functions"
 keywords = ["poseidon", "rescue", "sponge"]
-version = "0.5.2"
+version.workspace = true
 authors = ["Sait Imamoglu <si@matterlabs.dev>"]
 edition = "2021"
 license = "MIT OR Apache-2.0"
@@ -10,7 +10,7 @@ license = "MIT OR Apache-2.0"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-franklin_crypto = { package = "franklin-crypto", features = ["plonk"], version = "=0.2.2", path = "../franklin-crypto" }
+franklin-crypto = { workspace = true, features = ["plonk"]  }
 
 derivative = "2"
 typemap_rev = "0.3"
