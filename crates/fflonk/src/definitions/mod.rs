@@ -37,8 +37,7 @@ impl<F: PrimeField> FirstRoundEvaluations<F> {
     }
 
     pub fn requires_opening_at_shifted_point(&self) -> bool {
-        self.trace_and_gate_evaluations
-            .requires_opening_at_shifted_point()
+        self.trace_and_gate_evaluations.requires_opening_at_shifted_point()
     }
 
     pub fn interpolation_size(&self) -> usize {
@@ -46,18 +45,8 @@ impl<F: PrimeField> FirstRoundEvaluations<F> {
     }
 }
 
-pub fn evaluate_first_round_polynomials<E: Engine>(
-    worker: &Worker,
-    monomials_storage: &FirstRoundMonomials<E>,
-    z: E::Fr,
-    z_omega: E::Fr,
-) -> FirstRoundEvaluations<E::Fr> {
-    let trace_and_gates = evaluate_trace_and_gate_monomials(
-        worker,
-        &monomials_storage.trace_and_gate_monomials,
-        z,
-        z_omega,
-    );
+pub fn evaluate_first_round_polynomials<E: Engine>(worker: &Worker, monomials_storage: &FirstRoundMonomials<E>, z: E::Fr, z_omega: E::Fr) -> FirstRoundEvaluations<E::Fr> {
+    let trace_and_gates = evaluate_trace_and_gate_monomials(worker, &monomials_storage.trace_and_gate_monomials, z, z_omega);
 
     FirstRoundEvaluations {
         trace_and_gate_evaluations: trace_and_gates,
@@ -72,9 +61,7 @@ pub struct SecondRoundMonomials<F: PrimeField> {
 impl<F: PrimeField> SecondRoundMonomials<F> {
     pub fn flatten(&self) -> Vec<&Polynomial<F, Coefficients>> {
         let mut flattened = self.copy_permutation.flatten();
-        self.lookup
-            .as_ref()
-            .map(|lookup| flattened.extend(lookup.flatten()));
+        self.lookup.as_ref().map(|lookup| flattened.extend(lookup.flatten()));
 
         flattened
     }
@@ -107,21 +94,12 @@ impl<F: PrimeField> SecondRoundEvaluations<F> {
     }
 }
 
-pub fn evaluate_second_round_polynomials<F: PrimeField>(
-    worker: &Worker,
-    monomials_storage: &SecondRoundMonomials<F>,
-    z: F,
-    z_omega: F,
-) -> SecondRoundEvaluations<F> {
-    let copy_permutation = evaluate_copy_permutation_monomials(
-        worker,
-        &monomials_storage.copy_permutation,
-        z,
-        z_omega,
-    );
-    let lookup = monomials_storage.lookup.as_ref().map(|lookup_evaluations| {
-        evaluate_lookup_monomials(worker, lookup_evaluations, z, z_omega)
-    });
+pub fn evaluate_second_round_polynomials<F: PrimeField>(worker: &Worker, monomials_storage: &SecondRoundMonomials<F>, z: F, z_omega: F) -> SecondRoundEvaluations<F> {
+    let copy_permutation = evaluate_copy_permutation_monomials(worker, &monomials_storage.copy_permutation, z, z_omega);
+    let lookup = monomials_storage
+        .lookup
+        .as_ref()
+        .map(|lookup_evaluations| evaluate_lookup_monomials(worker, lookup_evaluations, z, z_omega));
 
     SecondRoundEvaluations {
         copy_permutation_evaluations: copy_permutation,

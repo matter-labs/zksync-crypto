@@ -706,8 +706,289 @@ pub fn compute_opening_points<F: PrimeField>(
     (h0, h1, (h2, h2_shifted.expect("h2 shifted")))
 }
 
-pub fn evaluate_r_polys_at_point_with_flattened_evals_and_precomputed_basis<F: PrimeField>(
+#[derive(Default, Debug)]
+pub struct RecomptuedQuotientEvaluations<F: PrimeField> {
+    pub main_gate_quotient_at_z: F,
+    pub custom_gate_quotient_at_z: Option<F>,
+    pub copy_permutation_first_quotient_at_z: F,
+    pub copy_permutation_second_quotient_at_z: F,
+    pub lookup_first_quotient_at_z: Option<F>,
+    pub lookup_second_quotient_at_z: Option<F>,
+    pub lookup_third_quotient_at_z: Option<F>,
+}
+
+impl<F: PrimeField> RecomptuedQuotientEvaluations<F> {
+    pub fn flatten(&self) -> Vec<F> {
+        let mut flattened = vec![self.main_gate_quotient_at_z];
+        self.custom_gate_quotient_at_z.map(|v| flattened.push(v));
+        flattened.push(self.copy_permutation_first_quotient_at_z);
+        flattened.push(self.copy_permutation_second_quotient_at_z);
+        self.lookup_first_quotient_at_z.map(|v| flattened.push(v));
+        self.lookup_second_quotient_at_z.map(|v| flattened.push(v));
+        self.lookup_third_quotient_at_z.map(|v| flattened.push(v));
+        debug_assert_eq!(flattened.len(), 3);
+
+        flattened
+    }
+}
+
+fn vanishing_inv_at_z<F: PrimeField>(z: F, domain_size: usize) -> F {
+    let vanishing_at_z = evaluate_vanishing_for_size(&z, domain_size as u64);
+
+    vanishing_at_z.inverse().unwrap()
+}
+
+pub fn recompute_quotients_from_evaluations<F: PrimeField>(
     all_evaluations: &[F],
+    evaluation_offsets: &EvaluationOffsets,
+    public_inputs: &[F],
+    z: F,
+    domain_size: usize,
+    main_gate: &'static str,
+    beta_for_copy_permutation: F,
+    gamma_for_copy_permutation: F,
+    non_residues: &[F],
+    num_state_polys: usize,
+    custom_gate_name: Option<&'static str>,
+    eta_for_lookup: Option<F>,
+    beta_for_lookup: Option<F>,
+    gamma_for_lookup: Option<F>,
+) -> RecomptuedQuotientEvaluations<F> {
+    let mut recomputed_quotients = RecomptuedQuotientEvaluations::default();
+
+    recomputed_quotients.main_gate_quotient_at_z = recompute_main_gate_quotient_from_evaluations(all_evaluations, evaluation_offsets, public_inputs, z, domain_size, main_gate);
+    if let Some(custom_gate_name) = custom_gate_name {
+        recomputed_quotients.custom_gate_quotient_at_z = Some(recompute_custom_gate_quotient_from_evaluations(&all_evaluations, evaluation_offsets, z, domain_size, custom_gate_name));
+    }
+
+    let (copy_perm_first_quotient, copy_perm_second_quotient) = recompute_copy_perm_quotients_from_evaluations(
+        all_evaluations,
+        evaluation_offsets,
+        beta_for_copy_permutation,
+        gamma_for_copy_permutation,
+        non_residues,
+        z,
+        num_state_polys,
+        domain_size,
+    );
+    recomputed_quotients.copy_permutation_first_quotient_at_z = copy_perm_first_quotient;
+    recomputed_quotients.copy_permutation_second_quotient_at_z = copy_perm_second_quotient;
+
+    if let (Some(beta_for_lookup), Some(gamma_for_lookup), Some(eta_for_lookup)) = (beta_for_lookup, gamma_for_lookup, eta_for_lookup) {
+        let (lookup_first_quotient, lookup_second_quotient, lookup_third_quotient) =
+            recompute_lookup_quotients_from_evaluations(all_evaluations, evaluation_offsets, eta_for_lookup, beta_for_lookup, gamma_for_lookup, z, domain_size, num_state_polys);
+        recomputed_quotients.lookup_first_quotient_at_z = Some(lookup_first_quotient);
+        recomputed_quotients.lookup_second_quotient_at_z = Some(lookup_second_quotient);
+        recomputed_quotients.lookup_third_quotient_at_z = Some(lookup_third_quotient);
+    }
+
+    recomputed_quotients
+}
+
+fn recompute_main_gate_quotient_from_evaluations<F: PrimeField>(
+    evaluations: &[F],
+    evaluations_offsets: &EvaluationOffsets,
+    public_inputs: &[F],
+    z: F,
+    domain_size: usize,
+    main_gate: &'static str,
+) -> F {
+    let vanishing_at_z_inv = vanishing_inv_at_z(z, domain_size);
+
+    let mut public_inputs_at_z = F::zero();
+    let domain = Domain::<F>::new_for_size(domain_size as u64).unwrap();
+    for (poly_idx, input) in public_inputs.iter().enumerate() {
+        let mut lagrange_at_z = evaluate_lagrange_poly_at_point(poly_idx, &domain, z).unwrap();
+        lagrange_at_z.mul_assign(input);
+        public_inputs_at_z.add_assign(&lagrange_at_z);
+    }
+
+    let mut main_gate_rhs = compute_quotient_of_main_gate_at_z_flattened(main_gate, evaluations, public_inputs_at_z, evaluations_offsets);
+    main_gate_rhs.mul_assign(&vanishing_at_z_inv);
+
+    main_gate_rhs
+}
+
+fn recompute_custom_gate_quotient_from_evaluations<F: PrimeField>(evaluations: &[F], evaluation_offsets: &EvaluationOffsets, z: F, domain_size: usize, custom_gate_name: &'static str) -> F {
+    let vanishing_at_z_inv = vanishing_inv_at_z(z, domain_size);
+
+    let mut custom_gate_rhs = compute_quotient_of_custom_gate_at_z_flattened(custom_gate_name, evaluations, &evaluation_offsets);
+    custom_gate_rhs.mul_assign(&vanishing_at_z_inv);
+
+    custom_gate_rhs
+}
+
+fn recompute_copy_perm_quotients_from_evaluations<F: PrimeField>(
+    evaluations: &[F],
+    evaluations_offsets: &EvaluationOffsets,
+    beta_for_copy_permutation: F,
+    gamma_for_copy_permutation: F,
+    non_residues: &[F],
+    z: F,
+    num_state_polys: usize,
+    domain_size: usize,
+) -> (F, F) {
+    let l_0_at_z = evaluate_l0_at_point(domain_size as u64, z).unwrap();
+    let vanishing_at_z_inv = vanishing_inv_at_z(z, domain_size);
+    // we have only 2 main gate types where both has the same number of variables
+    // z(X)(A + beta*X + gamma)(B + beta*k_1*X + gamma)(C + beta*K_2*X + gamma)(D + beta*K_3*X + gamma) -
+    // - (A + beta*perm_a(X) + gamma)(B + beta*perm_b(X) + gamma)(C + beta*perm_c(X) + gamma)*(D + beta*perm_d(X) + gamma)*Z(X*Omega)== 0
+    let mut copy_permutation_first_quotient_rhs_num_part = z;
+    copy_permutation_first_quotient_rhs_num_part.mul_assign(&beta_for_copy_permutation);
+    copy_permutation_first_quotient_rhs_num_part.add_assign(&gamma_for_copy_permutation);
+    copy_permutation_first_quotient_rhs_num_part.add_assign(&evaluations[evaluations_offsets.trace.trace_evaluations_at_z]);
+
+    assert_eq!(non_residues.len() + 1, num_state_polys);
+    for (non_residue, state_poly) in non_residues.iter().zip(
+        evaluations[evaluations_offsets.trace.trace_evaluations_at_z..evaluations_offsets.trace.trace_evaluations_at_z + num_state_polys]
+            .iter()
+            .skip(1),
+    ) {
+        let mut tmp = z;
+        tmp.mul_assign(&non_residue);
+        tmp.mul_assign(&beta_for_copy_permutation);
+        tmp.add_assign(&gamma_for_copy_permutation);
+        tmp.add_assign(state_poly);
+        copy_permutation_first_quotient_rhs_num_part.mul_assign(&tmp);
+    }
+    copy_permutation_first_quotient_rhs_num_part.mul_assign(&evaluations[evaluations_offsets.copy_permutation.grand_product_at_z]);
+
+    let mut copy_permutation_first_quotient_rhs_denum_part = evaluations[evaluations_offsets.copy_permutation.grand_product_at_z_omega];
+    for (permutation, state_poly) in evaluations[evaluations_offsets.setup.permutations_at_z..evaluations_offsets.setup.permutations_at_z + num_state_polys]
+        .iter()
+        .zip(evaluations[evaluations_offsets.trace.trace_evaluations_at_z..evaluations_offsets.trace.trace_evaluations_at_z + num_state_polys].iter())
+    {
+        let mut tmp = beta_for_copy_permutation;
+        tmp.mul_assign(&permutation);
+        tmp.add_assign(&gamma_for_copy_permutation);
+        tmp.add_assign(state_poly);
+        copy_permutation_first_quotient_rhs_denum_part.mul_assign(&tmp);
+    }
+
+    let mut copy_permutation_first_quotient_rhs = copy_permutation_first_quotient_rhs_num_part;
+    copy_permutation_first_quotient_rhs.sub_assign(&copy_permutation_first_quotient_rhs_denum_part);
+    copy_permutation_first_quotient_rhs.mul_assign(&vanishing_at_z_inv);
+    // recomputed_quotients.copy_permutation_firt_quotient_at_z = copy_permutation_first_quotient_rhs;
+
+    // (Z(x) - 1) * L_{0} == 0
+    let mut copy_permutation_second_quotient_rhs = evaluations[evaluations_offsets.copy_permutation.grand_product_at_z];
+    copy_permutation_second_quotient_rhs.sub_assign(&F::one());
+    copy_permutation_second_quotient_rhs.mul_assign(&l_0_at_z);
+    copy_permutation_second_quotient_rhs.mul_assign(&vanishing_at_z_inv);
+    // recomputed_quotients.copy_permutation_second_quotient_at_z = copy_permutation_second_quotient_rhs;
+
+    (copy_permutation_first_quotient_rhs, copy_permutation_second_quotient_rhs)
+}
+
+fn recompute_lookup_quotients_from_evaluations<F: PrimeField>(
+    evaluations: &[F],
+    evaluation_offsets: &EvaluationOffsets,
+    eta_for_lookup: F,
+    beta_for_lookup: F,
+    gamma_for_lookup: F,
+    z: F,
+    domain_size: usize,
+    num_state_polys: usize,
+) -> (F, F, F) {
+    let vanishing_at_z_inv = vanishing_inv_at_z(z, domain_size);
+    let mut beta_gamma = beta_for_lookup;
+    beta_gamma.add_assign(&F::one());
+    beta_gamma.mul_assign(&gamma_for_lookup);
+    // lookup identities
+    // ( Z(x*omega)*(\gamma*(1 + \beta) + s(x) + \beta * s(x*omega))) -
+    // - Z(x) * (\beta + 1) * (\gamma + f(x)) * (\gamma(1 + \beta) + t(x) + \beta * t(x*omega)) )*(X - omega^{n-1})
+    // LHS
+    // f(z) = f0(z) + z*f1(z)
+    let lookup_offsets = evaluation_offsets.lookup.as_ref().expect("lookup offsets");
+
+    // RHS
+    let mut lookup_first_quotient_rhs_denum_part = evaluations[lookup_offsets.s_poly_at_z_omega];
+    lookup_first_quotient_rhs_denum_part.mul_assign(&beta_for_lookup);
+    lookup_first_quotient_rhs_denum_part.add_assign(&evaluations[lookup_offsets.s_poly_at_z]);
+    lookup_first_quotient_rhs_denum_part.add_assign(&beta_gamma);
+    lookup_first_quotient_rhs_denum_part.mul_assign(&evaluations[lookup_offsets.grand_product_at_z_omega]);
+    // Prover doesn't open aggregated columns of table rather it opens each of them
+    // seperately because they are committed in the first round
+    // and there is no reandomness.
+
+    // aggregate witnesses a + eta*b + eta^2*c + eta^3*table_type
+    // expands into (((table_type*eta + c)*eta  + b)*eta + a)
+    let mut aggregated_lookup_f_at_z = evaluations[evaluation_offsets.setup.lookup_table_type_at_z];
+    for col in evaluations[evaluation_offsets.trace.trace_evaluations_at_z..evaluation_offsets.trace.trace_evaluations_at_z + num_state_polys]
+        .iter()
+        .take(num_state_polys - 1)
+        .rev()
+    {
+        aggregated_lookup_f_at_z.mul_assign(&eta_for_lookup);
+        aggregated_lookup_f_at_z.add_assign(col);
+    }
+    aggregated_lookup_f_at_z.mul_assign(&evaluations[evaluation_offsets.setup.lookup_selector_at_z]);
+    // col0 + eta * col1 + eta^2*col2 + eta^3*table_type
+    let mut aggregated_lookup_table_cols_at_z = evaluations[evaluation_offsets.setup.lookup_tables_at_z + 3];
+    let mut aggregated_lookup_table_cols_at_z_omega = evaluations[evaluation_offsets.setup.lookup_tables_at_z_omega + 3];
+    for (at_z, at_z_omega) in evaluations[evaluation_offsets.setup.lookup_tables_at_z..evaluation_offsets.setup.lookup_tables_at_z + 3]
+        .iter()
+        .take(num_state_polys - 1)
+        .rev()
+        .zip(
+            evaluations[evaluation_offsets.setup.lookup_tables_at_z_omega..evaluation_offsets.setup.lookup_tables_at_z_omega + 3]
+                .iter()
+                .rev(),
+        )
+    {
+        aggregated_lookup_table_cols_at_z.mul_assign(&eta_for_lookup);
+        aggregated_lookup_table_cols_at_z.add_assign(at_z);
+
+        aggregated_lookup_table_cols_at_z_omega.mul_assign(&eta_for_lookup);
+        aggregated_lookup_table_cols_at_z_omega.add_assign(at_z_omega);
+    }
+    aggregated_lookup_f_at_z.add_assign(&gamma_for_lookup);
+    // We also need to aggregate shifted table columns to construct t(z*w)
+    // First identity is for multiset-equality
+    let mut lookup_first_quotient_rhs_num_part = aggregated_lookup_table_cols_at_z_omega;
+    lookup_first_quotient_rhs_num_part.mul_assign(&beta_for_lookup);
+    lookup_first_quotient_rhs_num_part.add_assign(&aggregated_lookup_table_cols_at_z);
+    lookup_first_quotient_rhs_num_part.add_assign(&beta_gamma);
+
+    lookup_first_quotient_rhs_num_part.mul_assign(&aggregated_lookup_f_at_z);
+    let mut beta_one = beta_for_lookup;
+    beta_one.add_assign(&F::one());
+    lookup_first_quotient_rhs_num_part.mul_assign(&beta_one);
+    lookup_first_quotient_rhs_num_part.mul_assign(&evaluations[lookup_offsets.grand_product_at_z]);
+
+    let mut lookup_first_quotient_rhs = lookup_first_quotient_rhs_denum_part;
+    lookup_first_quotient_rhs.sub_assign(&lookup_first_quotient_rhs_num_part);
+
+    let domain = Domain::<F>::new_for_size(domain_size as u64).unwrap();
+    let last_omega = domain.generator.pow(&[domain_size as u64 - 1]);
+    let mut tmp = z;
+    tmp.sub_assign(&last_omega);
+    lookup_first_quotient_rhs.mul_assign(&tmp);
+    lookup_first_quotient_rhs.mul_assign(&vanishing_at_z_inv);
+
+    let l_0_at_z = evaluate_l0_at_point(domain_size as u64, z).unwrap();
+    // Then verify that first element of the grand product poly equals to 1
+    // (Z(x) - 1) * L_{0} == 0
+    let mut lookup_second_quotient_rhs = evaluations[lookup_offsets.grand_product_at_z];
+    lookup_second_quotient_rhs.sub_assign(&F::one());
+    lookup_second_quotient_rhs.mul_assign(&l_0_at_z);
+    lookup_second_quotient_rhs.mul_assign(&vanishing_at_z_inv);
+
+    // Also verify that last element is equals to expected value
+    // (Z(x) - expected) * L_{n-1} == 0
+    let expected = beta_gamma.pow([(domain_size - 1) as u64]);
+    let l_last = evaluate_lagrange_poly_at_point(domain_size - 1, &domain, z).unwrap();
+    let mut lookup_third_quotient_rhs = evaluations[lookup_offsets.grand_product_at_z];
+    lookup_third_quotient_rhs.sub_assign(&expected);
+    lookup_third_quotient_rhs.mul_assign(&l_last);
+    lookup_third_quotient_rhs.mul_assign(&vanishing_at_z_inv);
+
+    (lookup_first_quotient_rhs, lookup_second_quotient_rhs, lookup_third_quotient_rhs)
+}
+
+pub fn evaluate_r_polys_at_point_with_flattened_evals_and_precomputed_basis<F: PrimeField>(
+    all_evaluations: Vec<F>,
+    recomputed_quotient_evaluations: &RecomptuedQuotientEvaluations<F>,
     num_setup_polys: usize,
     num_first_round_polys: usize,
     num_second_round_polys: usize,
@@ -718,15 +999,6 @@ pub fn evaluate_r_polys_at_point_with_flattened_evals_and_precomputed_basis<F: P
     setup_requires_opening_at_shifted_point: bool,
     first_round_requires_opening_at_shifted_point: bool,
 ) -> [F; 3] {
-    let num_setup_evals = if setup_requires_opening_at_shifted_point { 2 * num_setup_polys } else { num_setup_polys };
-
-    let num_first_round_evals = if first_round_requires_opening_at_shifted_point {
-        2 * num_first_round_polys
-    } else {
-        num_first_round_polys
-    };
-
-    assert_eq!(all_evaluations.len(), num_setup_evals + num_first_round_evals + 2 * num_second_round_polys);
     let [setup_omega, first_round_omega, second_round_omega] = compute_generators(num_setup_polys, num_first_round_polys, num_second_round_polys);
     // r_i(X) polys needs to be evaluated at random point.
     // We are going to construct C_i(w_i*h) from existing
@@ -734,14 +1006,45 @@ pub fn evaluate_r_polys_at_point_with_flattened_evals_and_precomputed_basis<F: P
     // by evaluating each basis poly at the given point
 
     let mut r_evals = [F::zero(); 3];
-    let (mut evals_rest, mut shifted_evals_rest) = all_evaluations.split_at(num_setup_polys + num_first_round_polys + num_second_round_polys);
 
-    for ((r, (interpolation_set_size, h, omega, requires_opening_at_shifted_point)), precomputed_basis_evals) in r_evals
+    let mut all_evaluations_iter = all_evaluations.into_iter();
+    let setup_evals: Vec<_> = all_evaluations_iter.by_ref().take(num_setup_polys).collect();
+    let mut first_round_evals: Vec<_> = all_evaluations_iter.by_ref().take(num_first_round_polys - 1).collect();
+    first_round_evals.push(recomputed_quotient_evaluations.main_gate_quotient_at_z);
+    let mut second_round_evals: Vec<_> = all_evaluations_iter.by_ref().take(num_second_round_polys - 2).collect();
+    second_round_evals.push(recomputed_quotient_evaluations.copy_permutation_first_quotient_at_z);
+    second_round_evals.push(recomputed_quotient_evaluations.copy_permutation_second_quotient_at_z);
+
+    let setup_evals_shifted = if setup_requires_opening_at_shifted_point {
+        all_evaluations_iter.by_ref().take(num_setup_polys).collect()
+    } else {
+        vec![]
+    };
+
+    let first_round_evals_shifted = if first_round_requires_opening_at_shifted_point {
+        all_evaluations_iter.by_ref().take(num_first_round_polys).collect()
+    } else {
+        vec![]
+    };
+
+    let second_round_evals_shifted: Vec<_> = all_evaluations_iter.by_ref().take(num_second_round_polys).collect();
+    assert_eq!(second_round_evals.len(), second_round_evals_shifted.len());
+
+    assert!(all_evaluations_iter.next().is_none());
+
+    for ((r, (interpolation_set_size, h, omega, requires_opening_at_shifted_point, evals, evals_shifted)), precomputed_basis_evals) in r_evals
         .iter_mut()
         .zip([
-            (num_setup_polys, h0, setup_omega, setup_requires_opening_at_shifted_point),
-            (num_first_round_polys, h1, first_round_omega, first_round_requires_opening_at_shifted_point),
-            (num_second_round_polys, (h2.0, Some(h2.1)), second_round_omega, true),
+            (num_setup_polys, h0, setup_omega, setup_requires_opening_at_shifted_point, setup_evals, setup_evals_shifted),
+            (
+                num_first_round_polys,
+                h1,
+                first_round_omega,
+                first_round_requires_opening_at_shifted_point,
+                first_round_evals,
+                first_round_evals_shifted,
+            ),
+            (num_second_round_polys, (h2.0, Some(h2.1)), second_round_omega, true, second_round_evals, second_round_evals_shifted),
         ])
         .zip(precomputed_basis_evals.into_iter())
     {
@@ -750,12 +1053,6 @@ pub fn evaluate_r_polys_at_point_with_flattened_evals_and_precomputed_basis<F: P
         if requires_opening_at_shifted_point {
             assert_eq!(precomputed_basis_evals.len(), 2 * interpolation_set_size);
             let (basis_evals, basis_evals_shifted) = precomputed_basis_evals.split_at(interpolation_set_size);
-
-            let (evals, rest) = evals_rest.split_at(interpolation_set_size);
-            evals_rest = rest;
-            let (evals_shifted, rest) = shifted_evals_rest.split_at(interpolation_set_size);
-            shifted_evals_rest = rest;
-
             let mut current_omega_shifted = h_shifted.expect("h shifted");
             for (basis, basis_shifted) in basis_evals.iter().zip(basis_evals_shifted.iter()) {
                 let mut sum = horner_evaluation(&evals, current_omega);
@@ -771,10 +1068,8 @@ pub fn evaluate_r_polys_at_point_with_flattened_evals_and_precomputed_basis<F: P
             }
         } else {
             assert_eq!(precomputed_basis_evals.len(), interpolation_set_size);
-            let (evaluations, rest) = evals_rest.split_at(interpolation_set_size);
-            evals_rest = rest;
             for basis in precomputed_basis_evals.iter() {
-                let mut sum = horner_evaluation(&evaluations, current_omega);
+                let mut sum = horner_evaluation(&evals, current_omega);
                 sum.mul_assign(basis);
                 r.add_assign(&sum);
 
@@ -1280,6 +1575,7 @@ pub(crate) fn construct_r_monomials<F: PrimeField>(
     setup_evaluations: &SetupEvaluations<F>,
     first_round_evaluations: &FirstRoundEvaluations<F>,
     second_round_evaluations: &SecondRoundEvaluations<F>,
+    recomputed_quotient_evaluations: &RecomptuedQuotientEvaluations<F>,
     h0: (F, Option<F>),
     h1: (F, Option<F>),
     h2: (F, F),
@@ -1303,7 +1599,10 @@ pub(crate) fn construct_r_monomials<F: PrimeField>(
         setup_evaluations.requires_opening_at_shifted_point(),
     );
 
-    let (evals, evals_shifted) = first_round_evaluations.flatten();
+    let (mut evals, evals_shifted) = first_round_evaluations.flatten();
+    evals.push(recomputed_quotient_evaluations.main_gate_quotient_at_z);
+    assert!(recomputed_quotient_evaluations.custom_gate_quotient_at_z.is_none());
+
     let first_round_r_monomial = interpolate_union_set(
         evals,
         evals_shifted,
@@ -1313,7 +1612,12 @@ pub(crate) fn construct_r_monomials<F: PrimeField>(
         first_round_evaluations.requires_opening_at_shifted_point(),
     );
     let h2 = (h2.0, Some(h2.1));
-    let (evals, evals_shifted) = second_round_evaluations.flatten();
+    let (mut evals, evals_shifted) = second_round_evaluations.flatten();
+    evals.push(recomputed_quotient_evaluations.copy_permutation_first_quotient_at_z);
+    evals.push(recomputed_quotient_evaluations.copy_permutation_second_quotient_at_z);
+    assert!(recomputed_quotient_evaluations.lookup_first_quotient_at_z.is_none());
+    assert!(recomputed_quotient_evaluations.lookup_second_quotient_at_z.is_none());
+    assert!(recomputed_quotient_evaluations.lookup_third_quotient_at_z.is_none());
     assert_eq!(second_round_evaluations.interpolation_size(), 3);
     let second_round_r_monomial = interpolate_union_set(evals, evals_shifted, interpolation_size_of_second_round, h2, second_round_omega, true);
 

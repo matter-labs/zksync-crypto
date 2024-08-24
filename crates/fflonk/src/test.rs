@@ -1,19 +1,25 @@
-use circuit_definitions::circuit_definitions::{
-    aux_layer::{
-        wrapper::ZkSyncCompressionWrapper, ZkSyncCompressionForWrapperCircuit, ZkSyncCompressionProofForWrapper, ZkSyncCompressionVerificationKey, ZkSyncCompressionVerificationKeyForWrapper,
-    },
-    recursion_layer::{ZkSyncRecursionLayerProof, ZkSyncRecursionLayerVerificationKey},
-};
-use circuit_definitions::snark_wrapper::franklin_crypto::bellman::{
-    bn256::{Bn256, Fr},
-    plonk::{
-        better_better_cs::{
-            cs::{Circuit, PlonkCsWidth3Params, SetupAssembly},
-            gates::naive_main_gate::NaiveMainGate,
+use circuit_definitions::snark_wrapper::franklin_crypto::{
+    bellman::{
+        bn256::{Bn256, Fr},
+        plonk::{
+            better_better_cs::{
+                cs::{Circuit, PlonkCsWidth3Params, SetupAssembly},
+                gates::naive_main_gate::NaiveMainGate,
+            },
+            commitments::transcript::keccak_transcript::RollingKeccakTranscript,
         },
-        commitments::transcript::keccak_transcript::RollingKeccakTranscript,
+        worker::Worker,
     },
-    worker::Worker,
+    plonk::circuit::linear_combination::LinearCombination,
+};
+use circuit_definitions::{
+    boojum::pairing::ff::PrimeField,
+    circuit_definitions::{
+        aux_layer::{
+            wrapper::ZkSyncCompressionWrapper, ZkSyncCompressionForWrapperCircuit, ZkSyncCompressionProofForWrapper, ZkSyncCompressionVerificationKey, ZkSyncCompressionVerificationKeyForWrapper,
+        },
+        recursion_layer::{ZkSyncRecursionLayerProof, ZkSyncRecursionLayerVerificationKey},
+    },
 };
 
 use super::convenience::*;
@@ -29,7 +35,7 @@ fn test_fflonk_proof_verification() {
     let proof_file = std::fs::File::open(&proof_file_path).expect(&format!("proof file at {}", proof_file_path));
     let proof: FflonkSnarkVerifierCircuitProof = serde_json::from_reader(&proof_file).expect("deserialize proof");
 
-    let is_valid = crate::verifier::verify_flattened_proof::<_, _, RollingKeccakTranscript<Fr>>(&vk, &proof, None).expect("verify proof");
+    let is_valid = crate::verifier::verify::<_, _, RollingKeccakTranscript<Fr>>(&vk, &proof, None).expect("verify proof");
     assert!(is_valid, "fflonk proof is not corrects");
 }
 
@@ -368,4 +374,71 @@ fn download_and_transform_crs() {
     let max_degree = crate::compute_max_combined_degree_from_assembly::<_, _, _, _, FflonkSnarkVerifierCircuit>(&assembly);
     // Step 2-4
     download_and_transform_ignition_transcripts(max_degree);
+}
+
+struct FflonkTestCircuit;
+
+impl Circuit<Bn256> for FflonkTestCircuit {
+    type MainGate = NaiveMainGate;
+
+    fn synthesize<CS: circuit_definitions::snark_wrapper::franklin_crypto::bellman::plonk::better_better_cs::cs::ConstraintSystem<Bn256> + 'static>(
+        &self,
+        cs: &mut CS,
+    ) -> Result<(), circuit_definitions::snark_wrapper::franklin_crypto::bellman::SynthesisError> {
+        use circuit_definitions::snark_wrapper::franklin_crypto::bellman::Field;
+        use circuit_definitions::snark_wrapper::franklin_crypto::plonk::circuit::allocated_num::Num;
+        let a = Fr::from_str(&65.to_string()).unwrap();
+        let b = Fr::from_str(&66.to_string()).unwrap();
+        let mut c = a;
+        c.add_assign(&b);
+
+        let a_var = Num::alloc(cs, Some(a))?;
+        let b_var = Num::alloc(cs, Some(b))?;
+        let c_var = Num::alloc(cs, Some(c))?;
+
+        for _ in 0..1 << 10 {
+            let mut lc = LinearCombination::zero();
+            lc.add_assign_number_with_coeff(&a_var, Fr::one());
+            lc.add_assign_number_with_coeff(&b_var, Fr::one());
+            let mut minus_one = Fr::one();
+            minus_one.negate();
+            lc.add_assign_number_with_coeff(&c_var, minus_one);
+
+            let _ = lc.into_num(cs)?;
+        }
+
+        let _input = cs.alloc_input(|| Ok(Fr::one()))?;
+
+        Ok(())
+    }
+}
+
+#[test]
+#[ignore]
+fn test_test_circuit_with_naive_main_gate() {
+    use crate::definitions::setup::FflonkSetup;
+    use crate::utils::compute_max_combined_degree_from_assembly;
+    use crate::verifier::FflonkVerificationKey;
+    use circuit_definitions::snark_wrapper::franklin_crypto::bellman::plonk::better_better_cs::cs::TrivialAssembly;
+    let worker = Worker::new();
+    let circuit = FflonkTestCircuit {};
+
+    let mut assembly = TrivialAssembly::<Bn256, PlonkCsWidth3Params, NaiveMainGate>::new();
+    circuit.synthesize(&mut assembly).expect("must work");
+    assert!(assembly.is_satisfied());
+    assembly.finalize();
+    let domain_size = assembly.n() + 1;
+    assert!(domain_size.is_power_of_two());
+    assert!(domain_size <= 1 << L1_VERIFIER_DOMAIN_SIZE_LOG);
+    println!("Trace log length {}", domain_size.trailing_zeros());
+
+    let max_combined_degree = compute_max_combined_degree_from_assembly::<_, _, _, _, FflonkTestCircuit>(&assembly);
+    println!("Max degree is {}", max_combined_degree);
+    let mon_crs = init_crs(&worker, domain_size, max_combined_degree);
+    let setup = FflonkSetup::create_setup(&assembly, &worker, &mon_crs).expect("setup");
+    let vk = FflonkVerificationKey::from_setup(&setup, &mon_crs).unwrap();
+
+    let proof = crate::prover::create_proof::<_, FflonkTestCircuit, _, _, _, RollingKeccakTranscript<Fr>>(assembly, &worker, &setup, &mon_crs, None).expect("proof");
+    let valid = crate::verify::<_, _, RollingKeccakTranscript<Fr>>(&vk, &proof, None).unwrap();
+    assert!(valid, "proof verification fails");
 }
