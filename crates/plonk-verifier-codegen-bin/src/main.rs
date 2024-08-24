@@ -1,4 +1,4 @@
-use codegen::{generate, Encoding};
+use plonk_verifier_codegen::{generate, Encoding};
 use std::path::PathBuf;
 use structopt::StructOpt;
 

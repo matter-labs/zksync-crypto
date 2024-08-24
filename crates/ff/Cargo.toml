@@ -1,6 +1,6 @@
 [package]
 name = "ff_ce"
-version = "0.14.3"
+version.workspace = true
 authors = ["Sean Bowe <ewillbefull@gmail.com>",
     "Alex Gluchowski <alex@gluchowski.net>",
     "Alex Vlasov <alex.m.vlasov@gmail.com>"]
@@ -16,7 +16,7 @@ exclude = [
 ]
 
 [dependencies]
-ff_derive_ce = { version = "0.11", optional = true, path = "../ff_derive" }
+ff_derive_ce = { workspace = true, optional = true }
 
 byteorder = "1"
 rand = "0.4"

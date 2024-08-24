@@ -1,13 +1,14 @@
 [package]
 name = "plonk-verifier-codegen-bin"
-version = "0.1.0"
+version.workspace = true
 edition = "2018"
 license = "MIT OR Apache-2.0"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-codegen = {path = "../plonk-verifier-codegen", package = "plonk-verifier-codegen"}
+plonk_verifier_codegen.workspace = true
+
 structopt = "0.3"
 dialoguer = "0.8"
 

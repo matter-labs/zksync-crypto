@@ -15,6 +15,26 @@ members = [
 
 resolver = "2"
 
+[workspace.package]
+# All the packages in the workspace should have the same version
+# Important: 0.29.0 is not published right now. If you want to publish,
+# just remove this comment and go ahead.
+version = "0.29.0"
+
+[workspace.dependencies]
+# Local dependencies
+bellman = { version = "=0.29.0", path = "crates/bellman", package = "bellman_ce" }
+boojum = { version = "=0.29.0", path = "crates/boojum" }
+plonk_verifier_codegen = { version = "=0.29.0", path = "crates/plonk-verifier-codegen", package = "plonk-verifier-codegen" }
+plonk_verifier_codegen_bin = { version = "=0.29.0", path = "crates/plonk-verifier-codegen-bin", package = "plonk-verifier-codegen-bin" }
+cs_derive = { version = "=0.29.0", path = "crates/cs_derive" }
+ff = { version = "=0.29.0", path = "crates/ff", package = "ff_ce" }
+ff_derive_ce = { version = "=0.29.0", path = "crates/ff_derive" }
+franklin-crypto = { version = "=0.29.0", path = "crates/franklin-crypto" }
+pairing = { version = "=0.29.0", path = "crates/pairing", package = "pairing_ce" }
+rescue_poseidon = { version = "=0.29.0", path = "crates/rescue-poseidon" }
+snark_wrapper = { version = "=0.29.0", path = "crates/snark-wrapper" }
+
 [profile.release]
 debug = true
 codegen-units = 1
