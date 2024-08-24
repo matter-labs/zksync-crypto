@@ -11,12 +11,9 @@ use bellman::{
     plonk::{
         better_better_cs::{
             cs::{
-                ensure_in_map_or_create, get_from_map_unchecked, AssembledPolynomialStorage,
-                AssembledPolynomialStorageForMonomialForms, Assembly, Circuit, Gate, GateInternal,
-                MainGate, PlonkConstraintSystemParams, PolyIdentifier, PolynomialInConstraint,
-                PolynomialProxy, Setup, SynthesisMode, SynthesisModeTesting,
+                ensure_in_map_or_create, get_from_map_unchecked, AssembledPolynomialStorage, AssembledPolynomialStorageForMonomialForms, Assembly, Circuit, Gate, GateInternal, MainGate,
+                PlonkConstraintSystemParams, PolyIdentifier, PolynomialInConstraint, PolynomialProxy, Setup, SynthesisMode, SynthesisModeTesting,
             },
-            gates::naive_main_gate::NaiveMainGate,
             gates::selector_optimized_with_d_next::SelectorOptimizedWidth4MainGateWithDNext,
             utils::BinopAddAssignScaled,
         },
@@ -45,9 +42,7 @@ pub use convenience::*;
 mod test;
 mod utils;
 use utils::*;
-pub use utils::{
-    compute_generators, compute_power_of_two_root_of_generator, num_system_polys_from_vk,
-};
+pub use utils::{compute_generators, compute_power_of_two_root_of_generator, num_system_polys_from_vk};
 
 pub(crate) const SANITY_CHECK: bool = true;
 // pub use shivini::circuit_definitions as circuit_definitions;

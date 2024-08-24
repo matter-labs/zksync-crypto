@@ -41,7 +41,7 @@ use franklin_crypto::boojum::worker::Worker as BoojumWorker;
 
 pub type FflonkSnarkVerifierCircuit = ZkSyncSnarkWrapperCircuitNoLookupCustomGate;
 pub type FflonkSnarkVerifierCircuitVK = FflonkVerificationKey<Bn256, FflonkSnarkVerifierCircuit>;
-pub type FflonkSnarkVerifierCircuitProof = FlattenedFflonkProof<Bn256, FflonkSnarkVerifierCircuit>;
+pub type FflonkSnarkVerifierCircuitProof = FflonkProof<Bn256, FflonkSnarkVerifierCircuit>;
 pub type FflonkSnarkVerifierCircuitSetup = FflonkSetup<Bn256, FflonkSnarkVerifierCircuit>;
 
 type CompressionTranscript = GoldilocksPoisedon2Transcript;
@@ -126,12 +126,8 @@ pub fn prove_fflonk_snark_verifier_circuit_with_precomputation(
     let proof = crate::prover::create_proof::<_, FflonkSnarkVerifierCircuit, _, _, _, RollingKeccakTranscript<Fr>>(assembly, &worker, &precomputed_setup, &mon_crs, None).expect("proof");
     let valid = crate::verify::<_, _, RollingKeccakTranscript<Fr>>(&vk, &proof, None).unwrap();
     assert!(valid, "proof verification fails");
-    let flattened_proof = proof.clone().flatten();
-    compare_proof_vs_flattened_proof(&proof, &flattened_proof, &vk);
-    let valid = crate::verify_flattened_proof::<_, _, RollingKeccakTranscript<Fr>>(&vk, &flattened_proof, None).unwrap();
-    assert!(valid, "flattened proof verification fails");
 
-    flattened_proof
+    proof
 }
 
 pub fn prove_fflonk_snark_verifier_circuit_single_shot(circuit: &FflonkSnarkVerifierCircuit, worker: &Worker) -> (FflonkSnarkVerifierCircuitProof, FflonkSnarkVerifierCircuitVK) {
@@ -154,11 +150,8 @@ pub fn prove_fflonk_snark_verifier_circuit_single_shot(circuit: &FflonkSnarkVeri
     let proof = crate::prover::create_proof::<_, FflonkSnarkVerifierCircuit, _, _, _, RollingKeccakTranscript<Fr>>(assembly, &worker, &setup, &mon_crs, None).expect("proof");
     let valid = crate::verify::<_, _, RollingKeccakTranscript<Fr>>(&vk, &proof, None).unwrap();
     assert!(valid, "proof verification fails");
-    let flattened_proof = proof.flatten();
-    let valid = crate::verify_flattened_proof::<_, _, RollingKeccakTranscript<Fr>>(&vk, &flattened_proof, None).unwrap();
-    assert!(valid, "flattened proof verification fails");
 
-    (flattened_proof, vk)
+    (proof, vk)
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -863,11 +856,7 @@ pub fn save_fflonk_proof_and_vk_into_file(proof: &FflonkSnarkVerifierCircuitProo
     let proof_file_path = format!("{}/final_proof.json", output_blob_path);
     let proof_file = std::fs::File::create(&proof_file_path).unwrap();
     serde_json::to_writer(proof_file, &proof).unwrap();
-    println!("proof saved at {proof_file_path}");
-    let proof_file_path = format!("{}/final_proof_hex.json", output_blob_path);
-    let hex_proof_file = std::fs::File::create(&proof_file_path).unwrap();
-    proof.serialize_into_evm_format(hex_proof_file).unwrap();
-    println!("evm proof saved at {proof_file_path}");
+    println!("proof saved at {proof_file_path}");    
     let vk_file_path = format!("{}/final_vk.json", output_blob_path);
     let vk_file = std::fs::File::create(&vk_file_path).unwrap();
     serde_json::to_writer(vk_file, &vk).unwrap();
@@ -896,88 +885,6 @@ pub fn load_fflonk_setup_and_vk_from_file(output_blob_path: &str) -> (FflonkSnar
     let vk = FflonkSnarkVerifierCircuitVK::read(&vk_file).unwrap();
 
     (setup, vk)
-}
-fn compare_proof_vs_flattened_proof<E: Engine, C: Circuit<E>>(expected_proof: &FflonkProof<E, C>, actual_proof: &FlattenedFflonkProof<E, C>, vk: &FflonkVerificationKey<E, C>) {
-    let actual_proof = actual_proof.into_original_proof(vk);
-    assert_eq!(expected_proof.n, actual_proof.n);
-    assert_eq!(expected_proof.inputs, actual_proof.inputs);
-    assert_eq!(expected_proof.c1, actual_proof.c1);
-    assert_eq!(expected_proof.c2, actual_proof.c2);
-    assert_eq!(expected_proof.w, actual_proof.w);
-    assert_eq!(expected_proof.w_prime, actual_proof.w_prime);
-    assert_eq!(expected_proof.setup_evaluations.gate_setups_at_z, actual_proof.setup_evaluations.gate_setups_at_z);
-    assert_eq!(expected_proof.setup_evaluations.gate_selectors_at_z, actual_proof.setup_evaluations.gate_selectors_at_z);
-    assert_eq!(expected_proof.setup_evaluations.permutations_at_z, actual_proof.setup_evaluations.permutations_at_z);
-    assert_eq!(expected_proof.setup_evaluations.lookup_selector_at_z, actual_proof.setup_evaluations.lookup_selector_at_z);
-    assert_eq!(expected_proof.setup_evaluations.lookup_tables_at_z, actual_proof.setup_evaluations.lookup_tables_at_z);
-    assert_eq!(expected_proof.setup_evaluations.lookup_tables_at_z_omega, actual_proof.setup_evaluations.lookup_tables_at_z_omega);
-    assert_eq!(expected_proof.setup_evaluations.lookup_table_type_at_z, actual_proof.setup_evaluations.lookup_table_type_at_z);
-
-    assert_eq!(
-        expected_proof.first_round_evaluations.trace_and_gate_evaluations.trace_evaluations_at_z,
-        actual_proof.first_round_evaluations.trace_and_gate_evaluations.trace_evaluations_at_z
-    );
-    assert_eq!(
-        expected_proof.first_round_evaluations.trace_and_gate_evaluations.trace_evaluations_at_z_omega,
-        actual_proof.first_round_evaluations.trace_and_gate_evaluations.trace_evaluations_at_z_omega
-    );
-    assert_eq!(
-        expected_proof.first_round_evaluations.trace_and_gate_evaluations.main_gate_quotient_at_z,
-        actual_proof.first_round_evaluations.trace_and_gate_evaluations.main_gate_quotient_at_z
-    );
-    assert_eq!(
-        expected_proof.first_round_evaluations.trace_and_gate_evaluations.main_gate_quotient_at_z_omega,
-        actual_proof.first_round_evaluations.trace_and_gate_evaluations.main_gate_quotient_at_z_omega
-    );
-    assert_eq!(
-        expected_proof.first_round_evaluations.trace_and_gate_evaluations.custom_gate_quotient_at_z,
-        actual_proof.first_round_evaluations.trace_and_gate_evaluations.custom_gate_quotient_at_z
-    );
-    assert_eq!(
-        expected_proof.first_round_evaluations.trace_and_gate_evaluations.custom_gate_quotient_at_z_omega,
-        actual_proof.first_round_evaluations.trace_and_gate_evaluations.custom_gate_quotient_at_z_omega
-    );
-
-    assert_eq!(
-        expected_proof.second_round_evaluations.copy_permutation_evaluations.grand_product_at_z,
-        actual_proof.second_round_evaluations.copy_permutation_evaluations.grand_product_at_z
-    );
-    assert_eq!(
-        expected_proof.second_round_evaluations.copy_permutation_evaluations.grand_product_at_z_omega,
-        actual_proof.second_round_evaluations.copy_permutation_evaluations.grand_product_at_z_omega
-    );
-    assert_eq!(
-        expected_proof.second_round_evaluations.copy_permutation_evaluations.first_quotient_at_z,
-        actual_proof.second_round_evaluations.copy_permutation_evaluations.first_quotient_at_z
-    );
-    assert_eq!(
-        expected_proof.second_round_evaluations.copy_permutation_evaluations.first_quotient_at_z_omega,
-        actual_proof.second_round_evaluations.copy_permutation_evaluations.first_quotient_at_z_omega
-    );
-    assert_eq!(
-        expected_proof.second_round_evaluations.copy_permutation_evaluations.second_quotient_at_z,
-        actual_proof.second_round_evaluations.copy_permutation_evaluations.second_quotient_at_z
-    );
-    assert_eq!(
-        expected_proof.second_round_evaluations.copy_permutation_evaluations.second_quotient_at_z_omega,
-        actual_proof.second_round_evaluations.copy_permutation_evaluations.second_quotient_at_z_omega
-    );
-
-    if let (Some(actual_lookup), Some(expected_lookup)) = (
-        expected_proof.second_round_evaluations.lookup_evaluations.as_ref(),
-        actual_proof.second_round_evaluations.lookup_evaluations.as_ref(),
-    ) {
-        assert_eq!(expected_lookup.s_poly_at_z, actual_lookup.s_poly_at_z);
-        assert_eq!(expected_lookup.s_poly_at_z_omega, actual_lookup.s_poly_at_z_omega);
-        assert_eq!(expected_lookup.grand_product_at_z, actual_lookup.grand_product_at_z);
-        assert_eq!(expected_lookup.grand_product_at_z_omega, actual_lookup.grand_product_at_z_omega);
-        assert_eq!(expected_lookup.first_quotient_at_z, actual_lookup.first_quotient_at_z);
-        assert_eq!(expected_lookup.first_quotient_at_z_omega, actual_lookup.first_quotient_at_z_omega);
-        assert_eq!(expected_lookup.second_quotient_at_z, actual_lookup.second_quotient_at_z);
-        assert_eq!(expected_lookup.second_quotient_at_z_omega, actual_lookup.second_quotient_at_z_omega);
-        assert_eq!(expected_lookup.third_quotient_at_z, actual_lookup.third_quotient_at_z);
-        assert_eq!(expected_lookup.third_quotient_at_z_omega, actual_lookup.third_quotient_at_z_omega);
-    }
 }
 
 fn make_crs_from_ignition_transcript<S: AsRef<std::ffi::OsStr> + ?Sized>(path: &S, num_chunks: usize) -> Result<Crs<bellman::pairing::bn256::Bn256, CrsForMonomialForm>, SynthesisError> {
