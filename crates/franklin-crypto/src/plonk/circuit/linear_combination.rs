@@ -819,7 +819,6 @@ pub fn enforce_zero_naive<E: Engine, CS: ConstraintSystem<E>>(
         final_sum = final_sum.add(cs, &term)?;
     }
     let is_zero = final_sum.is_zero(cs)?;
-    debug_assert!(is_zero.get_value().unwrap());
 
     // flag - 1 == 0
     let mut gate_term = MainGateTerm::new();
