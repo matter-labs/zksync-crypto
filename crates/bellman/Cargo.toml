@@ -24,7 +24,7 @@ byteorder = "1"
 num_cpus = "1"
 serde = { version = "1", features = ["derive", "rc"] }
 futures = { version = "0.3", default-features = false, features = ["executor"] }
-crossbeam = { version = "0.7", optional = true }
+crossbeam = { version = "0.8", optional = true }
 prefetch = { version = "0.2", optional = true }
 web-sys = { version = "0.3", optional = true, features = ["console", "Performance", "Window"] }
 tiny-keccak = { version = "1.5", optional = true }
