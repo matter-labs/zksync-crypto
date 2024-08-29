@@ -1,0 +1,18 @@
+[package]
+name = "plonk-verifier-codegen"
+version.workspace = true
+edition = "2018"
+license = "MIT OR Apache-2.0"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+handlebars = "*"
+serde = "*"
+serde_derive = "*"
+serde_json = "*"
+hex = "*"   
+paste = "1.0"
+ethereum-types = "=0.14.1"
+rescue_poseidon = {package = "rescue_poseidon", path = "../rescue-poseidon"}
+# rescue-poseidon = {package = "rescue_poseidon", git = "https://github.com/matter-labs/rescue-poseidon"}

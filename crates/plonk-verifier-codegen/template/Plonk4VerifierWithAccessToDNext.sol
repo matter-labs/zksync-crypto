@@ -11,7 +11,9 @@ struct VerificationKey {
     uint256 domain_size;
     uint256 num_inputs;
     PairingsBn254.Fr omega;
-    PairingsBn254.G1Point[{{NUM_GATES}}] gate_selectors_commitments;
+    {{#if has_rescue_custom_gate}}
+    PairingsBn254.G1Point[2] gate_selectors_commitments;
+    {{/if}}
     PairingsBn254.G1Point[{{NUM_MAIN_GATE_SELECTORS}}] gate_setup_commitments;
     PairingsBn254.G1Point[STATE_WIDTH] permutation_commitments;
     {{#if has_lookup}}
@@ -25,6 +27,41 @@ struct VerificationKey {
 }
 
 
+struct Proof {
+    uint256[] input_values;
+    // commitments
+    PairingsBn254.G1Point[STATE_WIDTH] state_polys_commitments;
+    PairingsBn254.G1Point copy_permutation_grand_product_commitment;
+    PairingsBn254.G1Point[STATE_WIDTH] quotient_poly_parts_commitments;
+    
+    // openings
+    PairingsBn254.Fr[STATE_WIDTH] state_polys_openings_at_z;
+    PairingsBn254.Fr[1] state_polys_openings_at_z_omega;
+    {{#if has_rescue_custom_gate}}
+    PairingsBn254.Fr[1] gate_selectors_openings_at_z;
+    {{/if}}
+    PairingsBn254.Fr[STATE_WIDTH-1] copy_permutation_polys_openings_at_z;
+    PairingsBn254.Fr copy_permutation_grand_product_opening_at_z_omega;
+    PairingsBn254.Fr quotient_poly_opening_at_z;
+    PairingsBn254.Fr linearization_poly_opening_at_z;
+
+    {{#if has_lookup}}
+    // lookup commitments
+    PairingsBn254.G1Point lookup_s_poly_commitment;
+    PairingsBn254.G1Point lookup_grand_product_commitment;
+    // lookup openings
+    PairingsBn254.Fr lookup_s_poly_opening_at_z_omega;
+    PairingsBn254.Fr lookup_grand_product_opening_at_z_omega;
+    PairingsBn254.Fr lookup_t_poly_opening_at_z;
+    PairingsBn254.Fr lookup_t_poly_opening_at_z_omega;
+    PairingsBn254.Fr lookup_selector_poly_opening_at_z;
+    PairingsBn254.Fr lookup_table_type_poly_opening_at_z;
+    {{/if}}
+    PairingsBn254.G1Point opening_proof_at_z;
+    PairingsBn254.G1Point opening_proof_at_z_omega;
+}
+
+
 contract Plonk4VerifierWithAccessToDNext {
     using PairingsBn254 for PairingsBn254.G1Point;
     using PairingsBn254 for PairingsBn254.G2Point;
@@ -33,40 +70,6 @@ contract Plonk4VerifierWithAccessToDNext {
     using TranscriptLib for TranscriptLib.Transcript;
 
     using UncheckedMath for uint256;
-    
-    struct Proof {
-        uint256[] input_values;
-        // commitments
-        PairingsBn254.G1Point[STATE_WIDTH] state_polys_commitments;
-        PairingsBn254.G1Point copy_permutation_grand_product_commitment;
-        PairingsBn254.G1Point[STATE_WIDTH] quotient_poly_parts_commitments;
-        
-        // openings
-        PairingsBn254.Fr[STATE_WIDTH] state_polys_openings_at_z;
-        PairingsBn254.Fr[1] state_polys_openings_at_z_omega;
-        {{#if has_rescue_custom_gate}}
-        PairingsBn254.Fr[1] gate_selectors_openings_at_z;
-        {{/if}}
-        PairingsBn254.Fr[STATE_WIDTH-1] copy_permutation_polys_openings_at_z;
-        PairingsBn254.Fr copy_permutation_grand_product_opening_at_z_omega;
-        PairingsBn254.Fr quotient_poly_opening_at_z;
-        PairingsBn254.Fr linearization_poly_opening_at_z;
-
-        {{#if has_lookup}}
-        // lookup commitments
-        PairingsBn254.G1Point lookup_s_poly_commitment;
-        PairingsBn254.G1Point lookup_grand_product_commitment;
-        // lookup openings
-        PairingsBn254.Fr lookup_s_poly_opening_at_z_omega;
-        PairingsBn254.Fr lookup_grand_product_opening_at_z_omega;
-        PairingsBn254.Fr lookup_t_poly_opening_at_z;
-        PairingsBn254.Fr lookup_t_poly_opening_at_z_omega;
-        PairingsBn254.Fr lookup_selector_poly_opening_at_z;
-        PairingsBn254.Fr lookup_table_type_poly_opening_at_z;
-        {{/if}}
-        PairingsBn254.G1Point opening_proof_at_z;
-        PairingsBn254.G1Point opening_proof_at_z_omega;
-    }
     
     struct PartialVerifierState {
         PairingsBn254.Fr zero;
@@ -251,8 +254,12 @@ contract Plonk4VerifierWithAccessToDNext {
                 current_z.mul_assign(z_in_domain_size);
             }
         }
-        
+        {{#if has_lookup}}
         Queries memory queries = prepare_queries(vk, proof, state);
+        {{else}}
+        Queries memory queries = prepare_queries(vk, proof);
+        {{/if}}
+        
         queries.commitments_at_z[0] = quotient_result;
         queries.values_at_z[0] = proof.quotient_poly_opening_at_z;
         queries.commitments_at_z[1] = aggregated_linearization_commitment(vk, proof, state);
@@ -599,12 +606,18 @@ contract Plonk4VerifierWithAccessToDNext {
         PairingsBn254.G1Point[{{num_commitments_at_z_omega}}] commitments_at_z_omega;
         PairingsBn254.Fr[{{num_commitments_at_z_omega}}] values_at_z_omega;
     }
-
+    {{#if has_lookup}}
     function prepare_queries(
         VerificationKey memory vk, 
-        Proof memory proof, 
+        Proof memory proof,
         PartialVerifierState memory state
-    ) public view returns(Queries memory queries){
+    ) public view returns(Queries memory queries)
+    {{else}}
+    function prepare_queries(
+        VerificationKey memory vk, 
+        Proof memory proof
+    ) public pure returns(Queries memory queries)
+    {{/if}}{
         // we set first two items in calee side so start idx from 2
         uint256 idx = 2;        
         for(uint256 i = 0; i<STATE_WIDTH; i = i.uncheckedInc()){

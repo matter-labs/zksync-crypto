@@ -1,4 +1,4 @@
-use franklin_crypto::bellman::{
+use rescue_poseidon::franklin_crypto::bellman::{
     pairing::bn256::{Bn256, Fq, Fq2, Fr},
     CurveAffine, Engine, PrimeField, PrimeFieldRepr,
 };

@@ -2,18 +2,17 @@ mod circuits;
 mod generate;
 mod serialize;
 
+use std::str::FromStr;
+
+use circuits::MockCircuit;
 pub use generate::{generate, Encoding, MainGateType};
 
 use ethereum_types::U256;
-use franklin_crypto::bellman::pairing::bn256::{Bn256, Fr};
-use franklin_crypto::bellman::pairing::ff::*;
-use franklin_crypto::bellman::pairing::*;
-use franklin_crypto::bellman::plonk::better_better_cs::cs::Circuit;
-use franklin_crypto::bellman::plonk::better_better_cs::gates::selector_optimized_with_d_next::SelectorOptimizedWidth4MainGateWithDNext;
-use franklin_crypto::bellman::plonk::better_better_cs::proof::Proof;
-use franklin_crypto::bellman::plonk::better_better_cs::setup::VerificationKey;
-
-use crate::circuits::DummyCircuit;
+use rescue_poseidon::franklin_crypto::bellman::pairing::bn256::{Bn256, Fr};
+use rescue_poseidon::franklin_crypto::bellman::pairing::ff::*;
+use rescue_poseidon::franklin_crypto::bellman::pairing::*;
+use rescue_poseidon::franklin_crypto::bellman::plonk::better_better_cs::cs::{Circuit, VerificationKey};
+use rescue_poseidon::franklin_crypto::bellman::plonk::better_better_cs::proof::Proof;
 
 fn render_scalar_to_hex<F: PrimeField>(el: &F) -> String {
     let mut buff = vec![];
@@ -144,29 +143,4 @@ pub fn serialize_proof<T: Circuit<Bn256>>(proof: &Proof<Bn256, T>) -> (Vec<U256>
     dbg!(&serialized_proof.len());
 
     (inputs, serialized_proof)
-}
-
-#[test]
-#[ignore] // TODO(ignored-test): Failure.
-fn render_simple_proof() {
-    use franklin_crypto::bellman::pairing::bn256::*;
-
-    let mut reader = std::io::BufReader::with_capacity(1 << 24, std::fs::File::open("../data/optimized/scheduler_proof.key").unwrap());
-    let proof = Proof::<Bn256, DummyCircuit>::read(&mut reader).unwrap();
-    let (inputs, proof) = serialize_proof(&proof);
-
-    println!("Inputs");
-    let mut vec = vec![];
-    for i in inputs.into_iter() {
-        vec.push(format!("\"{}\"", i));
-    }
-    println!("[{}]", vec.join(","));
-
-    println!("Proof");
-    let mut vec = vec![];
-    for i in proof.into_iter() {
-        vec.push(format!("\"{}\"", i));
-    }
-
-    println!("[{}]", vec.join(","));
 }
