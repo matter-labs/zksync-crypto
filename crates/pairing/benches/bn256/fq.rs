@@ -1,7 +1,7 @@
 use rand::{Rand, SeedableRng, XorShiftRng};
 
 use ff::{Field, PrimeField, PrimeFieldRepr, SqrtField};
-use pairing::bn256::*;
+use pairing_ce::bn256::*;
 
 #[bench]
 fn bench_fq_repr_add_nocarry(b: &mut ::test::Bencher) {

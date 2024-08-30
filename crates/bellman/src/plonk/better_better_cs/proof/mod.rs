@@ -657,6 +657,7 @@ impl<E: Engine, P: PlonkConstraintSystemParams<E>, MG: MainGate<E>, S: Synthesis
             grand_products_protos_with_gamma.push(p);
         }
 
+        #[allow(clippy::redundant_locals)]
         let required_domain_size = required_domain_size;
 
         let domain = Domain::new_for_size(required_domain_size as u64)?;

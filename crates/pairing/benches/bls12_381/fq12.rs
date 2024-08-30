@@ -1,7 +1,7 @@
 use rand::{Rand, SeedableRng, XorShiftRng};
 
 use ff::Field;
-use pairing::bls12_381::*;
+use pairing_ce::bls12_381::*;
 
 #[bench]
 fn bench_fq12_add_assign(b: &mut ::test::Bencher) {
