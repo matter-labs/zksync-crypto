@@ -4,6 +4,7 @@ use crate::ff::*;
 #[derive(Copy, Clone, PartialEq, Eq, Default, Hash, ::serde::Serialize, ::serde::Deserialize)]
 pub struct FrRepr(pub [u64; 4usize]);
 
+#[allow(clippy::derived_hash_with_manual_eq)]
 #[derive(Hash, ::serde::Serialize, ::serde::Deserialize)]
 pub struct Fr(FrRepr);
 

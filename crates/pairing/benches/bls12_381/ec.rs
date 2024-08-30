@@ -1,8 +1,8 @@
 mod g1 {
     use rand::{Rand, SeedableRng, XorShiftRng};
 
-    use pairing::bls12_381::*;
-    use pairing::CurveProjective;
+    use pairing_ce::bls12_381::*;
+    use pairing_ce::CurveProjective;
 
     #[bench]
     fn bench_g1_mul_assign(b: &mut ::test::Bencher) {
@@ -59,8 +59,8 @@ mod g1 {
 mod g2 {
     use rand::{Rand, SeedableRng, XorShiftRng};
 
-    use pairing::bls12_381::*;
-    use pairing::CurveProjective;
+    use pairing_ce::bls12_381::*;
+    use pairing_ce::CurveProjective;
 
     #[bench]
     fn bench_g2_mul_assign(b: &mut ::test::Bencher) {
