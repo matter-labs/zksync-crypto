@@ -1,13 +1,4 @@
-// `clippy` is a code linting tool for improving code quality by catching
-// common mistakes or strange code patterns. If the `cargo-clippy` feature
-// is provided, all compiler warnings are prohibited.
-#![cfg_attr(feature = "cargo-clippy", deny(warnings))]
-// #![cfg_attr(feature = "cargo-clippy", allow(inline_always))]
-// #![cfg_attr(feature = "cargo-clippy", allow(too_many_arguments))]
-// #![cfg_attr(feature = "cargo-clippy", allow(unreadable_literal))]
-// #![cfg_attr(feature = "cargo-clippy", allow(many_single_char_names))]
-// #![cfg_attr(feature = "cargo-clippy", allow(new_without_default_derive))]
-// #![cfg_attr(feature = "cargo-clippy", allow(write_literal))]
+#![allow(clippy::too_many_arguments, clippy::needless_borrows_for_generic_args)]
 // Force public structures to implement Debug
 #![deny(missing_debug_implementations)]
 // Asm is only available on nightly, with this unstable feature

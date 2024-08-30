@@ -1,7 +1,7 @@
 // Allowed lints
 // Whenever add an item here, please write a short yet meaningful comment on why so.
 #![allow(
-    clippy::incorrect_clone_impl_on_copy_type, // False positives in derivative: https://github.com/mcarton/rust-derivative/issues/112
+    clippy::non_canonical_clone_impl, // False positives in derivative: https://github.com/mcarton/rust-derivative/issues/112
     clippy::bool_comparison, // Explicitness is good in critical contexts.
     clippy::mut_from_ref, // Triggers on unsafe functions (e.g. ones using `UnsafeCell`).
     clippy::type_complexity, // Many types in this create are inherently complex.

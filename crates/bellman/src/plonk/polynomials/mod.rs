@@ -740,8 +740,12 @@ impl<F: PrimeField> Polynomial<F, Coefficients> {
 
         // let mut final_values = vec![F::zero(); new_size];
 
+        #[allow(clippy::uninit_vec)] // Data is initialized below without being read
         let mut final_values = Vec::with_capacity(new_size);
-        unsafe { final_values.set_len(new_size) };
+        #[allow(clippy::uninit_vec)] // Data is initialized below without being read
+        unsafe {
+            final_values.set_len(new_size)
+        };
 
         // copy here is more complicated: to have the value in a natural order
         // one has to use coset_idx to address the result element
@@ -1272,27 +1276,14 @@ impl<F: PrimeField> Polynomial<F, Values> {
 
         assert!(subset_factor.is_power_of_two());
 
-        let current_size = self.coeffs.len();
-        let new_size = current_size / subset_factor;
-
-        let mut result = Vec::with_capacity(new_size);
-        unsafe { result.set_len(new_size) };
-
         // copy elements. If factor is 2 then non-reversed we would output only elements that are == 0 mod 2
         // If factor is 2 and we are bit-reversed - we need to only output first half of the coefficients
         // If factor is 4 then we need to output only the first 4th part
         // if factor is 8 - only the first 8th part
+        let current_size = self.coeffs.len();
+        let new_size = current_size / subset_factor;
 
-        let start = 0;
-        let end = new_size;
-
-        result.copy_from_slice(&self.coeffs[start..end]);
-
-        // unsafe { result.set_len(new_size)};
-        // let copy_to_start_pointer: *mut F = result[..].as_mut_ptr();
-        // let copy_from_start_pointer: *const F = self.coeffs[start..end].as_ptr();
-
-        // unsafe { std::ptr::copy_nonoverlapping(copy_from_start_pointer, copy_to_start_pointer, new_size) };
+        let result = self.coeffs[..new_size].to_vec();
 
         Polynomial::from_values(result)
     }
@@ -2087,8 +2078,12 @@ impl<F: PartialTwoBitReductionField> Polynomial<F, Coefficients> {
 
         // let mut results = vec![self.coeffs.clone(); factor];
 
+        #[allow(clippy::uninit_vec)] // Data is initialized below without being read
         let mut result = Vec::with_capacity(new_size);
-        unsafe { result.set_len(new_size) };
+        #[allow(clippy::uninit_vec)] // Data is initialized below without being read
+        unsafe {
+            result.set_len(new_size)
+        };
 
         let r = &mut result[..] as *mut [F];
 
@@ -2274,8 +2269,12 @@ impl<F: PrimeField> Polynomial<F, Coefficients> {
 
         // let mut results = vec![self.coeffs.clone(); factor];
 
+        #[allow(clippy::uninit_vec)] // Data is initialized below without being read
         let mut result = Vec::with_capacity(new_size);
-        unsafe { result.set_len(new_size) };
+        #[allow(clippy::uninit_vec)] // Data is initialized below without being read
+        unsafe {
+            result.set_len(new_size)
+        };
 
         let r = &mut result[..] as *mut [F];
 
