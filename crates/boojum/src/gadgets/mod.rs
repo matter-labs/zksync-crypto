@@ -16,6 +16,7 @@ pub mod recursion;
 pub mod round_function;
 pub mod sha256;
 pub mod tables;
+pub mod tower_extension;
 pub mod traits;
 pub mod u1024;
 pub mod u16;
