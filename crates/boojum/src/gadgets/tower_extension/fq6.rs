@@ -12,7 +12,7 @@ use super::{
 
 use crate::cs::Variable;
 use crate::gadgets::traits::allocatable::CSPlaceholder;
-use crate::gadgets::traits::encodable::CircuitVarLengthEncodable;
+use crate::gadgets::traits::encodable::{CircuitVarLengthEncodable, WitnessVarLengthEncodable};
 use crate::{
     cs::traits::cs::ConstraintSystem,
     field::SmallField,
@@ -591,6 +591,28 @@ where
         self.c0.encode_to_buffer(cs, dst);
         self.c1.encode_to_buffer(cs, dst);
         self.c2.encode_to_buffer(cs, dst);
+    }
+}
+
+impl<F, T, NN, P> WitnessVarLengthEncodable<F> for Fq6<F, T, NN, P>
+where
+    F: SmallField,
+    T: PrimeField,
+    NN: NonNativeField<F, T> + WitnessVarLengthEncodable<F>,
+    P: Extension6Params<T>,
+{
+    fn witness_encoding_length(witness: &Self::Witness) -> usize {
+        let (c0, c1, c2) = witness;
+        Fq2::<F, T, NN, P::Ex2>::witness_encoding_length(c0)
+            + Fq2::<F, T, NN, P::Ex2>::witness_encoding_length(c1)
+            + Fq2::<F, T, NN, P::Ex2>::witness_encoding_length(c2)
+    }
+
+    fn encode_witness_to_buffer(witness: &Self::Witness, dst: &mut Vec<F>) {
+        let (c0, c1, c2) = witness;
+        Fq2::<F, T, NN, P::Ex2>::encode_witness_to_buffer(c0, dst);
+        Fq2::<F, T, NN, P::Ex2>::encode_witness_to_buffer(c1, dst);
+        Fq2::<F, T, NN, P::Ex2>::encode_witness_to_buffer(c2, dst);
     }
 }
 

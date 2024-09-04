@@ -12,7 +12,7 @@ use super::{
 };
 
 use crate::gadgets::traits::allocatable::CSPlaceholder;
-use crate::gadgets::traits::encodable::CircuitVarLengthEncodable;
+use crate::gadgets::traits::encodable::{CircuitVarLengthEncodable, WitnessVarLengthEncodable};
 use crate::{
     cs::traits::cs::ConstraintSystem,
     field::SmallField,
@@ -504,6 +504,26 @@ where
     fn encode_to_buffer<CS: ConstraintSystem<F>>(&self, cs: &mut CS, dst: &mut Vec<Variable>) {
         self.c0.encode_to_buffer(cs, dst);
         self.c1.encode_to_buffer(cs, dst);
+    }
+}
+
+impl<F, T, NN, P> WitnessVarLengthEncodable<F> for Fq12<F, T, NN, P>
+where
+    F: SmallField,
+    T: PrimeField,
+    NN: NonNativeField<F, T> + WitnessVarLengthEncodable<F>,
+    P: Extension12Params<T>,
+{
+    fn witness_encoding_length(witness: &Self::Witness) -> usize {
+        let (c0, c1) = witness;
+        Fq6::<F, T, NN, P::Ex6>::witness_encoding_length(c0)
+            + Fq6::<F, T, NN, P::Ex6>::witness_encoding_length(c1)
+    }
+
+    fn encode_witness_to_buffer(witness: &Self::Witness, dst: &mut Vec<F>) {
+        let (c0, c1) = witness;
+        Fq6::<F, T, NN, P::Ex6>::encode_witness_to_buffer(c0, dst);
+        Fq6::<F, T, NN, P::Ex6>::encode_witness_to_buffer(c1, dst);
     }
 }
 
