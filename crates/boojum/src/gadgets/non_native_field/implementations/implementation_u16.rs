@@ -1088,6 +1088,18 @@ impl<F: SmallField, T: pairing::ff::PrimeField, const N: usize> CircuitVarLength
     }
 }
 
+impl<F: SmallField, T: pairing::ff::PrimeField, const N: usize> WitnessVarLengthEncodable<F>
+    for NonNativeFieldOverU16<F, T, N>
+{
+    fn witness_encoding_length(_witness: &Self::Witness) -> usize {
+        N
+    }
+
+    fn encode_witness_to_buffer(_witness: &Self::Witness, _dst: &mut Vec<F>) {
+        unimplemented!("need to cast_into_source");
+    }
+}
+
 // We need this to ensure no conflicting implementations without negative impls
 
 #[derive(Derivative, Serialize, PartialEq)]
@@ -1199,7 +1211,7 @@ impl<F: SmallField, T: pairing::ff::PrimeField, const N: usize> WitnessCastable<
 }
 
 use crate::gadgets::traits::castable::Convertor;
-use crate::gadgets::traits::encodable::CircuitVarLengthEncodable;
+use crate::gadgets::traits::encodable::{CircuitVarLengthEncodable, WitnessVarLengthEncodable};
 
 impl<F: SmallField, T: pairing::ff::PrimeField, const N: usize> CSWitnessable<F, N>
     for NonNativeFieldOverU16<F, T, N>
