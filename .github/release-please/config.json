@@ -1,0 +1,12 @@
+{
+    "bootstrap-sha": "f7866247c9cdd0431211b267d2507e8cc2aaf4dd",
+    "include-component-in-tag": false,
+    "bump-minor-pre-major": true,
+    "bump-patch-for-minor-pre-major": true,
+    "packages": {
+        ".": {
+            "component": "zksync-crypto",
+            "release-type": "simple"
+        }
+    }
+}
