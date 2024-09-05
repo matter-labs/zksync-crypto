@@ -6,8 +6,6 @@ resolver = "2"
 
 [workspace.package]
 # All the packages in the workspace should have the same version
-# Important: 0.29.0 is not published right now. If you want to publish,
-# just remove this comment and go ahead.
 version = "0.29.0"
 edition = "2021"
 authors = ["The Matter Labs Team <hello@matterlabs.dev>"]
