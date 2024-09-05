@@ -1,11 +1,14 @@
 [package]
-authors = ["Sean Bowe <sean@z.cash>", "Alex Vlasov <alex.m.vlasov@gmail.com>", "Alex Gluchowski <alex@gluchowski.net>"]
-description = "Cryptographic library for SNARK gadgets"
-homepage = "https://github.com/matter-labs/franklin-crypto"
-license = "MIT/Apache-2.0"
 name = "franklin-crypto"
 version.workspace = true
 edition = "2015"
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+license.workspace = true
+keywords.workspace = true
+categories.workspace = true
+description = "Cryptographic library for SNARK gadgets, based on sapling-crypto"
 
 [lib]
 crate-type = ["lib", "staticlib"]

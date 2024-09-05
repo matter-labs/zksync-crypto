@@ -1,13 +1,14 @@
 [package]
-authors = ["Sean Bowe <ewillbefull@gmail.com>", "Alex Vlasov <alex.m.vlasov@gmail.com>", "Alex Gluchowski <alex@gluchowski.net"]
-description = "zk-SNARK library"
-documentation = "https://github.com/matter-labs/bellman"
-homepage = "https://github.com/matter-labs/bellman"
-license = "MIT/Apache-2.0"
-name = "bellman_ce"
-repository = "https://github.com/matter-labs/bellman"
-version.workspace = true
+name = "zksync_bellman"
+description = "zk-SNARK library, based on bellman"
 edition = "2018"
+version.workspace = true
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+license.workspace = true
+keywords.workspace = true
+categories.workspace = true
 
 [lib]
 crate-type = ["cdylib", "lib", "staticlib"]
