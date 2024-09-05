@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.30.0](https://github.com/matter-labs/zksync-crypto/compare/v0.29.0...v0.30.0) (2024-09-05)
+
+
+### ⚠ BREAKING CHANGES
+
+* Rename crypto crates and properly set metadata ([#21](https://github.com/matter-labs/zksync-crypto/issues/21))
+
+### Features
+
+* Rename crypto crates and properly set metadata ([#21](https://github.com/matter-labs/zksync-crypto/issues/21)) ([14f44d7](https://github.com/matter-labs/zksync-crypto/commit/14f44d7c3054e02fe8fbaa093a4548b4b5d2f5cf))
+
 ## [0.29.0](https://github.com/matter-labs/zksync-crypto/compare/v0.28.0...v0.29.0) (2024-09-04)
 
 
