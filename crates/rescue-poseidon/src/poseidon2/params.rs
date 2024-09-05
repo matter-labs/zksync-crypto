@@ -46,7 +46,7 @@ impl<E: Engine, const RATE: usize, const WIDTH: usize> Default for Poseidon2Para
         let diag_internal_matrix = poseidon2_internal_matrix::<E, WIDTH>();
 
         let mut round_constants = params.round_constants().to_owned();
-        for i in (full_rounds / 2)..(full_rounds / 2) + partial_rounds {
+        for i in 0..params.partial_rounds {
             for j in 1..WIDTH {
                 round_constants[i][j] = E::Fr::zero();
             }
