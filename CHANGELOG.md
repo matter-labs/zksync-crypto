@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.30.1](https://github.com/matter-labs/zksync-crypto/compare/v0.30.0...v0.30.1) (2024-09-05)
+
+
+### Bug Fixes
+
+* **snark-wrapper:** Revert "improvement of parameters" ([#24](https://github.com/matter-labs/zksync-crypto/issues/24)) ([cce1da3](https://github.com/matter-labs/zksync-crypto/commit/cce1da378761dd76271730ad154e6f5b8a7675bb))
+
 ## [0.30.0](https://github.com/matter-labs/zksync-crypto/compare/v0.29.0...v0.30.0) (2024-09-05)
 
 
