@@ -9,18 +9,25 @@ resolver = "2"
 # Important: 0.29.0 is not published right now. If you want to publish,
 # just remove this comment and go ahead.
 version = "0.29.0"
+edition = "2021"
+authors = ["The Matter Labs Team <hello@matterlabs.dev>"]
+homepage = "https://zksync.io/"
+repository = "https://github.com/matter-labs/zksync-crypto/"
+license = "MIT OR Apache-2.0"
+keywords = ["blockchain", "zksync"]
+categories = ["cryptography"]
 
 [workspace.dependencies]
 # Local dependencies
-bellman = { version = "=0.29.0", path = "crates/bellman", package = "bellman_ce" }
+bellman = { version = "=0.29.0", path = "crates/bellman", package = "zksync_bellman" }
 boojum = { version = "=0.29.0", path = "crates/boojum" }
 zksync_solidity_vk_codegen = { version = "=0.29.0", path = "crates/codegen" }
 codegen-bin = { version = "=0.29.0", path = "crates/codegen-bin" }
-cs_derive = { version = "=0.29.0", path = "crates/cs_derive" }
-ff = { version = "=0.29.0", path = "crates/ff", package = "ff_ce" }
-ff_derive_ce = { version = "=0.29.0", path = "crates/ff_derive" }
+cs_derive = { version = "=0.29.0", path = "crates/cs_derive", package = "zksync_cs_derive" }
+ff = { version = "=0.29.0", path = "crates/ff", package = "zksync_ff" }
+ff_derive = { version = "=0.29.0", path = "crates/ff_derive", package = "zksync_ff_derive" }
 franklin-crypto = { version = "=0.29.0", path = "crates/franklin-crypto" }
-pairing = { version = "=0.29.0", path = "crates/pairing", package = "pairing_ce" }
+pairing = { version = "=0.29.0", path = "crates/pairing", package = "zksync_pairing" }
 rescue_poseidon = { version = "=0.29.0", path = "crates/rescue-poseidon" }
 snark_wrapper = { version = "=0.29.0", path = "crates/snark-wrapper" }
 

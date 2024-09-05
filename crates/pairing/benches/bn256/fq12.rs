@@ -1,7 +1,7 @@
 use rand::{Rand, SeedableRng, XorShiftRng};
 
 use ff::Field;
-use pairing_ce::bn256::*;
+use zksync_pairing::bn256::*;
 
 #[bench]
 fn bench_fq12_add_assign(b: &mut ::test::Bencher) {
