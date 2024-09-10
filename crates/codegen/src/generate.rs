@@ -235,7 +235,7 @@ fn render(vars: TemplateVars, vk: VerificationKey<Bn256, DummyCircuit>, output_d
 
         let rendered = handlebars.render("contract", &map.inner).unwrap();
 
-        writer.write(rendered.as_bytes()).expect("must write to file");
+        writer.write_all(rendered.as_bytes()).expect("must write to file");
     }
 }
 

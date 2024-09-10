@@ -1,4 +1,4 @@
-#[allow(unused_macros)]
+#[allow(clippy::needless_borrow)]
 
 cfg_if! {
     if #[cfg(feature = "nolog")] {

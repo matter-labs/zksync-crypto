@@ -10,10 +10,10 @@ pub mod hex {
 
 #[cfg(feature = "derive")]
 #[macro_use]
-extern crate ff_derive_ce;
+extern crate ff_derive;
 
 #[cfg(feature = "derive")]
-pub use ff_derive_ce::*;
+pub use ff_derive::*;
 
 use std::error::Error;
 use std::fmt;

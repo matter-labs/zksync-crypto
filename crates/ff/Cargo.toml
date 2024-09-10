@@ -1,22 +1,21 @@
 [package]
-name = "ff_ce"
+name = "zksync_ff"
 version.workspace = true
-authors = ["Sean Bowe <ewillbefull@gmail.com>",
-    "Alex Gluchowski <alex@gluchowski.net>",
-    "Alex Vlasov <alex.m.vlasov@gmail.com>"]
-description = "Library for building and interfacing with finite fields"
-documentation = "https://docs.rs/ff/"
-homepage = "https://github.com/matter-labs/ff"
-license = "MIT/Apache-2.0"
-repository = "https://github.com/matter-labs/ff"
 edition = "2018"
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+license.workspace = true
+keywords.workspace = true
+categories.workspace = true
+description = "Library for building and interfacing with finite fields, based on ff"
 exclude = [
     "tester",
     "asm_tester"
 ]
 
 [dependencies]
-ff_derive_ce = { workspace = true, optional = true }
+ff_derive = { workspace = true, optional = true }
 
 byteorder = "1"
 rand = "0.4"
@@ -25,5 +24,5 @@ serde = "1"
 
 [features]
 default = []
-derive = ["ff_derive_ce"]
-asm_derive = ["derive", "ff_derive_ce/asm"]
+derive = ["ff_derive"]
+asm_derive = ["derive", "ff_derive/asm"]

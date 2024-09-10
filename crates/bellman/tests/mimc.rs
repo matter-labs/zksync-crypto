@@ -5,20 +5,20 @@ use rand::{thread_rng, Rng};
 use std::time::{Duration, Instant};
 
 // Bring in some tools for using pairing-friendly curves
-use bellman_ce::pairing::Engine;
+use zksync_bellman::pairing::Engine;
 
-use bellman_ce::pairing::ff::Field;
+use zksync_bellman::pairing::ff::Field;
 
 // We're going to use the BLS12-381 pairing-friendly elliptic curve.
-use bellman_ce::pairing::bls12_381::Bls12;
+use zksync_bellman::pairing::bls12_381::Bls12;
 
-use bellman_ce::pairing::bn256::Bn256;
+use zksync_bellman::pairing::bn256::Bn256;
 
 // We'll use these interfaces to construct our circuit.
-use bellman_ce::{Circuit, ConstraintSystem, SynthesisError};
+use zksync_bellman::{Circuit, ConstraintSystem, SynthesisError};
 
 // We're going to use the Groth16 proving system.
-use bellman_ce::groth16::{create_random_proof, generate_random_parameters, prepare_verifying_key, verify_proof, Proof};
+use zksync_bellman::groth16::{create_random_proof, generate_random_parameters, prepare_verifying_key, verify_proof, Proof};
 
 // const MIMC_ROUNDS: usize = 322;
 
@@ -27,8 +27,8 @@ const MIMC_ROUNDS: usize = 1000000;
 #[cfg(feature = "marlin")]
 #[test]
 fn test_bench_marlin_prover() {
-    use bellman_ce::marlin::prover::test_over_engine_and_circuit_with_proving_key;
-    use bellman_ce::pairing::bn256::Bn256;
+    use zksync_bellman::marlin::prover::test_over_engine_and_circuit_with_proving_key;
+    use zksync_bellman::pairing::bn256::Bn256;
     {
         // This may not be cryptographically safe, use
         // `OsRng` (for example) in production software.
@@ -55,8 +55,8 @@ fn test_bench_marlin_prover() {
 #[cfg(feature = "marlin")]
 #[test]
 fn test_create_marlin_proving_key() {
-    use bellman_ce::marlin::prover::create_test_keys;
-    use bellman_ce::pairing::bn256::Bn256;
+    use zksync_bellman::marlin::prover::create_test_keys;
+    use zksync_bellman::pairing::bn256::Bn256;
     {
         // This may not be cryptographically safe, use
         // `OsRng` (for example) in production software.
@@ -349,7 +349,7 @@ fn test_mimc_bn256() {
 #[test]
 #[ignore] // TODO(ignored-test): Timeout.
 fn test_mimc_transpilation_into_plonk() {
-    use bellman_ce::plonk::adaptor::alternative::Transpiler;
+    use zksync_bellman::plonk::adaptor::alternative::Transpiler;
     // This may not be cryptographically safe, use
     // `OsRng` (for example) in production software.
     let rng = &mut thread_rng();

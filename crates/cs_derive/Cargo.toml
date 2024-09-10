@@ -1,13 +1,13 @@
 [package]
-name = "cs_derive"
+name = "zksync_cs_derive"
 version.workspace = true
-edition = "2021"
-authors = ["The Matter Labs Team <hello@matterlabs.dev>"]
-homepage = "https://zksync.io/"
-repository = "https://github.com/matter-labs/era-boojum"
-license = "MIT OR Apache-2.0"
-keywords = ["blockchain", "zksync"]
-categories = ["cryptography"]
+edition.workspace = true
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+license.workspace = true
+keywords.workspace = true
+categories.workspace = true
 description = "Derive macro for boojum crate"
 
 [dependencies]

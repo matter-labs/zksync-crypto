@@ -27,6 +27,14 @@ under [MIT][pairing-mit] and [Apache 2.0][pairing-apache] licenses.
 [pairing-mit]: https://github.com/zkcrypto/pairing/blob/17973bdd64a44a4829dd6b150f2d54246709b1da/LICENSE-MIT
 [pairing-apache]: https://github.com/zkcrypto/pairing/blob/17973bdd64a44a4829dd6b150f2d54246709b1da/LICENSE-APACHE
 
+## sapling-crypto
+
+[sapling: Zcash "Sapling" cryptography](https://github.com/zcash/sapling-crypto) dual-licensed under
+[MIT][sapling-mit] and [Apache 2.0][sapling-apache] licenses.
+
+[sapling-mit]: https://github.com/zcash/sapling-crypto/blob/984a08897644af67754a12ec13a7d7ccad5fa0d3/LICENSE-MIT
+[sapling-apache]: https://github.com/zcash/sapling-crypto/blob/984a08897644af67754a12ec13a7d7ccad5fa0d3/LICENSE-APACHE
+
 ## plonky2
 
 [plonky2: Plonky2, a SNARK implementation based on techniques from PLONK and FRI](https://github.com/mir-protocol/plonky2)

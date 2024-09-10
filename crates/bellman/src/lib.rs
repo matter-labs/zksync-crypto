@@ -1,5 +1,6 @@
 #![allow(dead_code, unused_imports, unused_mut, unused_variables, unused_macros, unused_assignments, unreachable_patterns)]
 #![cfg_attr(feature = "allocator", feature(allocator_api))]
+#![allow(clippy::needless_borrow, clippy::needless_borrows_for_generic_args)]
 
 #[macro_use]
 extern crate cfg_if;

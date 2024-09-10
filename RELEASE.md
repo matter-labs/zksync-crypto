@@ -1,5 +1,42 @@
 # Release process
 
+## Automatic releases
+
+We use [release-please](https://github.com/googleapis/release-please) to manage releases, as well
+as a custom automation to publish releases on [crates.io](https://crates.io/).
+
+Any pull request name must follow [conventional commits](https://www.conventionalcommits.org/en/v1.0.0/)
+specification, and then, based on the PR titles, a release pull request will be created, which
+will take care of changelog generation.
+
+Important: only `fix` and `feat` labels will trigger a release PR creation. So, if a `chore` or `ci`
+PR will be merged right after release, the PR will not be created (they _will_ be included into a release,
+if a release PR exists, but they won't trigger PR creation or appear in the changelog). If you want to make
+sure that the change will trigger a release PR, mark the PR as `fix` or `feat`.
+
+By default, a patch version will be bumped. If you want to bump a minor version, mark the PR as breaking with
+an exclamation point, e.g. `feat!` or `fix!`.
+
+It is recommended that each PR has a component mentioned, e.g. `feat(component): Change added`.
+
+Once release PR is merged, it will be published to `crates.io`, and a notification will be sent to Slack.
+
+## Manual releases
+
+> [!WARNING]  
+> Manual releases are discouraged, and should only be used as a last resort measure.
+> Discuss the manual release with the team beforehand and prepare a plan.
+> It is very likely that manual release will interfere with `release-please` configuration,
+> which will have to be fixed manually as well.
+>
+> Additionally, if the release was created, but wasn't published, you will only need a subset
+> of the actions listed below (e.g. if the it failed due to a transient error, you just need to
+> publish code without creating any tags; but if the release can't be published, it's better to
+> remove it, fix the issue, and try releasing again via automation).
+
+> [!CAUTION]
+> Never release code that does not correspond to any tag.
+
 If you want to release the packages on crates.io, follow this process:
 
 1. Install `cargo workspaces`: `cargo install cargo-workspaces`

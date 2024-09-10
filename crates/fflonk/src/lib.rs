@@ -1,6 +1,7 @@
 #![feature(generic_const_exprs)]
 #![feature(allocator_api)]
-pub use circuit_definitions::snark_wrapper::franklin_crypto as franklin_crypto;
+pub use circuit_definitions::snark_wrapper::franklin_crypto;
+use circuit_definitions::snark_wrapper::franklin_crypto::bellman::plonk::better_better_cs::{cs::PlonkCsWidth3Params, gates::naive_main_gate::NaiveMainGate};
 pub use franklin_crypto::bellman;
 
 use bellman::{
@@ -40,9 +41,7 @@ pub use convenience::*;
 
 #[cfg(test)]
 mod test;
-mod utils;
-use utils::*;
-pub use utils::{compute_generators, compute_power_of_two_root_of_generator, num_system_polys_from_vk};
+pub mod utils;
 
 pub(crate) const SANITY_CHECK: bool = true;
-// pub use shivini::circuit_definitions as circuit_definitions;
+pub type FflonkAssembly<E, S> = Assembly<E, PlonkCsWidth3Params, NaiveMainGate, S>;
