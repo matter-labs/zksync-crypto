@@ -1,6 +1,6 @@
 [package]
 name = "fflonk"
-version = "0.1.0"
+version.workspace = true
 edition = "2021"
 
 [dependencies]
@@ -16,3 +16,7 @@ serde_derive = "1"
 bincode = "1.3"
 byteorder = "1"
 ureq = "2.5"
+
+[features]
+default  = ["sanity"]
+sanity = []
