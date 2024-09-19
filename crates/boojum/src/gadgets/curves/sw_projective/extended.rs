@@ -482,7 +482,17 @@ where
         cs: &mut CS,
         other_xy: &mut (NN, NN),
     ) -> Self {
-        self.add_sub_mixed_impl(cs, other_xy, false)
+        let (x, y) = other_xy;
+
+        let x_is_zero = x.is_zero(cs);
+        let y_is_zero = y.is_zero(cs);
+
+        // Even though it is not algebraically correct, de-facto it is true.
+        let is_point2_inf = x_is_zero.and(cs, y_is_zero);
+
+        let result = self.add_sub_mixed_impl(cs, other_xy, false);
+
+        Self::conditionally_select(cs, is_point2_inf, self, &result)
     }
 
     pub fn sub_mixed<CS: ConstraintSystem<F>>(
@@ -490,7 +500,17 @@ where
         cs: &mut CS,
         other_xy: &mut (NN, NN),
     ) -> Self {
-        self.add_sub_mixed_impl(cs, other_xy, true)
+        let (x, y) = other_xy;
+
+        let x_is_zero = x.is_zero(cs);
+        let y_is_zero = y.is_zero(cs);
+
+        // Even though it is not algebraically correct, de-facto it is true.
+        let is_point2_inf = x_is_zero.and(cs, y_is_zero);
+
+        let result = self.add_sub_mixed_impl(cs, other_xy, true);
+
+        Self::conditionally_select(cs, is_point2_inf, self, &result)
     }
 
     pub fn convert_to_affine_or_default<CS: ConstraintSystem<F>>(
