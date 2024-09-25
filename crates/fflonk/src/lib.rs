@@ -1,6 +1,8 @@
 #![feature(generic_const_exprs)]
 #![feature(allocator_api)]
-pub use circuit_definitions::snark_wrapper::franklin_crypto as franklin_crypto;
+pub use circuit_definitions;
+pub use circuit_definitions::snark_wrapper::franklin_crypto;
+use circuit_definitions::snark_wrapper::franklin_crypto::bellman::plonk::better_better_cs::{cs::PlonkCsWidth3Params, gates::naive_main_gate::NaiveMainGate};
 pub use franklin_crypto::bellman;
 
 use bellman::{
@@ -30,7 +32,7 @@ pub use franklin_crypto::plonk::circuit::custom_rescue_gate::Rescue5CustomGate;
 
 mod definitions;
 pub use definitions::*;
-mod prover;
+pub mod prover;
 use prover::*;
 pub mod verifier;
 pub use utils::*;

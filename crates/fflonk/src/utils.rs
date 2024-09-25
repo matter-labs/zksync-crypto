@@ -1857,6 +1857,43 @@ pub(crate) fn hardcoded_generator_of_3rd_roots_of_unity<F: PrimeField>() -> F {
     biguint_to_fe(BigUint::parse_bytes(b"0000000000000000b3c4d79d41a917585bfc41088d8daaa78b17ea66b99c90dd", 16).unwrap())
 }
 
+pub struct FflonkTestCircuit;
+
+impl Circuit<Bn256> for FflonkTestCircuit {
+    type MainGate = NaiveMainGate;
+
+    fn synthesize<CS: circuit_definitions::snark_wrapper::franklin_crypto::bellman::plonk::better_better_cs::cs::ConstraintSystem<Bn256> + 'static>(
+        &self,
+        cs: &mut CS,
+    ) -> Result<(), circuit_definitions::snark_wrapper::franklin_crypto::bellman::SynthesisError> {
+        use circuit_definitions::snark_wrapper::franklin_crypto::bellman::Field;
+        use circuit_definitions::snark_wrapper::franklin_crypto::plonk::circuit::allocated_num::Num;
+        let a = Fr::from_str(&65.to_string()).unwrap();
+        let b = Fr::from_str(&66.to_string()).unwrap();
+        let mut c = a;
+        c.add_assign(&b);
+
+        let a_var = Num::alloc(cs, Some(a))?;
+        let b_var = Num::alloc(cs, Some(b))?;
+        let c_var = Num::alloc(cs, Some(c))?;
+
+        for _ in 0..1 << 5 {
+            let mut lc = LinearCombination::zero();
+            lc.add_assign_number_with_coeff(&a_var, Fr::one());
+            lc.add_assign_number_with_coeff(&b_var, Fr::one());
+            let mut minus_one = Fr::one();
+            minus_one.negate();
+            lc.add_assign_number_with_coeff(&c_var, minus_one);
+
+            let _ = lc.into_num(cs)?;
+        }
+
+        let _input = cs.alloc_input(|| Ok(Fr::one()))?;
+
+        Ok(())
+    }
+}
+
 #[test]
 fn test_poly_combination() {
     use rand::{Rng, SeedableRng, XorShiftRng};
