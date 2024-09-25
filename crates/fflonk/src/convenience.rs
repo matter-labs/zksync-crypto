@@ -6,6 +6,7 @@ use bellman::plonk::better_better_cs::{
 };
 use byteorder::{BigEndian, ReadBytesExt};
 use circuit_definitions::circuit_definitions::aux_layer::compression_modes::{CompressionTranscriptForWrapper, CompressionTreeHasherForWrapper};
+use circuit_definitions::circuit_definitions::aux_layer::wrapper::ZkSyncCompressionWrapper;
 use circuit_definitions::circuit_definitions::recursion_layer::{ZkSyncRecursionProof, ZkSyncRecursionVerificationKey};
 use circuit_definitions::{
     circuit_definitions::aux_layer::{
@@ -48,20 +49,22 @@ type CompressionTranscript = GoldilocksPoisedon2Transcript;
 type CompressionTreeHasher = GoldilocksPoseidon2Sponge<AbsorptionModeOverwrite>;
 
 pub const L1_VERIFIER_DOMAIN_SIZE_LOG: usize = 23;
+pub const MAX_COMBINED_DEGREE_FACTOR: usize = 9;
 type F = GoldilocksField;
 type EXT = GoldilocksExt2;
 
-pub fn init_crs(worker: &Worker, domain_size: usize, max_combined_degree: usize) -> Crs<Bn256, CrsForMonomialForm> {
+pub fn init_crs(worker: &Worker, domain_size: usize) -> Crs<Bn256, CrsForMonomialForm> {
     assert!(domain_size <= 1 << L1_VERIFIER_DOMAIN_SIZE_LOG);
+    let num_points = MAX_COMBINED_DEGREE_FACTOR * domain_size;
     let mon_crs = if let Ok(crs_file_path) = std::env::var("CRS_FILE") {
         println!("using crs file at {crs_file_path}");
         let crs_file = std::fs::File::open(&crs_file_path).expect(&format!("crs file at {}", crs_file_path));
         let mon_crs = Crs::<Bn256, CrsForMonomialForm>::read(crs_file).expect(&format!("read crs file at {}", crs_file_path));
-        assert!(max_combined_degree <= mon_crs.g1_bases.len());
+        assert!(num_points <= mon_crs.g1_bases.len());
 
         mon_crs
     } else {
-        Crs::<Bn256, CrsForMonomialForm>::non_power_of_two_crs_42(max_combined_degree, &worker)
+        Crs::<Bn256, CrsForMonomialForm>::non_power_of_two_crs_42(num_points, &worker)
     };
 
     mon_crs
@@ -80,6 +83,52 @@ pub fn init_crs_for_vk() -> Crs<Bn256, CrsForMonomialForm> {
     mon_crs
 }
 
+pub fn init_snark_wrapper_circuit(path: &str) -> FflonkSnarkVerifierCircuit {
+    let compression_wrapper_mode = if let Ok(compression_wrapper_mode) = std::env::var("COMPRESSION_WRAPPER_MODE") {
+        compression_wrapper_mode.parse::<u8>().unwrap()
+    } else {
+        5u8
+    };
+    println!("Compression mode {}", compression_wrapper_mode);
+    let compression_proof_file_path = if let Ok(file_path) = std::env::var("COMPRESSION_PROOF_FILE") {
+        file_path
+    } else {
+        format!("{}/compression_wrapper_{compression_wrapper_mode}_proof.json", path)
+    };
+    println!("Reading proof file at {compression_proof_file_path}");
+    let compression_vk_file_path = if let Ok(file_path) = std::env::var("COMPRESSION_VK_FILE") {
+        file_path
+    } else {
+        format!("{}/compression_wrapper_{compression_wrapper_mode}_vk.json", path)
+    };
+    println!("Reading vk file at {compression_vk_file_path}");
+
+    let compression_proof_file = std::fs::File::open(compression_proof_file_path).unwrap();
+    let compression_proof: ZkSyncCompressionProofForWrapper = serde_json::from_reader(&compression_proof_file).unwrap();
+
+    let compression_vk_file = std::fs::File::open(compression_vk_file_path).unwrap();
+    let compression_vk: ZkSyncCompressionVerificationKeyForWrapper = serde_json::from_reader(&compression_vk_file).unwrap();
+
+    init_snark_wrapper_circuit_from_inputs(compression_wrapper_mode, compression_proof, compression_vk)
+}
+
+pub fn init_snark_wrapper_circuit_from_inputs(
+    compression_wrapper_mode: u8,
+    input_proof: ZkSyncCompressionProofForWrapper,
+    input_vk: ZkSyncCompressionVerificationKeyForWrapper,
+) -> FflonkSnarkVerifierCircuit {
+    let wrapper_function = ZkSyncCompressionWrapper::from_numeric_circuit_type(compression_wrapper_mode);
+    let fixed_parameters = input_vk.fixed_parameters.clone();
+
+    FflonkSnarkVerifierCircuit {
+        witness: Some(input_proof),
+        vk: input_vk,
+        fixed_parameters,
+        transcript_params: (),
+        wrapper_function,
+    }
+}
+
 pub fn precompute_and_save_setup_for_fflonk_snark_circuit(circuit: &FflonkSnarkVerifierCircuit, worker: &Worker, output_blob_path: &str) {
     let compression_wrapper_mode = circuit.wrapper_function.numeric_circuit_type();
     println!("Compression mode: {compression_wrapper_mode}");
@@ -94,7 +143,7 @@ pub fn precompute_and_save_setup_for_fflonk_snark_circuit(circuit: &FflonkSnarkV
     assert!(domain_size.is_power_of_two());
     assert!(domain_size <= 1 << L1_VERIFIER_DOMAIN_SIZE_LOG);
 
-    let mon_crs = init_crs(&worker, domain_size, max_combined_degree);
+    let mon_crs = init_crs(&worker, domain_size);
     let setup: FflonkSnarkVerifierCircuitSetup = FflonkSetup::create_setup(&setup_assembly, &worker, &mon_crs).expect("fflonk setup");
     let vk = FflonkVerificationKey::from_setup(&setup, &mon_crs).unwrap();
 
@@ -121,9 +170,9 @@ pub fn prove_fflonk_snark_verifier_circuit_with_precomputation(
 
     assert!(domain_size <= 1 << L1_VERIFIER_DOMAIN_SIZE_LOG);
 
-    let mon_crs = init_crs(&worker, domain_size, max_combined_degree);
+    let mon_crs = init_crs(&worker, domain_size);
 
-    let proof = crate::prover::create_proof::<_, FflonkSnarkVerifierCircuit, _, _, _, RollingKeccakTranscript<Fr>>(assembly, &worker, &precomputed_setup, &mon_crs, None).expect("proof");
+    let proof = crate::prover::create_proof::<_, FflonkSnarkVerifierCircuit, _, _, _, RollingKeccakTranscript<Fr>>(&assembly, &worker, &precomputed_setup, &mon_crs, None).expect("proof");
     let valid = crate::verify::<_, _, RollingKeccakTranscript<Fr>>(&vk, &proof, None).unwrap();
     assert!(valid, "proof verification fails");
 
@@ -143,11 +192,11 @@ pub fn prove_fflonk_snark_verifier_circuit_single_shot(circuit: &FflonkSnarkVeri
 
     let max_combined_degree = compute_max_combined_degree_from_assembly::<_, _, _, _, FflonkSnarkVerifierCircuit>(&assembly);
     println!("Max degree is {}", max_combined_degree);
-    let mon_crs = init_crs(&worker, domain_size, max_combined_degree);
+    let mon_crs = init_crs(&worker, domain_size);
     let setup = FflonkSetup::create_setup(&assembly, &worker, &mon_crs).expect("setup");
     let vk = FflonkVerificationKey::from_setup(&setup, &mon_crs).unwrap();
 
-    let proof = crate::prover::create_proof::<_, FflonkSnarkVerifierCircuit, _, _, _, RollingKeccakTranscript<Fr>>(assembly, &worker, &setup, &mon_crs, None).expect("proof");
+    let proof = crate::prover::create_proof::<_, FflonkSnarkVerifierCircuit, _, _, _, RollingKeccakTranscript<Fr>>(&assembly, &worker, &setup, &mon_crs, None).expect("proof");
     let valid = crate::verify::<_, _, RollingKeccakTranscript<Fr>>(&vk, &proof, None).unwrap();
     assert!(valid, "proof verification fails");
 
@@ -1051,7 +1100,7 @@ fn download_file(url: &str, output_file: &str) -> Result<(), ureq::Error> {
     Ok(())
 }
 
-pub(crate) fn download_and_transform_ignition_transcripts(domain_size: usize) {
+pub fn download_and_transform_ignition_transcripts(domain_size: usize) {
     let transcripts_dir = std::env::var("IGNITION_TRANSCRIPT_PATH").unwrap_or("./".to_string());
     let chunk_size = 5_040_000usize;
     let num_chunks = domain_size.div_ceil(chunk_size);

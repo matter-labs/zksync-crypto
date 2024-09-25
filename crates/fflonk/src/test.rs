@@ -1,5 +1,6 @@
-use circuit_definitions::snark_wrapper::franklin_crypto::{
-    bellman::{
+use circuit_definitions::{
+    boojum::pairing::ff::Field,
+    snark_wrapper::franklin_crypto::bellman::{
         bn256::{Bn256, Fr},
         plonk::{
             better_better_cs::{
@@ -7,10 +8,10 @@ use circuit_definitions::snark_wrapper::franklin_crypto::{
                 gates::naive_main_gate::NaiveMainGate,
             },
             commitments::transcript::keccak_transcript::RollingKeccakTranscript,
+            polynomials::Polynomial,
         },
         worker::Worker,
     },
-    plonk::circuit::linear_combination::LinearCombination,
 };
 use circuit_definitions::{
     boojum::pairing::ff::PrimeField,
@@ -21,6 +22,8 @@ use circuit_definitions::{
         recursion_layer::{ZkSyncRecursionLayerProof, ZkSyncRecursionLayerVerificationKey},
     },
 };
+
+use crate::FflonkTestCircuit;
 
 use super::convenience::*;
 
@@ -137,41 +140,7 @@ fn verify_compression_wrapper_proof() {
 #[ignore]
 fn test_snark_circuit_with_naive_main_gate() {
     let path = format!("./data/compression_schedule/hard");
-    let compression_wrapper_mode = if let Ok(compression_wrapper_mode) = std::env::var("COMPRESSION_WRAPPER_MODE") {
-        compression_wrapper_mode.parse::<u8>().unwrap()
-    } else {
-        5u8
-    };
-    println!("Compression mode {}", compression_wrapper_mode);
-    let compression_proof_file_path = if let Ok(file_path) = std::env::var("COMPRESSION_PROOF_FILE") {
-        file_path
-    } else {
-        format!("{}/compression_wrapper_{compression_wrapper_mode}_proof.json", path)
-    };
-    println!("Reading proof file at {compression_proof_file_path}");
-    let compression_vk_file_path = if let Ok(file_path) = std::env::var("COMPRESSION_VK_FILE") {
-        file_path
-    } else {
-        format!("{}/compression_wrapper_{compression_wrapper_mode}_vk.json", path)
-    };
-    println!("Reading vk file at {compression_vk_file_path}");
-
-    let compression_proof_file = std::fs::File::open(compression_proof_file_path).unwrap();
-    let compression_proof: ZkSyncCompressionProofForWrapper = serde_json::from_reader(&compression_proof_file).unwrap();
-
-    let compression_vk_file = std::fs::File::open(compression_vk_file_path).unwrap();
-    let compression_vk: ZkSyncCompressionVerificationKeyForWrapper = serde_json::from_reader(&compression_vk_file).unwrap();
-
-    let wrapper_function = ZkSyncCompressionWrapper::from_numeric_circuit_type(compression_wrapper_mode);
-    let fixed_parameters = compression_vk.fixed_parameters.clone();
-
-    let circuit = FflonkSnarkVerifierCircuit {
-        witness: Some(compression_proof),
-        vk: compression_vk,
-        fixed_parameters,
-        transcript_params: (),
-        wrapper_function,
-    };
+    let circuit = init_snark_wrapper_circuit(&path);
     let worker = Worker::new();
     let (proof, vk) = prove_fflonk_snark_verifier_circuit_single_shot(&circuit, &worker);
 
@@ -371,46 +340,10 @@ fn download_and_transform_crs() {
         compression_wrapper_mode
     );
     // Step 1
-    let max_degree = crate::compute_max_combined_degree_from_assembly::<_, _, _, _, FflonkSnarkVerifierCircuit>(&assembly);
+    // let max_degree = crate::compute_max_combined_degree_from_assembly::<_, _, _, _, FflonkSnarkVerifierCircuit>(&assembly);
+    let max_degree = MAX_COMBINED_DEGREE_FACTOR * domain_size;
     // Step 2-4
     download_and_transform_ignition_transcripts(max_degree);
-}
-
-struct FflonkTestCircuit;
-
-impl Circuit<Bn256> for FflonkTestCircuit {
-    type MainGate = NaiveMainGate;
-
-    fn synthesize<CS: circuit_definitions::snark_wrapper::franklin_crypto::bellman::plonk::better_better_cs::cs::ConstraintSystem<Bn256> + 'static>(
-        &self,
-        cs: &mut CS,
-    ) -> Result<(), circuit_definitions::snark_wrapper::franklin_crypto::bellman::SynthesisError> {
-        use circuit_definitions::snark_wrapper::franklin_crypto::bellman::Field;
-        use circuit_definitions::snark_wrapper::franklin_crypto::plonk::circuit::allocated_num::Num;
-        let a = Fr::from_str(&65.to_string()).unwrap();
-        let b = Fr::from_str(&66.to_string()).unwrap();
-        let mut c = a;
-        c.add_assign(&b);
-
-        let a_var = Num::alloc(cs, Some(a))?;
-        let b_var = Num::alloc(cs, Some(b))?;
-        let c_var = Num::alloc(cs, Some(c))?;
-
-        for _ in 0..1 << 10 {
-            let mut lc = LinearCombination::zero();
-            lc.add_assign_number_with_coeff(&a_var, Fr::one());
-            lc.add_assign_number_with_coeff(&b_var, Fr::one());
-            let mut minus_one = Fr::one();
-            minus_one.negate();
-            lc.add_assign_number_with_coeff(&c_var, minus_one);
-
-            let _ = lc.into_num(cs)?;
-        }
-
-        let _input = cs.alloc_input(|| Ok(Fr::one()))?;
-
-        Ok(())
-    }
 }
 
 #[test]
@@ -434,11 +367,56 @@ fn test_test_circuit_with_naive_main_gate() {
 
     let max_combined_degree = compute_max_combined_degree_from_assembly::<_, _, _, _, FflonkTestCircuit>(&assembly);
     println!("Max degree is {}", max_combined_degree);
-    let mon_crs = init_crs(&worker, domain_size, max_combined_degree);
+    let mon_crs = init_crs(&worker, domain_size);
     let setup = FflonkSetup::create_setup(&assembly, &worker, &mon_crs).expect("setup");
     let vk = FflonkVerificationKey::from_setup(&setup, &mon_crs).unwrap();
+    let vk_file = std::fs::File::create("/tmp/test_vk.json").unwrap();
+    serde_json::to_writer(&vk_file, &vk).unwrap();
+    println!("vk file saved");
 
-    let proof = crate::prover::create_proof::<_, FflonkTestCircuit, _, _, _, RollingKeccakTranscript<Fr>>(assembly, &worker, &setup, &mon_crs, None).expect("proof");
+    let proof = crate::prover::create_proof::<_, FflonkTestCircuit, _, _, _, RollingKeccakTranscript<Fr>>(&assembly, &worker, &setup, &mon_crs, None).expect("proof");
+    dbg!(&proof.commitments);
     let valid = crate::verify::<_, _, RollingKeccakTranscript<Fr>>(&vk, &proof, None).unwrap();
     assert!(valid, "proof verification fails");
+}
+
+#[test]
+fn test_alternative_division() {
+    let worker = &Worker::new();
+    let domain_size = 1 << 2;
+    let degree = 2 * domain_size;
+
+    let expected_coeffs: Vec<_> = (0..degree).map(|el| Fr::from_str(&el.to_string()).unwrap()).collect();
+    let mut actual = Polynomial::from_coeffs_unpadded(expected_coeffs.clone()).unwrap();
+
+    let mut minus_two = Fr::one();
+    minus_two.negate();
+
+    let mut other = vec![Fr::zero(); 2 * domain_size];
+    other[0] = minus_two;
+    other[domain_size - 1] = Fr::one();
+    let other = Polynomial::from_coeffs(other).unwrap();
+
+    let coset_factor = Fr::multiplicative_generator();
+    let mut other_evals = other.coset_fft_for_generator(worker, coset_factor);
+    other_evals.batch_inversion(worker).unwrap();
+
+    for chunk_coeffs in actual.as_mut().chunks_mut(domain_size) {
+        let mut num = vec![Fr::zero(); 2 * domain_size];
+        num[..domain_size].copy_from_slice(chunk_coeffs);
+
+        let chunk = Polynomial::from_coeffs(num).unwrap();
+        let mut chunk_evals = chunk.coset_fft_for_generator(worker, coset_factor);
+        chunk_evals.mul_assign(worker, &other_evals);
+        // chunk_evals.bitreverse_enumeration(worker);
+        chunk_coeffs.copy_from_slice(chunk_evals.icoset_fft_for_generator(worker, &coset_factor).as_ref());
+    }
+
+    let mut actual_coeffs = vec![Fr::zero(); degree + 1];
+    assert_eq!(actual_coeffs.len(), actual.as_ref().len() + 1);
+
+    actual_coeffs[1..].copy_from_slice(actual.as_ref());
+    actual_coeffs[0].add_assign(&minus_two);
+
+    assert_eq!(expected_coeffs, actual_coeffs);
 }

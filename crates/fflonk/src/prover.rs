@@ -1,7 +1,7 @@
 use super::*;
 
 pub fn create_proof<E: Engine, C: Circuit<E>, P: PlonkConstraintSystemParams<E>, MG: MainGate<E>, S: SynthesisMode, T: Transcript<<E as ScalarEngine>::Fr>>(
-    assembly: Assembly<E, P, MG, S>,
+    assembly: &Assembly<E, P, MG, S>,
     worker: &Worker,
     setup: &FflonkSetup<E, C>,
     mon_crs: &Crs<E, CrsForMonomialForm>,

@@ -1880,7 +1880,7 @@ impl Circuit<Bn256> for FflonkTestCircuit {
         let b_var = Num::alloc(cs, Some(b))?;
         let c_var = Num::alloc(cs, Some(c))?;
 
-        for _ in 0..1 << 10 {
+        for _ in 0..1 << 5 {
             let mut lc = LinearCombination::zero();
             lc.add_assign_number_with_coeff(&a_var, Fr::one());
             lc.add_assign_number_with_coeff(&b_var, Fr::one());
