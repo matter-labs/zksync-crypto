@@ -1045,17 +1045,21 @@ where
 
 impl<F: SmallField, T: pairing::ff::PrimeField, const N: usize> CSAllocatable<F>
     for NonNativeFieldOverU16<F, T, N>
+where
+    [(); N + 1]:,
 {
     type Witness = FFProxyValue<T, N>;
 
     fn placeholder_witness() -> Self::Witness {
         FFProxyValue { value: T::zero() }
     }
-    fn allocate_without_value<CS: ConstraintSystem<F>>(_cs: &mut CS) -> Self {
-        unimplemented!("we need parameters to do it")
+    fn allocate_without_value<CS: ConstraintSystem<F>>(cs: &mut CS) -> Self {
+        let params = Arc::new(NonNativeFieldOverU16Params::<T, N>::create());
+        Self::allocate_checked_without_value(cs, &params)
     }
-    fn allocate<CS: ConstraintSystem<F>>(_cs: &mut CS, _witness: Self::Witness) -> Self {
-        unimplemented!("we need parameters to do it")
+    fn allocate<CS: ConstraintSystem<F>>(cs: &mut CS, witness: Self::Witness) -> Self {
+        let params = Arc::new(NonNativeFieldOverU16Params::<T, N>::create());
+        Self::allocate_checked(cs, witness.get(), &params)
     }
 }
 
@@ -1078,6 +1082,8 @@ impl<F: SmallField, T: pairing::ff::PrimeField, const N: usize> CSPlaceholder<F>
 
 impl<F: SmallField, T: pairing::ff::PrimeField, const N: usize> CircuitVarLengthEncodable<F>
     for NonNativeFieldOverU16<F, T, N>
+where
+    [(); N + 1]:,
 {
     fn encoding_length(&self) -> usize {
         N
@@ -1090,6 +1096,8 @@ impl<F: SmallField, T: pairing::ff::PrimeField, const N: usize> CircuitVarLength
 
 impl<F: SmallField, T: pairing::ff::PrimeField, const N: usize> WitnessVarLengthEncodable<F>
     for NonNativeFieldOverU16<F, T, N>
+where
+    [(); N + 1]:,
 {
     fn witness_encoding_length(_witness: &Self::Witness) -> usize {
         N
@@ -1215,6 +1223,8 @@ use crate::gadgets::traits::encodable::{CircuitVarLengthEncodable, WitnessVarLen
 
 impl<F: SmallField, T: pairing::ff::PrimeField, const N: usize> CSWitnessable<F, N>
     for NonNativeFieldOverU16<F, T, N>
+where
+    [(); N + 1]:,
 {
     type ConversionFunction = Convertor<F, [F; N], FFProxyValue<T, N>>;
 
@@ -1229,6 +1239,8 @@ impl<F: SmallField, T: pairing::ff::PrimeField, const N: usize> CSWitnessable<F,
 
 impl<F: SmallField, T: pairing::ff::PrimeField, const N: usize> WitnessHookable<F>
     for NonNativeFieldOverU16<F, T, N>
+where
+    [(); N + 1]:,
 {
     fn witness_hook<CS: ConstraintSystem<F>>(
         &self,
