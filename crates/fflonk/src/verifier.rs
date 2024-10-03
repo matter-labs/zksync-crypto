@@ -29,6 +29,20 @@ pub struct FflonkVerificationKey<E: Engine, C: Circuit<E>> {
 }
 
 impl<E: Engine, C: Circuit<E>> FflonkVerificationKey<E, C> {
+    pub fn new(n: usize, c0: E::G1Affine, num_inputs: usize, num_state_polys: usize, num_witness_polys: usize, total_lookup_entries_length: usize, g2_elements: [E::G2Affine; 2]) -> Self {
+        let non_residues = make_non_residues(num_state_polys - 1);
+        FflonkVerificationKey {
+            n,
+            c0,
+            num_inputs,
+            num_state_polys,
+            num_witness_polys,
+            non_residues,
+            g2_elements,
+            total_lookup_entries_length,
+            _marker: std::marker::PhantomData,
+        }
+    }
     pub fn from_setup(setup: &FflonkSetup<E, C>, crs: &Crs<E, CrsForMonomialForm>) -> Result<Self, SynthesisError> {
         let FflonkSetup { original_setup, c0_commitment: c0 } = setup;
         Ok(Self {
