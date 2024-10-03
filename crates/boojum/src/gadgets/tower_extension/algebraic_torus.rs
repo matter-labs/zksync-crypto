@@ -2,6 +2,7 @@ use pairing::{ff::PrimeField, BitIterator};
 use std::sync::Arc;
 
 use super::{fq12::Fq12, fq2::Fq2, fq6::Fq6, params::TorusExtension12Params};
+use crate::config::{CSConfig, CSWitnessEvaluationConfig};
 use crate::gadgets::non_native_field::implementations::NonNativeFieldOverU16;
 use crate::gadgets::tower_extension::params::{Extension2Params, Extension6Params};
 use crate::gadgets::traits::witnessable::WitnessHookable;
@@ -373,7 +374,6 @@ where
         Self::new(encoding_new)
     }
 
-    // TODO: Probably, this can be done less weirdly.
     /// Converts the encoding of the `Fq6` element to the structured witness.
     pub(super) fn encoding_to_witness<CS>(
         &self,
@@ -382,21 +382,33 @@ where
     where
         CS: ConstraintSystem<F>,
     {
-        let (c0, c1, c2) = self.encoding.witness_hook(cs)().unwrap();
+        match self.encoding.witness_hook(cs)() {
+            Some((c0, c1, c2)) => {
+                let (c0_c0, c0_c1) = c0;
+                let (c1_c0, c1_c1) = c1;
+                let (c2_c0, c2_c1) = c2;
 
-        let (c0_c0, c0_c1) = c0;
-        let (c1_c0, c1_c1) = c1;
-        let (c2_c0, c2_c1) = c2;
+                let (c0_c0, c0_c1) = (c0_c0.get(), c0_c1.get());
+                let (c1_c0, c1_c1) = (c1_c0.get(), c1_c1.get());
+                let (c2_c0, c2_c1) = (c2_c0.get(), c2_c1.get());
 
-        let (c0_c0, c0_c1) = (c0_c0.get(), c0_c1.get());
-        let (c1_c0, c1_c1) = (c1_c0.get(), c1_c1.get());
-        let (c2_c0, c2_c1) = (c2_c0.get(), c2_c1.get());
+                let c0 = <P::Ex6 as Extension6Params<T>>::Ex2::convert_to_structured_witness(
+                    c0_c0, c0_c1,
+                );
+                let c1 = <P::Ex6 as Extension6Params<T>>::Ex2::convert_to_structured_witness(
+                    c1_c0, c1_c1,
+                );
+                let c2 = <P::Ex6 as Extension6Params<T>>::Ex2::convert_to_structured_witness(
+                    c2_c0, c2_c1,
+                );
 
-        let c0 = <P::Ex6 as Extension6Params<T>>::Ex2::convert_to_structured_witness(c0_c0, c0_c1);
-        let c1 = <P::Ex6 as Extension6Params<T>>::Ex2::convert_to_structured_witness(c1_c0, c1_c1);
-        let c2 = <P::Ex6 as Extension6Params<T>>::Ex2::convert_to_structured_witness(c2_c0, c2_c1);
-
-        P::Ex6::convert_to_structured_witness(c0, c1, c2)
+                P::Ex6::convert_to_structured_witness(c0, c1, c2)
+            }
+            None => {
+                assert!(!<CS::Config as CSConfig>::WitnessConfig::EVALUATE_WITNESS);
+                P::one()
+            }
+        }
     }
 }
 
