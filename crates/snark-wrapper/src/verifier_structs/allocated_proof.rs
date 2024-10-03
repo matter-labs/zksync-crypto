@@ -18,7 +18,7 @@ pub struct AllocatedProof<E: Engine, H: CircuitGLTreeHasher<E>> {
 
     pub queries_per_fri_repetition: Vec<AllocatedSingleRoundQueries<E, H>>,
 
-    pub pow_challenge: [Boolean; 64],
+    pub pow_challenge_le: [Boolean; 64],
 }
 
 impl<E: Engine, HS: TreeHasher<GL, Output = E::Fr>, H: CircuitGLTreeHasher<E, CircuitOutput = Num<E>, NonCircuitSimulator = HS>> AllocatedProof<E, H> {
@@ -121,7 +121,7 @@ impl<E: Engine, HS: TreeHasher<GL, Output = E::Fr>, H: CircuitGLTreeHasher<E, Ci
 
             queries_per_fri_repetition,
 
-            pow_challenge: pow_challenge_boolean,
+            pow_challenge_le: pow_challenge_boolean,
         })
     }
 }

@@ -17,6 +17,7 @@ use derivative::*;
 
 pub mod transcript;
 pub mod tree_hasher;
+pub mod pow;
 
 #[derive(Derivative)]
 #[derivative(Clone, Debug)]
