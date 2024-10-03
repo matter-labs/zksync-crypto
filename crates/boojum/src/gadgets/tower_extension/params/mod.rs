@@ -61,6 +61,11 @@ pub trait TorusExtension12Params<T>:
 where
     T: PrimeField,
 {
+    /// Returns torus encoded as one.
+    fn one() -> <Self::Ex6 as Extension6Params<T>>::Witness {
+        <Self::Ex6 as Extension6Params<T>>::Witness::zero()
+    }
+
     // NOTE: Here, we use selectors instead of constants as BN256Fq2 does not allow to allocate constant without accessing a private field.
     // TODO: Not sure whether w^{-1} is just c5*v^2*w in a general Fq12 extension, but this is the case for BN254.
     /// Assuming `w^{-1} = c5*v^2*w`, returns the coefficient `c5`.

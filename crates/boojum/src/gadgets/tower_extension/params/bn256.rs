@@ -1,6 +1,7 @@
 use pairing::bn256::{fq::Fq as BN256Fq, Fq12 as BN256Fq12, Fq2 as BN256Fq2, Fq6 as BN256Fq6};
 
 use super::*;
+use crate::gadgets::tower_extension::fq6::Fq6;
 use pairing::bn256::fq::{
     FROBENIUS_COEFF_FQ12_C1 as BN256_FROBENIUS_COEFF_FQ12_C1,
     FROBENIUS_COEFF_FQ6_C1 as BN256_FROBENIUS_COEFF_FQ6_C1,
@@ -219,9 +220,13 @@ impl TorusExtension12Params<BN256Fq> for BN256Extension12Params {
         g: <Self::Ex6 as Extension6Params<BN256Fq>>::Witness,
         power: usize,
     ) -> <Self::Ex6 as Extension6Params<BN256Fq>>::Witness {
-        let mut result = Self::decompress_torus(g);
-        result.frobenius_map(power);
-        let result = Self::compress_torus(result);
+        let mut result = if !g.is_zero() {
+            let mut f = Self::decompress_torus(g);
+            f.frobenius_map(power);
+            Self::compress_torus(f)
+        } else {
+            BN256Fq6::zero()
+        };
 
         // Now, we need to check the constraint. Namely, suppose
         // r is our result. Then,
@@ -246,7 +251,9 @@ impl TorusExtension12Params<BN256Fq> for BN256Extension12Params {
         };
         rhs.mul_assign(&r);
 
-        assert_eq!(lhs, rhs, "witness lhs == rhs");
+        if !g.is_zero() {
+            assert_eq!(lhs, rhs, "witness lhs == rhs");
+        }
 
         result
     }
