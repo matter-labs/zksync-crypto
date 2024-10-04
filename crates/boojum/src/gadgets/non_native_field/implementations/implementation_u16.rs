@@ -1120,6 +1120,9 @@ impl<T: pairing::ff::PrimeField, const N: usize> FFProxyValue<T, N> {
     pub const fn get(&self) -> T {
         self.value
     }
+    pub fn set(value: T) -> Self {
+        Self { value }
+    }
 }
 
 // Implement custom Deserialize, because we cannot derive:
