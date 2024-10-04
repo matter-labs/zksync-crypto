@@ -12,7 +12,7 @@ use crate::gadgets::traits::witnessable::WitnessHookable;
 use crate::gadgets::u32::UInt32;
 use crate::gadgets::u512::UInt512;
 use crate::gadgets::u8::UInt8;
-use ethereum_types::U256;
+use ethereum_types::{U256, U512};
 
 use crate::config::*;
 
@@ -366,11 +366,61 @@ impl<F: SmallField> UInt256<F> {
         other: &UInt256<F>,
         modulo: &UInt256<F>,
     ) -> UInt256<F> {
-        // We take 8 limbs since scalar can be of any size
-        let product = self.widening_mul(cs, other, 8, 8);
-        let (_, remainder) = product.long_division(cs, modulo);
-        remainder
+        let a = self.witness_hook(cs)().unwrap_or_else(|| {
+            assert!(!<CS::Config as CSConfig>::WitnessConfig::EVALUATE_WITNESS);
+            U256::zero()
+        });
+
+        let b = other.witness_hook(cs)().unwrap_or_else(|| {
+            assert!(!<CS::Config as CSConfig>::WitnessConfig::EVALUATE_WITNESS);
+            U256::zero()
+        });
+
+        let m = modulo.witness_hook(cs)().unwrap_or_else(|| {
+            assert!(!<CS::Config as CSConfig>::WitnessConfig::EVALUATE_WITNESS);
+            U256::one()
+        });
+
+        let product = a.full_mul(b);
+        let m = convert_u256_to_u512(m);
+
+        let (q, r) = product.div_mod(m);
+        let q = convert_u512_to_u256(q);
+        let r = convert_u512_to_u256(r);
+
+        let q = UInt256::allocate(cs, q);
+        let r = UInt256::allocate(cs, r);
+
+        let (_, m_greater_than_r) = r.overflowing_sub(cs, &modulo);
+        let bool_true = Boolean::allocated_constant(cs, true);
+        Boolean::enforce_equal(cs, &m_greater_than_r, &bool_true);
+
+        let lhs = self.widening_mul(cs, other, 8, 8);
+
+        let rhs = q.widening_mul(cs, &modulo, 8, 8);
+        let r_u512 = r.to_u512(cs);
+        let (rhs, overflow) = rhs.overflowing_add(cs, &r_u512);
+        let bool_false = Boolean::allocated_constant(cs, false);
+        Boolean::enforce_equal(cs, &overflow, &bool_false);
+
+        let are_equal = UInt512::equals(cs, &lhs, &rhs);
+        Boolean::enforce_equal(cs, &are_equal, &bool_true);
+
+        r
     }
+}
+
+fn convert_u256_to_u512(v: U256) -> U512 {
+    let mut bytes = [0; 32];
+    v.to_little_endian(&mut bytes);
+    U512::from_little_endian(&bytes)
+}
+
+fn convert_u512_to_u256(v: U512) -> U256 {
+    let mut bytes = [0; 64];
+    v.to_little_endian(&mut bytes);
+    let bytes = &bytes[..32];
+    U256::from_little_endian(&bytes)
 }
 
 use crate::cs::Variable;
