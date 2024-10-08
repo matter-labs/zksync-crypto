@@ -23,7 +23,6 @@ extern crate sha3;
 extern crate splitmut;
 extern crate tiny_keccak;
 
-
 use bellman::pairing;
 use bellman::pairing::ff;
 
