@@ -2,6 +2,7 @@
 #![allow(macro_expanded_macro_exports_accessed_by_absolute_paths)]
 #![warn(unused_assignments)]
 
+extern crate core;
 pub extern crate bellman;
 extern crate blake2;
 extern crate blake2_rfc_bellman_edition as blake2_rfc;
@@ -21,6 +22,7 @@ extern crate sha2;
 extern crate sha3;
 extern crate splitmut;
 extern crate tiny_keccak;
+
 
 use bellman::pairing;
 use bellman::pairing::ff;
