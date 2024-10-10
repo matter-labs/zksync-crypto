@@ -1,7 +1,10 @@
+use super::utils::*;
+use super::*;
 use crate::cs::gates::{
     ConstantAllocatableCS, DotProductGate, FmaGateInBaseFieldWithoutConstant, UIntXAddGate,
 };
 use crate::cs::traits::cs::DstBuffer;
+use crate::field::traits::field_like::PrimeFieldLike;
 use crate::gadgets::boolean::Boolean;
 use crate::gadgets::num::Num;
 use crate::gadgets::traits::allocatable::CSAllocatable;
@@ -12,9 +15,6 @@ use crypto_bigint::CheckedMul;
 use serde::de::Visitor;
 use serde::{de, Deserialize, Deserializer, Serialize};
 use std::fmt;
-
-use super::utils::*;
-use super::*;
 
 impl<F: SmallField, T: pairing::ff::PrimeField, const N: usize> NonNativeFieldOverU16<F, T, N>
 where
@@ -1103,8 +1103,10 @@ where
         N
     }
 
-    fn encode_witness_to_buffer(_witness: &Self::Witness, _dst: &mut Vec<F>) {
-        unimplemented!("need to cast_into_source");
+    fn encode_witness_to_buffer(witness: &Self::Witness, dst: &mut Vec<F>) {
+        for el in witness.cast_into_source().into_iter() {
+            dst.push(el);
+        }
     }
 }
 
@@ -1217,7 +1219,13 @@ impl<F: SmallField, T: pairing::ff::PrimeField, const N: usize> WitnessCastable<
     }
 
     fn cast_into_source(self) -> [F; N] {
-        unimplemented!("we allow non-reduced representations, so we should not use this function")
+        let value_as_u16s = fe_to_u16_words::<T, N>(&self.value);
+        let mut result = [F::one(&mut ()); N];
+        for (dst, src) in result.iter_mut().zip(value_as_u16s.iter()) {
+            *dst = F::from_u64_unchecked(*src as u64);
+        }
+
+        result
     }
 }
 
