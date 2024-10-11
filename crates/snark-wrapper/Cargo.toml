@@ -1,5 +1,5 @@
 [package]
-name = "snark_wrapper"
+name = "snark-wrapper"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -12,6 +12,6 @@ description = "ZKsync snark wrapper"
 
 [dependencies]
 rescue_poseidon.workspace = true
-
+serde = { version = "1", features = ["derive"] }
 derivative = "2"
 rand = "0.4"

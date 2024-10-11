@@ -14,7 +14,7 @@ description = "Cryptographic library for SNARK gadgets, based on sapling-crypto"
 crate-type = ["lib", "staticlib"]
 
 [features]
-default = ["multicore", "plonk"]
+default = ["multicore", "plonk", "allocator"]
 multicore = ["bellman/multicore"]
 plonk = ["bellman/plonk"]
 allocator = ["bellman/allocator"]
