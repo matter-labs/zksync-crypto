@@ -47,4 +47,4 @@ use utils::*;
 pub use utils::{compute_generators, compute_power_of_two_root_of_generator, num_system_polys_from_vk};
 
 pub(crate) const SANITY_CHECK: bool = true;
-// pub use shivini::circuit_definitions as circuit_definitions;
+pub type FflonkAssembly<E, S, A = std::alloc::Global> = Assembly<E, PlonkCsWidth3Params, NaiveMainGate, S, A>;

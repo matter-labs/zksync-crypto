@@ -35,7 +35,7 @@ lazy_static = { version = "1", optional = true }
 hex = "0.4"
 
 [features]
-default = ["multicore", "plonk"]
+default = ["multicore", "plonk", "allocator"]
 multicore = ["crossbeam", "futures/thread-pool"]
 sonic = ["tiny-keccak", "blake2-rfc"]
 gm17 = []
