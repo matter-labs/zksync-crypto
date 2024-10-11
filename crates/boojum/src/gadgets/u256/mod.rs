@@ -383,7 +383,11 @@ impl<F: SmallField> UInt256<F> {
 
         let product = a.full_mul(b);
 
-        let (q, r) = product.div_mod(m.into());
+        let (q, r) = match m.is_zero() {
+            true => (U512::zero(), U512::zero()),
+            false => product.div_mod(m.into()),
+        };
+
         let q: U256 = q.try_into().unwrap();
         let r: U256 = r.try_into().unwrap();
 
@@ -394,7 +398,10 @@ impl<F: SmallField> UInt256<F> {
         let bool_true = Boolean::allocated_constant(cs, true);
         Boolean::enforce_equal(cs, &m_greater_than_r, &bool_true);
 
+        let mod_is_zero = Boolean::allocate(cs, m.is_zero());
         let lhs = self.widening_mul(cs, other, 8, 8);
+        let zero = UInt512::zero(cs);
+        let lhs = UInt512::conditionally_select(cs, mod_is_zero, &zero, &lhs);
 
         let rhs = q.widening_mul(cs, &modulo, 8, 8);
         let r_u512 = r.to_u512(cs);
