@@ -382,11 +382,10 @@ impl<F: SmallField> UInt256<F> {
         });
 
         let product = a.full_mul(b);
-        let m = convert_u256_to_u512(m);
 
-        let (q, r) = product.div_mod(m);
-        let q = convert_u512_to_u256(q);
-        let r = convert_u512_to_u256(r);
+        let (q, r) = product.div_mod(m.into());
+        let q: U256 = q.try_into().unwrap();
+        let r: U256 = r.try_into().unwrap();
 
         let q = UInt256::allocate(cs, q);
         let r = UInt256::allocate(cs, r);
@@ -408,19 +407,6 @@ impl<F: SmallField> UInt256<F> {
 
         r
     }
-}
-
-fn convert_u256_to_u512(v: U256) -> U512 {
-    let mut bytes = [0; 32];
-    v.to_little_endian(&mut bytes);
-    U512::from_little_endian(&bytes)
-}
-
-fn convert_u512_to_u256(v: U512) -> U256 {
-    let mut bytes = [0; 64];
-    v.to_little_endian(&mut bytes);
-    let bytes = &bytes[..32];
-    U256::from_little_endian(&bytes)
 }
 
 use crate::cs::Variable;
