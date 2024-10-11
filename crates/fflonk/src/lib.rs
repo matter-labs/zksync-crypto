@@ -45,4 +45,4 @@ mod test;
 pub mod utils;
 
 pub(crate) const SANITY_CHECK: bool = true;
-pub type FflonkAssembly<E, S> = Assembly<E, PlonkCsWidth3Params, NaiveMainGate, S>;
+pub type FflonkAssembly<E, S, A = std::alloc::Global> = Assembly<E, PlonkCsWidth3Params, NaiveMainGate, S, A>;
