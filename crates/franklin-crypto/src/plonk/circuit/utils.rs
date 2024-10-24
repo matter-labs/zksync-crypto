@@ -267,3 +267,11 @@ pub fn is_selector_specialized_gate<E: Engine, CS: ConstraintSystem<E>>() -> boo
 
     Any::type_id(&CS::MainGate::default()) == Any::type_id(&SelectorOptimizedWidth4MainGateWithDNext)
 }
+
+pub fn is_naive_main_gate<E: Engine, CS: ConstraintSystem<E>>() -> bool {
+    use bellman::plonk::better_better_cs::cs::GateInternal;
+    use bellman::plonk::better_better_cs::cs::PlonkConstraintSystemParams;
+    use bellman::plonk::better_better_cs::gates::naive_main_gate::NaiveMainGate;
+    use std::any::Any;
+    Any::type_id(&CS::MainGate::default()) == Any::type_id(&NaiveMainGate)
+}
