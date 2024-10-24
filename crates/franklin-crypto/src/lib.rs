@@ -1,6 +1,7 @@
 #![allow(dead_code, unused_imports, unused_macros)]
 #![allow(macro_expanded_macro_exports_accessed_by_absolute_paths)]
 #![warn(unused_assignments)]
+#![feature(array_chunks)]
 
 pub extern crate bellman;
 extern crate blake2;

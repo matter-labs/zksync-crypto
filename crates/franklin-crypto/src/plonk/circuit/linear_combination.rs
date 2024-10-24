@@ -6,6 +6,7 @@ use crate::bellman::SynthesisError;
 
 use crate::bellman::plonk::better_better_cs::cs::{ArithmeticTerm, ConstraintSystem, MainGateTerm, Variable};
 
+use crate::plonk::circuit::utils::is_naive_main_gate;
 use crate::plonk::circuit::Assignment;
 
 use super::allocated_num::{AllocatedNum, Num};
@@ -287,7 +288,7 @@ impl<E: Engine> LinearCombination<E> {
         if CS::Params::CAN_ACCESS_NEXT_TRACE_STEP {
             Self::enforce_zero_using_next_step(cs, self.terms, self.constant)
         } else {
-            unimplemented!()
+            enforce_zero_naive(cs, &self.terms, self.constant)
         }
     }
 
@@ -316,6 +317,8 @@ impl<E: Engine> LinearCombination<E> {
 
         if CS::Params::CAN_ACCESS_NEXT_TRACE_STEP {
             Self::enforce_zero_using_next_step(cs, terms, self.constant)?;
+        } else if is_naive_main_gate::<E, CS>() {
+            enforce_zero_naive(cs, &terms, self.constant)?;
         } else {
             unimplemented!()
         }
@@ -579,8 +582,104 @@ impl<E: Engine> LinearCombination<E> {
     }
 }
 
+pub fn enforce_zero_naive<E: Engine, CS: ConstraintSystem<E>>(cs: &mut CS, terms: &[(E::Fr, Variable)], constant: E::Fr) -> Result<(), SynthesisError> {
+    assert!(is_naive_main_gate::<E, CS>());
+    use crate::bellman::plonk::better_better_cs::cs::PlonkConstraintSystemParams;
+    assert!(CS::Params::CAN_ACCESS_NEXT_TRACE_STEP == false);
+    assert_eq!(CS::Params::STATE_WIDTH, 3);
+
+    if terms.len() < 2 {
+        let (c0, a) = terms[0];
+        let sum = LinearCombination::evaluate_term_value(cs, &[(c0, a)], constant);
+        let sum = AllocatedNum::alloc(cs, || sum)?;
+        if let Some(sum) = sum.get_value() {
+            assert!(sum.is_zero());
+        }
+
+        let mut gate_term = MainGateTerm::new();
+        gate_term.add_assign(ArithmeticTerm::from_variable_and_coeff(a, c0));
+        gate_term.add_assign(ArithmeticTerm::Constant(constant));
+        gate_term.sub_assign(ArithmeticTerm::from_variable(sum.get_variable()));
+        cs.allocate_main_gate(gate_term)?;
+
+        return Ok(());
+    }
+
+    let mut intermediate_sums = vec![];
+    let mut constant = Some(constant);
+
+    // first process terms pairwise
+    for [(c0, a), (c1, b)] in terms.array_chunks::<2>() {
+        let sum = LinearCombination::evaluate_term_value(cs, &[(*c0, *a), (*c1, *b)], E::Fr::zero()).map(|mut sum| {
+            if let Some(ref constant) = constant {
+                sum.add_assign(constant);
+            }
+            sum
+        });
+
+        let sum = AllocatedNum::alloc(cs, || sum)?;
+
+        let mut gate_term = MainGateTerm::new();
+        gate_term.add_assign(ArithmeticTerm::from_variable_and_coeff(*a, *c0));
+        gate_term.add_assign(ArithmeticTerm::from_variable_and_coeff(*b, *c1));
+        if let Some(constant) = constant.take() {
+            gate_term.add_assign(ArithmeticTerm::Constant(constant));
+        }
+        gate_term.sub_assign(ArithmeticTerm::from_variable(sum.get_variable()));
+        cs.allocate_main_gate(gate_term)?;
+
+        intermediate_sums.push(sum);
+    }
+
+    // pairwise remainder with last
+    let remainder = terms.array_chunks::<2>().remainder();
+    if remainder.is_empty() == false {
+        let (c0, a) = remainder[0];
+        let b = intermediate_sums.pop().unwrap();
+        let c1 = E::Fr::one();
+
+        let sum = LinearCombination::evaluate_term_value(cs, &[(c0, a), (c1, b.get_variable())], E::Fr::zero()).map(|mut sum| {
+            if let Some(ref constant) = constant {
+                sum.add_assign(constant);
+            }
+            sum
+        });
+
+        let sum = AllocatedNum::alloc(cs, || sum)?;
+
+        let mut gate_term = MainGateTerm::new();
+        gate_term.add_assign(ArithmeticTerm::from_variable_and_coeff(a, c0));
+        gate_term.add_assign(ArithmeticTerm::from_variable_and_coeff(b.get_variable(), c1));
+        if let Some(constant) = constant.take() {
+            gate_term.add_assign(ArithmeticTerm::Constant(constant));
+        }
+        gate_term.sub_assign(ArithmeticTerm::from_variable(sum.get_variable()));
+        cs.allocate_main_gate(gate_term)?;
+
+        intermediate_sums.push(sum);
+    }
+    assert!(constant.is_none());
+
+    // check final sum
+    let mut final_sum = intermediate_sums.pop().unwrap();
+    for term in intermediate_sums.iter() {
+        final_sum = final_sum.add(cs, &term)?;
+    }
+    let is_zero = final_sum.is_zero(cs)?;
+
+    // flag - 1 == 0
+    let mut gate_term = MainGateTerm::new();
+    gate_term.add_assign(ArithmeticTerm::from_variable_and_coeff(is_zero.get_variable().unwrap().get_variable(), E::Fr::one()));
+    gate_term.sub_assign(ArithmeticTerm::constant(E::Fr::one()));
+    cs.allocate_main_gate(gate_term)?;
+
+    Ok(())
+}
+
 #[cfg(test)]
 mod test {
+    use bellman::{bn256::Bn256, plonk::better_better_cs::gates::naive_main_gate::NaiveMainGate};
+
     use super::*;
     use crate::bellman::plonk::better_better_cs::cs::*;
 
@@ -643,7 +742,6 @@ mod test {
     }
 
     #[test]
-    #[ignore] // TODO(ignored-test): Failure.
     fn check_terms_summing() {
         use crate::bellman::pairing::bn256::{Bn256, Fr};
         use crate::bellman::plonk::better_better_cs::cs::*;
