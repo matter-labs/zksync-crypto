@@ -1085,32 +1085,16 @@ fn make_crs_from_ignition_transcript<S: AsRef<std::ffi::OsStr> + ?Sized>(path: &
     Ok(new)
 }
 
-fn download_file(url: &str, output_file: &str) -> Result<(), ureq::Error> {
-    use std::io::BufWriter;
-    let response = ureq::get(url).call()?;
-    if response.status() == 200 {
-        let mut dest = BufWriter::new(std::fs::File::create(output_file)?);
-        let mut reader = response.into_reader();
-        std::io::copy(&mut reader, &mut dest)?;
-        println!("Transcript file downloaded successfully.");
-    } else {
-        println!("Failed to download file: HTTP {}", response.status());
-    }
-
-    Ok(())
-}
-
-pub fn download_and_transform_ignition_transcripts(domain_size: usize) {
+pub fn transform_ignition_transcripts(domain_size: usize) {
     let transcripts_dir = std::env::var("IGNITION_TRANSCRIPT_PATH").unwrap_or("./".to_string());
     let chunk_size = 5_040_000usize;
     let num_chunks = domain_size.div_ceil(chunk_size);
 
-    let base_url = "https://aztec-ignition.s3.eu-west-2.amazonaws.com/MAIN+IGNITION/sealed";
+    // Check transcript files already downloaded from "https://aztec-ignition.s3.eu-west-2.amazonaws.com/MAIN+IGNITION/sealed/transcript{idx}.dat";
     for idx in 0..num_chunks {
-        let file_url = format!("{}/transcript{:02}.dat", base_url, idx);
-        println!("Downloading file at {file_url}");
-        let output_file = format!("{}/transcript{:02}.dat", transcripts_dir, idx);
-        download_file(&file_url, &output_file).unwrap();
+        let transcript_file_path = format!("{}/transcript{:02}.dat", transcripts_dir, idx);
+        let transcript_file_path = std::path::Path::new(&transcript_file_path);
+        assert!(transcript_file_path.exists());
     }
 
     // transform

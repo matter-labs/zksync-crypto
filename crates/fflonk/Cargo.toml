@@ -1,11 +1,17 @@
 [package]
 name = "fflonk"
-version.workspace = true
 edition = "2021"
+version.workspace = true
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+license.workspace = true
+keywords.workspace = true
+categories.workspace = true
 
 [dependencies]
 circuit_definitions = {git = "https://github.com/matter-labs/zksync-protocol", package = "circuit_definitions", branch = "si/fflonk"}
-# circuit_definitions = { path = "../../../zksync-protocol/crates/circuit_definitions" }
+#  circuit_definitions = { path = "../../../zksync-protocol/crates/circuit_definitions" }
 # circuit_definitions = "=0.150.5"
 # franklin_crypto = {path = "../franklin-crypto", package = "franklin-crypto"}
 num-bigint = { version = "0.4", features = ["serde"] }
@@ -16,7 +22,6 @@ serde_json = "1"
 serde_derive = "1"
 bincode = "1.3"
 byteorder = "1"
-ureq = "2.5"
 
 [features]
 default = ["sanity"]
