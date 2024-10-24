@@ -15,6 +15,7 @@ use crate::boojum::field::PrimeField as BoojumPrimeField;
 
 use derivative::*;
 
+pub mod pow;
 pub mod transcript;
 pub mod tree_hasher;
 
