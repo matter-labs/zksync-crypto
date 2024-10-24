@@ -1,26 +1,19 @@
-use circuit_definitions::{
-    boojum::pairing::ff::Field,
-    snark_wrapper::franklin_crypto::bellman::{
-        bn256::{Bn256, Fr},
-        plonk::{
-            better_better_cs::{
-                cs::{Circuit, PlonkCsWidth3Params, SetupAssembly},
-                gates::naive_main_gate::NaiveMainGate,
-            },
-            commitments::transcript::keccak_transcript::RollingKeccakTranscript,
-            polynomials::Polynomial,
-        },
-        worker::Worker,
+use circuit_definitions::circuit_definitions::{
+    aux_layer::{
+        wrapper::ZkSyncCompressionWrapper, ZkSyncCompressionForWrapperCircuit, ZkSyncCompressionProofForWrapper, ZkSyncCompressionVerificationKey, ZkSyncCompressionVerificationKeyForWrapper,
     },
+    recursion_layer::{ZkSyncRecursionLayerProof, ZkSyncRecursionLayerVerificationKey},
 };
-use circuit_definitions::{
-    boojum::pairing::ff::PrimeField,
-    circuit_definitions::{
-        aux_layer::{
-            wrapper::ZkSyncCompressionWrapper, ZkSyncCompressionForWrapperCircuit, ZkSyncCompressionProofForWrapper, ZkSyncCompressionVerificationKey, ZkSyncCompressionVerificationKeyForWrapper,
+use circuit_definitions::snark_wrapper::franklin_crypto::bellman::{
+    bn256::{Bn256, Fr},
+    plonk::{
+        better_better_cs::{
+            cs::{Circuit, PlonkCsWidth3Params, SetupAssembly},
+            gates::naive_main_gate::NaiveMainGate,
         },
-        recursion_layer::{ZkSyncRecursionLayerProof, ZkSyncRecursionLayerVerificationKey},
+        commitments::transcript::keccak_transcript::RollingKeccakTranscript,
     },
+    worker::Worker,
 };
 
 use crate::FflonkTestCircuit;

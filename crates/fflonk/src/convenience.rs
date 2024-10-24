@@ -905,7 +905,7 @@ pub fn save_fflonk_proof_and_vk_into_file(proof: &FflonkSnarkVerifierCircuitProo
     let proof_file_path = format!("{}/final_proof.json", output_blob_path);
     let proof_file = std::fs::File::create(&proof_file_path).unwrap();
     serde_json::to_writer(proof_file, &proof).unwrap();
-    println!("proof saved at {proof_file_path}");    
+    println!("proof saved at {proof_file_path}");
     let vk_file_path = format!("{}/final_vk.json", output_blob_path);
     let vk_file = std::fs::File::create(&vk_file_path).unwrap();
     serde_json::to_writer(vk_file, &vk).unwrap();
