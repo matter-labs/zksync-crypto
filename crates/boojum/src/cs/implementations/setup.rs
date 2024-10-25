@@ -1297,6 +1297,81 @@ impl<
         (setup_base, setup, vk, setup_tree, vars_hint, witness_hints)
     }
 
+    pub fn get_light_setup(
+        &self,
+        worker: &Worker,
+        fri_lde_factor: usize,
+        cap_size: usize,
+    ) -> (
+        SetupBaseStorage<F, P, Global, Global>,
+        VerificationKeyCircuitGeometry,
+        DenseVariablesCopyHint,
+        DenseWitnessCopyHint,
+    ) {
+        let setup_base = self.create_base_setup(worker, &mut P::Context::placeholder());
+        let fixed_parameters = self.create_fixed_parameters(
+            setup_base.selectors_placement.clone(),
+            fri_lde_factor,
+            cap_size,
+        );
+        let (vars_hint, witness_hints) = self.create_copy_hints();
+        (setup_base, fixed_parameters, vars_hint, witness_hints)
+    }
+
+    fn create_fixed_parameters(
+        &self,
+        selectors_placement: TreeNode,
+        fri_lde_factor: usize,
+        cap_size: usize,
+    ) -> VerificationKeyCircuitGeometry {
+        let (
+            max_constraint_contribution_degree,
+            total_num_constants_for_gates_over_general_purpose_columns,
+        ) = selectors_placement.compute_stats();
+        let extra_constant_polys_for_selectors =
+            total_num_constants_for_gates_over_general_purpose_columns
+                - self.parameters.num_constant_columns;
+        let table_ids_column_idxes = self.compute_table_ids_column_idxes(
+            &selectors_placement,
+            total_num_constants_for_gates_over_general_purpose_columns,
+        );
+        let quotient_degree = {
+            let quotient_degree_from_general_purpose_gate_terms = {
+                let quotient_degree_from_constraints = if max_constraint_contribution_degree > 0 {
+                    max_constraint_contribution_degree - 1
+                } else {
+                    0
+                };
+                quotient_degree_from_constraints.next_power_of_two()
+            };
+            let max_degree_from_specialized_gates = self
+                .evaluation_data_over_specialized_columns
+                .evaluators_over_specialized_columns
+                .iter()
+                .map(|el| el.max_constraint_degree - 1)
+                .max()
+                .unwrap_or(0);
+            let quotient_degree_from_gate_terms = std::cmp::max(
+                quotient_degree_from_general_purpose_gate_terms,
+                max_degree_from_specialized_gates,
+            );
+            quotient_degree_from_gate_terms.next_power_of_two()
+        };
+        VerificationKeyCircuitGeometry {
+            parameters: self.parameters,
+            lookup_parameters: self.lookup_parameters,
+            domain_size: self.max_trace_len as u64,
+            total_tables_len: self.lookups_tables_total_len() as u64,
+            public_inputs_locations: self.public_inputs.clone(),
+            extra_constant_polys_for_selectors,
+            table_ids_column_idxes,
+            quotient_degree,
+            selectors_placement,
+            fri_lde_factor,
+            cap_size,
+        }
+    }
+
     pub fn print_gate_stats(&self) {
         let mut total_general_purpose = 0;
         for (idx, gate) in self
