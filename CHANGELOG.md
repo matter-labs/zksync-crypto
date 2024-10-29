@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.30.2](https://github.com/matter-labs/zksync-crypto/compare/v0.30.1...v0.30.2) (2024-10-29)
+
+
+### Features
+
+* **boojum:** add get_light_setup method to CSReferenceAssembly ([#31](https://github.com/matter-labs/zksync-crypto/issues/31)) ([6dde34c](https://github.com/matter-labs/zksync-crypto/commit/6dde34c119bf7f0ff91734d513adc8b265d17d16))
+
 ## [0.30.1](https://github.com/matter-labs/zksync-crypto/compare/v0.30.0...v0.30.1) (2024-09-05)
 
 
