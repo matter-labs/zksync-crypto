@@ -1336,14 +1336,12 @@ impl<
             total_num_constants_for_gates_over_general_purpose_columns,
         );
         let quotient_degree = {
-            let quotient_degree_from_general_purpose_gate_terms = {
-                let quotient_degree_from_constraints = if max_constraint_contribution_degree > 0 {
+            let quotient_degree_from_general_purpose_gate_terms =
+                if max_constraint_contribution_degree > 0 {
                     max_constraint_contribution_degree - 1
                 } else {
                     0
                 };
-                quotient_degree_from_constraints.next_power_of_two()
-            };
             let max_degree_from_specialized_gates = self
                 .evaluation_data_over_specialized_columns
                 .evaluators_over_specialized_columns
