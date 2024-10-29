@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.30.3](https://github.com/matter-labs/zksync-crypto/compare/v0.30.2...v0.30.3) (2024-10-29)
+
+
+### Features
+
+* **bellman:** declare naive main gate ([#28](https://github.com/matter-labs/zksync-crypto/issues/28)) ([5f563e0](https://github.com/matter-labs/zksync-crypto/commit/5f563e06a0c0c76c1c232ef041c359e7256d333c))
+* **franklin-crypto:** naive main gate compatible gadgets ([#30](https://github.com/matter-labs/zksync-crypto/issues/30)) ([f44dd45](https://github.com/matter-labs/zksync-crypto/commit/f44dd45ce587326bb6f0a0b84ce6096e191ca298))
+* **snark-wrapper:** wrapper circuit with naive main gate ([#29](https://github.com/matter-labs/zksync-crypto/issues/29)) ([235d0c8](https://github.com/matter-labs/zksync-crypto/commit/235d0c8481b7079a07ccb621745a230194bb00ce))
+
 ## [0.30.2](https://github.com/matter-labs/zksync-crypto/compare/v0.30.1...v0.30.2) (2024-10-29)
 
 
