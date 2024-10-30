@@ -10,10 +10,7 @@ keywords.workspace = true
 categories.workspace = true
 
 [dependencies]
-circuit_definitions = {git = "https://github.com/matter-labs/zksync-protocol", package = "circuit_definitions", branch = "si/fflonk"}
-#  circuit_definitions = { path = "../../../zksync-protocol/crates/circuit_definitions" }
-# circuit_definitions = "=0.150.5"
-# franklin_crypto = {path = "../franklin-crypto", package = "franklin-crypto"}
+franklin-crypto.workspace = true
 num-bigint = { version = "0.4", features = ["serde"] }
 num-traits = "0.2"
 rand = "0.4"

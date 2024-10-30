@@ -1,5 +1,8 @@
 use bellman::plonk::better_better_cs::utils::FieldBinop;
-use franklin_crypto::plonk::circuit::bigint::{biguint_to_fe, fe_to_biguint, repr_to_biguint};
+use franklin_crypto::plonk::circuit::{
+    bigint::{biguint_to_fe, fe_to_biguint, repr_to_biguint},
+    linear_combination::LinearCombination,
+};
 use num_bigint::BigUint;
 use num_traits::{One, Zero};
 
@@ -20,7 +23,7 @@ pub fn lcm(numbers: &[usize]) -> usize {
     lcm
 }
 
-pub(crate) fn compute_max_combined_degree_from_assembly<E: Engine, P: PlonkConstraintSystemParams<E>, MG: MainGate<E>, S: SynthesisMode, C: Circuit<E>>(assembly: &Assembly<E, P, MG, S>) -> usize {
+pub fn compute_max_combined_degree_from_assembly<E: Engine, P: PlonkConstraintSystemParams<E>, MG: MainGate<E>, S: SynthesisMode, C: Circuit<E>>(assembly: &Assembly<E, P, MG, S>) -> usize {
     let has_custom_gate = assembly.sorted_gates.len() > 1;
     let has_lookup = assembly.num_table_lookups > 0 && assembly.tables.len() > 0;
     let main_gate_quotient_degree = main_gate_quotient_degree(&assembly.sorted_gates);
@@ -182,7 +185,7 @@ pub(crate) fn multiply_monomials<F: PrimeField>(poly1: &[F], poly2: &[F]) -> Vec
     result
 }
 
-pub(crate) fn compute_lagrange_basis_inverses<F: PrimeField>(num_polys: usize, h: F, y: F) -> Vec<F> {
+pub fn compute_lagrange_basis_inverses<F: PrimeField>(num_polys: usize, h: F, y: F) -> Vec<F> {
     assert!(num_polys.is_power_of_two());
     let degree = num_polys as u64;
     // L_i(x) = (w_i/(N*h^{N-1})) * (X^N-h^N)/(X-w_i*h)
@@ -213,7 +216,7 @@ pub(crate) fn compute_lagrange_basis_inverses<F: PrimeField>(num_polys: usize, h
     inverses
 }
 
-pub(crate) fn compute_lagrange_basis_inverses_for_union_set<F: PrimeField>(num_polys: usize, h: F, h_shifted: F, y: F, omega: F) -> (Vec<F>, Vec<F>) {
+pub fn compute_lagrange_basis_inverses_for_union_set<F: PrimeField>(num_polys: usize, h: F, h_shifted: F, y: F, omega: F) -> (Vec<F>, Vec<F>) {
     let degree = num_polys as usize;
     let degree_as_fe = F::from_str(&degree.to_string()).unwrap();
 
@@ -639,7 +642,7 @@ pub(crate) fn batch_inversion<F: PrimeField>(values: &mut [F]) {
     values.copy_from_slice(&products);
 }
 
-pub(crate) fn horner_evaluation<F: PrimeField>(coeffs: &[F], x: F) -> F {
+pub fn horner_evaluation<F: PrimeField>(coeffs: &[F], x: F) -> F {
     // c0 + c1*x + c2*x^2 + c3*x^3
     // c0 + x*(c1 + x*(c2 + x*c3))
     let mut sum = coeffs.last().unwrap().clone();
@@ -1639,7 +1642,7 @@ pub fn custom_gate_quotient_degree<E: Engine>(sorted_gates: &[Box<dyn GateIntern
     sorted_gates[0].degree()
 }
 
-pub(crate) fn construct_set_difference_monomials<F: PrimeField>(
+pub fn construct_set_difference_monomials<F: PrimeField>(
     z: F,
     z_omega: F,
     interpolation_size_of_setup: usize,
@@ -1862,12 +1865,9 @@ pub struct FflonkTestCircuit;
 impl Circuit<Bn256> for FflonkTestCircuit {
     type MainGate = NaiveMainGate;
 
-    fn synthesize<CS: circuit_definitions::snark_wrapper::franklin_crypto::bellman::plonk::better_better_cs::cs::ConstraintSystem<Bn256> + 'static>(
-        &self,
-        cs: &mut CS,
-    ) -> Result<(), circuit_definitions::snark_wrapper::franklin_crypto::bellman::SynthesisError> {
-        use circuit_definitions::snark_wrapper::franklin_crypto::bellman::Field;
-        use circuit_definitions::snark_wrapper::franklin_crypto::plonk::circuit::allocated_num::Num;
+    fn synthesize<CS: franklin_crypto::bellman::plonk::better_better_cs::cs::ConstraintSystem<Bn256> + 'static>(&self, cs: &mut CS) -> Result<(), franklin_crypto::bellman::SynthesisError> {
+        use franklin_crypto::bellman::Field;
+        use franklin_crypto::plonk::circuit::allocated_num::Num;
         let a = Fr::from_str(&65.to_string()).unwrap();
         let b = Fr::from_str(&66.to_string()).unwrap();
         let mut c = a;

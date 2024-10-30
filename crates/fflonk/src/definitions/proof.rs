@@ -1,6 +1,4 @@
-use std::io::{Read, Write};
-
-use bellman::{bn256::FrRepr, PrimeFieldRepr};
+use bellman::PrimeFieldRepr;
 
 use super::*;
 
@@ -27,7 +25,7 @@ pub fn fe_slice_into_be_byte_array<F: PrimeField>(values: &[F]) -> Vec<[u8; 32]>
 }
 
 impl<E: Engine, C: Circuit<E>> FflonkProof<E, C> {
-    pub(crate) fn empty() -> Self {
+    pub fn empty() -> Self {
         Self {
             n: 0,
             inputs: vec![],

@@ -1,9 +1,8 @@
 #![feature(generic_const_exprs)]
 #![feature(allocator_api)]
-pub use circuit_definitions;
-pub use circuit_definitions::snark_wrapper::franklin_crypto;
-use circuit_definitions::snark_wrapper::franklin_crypto::bellman::plonk::better_better_cs::{cs::PlonkCsWidth3Params, gates::naive_main_gate::NaiveMainGate};
+pub use franklin_crypto;
 pub use franklin_crypto::bellman;
+use franklin_crypto::bellman::plonk::better_better_cs::{cs::PlonkCsWidth3Params, gates::naive_main_gate::NaiveMainGate};
 
 use bellman::{
     bn256::{Bn256, Fr},
@@ -34,17 +33,15 @@ mod definitions;
 pub use definitions::*;
 pub mod prover;
 use prover::*;
-pub mod verifier;
+pub mod utils;
 pub use utils::*;
+pub mod verifier;
 pub use verifier::*;
-pub mod convenience;
-pub use convenience::*;
 
 #[cfg(test)]
 mod test;
-mod utils;
-use utils::*;
-pub use utils::{compute_generators, compute_power_of_two_root_of_generator, num_system_polys_from_vk};
 
+pub const L1_VERIFIER_DOMAIN_SIZE_LOG: usize = 23;
+pub const MAX_COMBINED_DEGREE_FACTOR: usize = 9;
 pub(crate) const SANITY_CHECK: bool = true;
 pub type FflonkAssembly<E, S, A = std::alloc::Global> = Assembly<E, PlonkCsWidth3Params, NaiveMainGate, S, A>;

@@ -1,7 +1,6 @@
 use std::io::{Read, Write};
 
 use super::*;
-use bellman::plonk::better_better_cs::cs::SetupAssembly;
 use bellman::plonk::better_cs::keys::read_curve_affine;
 use bellman::plonk::better_cs::keys::write_curve_affine;
 
