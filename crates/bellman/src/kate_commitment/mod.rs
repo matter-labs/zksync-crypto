@@ -37,6 +37,14 @@ impl<E: Engine, T: CrsType> PartialEq for Crs<E, T> {
 impl<E: Engine, T: CrsType> Eq for Crs<E, T> {}
 
 impl<E: Engine, T: CrsType> Crs<E, T> {
+    pub fn new(g1_bases: Vec<E::G1Affine>, g2_monomial_bases: Vec<E::G2Affine>) -> Self {
+        Self {
+            g1_bases: Arc::new(g1_bases),
+            g2_monomial_bases: Arc::new(g2_monomial_bases),
+            _marker: std::marker::PhantomData,
+        }
+    }
+
     pub fn write<W: Write>(&self, mut writer: W) -> std::io::Result<()> {
         writer.write_u64::<BigEndian>(self.g1_bases.len() as u64)?;
         for g in &self.g1_bases[..] {
@@ -106,7 +114,10 @@ impl<E: Engine> Crs<E, CrsForMonomialForm> {
     pub fn crs_42(size: usize, worker: &Worker) -> Self {
         // kind of how ceremony would work
         assert!(size.is_power_of_two());
+        Self::non_power_of_two_crs_42(size, worker)
+    }
 
+    pub fn non_power_of_two_crs_42(size: usize, worker: &Worker) -> Self {
         let mut g2 = vec![E::G2Affine::one(); 2];
 
         use crate::domain::EvaluationDomain;
