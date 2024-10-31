@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.30.5](https://github.com/matter-labs/zksync-crypto/compare/v0.30.4...v0.30.5) (2024-10-31)
+
+
+### Bug Fixes
+
+* **fflonk:** fix Cargo.toml ([#35](https://github.com/matter-labs/zksync-crypto/issues/35)) ([86cce2b](https://github.com/matter-labs/zksync-crypto/commit/86cce2b833f3a4da0ba2bb3fa1c994447b0389bc))
+
+## [0.30.4](https://github.com/matter-labs/zksync-crypto/compare/v0.30.3...v0.30.4) (2024-10-30)
+
+
+### Features
+
+* fflonk protocol implementation  ([#11](https://github.com/matter-labs/zksync-crypto/issues/11)) ([a1485ce](https://github.com/matter-labs/zksync-crypto/commit/a1485ce53f1a92892c4845f02f0fc3416899bd92))
+
 ## [0.30.3](https://github.com/matter-labs/zksync-crypto/compare/v0.30.2...v0.30.3) (2024-10-29)
 
 

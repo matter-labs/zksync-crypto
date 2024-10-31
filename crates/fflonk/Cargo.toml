@@ -1,13 +1,14 @@
 [package]
 name = "fflonk"
-edition = "2021"
 version.workspace = true
+edition.workspace = true
 authors.workspace = true
 homepage.workspace = true
 repository.workspace = true
 license.workspace = true
 keywords.workspace = true
 categories.workspace = true
+description = "Reference implementation of fflonk prover and verifier"
 
 [dependencies]
 franklin-crypto.workspace = true
