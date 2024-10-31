@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.30.6](https://github.com/matter-labs/zksync-crypto/compare/v0.30.5...v0.30.6) (2024-10-31)
+
+
+### Bug Fixes
+
+* **franklin-crypto:** range check goldilocks with naive gate ([#37](https://github.com/matter-labs/zksync-crypto/issues/37)) ([450cdfe](https://github.com/matter-labs/zksync-crypto/commit/450cdfe4cb2d6f1ffd616744129d217d5cec0126))
+
 ## [0.30.5](https://github.com/matter-labs/zksync-crypto/compare/v0.30.4...v0.30.5) (2024-10-31)
 
 
