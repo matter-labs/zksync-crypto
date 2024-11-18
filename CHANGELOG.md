@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.30.7](https://github.com/matter-labs/zksync-crypto/compare/v0.30.6...v0.30.7) (2024-11-18)
+
+
+### Features
+
+* **bellman:** Remove allocator feature from default features ([#39](https://github.com/matter-labs/zksync-crypto/issues/39)) ([9ecb5cd](https://github.com/matter-labs/zksync-crypto/commit/9ecb5cdbfa4f4a1157c349b56cc807c4a842ad49))
+
+
+### Bug Fixes
+
+* **boojum:** compute the correct number of PoW seed challenges ([#43](https://github.com/matter-labs/zksync-crypto/issues/43)) ([8d2f5f7](https://github.com/matter-labs/zksync-crypto/commit/8d2f5f74c7a7a22db2ca3212a2fc6653b3ee0c76))
+
 ## [0.30.6](https://github.com/matter-labs/zksync-crypto/compare/v0.30.5...v0.30.6) (2024-10-31)
 
 
