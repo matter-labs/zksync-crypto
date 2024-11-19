@@ -50,3 +50,18 @@ jobs:
 
       - name: Run tests
         run: cargo nextest run --no-fail-fast
+
+  ci-success:
+    name: Github Status Check
+    runs-on: ubuntu-latest
+    if: always() && !cancelled()
+    needs: [ build ]
+    steps:
+      - name: Status
+        run: |
+          # This will check all jobs status in the `needs` list, and fail job if one is failed.
+          # Since we split prover and core to different flows, this job will be only as Required Status Check in the Pull Request.
+          if [[ ${{ contains(join(needs.*.result, ','), 'failure') }} == "true" ]]; then
+            echo "Intentionally failing to block PR from merging"
+            exit 1
+          fi

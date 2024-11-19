@@ -11,7 +11,7 @@ categories.workspace = true
 description = "Reference implementation of fflonk prover and verifier"
 
 [dependencies]
-franklin-crypto.workspace = true
+franklin-crypto = { workspace = true, features = ["allocator"] }
 num-bigint = { version = "0.4", features = ["serde"] }
 num-traits = "0.2"
 rand = "0.4"
