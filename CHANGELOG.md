@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.30.8](https://github.com/matter-labs/zksync-crypto/compare/v0.30.7...v0.30.8) (2024-11-19)
+
+
+### Bug Fixes
+
+* **snark_wrapper:** compute the correct number of PoW seed challenges ([#45](https://github.com/matter-labs/zksync-crypto/issues/45)) ([c2999e1](https://github.com/matter-labs/zksync-crypto/commit/c2999e11a9643f0c5174d106849085d2f908a3e2))
+
 ## [0.30.7](https://github.com/matter-labs/zksync-crypto/compare/v0.30.6...v0.30.7) (2024-11-18)
 
 
