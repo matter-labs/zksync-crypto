@@ -37,11 +37,9 @@ pub(crate) fn verify_fri_part<
     transcript.witness_field_elements(cs, &proof.final_fri_monomials[1])?;
 
     if constants.new_pow_bits != 0 {
+        const SEED_BITS: usize = 256;
         // pull enough challenges from the transcript
-        let mut num_challenges = 256 / GL::CHAR_BITS;
-        if num_challenges % GL::CHAR_BITS != 0 {
-            num_challenges += 1;
-        }
+        let num_challenges = SEED_BITS.next_multiple_of(GL::CHAR_BITS) / GL::CHAR_BITS;
         let challenges: Vec<_> = transcript.get_multiple_challenges(cs, num_challenges as usize)?;
         let (is_valid, pow_challenge_limbs) = POW::verify_from_field_elements(cs, challenges, proof.pow_challenge_le, constants.new_pow_bits)?;
         match is_valid.get_value() {
