@@ -1958,9 +1958,11 @@ impl<F: SmallField, EXT: FieldExtension<2, BaseField = F>> Verifier<F, EXT> {
             log!("Doing PoW verification for {} bits", new_pow_bits);
             log!("Prover gave challenge 0x{:016x}", proof.pow_challenge);
 
-            const SEED_BITS: usize = 256;
             // pull enough challenges from the transcript
-            let num_challenges = SEED_BITS.next_multiple_of(F::CHAR_BITS) / F::CHAR_BITS;
+            let mut num_challenges = 256 / F::CHAR_BITS;
+            if num_challenges % F::CHAR_BITS != 0 {
+                num_challenges += 1;
+            }
             let challenges = transcript.get_multiple_challenges(num_challenges);
             let pow_challenge = proof.pow_challenge;
 
