@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.30.9](https://github.com/matter-labs/zksync-crypto/compare/v0.30.8...v0.30.9) (2024-11-21)
+
+
+### Bug Fixes
+
+* **boojum,snark_wrapper:** revert PoW fix ([#47](https://github.com/matter-labs/zksync-crypto/issues/47)) ([477bf1e](https://github.com/matter-labs/zksync-crypto/commit/477bf1e72e63ea758fc7d8520178a832c2eea0e3))
+
 ## [0.30.8](https://github.com/matter-labs/zksync-crypto/compare/v0.30.7...v0.30.8) (2024-11-19)
 
 
