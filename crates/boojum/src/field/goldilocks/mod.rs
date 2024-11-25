@@ -15,7 +15,9 @@ mod inversion;
     any(target_feature = "neon", target_feature = "avx2"),
     not(all(target_feature = "avx512f", target_feature = "avx512vl"))
 ))]
-pub mod arm_asm_impl;
+// pub mod arm_asm_impl;
+// Disabled for darwin for now
+pub mod generic_impl;
 
 #[cfg(not(any(
     all(target_feature = "avx512f", target_feature = "avx512vl"),
@@ -47,7 +49,9 @@ pub mod avx512_impl;
     any(target_feature = "neon", target_feature = "avx2"),
     not(all(target_feature = "avx512f", target_feature = "avx512vl"))
 ))]
-pub use arm_asm_impl::*;
+// Disabled for darwin for now
+// pub use arm_asm_impl::*;
+pub use generic_impl::*;
 
 #[cfg(not(any(
     all(target_feature = "avx512f", target_feature = "avx512vl"),
