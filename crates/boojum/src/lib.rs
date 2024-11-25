@@ -31,6 +31,7 @@
 #![feature(const_swap)]
 #![feature(inline_const)]
 #![feature(slice_swap_unchecked)]
+#![feature(const_slice_index)]
 #![feature(core_intrinsics)]
 #![feature(const_eval_select)]
 #![feature(get_mut_unchecked)]
