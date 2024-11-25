@@ -1,0 +1,243 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage[margin=1in]{geometry}
+
+\title{fflonk Specification}
+\author{@saitima}
+\date{2024}
+
+\begin{document}
+
+\maketitle
+
+\section{Introduction}
+
+fflonk is an optimized variant of the Plonk \cite{plonk}. This document outlines our implementation of the fflonk \cite{fflonk} protocol. The primary motivation behind fflonk is to reduce the verifier's complexity while maintaining the security guarantees of the original Plonk protocol. Our approach involves efficient polynomial combination and batch opening techniques.
+
+\section{Preliminaries}
+
+We assume familiarity with the Plonk protocol \cite{plonk} and its underlying concepts. Let $\mathbb{F}$ be a prime field, and $\omega$ be a primitive $N$-th root of unity in $\mathbb{F}$, where $N$ is the trace length.
+
+\section{Polynomial Definitions and Degrees}
+
+The protocol uses the following polynomials:
+
+\begin{itemize}
+\item Selector polynomials(canonical order): $q_A, q_B, q_C, q_M, q_{Const} \in \mathbb{F}[X]_{\leq N-1}$
+\item Permutation polynomials: $S_{\sigma1}, S_{\sigma2}, S_{\sigma3} \in \mathbb{F}[X]_{\leq N-1}$
+\item Witness polynomials(canonical order): $a, b, c \in \mathbb{F}[X]_{\leq N-1}$
+\item Main gate quotient: $t_\text{main} \in \mathbb{F}[X]_{\leq 2N-3}$
+\item Grand product: $Z \in \mathbb{F}[X]_{\leq N-1}$
+\item Copy-permutation quotients: $t_1 \in \mathbb{F}[X]_{\leq 3N-4}$, $t_2 \in \mathbb{F}[X]_{\leq N-1}$
+\item Combined polynomials: $C_0 \in \mathbb{F}[X]_{\leq 8N-1}$, $C_1 \in \mathbb{F}[X]_{\leq 8N-9}$, $C_2 \in \mathbb{F}[X]_{\leq 9N-10}$
+\item Opening polynomials: $W \in \mathbb{F}[X]_{\leq 9N-28}$, $W' \in \mathbb{F}[X]_{\leq 9N-11}$
+\end{itemize}
+
+\section{Protocol Specification}
+
+\subsection{Polynomial Identities}
+
+\subsubsection{Main Gate Identity}
+
+\begin{equation}
+q_M(X) \cdot a(X) \cdot b(X) + q_A(X) \cdot a(X) + q_B(X) \cdot b(X) + q_C(X) \cdot c(X) + q_{Const}(X) + PI(X) \equiv 0 \pmod{X^N - 1}
+\end{equation}
+
+where $PI(X)$ is the public input polynomial.
+
+\subsubsection{First Copy-Permutation Identity}
+
+\begin{multline}
+Z(X) \cdot (a(X) + \beta X + \gamma) \cdot (b(X) + \beta k_1 X + \gamma) \cdot (c(X) + \beta k_2 X + \gamma) - \\
+Z(X \omega) \cdot (a(X) + \beta S_{\sigma1}(X) + \gamma) \cdot (b(X) + \beta S_{\sigma2}(X) + \gamma) \cdot (c(X) + \beta S_{\sigma3}(X) + \gamma) \equiv 0 \pmod{X^N - 1}
+\end{multline}
+
+where $\beta, \gamma$ are random challenges, and $k_1, k_2$ are quadratic non-residues.
+
+\subsubsection{Second Copy-Permutation Identity}
+
+\begin{equation}
+(Z(X) - 1) \cdot L_1(X) \equiv 0 \pmod{X^N - 1}
+\end{equation}
+
+where $L_1(X)$ is the first Lagrange basis polynomial.
+
+\subsection{Prover Rounds}
+
+\subsubsection{Round 1: Preprocessing polynomials}
+
+Combined polynomial:
+\begin{equation}
+C_0(X) = q_A(X^8) + X q_B(X^8) + X^2 q_C(X^8) + X^3 q_M(X^8) + X^4 q_{Const}(X^8) + X^5 S_{\sigma1}(X^8) + X^6 S_{\sigma2}(X^8) + X^7 S_{\sigma3}(X^8)
+\end{equation}
+
+\subsubsection{Round 2: Witness polynomials and main gate identity}
+
+Combined polynomial:
+\begin{equation}
+C_1(X) = a(X^4) + X b(X^4) + X^2 c(X^4) + X^3 t_\text{main}(X^4)
+\end{equation}
+
+\subsubsection{Round 3: Copy-Permutation}
+
+Combined polynomial:
+\begin{equation}
+C_2(X) = Z(X^3) + X t_1(X^3) + X^2 t_2(X^3)
+\end{equation}
+
+\subsection{Polynomial Openings}
+
+The prover provides evaluations of all polynomials (including preprocessing polynomials) in the same order as the polynomials are defined:
+
+\begin{itemize}
+\item Preprocessing polynomials: at points $\{h_0, w_0h_0, \ldots, w_0^7h_0\}$
+\item Round 1 polynomials: at points $\{h_1, w_1h_1, \ldots, w_1^3h_1\}$
+\item Round 2 polynomials: at points $\{h_2, w_2h_2, \ldots, w_2^3h_2\}$ and $\{\omega^{1/3} h_2, \omega^{1/3} w_2h_2, \ldots, \omega^{1/3} w_2^3h_2\}$
+\end{itemize}
+
+where $w_i$ is a $k_i$-th root of unity, $h_i = r^{\text{LCM}(8, 4, 3)/k_i}$, and $r$ is verifier's random point. 
+
+\subsection{Opening}
+
+1. Prover computes and sends commitment to $W(X)$:
+
+\begin{equation}
+W(X) = \sum_i \frac{\alpha^i \cdot Z_{T\setminus S_i}(X) \cdot (C_i(X) - r_i(X))}{Z_T(X)}
+\end{equation}
+
+where $\alpha$ is a random challenge from the verifier and $r_i(X)$ are the opening polynomials.
+
+2. Verifier sends random challenge $y$.
+
+3. Prover computes and sends commitment to $W'(X)$:
+
+\begin{equation}
+W'(X) = \frac{W(X) \cdot Z_T(y) - \sum_i \alpha^i \cdot (C_i(X) - r_i(y)) \cdot Z_{T\setminus S_i}(X)}{X - y}
+\end{equation}
+
+Note: The verifier can construct each $r_i(y)$ from existing evaluations using barycentric interpolation(Appendix A).
+
+4. Verifier checks the pairing equation:
+
+\begin{equation}
+e([C(x)] - [r(y) \cdot G_1] - [Z_T(y) / Z_{T \setminus S_0}(y) \cdot W] + [y \cdot W'], G_2) \cdot e(-W', x \cdot G_2) = 1
+\end{equation}
+
+where 
+\[
+C(x) = C_0(x) + \alpha \cdot \frac{Z_{T \setminus S_1}(y)}{Z_{T \setminus S_0}(y)} \cdot C_1(x) + \alpha^2 \cdot \frac{Z_{T \setminus S_2}(y)}{Z_{T \setminus S_0}(y)} \cdot C_2(x)
+\]
+and
+\[
+r(y) = r_0(y) + \alpha \cdot \frac{Z_{T \setminus S_1}(y)}{Z_{T \setminus S_0}(y)} \cdot r_1(y) + \alpha^2 \cdot \frac{Z_{T \setminus S_2}(y)}{Z_{T \setminus S_0}(y)} \cdot r_2(y)
+\]
+
+\section{Conclusion}
+
+This document is a preliminary draft of our protocol implementation and is subject to updates and revisions.
+
+\section{Appendix}
+\subsection{Barycentric Interpolation}
+Barycentric interpolation is used in our fflonk implementation to efficiently reconstruct polynomial evaluations at arbitrary points. This method is particularly useful for the verifier to compute evaluations of the combined polynomials $C_i(X)$ at the challenge point $y$ without having access to the full polynomials.
+\subsubsection{Lagrange Basis Polynomials}
+
+For preprocessing (8 polynomials) and first round (4 polynomials):
+
+\begin{equation}
+L_i(X) = \frac{w_i}{N \cdot h^{N-1}} \cdot \frac{X^N - h^N}{X - w_i h}
+\end{equation}
+
+For the copy-permutation round (3 polynomials), which requires openings at shifted points:
+
+For points in the original interpolation set:
+\begin{equation}
+L_i(X) = \frac{w_i}{N \cdot (h^{2N-1} - (w^{1/N}h)^N h^{N-1})}\cdot \frac{X^{2N} - X^N(h^N + (w^{1/N}h)^N) + (h w^{1/N}h)^N}{X - h w_i}
+\end{equation}
+For points in the shifted set:
+\begin{equation}
+L_j(X) = \frac{w_j}{N \cdot (w^{1/N}h)^{2N-1} - h^N (w^{1/N}h)^{N-1}} \cdot \frac{X^{2N} - X^N(h^N + (w^{1/N}h)^N) + (h w^{1/N}h)^N}{X - w^{1/N}h w_j}
+\end{equation}
+where $N$ is the size of the interpolation set, $h$ is the base point, $w$ is the primitive root of the trace domain, and $w_i$, $w_j$ are the $N$-th roots of unity.
+\subsubsection{Using Lagrange Basis Polynomials}
+
+The Lagrange basis polynomials are used to construct evaluations of the $r_i$ polynomials at the point $y$ provided by the verifier. The process is as follows:
+
+For preprocessing polynomials (Round 0):
+The verifier constructs $r_0(y)$ using:
+\begin{equation}
+r_0(y) = C_0(h_0)L_{0,0}(y) + C_0(w_0h_0)L_{0,1}(y) + \cdots + C_0(w_0^7h_0)L_{0,7}(y)
+\end{equation}
+where $L_{0,i}(y)$ are the Lagrange basis polynomials for the preprocessing round.
+
+For first round polynomials (Round 1):
+The verifier constructs $r_1(y)$ using:
+\begin{equation}
+r_1(y) = C_1(h_1)L_{1,0}(y) + C_1(w_1h_1)L_{1,1}(y) + C_1(w_1^2h_1)L_{1,2}(y) + C_1(w_1^3h_1)L_{1,3}(y)
+\end{equation}
+where $L_{1,i}(y)$ are the Lagrange basis polynomials for the first round.
+
+For second round polynomials (Round 2):
+The verifier constructs $r_2(y)$ using:
+\begin{align}
+r_2(y) = & C_2(h_2)L_{2,0}(y) + C_2(w_2h_2)L_{2,1}(y) + C_2(w_2^2h_2)L_{2,2}(y) + \notag \\
+         & C_2(\omega^{1/3}h_2)L_{2,3}(y) + C_2(\omega^{1/3}w_2h_2)L_{2,4}(y) + C_2(\omega^{1/3}w_2^2h_2)L_{2,5}(y)
+\end{align}
+where $L_{2,i}(y)$ are the Lagrange basis polynomials for the second round, including both the original and shifted interpolation sets.
+
+\subsection{Set Difference Polynomials}
+For each round $i$, we define:
+\begin{equation}
+Z_{T\setminus S_i}(X) = \frac{Z_T(X)}{Z_{S_i}(X)}
+\end{equation}
+where:
+\begin{itemize}
+\item $T$ is the union of all evaluation point sets across all rounds
+\item $S_i$ is the set of evaluation points for round $i$
+\item $Z_T(X) = \prod_{\alpha \in T} (X - \alpha)$
+\item $Z_{S_i}(X) = \prod_{\alpha \in S_i} (X - \alpha)$
+\end{itemize}
+The degree of $Z_{T\setminus S_i}(X)$ is $|T| - |S_i|$.
+\subsubsection{Instantiations}
+In our specific implementation, the set difference polynomials are instantiated as follows:
+
+\begin{equation}
+Z_{T\setminus S_0}(X) = (X^4-z)\cdot(X^3-z)\cdot(X^3-z\omega) \text{ where } Z_{T\setminus S_0} \in \mathbb{F}[X]_{\leq 10}
+\end{equation}
+\begin{equation}
+Z_{T\setminus S_1}(X) = (X^8-z)\cdot(X^3-z)\cdot(X^3-z\omega) \text{ where } Z_{T\setminus S_1} \in \mathbb{F}[X]_{\leq 14}
+\end{equation}
+\begin{equation}
+Z_{T\setminus S_2}(X) = (X^8-z)\cdot(X^4-z) \text{ where } Z_{T\setminus S_2} \in \mathbb{F}[X]_{\leq 12}
+\end{equation}
+so that 
+\begin{equation}
+Z_{T}(X) = Z_{T\setminus S_0}(X) \cdot Z_{T\setminus S_1}(X) \cdot Z_{T\setminus S_2}(X) 
+\end{equation}
+\begin{equation}
+Z_{T}(X) = (X^8-z)\cdot(X^4-z)(X^3-z)\cdot(X^3-z\omega) \text{ where } Z_{T} \in \mathbb{F}[X]_{\leq 18}
+\end{equation}
+
+\section{Tonelli-Shanks Algorithm for Cubic Roots}
+The Tonelli-Shanks algorithm, adapted for cubic roots, provides an efficient method for computing cubic roots in finite fields where they exist. This is particularly useful in the second round.
+
+\subsection{Algorithm}
+Let $\mathbb{F}_p$ be a finite field of prime order $p$, where $p \equiv 1 \pmod{3}$. For $a \in \mathbb{F}_p$, we want to find $x$ such that $x^3 \equiv a \pmod{p}$, if such an $x$ exists.
+
+\begin{enumerate}
+    \item Check if $a$ is a cubic residue: if $a^{(p-1)/3} \not\equiv 1 \pmod{p}$, return none.
+    \item Write $p-1 = 3^s \cdot q$ where $3 \nmid q$.
+    \item Find a cubic non-residue $z$: $z^{(p-1)/3} \not\equiv 1 \pmod{p}$.
+    \item Set $m = s$, $c = z^q \pmod{p}$, $t = a^q \pmod{p}$, $r = a^{(q+1)/3} \pmod{p}$.
+    \item While $t \not\equiv 1 \pmod{p}$:
+        \begin{itemize}
+            \item Find the least $i$, $0 < i < m$, such that $t^{3^i} \equiv 1 \pmod{p}$.
+            \item If no such $i$ exists, return null.
+            \item Update: $m = i$, $c = b^3 \pmod{p}$, $t = t \cdot c \pmod{p}$, $r = r \cdot b \pmod{p}$.
+        \end{itemize}
+    \item Return $r$.
+\end{enumerate}
+\bibliographystyle{alpha}
+\bibliography{references}
+
+\end{document}

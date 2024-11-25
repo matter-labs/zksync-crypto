@@ -1,9 +1,16 @@
 use super::*;
 
+use crate::traits::pow::RecursivePoWRunner;
 use crate::traits::transcript::BoolsBuffer;
 use crate::verifier_structs::allocated_queries::AllocatedSingleRoundQueries;
 
-pub(crate) fn verify_fri_part<E: Engine, CS: ConstraintSystem<E> + 'static, H: CircuitGLTreeHasher<E>, TR: CircuitGLTranscript<E, CircuitCompatibleCap = H::CircuitOutput>>(
+pub(crate) fn verify_fri_part<
+    E: Engine,
+    CS: ConstraintSystem<E> + 'static,
+    H: CircuitGLTreeHasher<E>,
+    TR: CircuitGLTranscript<E, CircuitCompatibleCap = H::CircuitOutput>,
+    POW: RecursivePoWRunner<E>,
+>(
     cs: &mut CS,
     proof: &AllocatedProof<E, H>,
     vk: &AllocatedVerificationKey<E, H>,
@@ -29,20 +36,24 @@ pub(crate) fn verify_fri_part<E: Engine, CS: ConstraintSystem<E> + 'static, H: C
     transcript.witness_field_elements(cs, &proof.final_fri_monomials[0])?;
     transcript.witness_field_elements(cs, &proof.final_fri_monomials[1])?;
 
-    assert_eq!(constants.new_pow_bits, 0, "PoW not supported yet");
-    // if new_pow_bits != 0 {
-    //     log!("Doing PoW verification for {} bits", new_pow_bits);
-    //     // log!("Prover gave challenge 0x{:016x}", proof.pow_challenge);
-
-    //     // pull enough challenges from the transcript
-    //     let mut num_challenges = 256 / F::CHAR_BITS;
-    //     if num_challenges % F::CHAR_BITS != 0 {
-    //         num_challenges += 1;
-    //     }
-    //     let _challenges: Vec<_> = transcript.get_multiple_challenges(cs, num_challenges);
-
-    //     todo!()
-    // }
+    if constants.new_pow_bits != 0 {
+        // pull enough challenges from the transcript
+        let mut num_challenges = 256 / GL::CHAR_BITS;
+        if num_challenges % GL::CHAR_BITS != 0 {
+            num_challenges += 1;
+        }
+        let challenges: Vec<_> = transcript.get_multiple_challenges(cs, num_challenges as usize)?;
+        let (is_valid, pow_challenge_limbs) = POW::verify_from_field_elements(cs, challenges, proof.pow_challenge_le, constants.new_pow_bits)?;
+        match is_valid.get_value() {
+            Some(is_valid) => {
+                if is_valid == false {
+                    println!("PoW challenge is invalid")
+                }
+            }
+            None => (),
+        }
+        transcript.witness_field_elements(cs, &pow_challenge_limbs)?;
+    }
 
     let max_needed_bits = (fixed_parameters.domain_size * fixed_parameters.fri_lde_factor as u64).trailing_zeros() as usize;
 

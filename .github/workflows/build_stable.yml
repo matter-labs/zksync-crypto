@@ -1,0 +1,40 @@
+name: "Build stable"
+on:
+  pull_request:
+    paths:
+      - "crates/**"
+      - "Cargo.toml"
+      - ".github/workflows/ci.yaml"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: "always"
+  CARGO_INCREMENTAL: "0"
+  RUSTC_WRAPPER: "sccache"
+  SCCACHE_GHA_ENABLED: "true"
+
+jobs:
+  build_stable:
+    name: Build (stable)
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+          # Remove default `-D warnings`. This is a temporary measure.
+          rustflags: ""
+
+      - name: Install sccache
+        uses: mozilla-actions/sccache-action@v0.0.4
+
+      # Bellman crate *must* build on stable, because parts of the core
+      # codebase are only used in the context of stable compiler.
+      - name: Build
+        run: |
+          cargo build -p zksync_bellman
