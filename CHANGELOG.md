@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.30.10](https://github.com/matter-labs/zksync-crypto/compare/v0.30.9...v0.30.10) (2024-11-27)
+
+
+### Features
+
+* **franklin-crypto:** add `extern crate core;` to lib.rs ([#27](https://github.com/matter-labs/zksync-crypto/issues/27)) ([3084cb8](https://github.com/matter-labs/zksync-crypto/commit/3084cb821965382d63cc6f5bc074cf6dcfaff84d))
+
+
+### Bug Fixes
+
+* Disabled vectorisation for neon ([#52](https://github.com/matter-labs/zksync-crypto/issues/52)) ([3900a4b](https://github.com/matter-labs/zksync-crypto/commit/3900a4b4b225545e9cc05ad7ebca570aac3dd300))
+
 ## [0.30.9](https://github.com/matter-labs/zksync-crypto/compare/v0.30.8...v0.30.9) (2024-11-21)
 
 
