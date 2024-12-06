@@ -621,7 +621,7 @@ fn prime_field_impl(name: &syn::Ident, repr: &syn::Ident, mont_inv: u64, limbs: 
         impl ::std::fmt::Debug for #name
         {
             fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
-                write!(f, "{}({:?})", stringify!(#name), self.into_repr())
+                write!(f, "{}({:?})", stringify!(#name), self.into_raw_repr())
             }
         }
 
