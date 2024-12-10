@@ -47,6 +47,10 @@ impl<E: Engine> Hash for GoldilocksField<E> {
 }
 
 pub fn range_check_for_num_bits<E: Engine, CS: ConstraintSystem<E>>(cs: &mut CS, num: &Num<E>, num_bits: usize) -> Result<(), SynthesisError> {
+    range_check_for_num_bits_coarsely(cs, num, num_bits, true)
+}
+
+pub fn range_check_for_num_bits_coarsely<E: Engine, CS: ConstraintSystem<E>>(cs: &mut CS, num: &Num<E>, num_bits: usize, coarsely: bool) -> Result<(), SynthesisError> {
     assert!(num_bits % 16 == 0);
 
     if let Num::Constant(value) = num {
@@ -56,7 +60,7 @@ pub fn range_check_for_num_bits<E: Engine, CS: ConstraintSystem<E>>(cs: &mut CS,
     } else {
         // Name of the table should be checked
         if let Ok(table) = cs.get_table(BITWISE_LOGICAL_OPS_TABLE_NAME) {
-            enforce_range_check_using_bitop_table(cs, &num.get_variable(), num_bits, table, true)?;
+            enforce_range_check_using_bitop_table(cs, &num.get_variable(), num_bits, table, coarsely)?;
         } else if <CS::Params as PlonkConstraintSystemParams<E>>::CAN_ACCESS_NEXT_TRACE_STEP {
             enforce_range_check_using_naive_approach(cs, &num.get_variable(), num_bits)?;
         } else {
