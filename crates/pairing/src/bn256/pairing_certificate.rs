@@ -1,5 +1,11 @@
-use ff::Field;
+use ff::{Field, PrimeField};
 use num_traits::identities::Zero;
+use rand::Rand;
+use crate::{bn256::{Bn256, G1Affine, G2Affine}, compact_bn256, CurveAffine, Engine, GenericCurveProjective};
+use crate::bn256::SIX_U_PLUS_2_NAF;
+use crate::bn256::FROBENIUS_COEFF_FQ6_C1;
+use crate::bn256::XI_TO_Q_MINUS_1_OVER_2;
+
 use super::{Fq, Fq2, Fq12, Fq6, FqRepr};
 use num_bigint::BigUint;
 
@@ -116,6 +122,16 @@ const TONELLI_SHANKS_EXP: [u64; 48] = [
     2677608099021902155, 7355171353358735970, 15599372545357875268, 7099683620123053590, 3724500770168168925, 474044172
 ];
 
+const S: [u64; 48] = [
+    5982999641815852384, 5641165695389907625, 7610809117501125565, 15615806943886662785, 9130168016823834679, 10071748642903118935, 12920740976535751032, 
+    13573142854269302873, 1421447103408048392, 2735516808093484421, 6919060870783059371, 2288044543583071185, 4609055331673703365, 15998918032950473389, 
+    5478954249455729744, 669867312265435509, 14501527263123620255, 5194608928241919731, 11371460873341053613, 2838686147609466420, 1354956404145763359, 
+    12756007053797516573, 10732758688017739776, 16304699125193299191, 9418804519362058009, 6862157858850536923, 11081345753461235135, 7592420394786671232, 
+    15575522890471339594, 13607288953322015154, 14418134868012297014, 5555393837754167306, 12738551010715520044, 18377349060238195473, 8051925128746144862, 
+    730706148368486822, 12108140726578673669, 11493988373523942301, 12505130207577597083, 16546723930728604961, 9608415924697539002, 16604481031162254019, 
+    8032824297065706465, 3618769986366656294, 9904629488654522573, 2852306786659609156, 11173502310504506776, 1422132516
+];
+
 const LAMBDA : [u64; 12] = [
     6338883757087263829, 18082362518251613329, 12769575203635315010, 16977236642651234352, 8686951213117475924, 13764436133107921006, 12359884445821460169, 
     15944377745085967733, 13997781615140285916, 7499777415441582065, 3683594101071511471, 124599342199167405
@@ -171,7 +187,7 @@ fn get_cubic_ord(mut a: Fq12) -> BigUint {
 }
 
 
-fn construct_setificate(miller_loop_f: Fq12) -> Certificate {
+pub fn construct_certificate(miller_loop_f: Fq12) -> Certificate {
     // Input: Output of a Miller loop f and fixed 27-th root of unity w
     // Output: (c, w^i), such that c^λ = f · w^i
     // 1) for i in 0, 1, 2, find the only i, such that (f * w^i)^power == 1
@@ -196,7 +212,7 @@ fn construct_setificate(miller_loop_f: Fq12) -> Certificate {
     c = c.pow(&M_PRIME);
     
     let c_inv = c.inverse().unwrap();
-    let cubic_non_residue_pow = FQ12_CUBIC_NON_RESIDUE.pow(&TONELLI_SHANKS_EXP);
+    let cubic_non_residue_pow = FQ12_CUBIC_NON_RESIDUE.pow(&S);
 
     // extract cubic root of c by using modified Tonelli-Shanks
     let mut x = c.pow(&TONELLI_SHANKS_EXP);
@@ -214,29 +230,166 @@ fn construct_setificate(miller_loop_f: Fq12) -> Certificate {
         t = get_cubic_ord(a);
     }
 
-    let ceritificate = Certificate {
+    let certificate = Certificate {
         c: x,
         root_27_of_unity_power: correct_w_power
     };
 
-    // self-check: c^λ = f · w^i
-    let lhs = ceritificate.c.pow(&LAMBDA);
-    let w = ROOT_27_OF_UNITY.pow(&[ceritificate.root_27_of_unity_power as u64]);
+    certificate
+}
+
+pub fn validate_ceritificate(miller_loop_f: &Fq12, certificate: &Certificate) -> bool {
+    // c^λ =? f · w^i
+    let lhs = certificate.c.pow(&LAMBDA);
+    let w = ROOT_27_OF_UNITY.pow(&[certificate.root_27_of_unity_power as u64]);
     let mut rhs = miller_loop_f.clone();
     rhs.c0.mul_assign(&w);
     rhs.c1.mul_assign(&w);
 
-    assert_eq!(lhs, rhs);
-    ceritificate
+    lhs == rhs
+}
+
+
+fn prepare_all_line_functions(q: G2Affine) -> Vec<(Fq2, Fq2)> {
+    fn line_double(t: G2Affine) -> (Fq2, Fq2) {
+        let mut alpha = t.x;
+        let mut mu = t.y;
+    
+        // alpha = 3 * x^2 / 2 * y
+        alpha.square();
+        let mut tmp = alpha.clone();
+        tmp.double();
+        alpha.add_assign(&tmp);
+
+        let mut tmp = t.y;
+        tmp.double();
+        tmp.inverse().unwrap();
+        alpha.mul_assign(&tmp);
+
+        let mut tmp = t.x;
+        tmp.mul_assign(&alpha);
+        mu.sub_assign(&tmp);
+
+        (alpha, mu)
+    }
+
+    fn line_add(t: G2Affine, p: G2Affine) -> (Fq2, Fq2) {
+        let x1 = t.x;
+        let y1 = t.y;
+        let x2 = p.x;
+        let y2 = p.y;
+    
+        let mut alpha = y2;
+        let mut mu = y1; 
+
+        // alpha = (y2 - y1) / (x2 - x1)
+        alpha.sub_assign(&y2);
+        let mut tmp = x2; 
+        tmp.sub_assign(&x1);
+        tmp.inverse().unwrap();
+        alpha.mul_assign(&tmp);
+
+        let mut tmp = x1; 
+        tmp.mul_assign(&alpha);
+        mu.sub_assign(&tmp);
+    
+        (alpha, mu)
+    }
+
+    let mut l = vec![];
+    let mut t = q.into_projective();
+    let mut q_negated = q.clone();
+    q_negated.negate();
+
+    for i in (1..SIX_U_PLUS_2_NAF.len()).rev()  {
+        let (alpha, mu) = line_double(t.into_affine());
+        t.double();
+        l.push((alpha, mu));
+
+        if i != 0 {
+            let q_t = if i == 1 { q } else { q_negated };
+            let (alpha, mu) = line_add(t.into_affine(), q_t);
+            t.add_assign_mixed(&q_t);
+            l.push((alpha, mu));
+        }
+    }
+
+    // Frobenius map calculations for BN256
+    let mut pi_1_q_x = q.x; 
+    let mut pi_1_q_y = q.y; 
+    pi_1_q_x.conjugate();
+    pi_1_q_x.mul_assign(&FROBENIUS_COEFF_FQ6_C1[1]);
+    pi_1_q_y.conjugate();
+    pi_1_q_y.mul_assign(&XI_TO_Q_MINUS_1_OVER_2);
+    let pi_1_q = G2Affine::from_xy_checked(pi_1_q_x, pi_1_q_y).unwrap().into_projective();
+
+    // let mut pi_2_q_x = q.x; 
+    // let mut pi_2_q_y = q.y; 
+    // pi_2_q_x.mul_assign(&FROBENIUS_COEFF_FQ6_C1[2]);
+    // let pi_2_q = Self::G2 {
+    //     x: pi_2_q_x,
+    //     y: q.y,
+    //     z: Fp2::one(),
+    // };
+
+
+    // let (alpha, mu) = Self::line_add(t.into_affine(), pi_1_q.into_affine());
+    // t = t.add(&pi_1_q);
+    // l.push((alpha.into(), mu.into()));
+
+    // let (alpha, mu) = Self::line_add(t.into_affine(), pi_2_q.negate().into_affine());
+    // t = t.add(&pi_2_q.negate());
+    // l.push((alpha.into(), mu.into()));
+
+    l
 }
 
 
 #[test]
 fn test_certificate_construction() {
-    let miller_loop_result = Fq12::zero();
-    let ceritificate = construct_setificate(miller_loop_result);
-    println!("c: {}, i: {}", ceritificate.c, ceritificate.root_27_of_unity_power);
+    let mut rng = rand::thread_rng();
+    let g1 = G1Affine::rand(&mut rng);
+    let g2 = G2Affine::rand(&mut rng);
+
+    let g1_prepared = g1.prepare();
+    let g2_prepared = g2.prepare();
+    
+    let mut g2_negated = g2.clone();
+    g2_negated.negate();
+    let g2_negated_prepared = g2_negated.prepare();
+
+    let miller_loop_result = Bn256::miller_loop(&[(&g1_prepared, &g2_prepared), (&g1_prepared, &g2_negated_prepared)]);
+    let final_exp = Bn256::final_exponentiation(&miller_loop_result).unwrap();
+    assert_eq!(final_exp, Fq12::one());
+
+    let certificate = construct_certificate(miller_loop_result);
+    assert!(validate_ceritificate(&miller_loop_result, &certificate));
+
+    let miller_loop_result = Bn256::miller_loop(&[(&g1_prepared, &g2_prepared)]);
+    let final_exp = Bn256::final_exponentiation(&miller_loop_result).unwrap();
+    assert_ne!(final_exp, Fq12::one());
+
+    let certificate = construct_certificate(miller_loop_result);
+    assert!(!validate_ceritificate(&miller_loop_result, &certificate));
 }
+
+#[test]
+fn test_bn_equivalence() {
+    let mut rng = rand::thread_rng();
+    let g1 = G1Affine::rand(&mut rng);
+    let g2 = G2Affine::rand(&mut rng);
+    let miller_loop_result = Bn256::miller_loop(&[(&g1.prepare(), &g2.prepare())]);
+    let lhs = Bn256::final_exponentiation(&miller_loop_result).unwrap();
+
+    let g1 = compact_bn256::G1Affine::from_xy_checked(g1.x, g1.y).unwrap();
+    let g2 = compact_bn256::G2Affine::from_xy_checked(g2.x, g2.y).unwrap();
+    let miller_loop_result = compact_bn256::Bn256::miller_loop(&[(&g1.prepare(), &g2.prepare())]);
+    let rhs = compact_bn256::Bn256::final_exponentiation(&miller_loop_result).unwrap();
+
+    assert_eq!(lhs, rhs)
+}
+
+
 
 
 

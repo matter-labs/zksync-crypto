@@ -6,6 +6,7 @@ pub mod fq6;
 pub mod fr;
 pub mod pairing_certificate;
 
+
 pub use self::ec::{G1Affine, G1Compressed, G1Prepared, G1Uncompressed, G2Affine, G2Compressed, G2Prepared, G2Uncompressed, G1, G2};
 pub use self::fq::{Fq, FqRepr, FROBENIUS_COEFF_FQ6_C1, XI_TO_Q_MINUS_1_OVER_2};
 pub use self::fq12::Fq12;
@@ -290,6 +291,10 @@ impl G2Prepared {
             tmp0 = r.z;
             tmp0.mul_assign(&zsquared);
             tmp0.double();
+
+            // let tmp0_inv = tmp0.inverse().unwrap();
+            // tmp3.mul_assign(&tmp0_inv);
+            // tmp6.mul_assign(&tmp0_inv);
 
             (tmp0, tmp3, tmp6)
         }

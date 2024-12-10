@@ -1005,8 +1005,23 @@ pub mod g1 {
         }
 
         pub fn from_affine(p: G1Affine) -> Self {
-            G1Prepared(p)
+            Self(p)
         }
+
+        // pub fn from_affine(p: G1Affine) -> Self {
+        //     let inner = if p.is_zero() {
+        //         p
+        //     } else {
+        //         // precompute x' = - p.x / p.y; y' = -1 /p.y
+        //         let (mut x, y) = p.into_xy_unchecked();
+        //         let mut y_neg_inv = y.inverse().unwrap();
+        //         y_neg_inv.negate();
+        //         x.mul_assign(&y_neg_inv);
+
+        //         G1Affine::from_xy_unchecked(x, y_neg_inv)
+        //     };
+        //     G1Prepared(inner)
+        // }
     }
 
     #[test]
