@@ -201,9 +201,9 @@ fn aggregate_public_inputs<E: Engine, CS: ConstraintSystem<E>>(cs: &mut CS, publ
     );
 
     // Firstly we check that public inputs have correct size
-    use rescue_poseidon::franklin_crypto::plonk::circuit::goldilocks::range_check_for_num_bits;
+    use rescue_poseidon::franklin_crypto::plonk::circuit::goldilocks::range_check_for_num_bits_coarsely;
     for pi in public_inputs.iter() {
-        range_check_for_num_bits(cs, &pi.into_num(), 64)?;
+        range_check_for_num_bits_coarsely(cs, &pi.into_num(), 64, false)?;
     }
 
     // compute aggregated pi value
