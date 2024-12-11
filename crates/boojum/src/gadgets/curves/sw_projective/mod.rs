@@ -473,6 +473,17 @@ where
         new
     }
 
+    pub fn add_mixed_inf_pass<CS: ConstraintSystem<F>>(
+        &mut self,
+        cs: &mut CS,
+        other_xy: &mut (NN, NN),
+        is_other_inf: Boolean<F>,
+    ) -> Self {
+        let result = self.add_sub_mixed_impl(cs, other_xy, false);
+
+        Self::conditionally_select(cs, is_other_inf, self, &result)
+    }
+
     pub fn add_mixed<CS: ConstraintSystem<F>>(
         &mut self,
         cs: &mut CS,
