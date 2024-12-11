@@ -257,20 +257,10 @@ where
         let mut sum = self.encoding.clone().add(cs, &mut other.encoding);
         let lhs = encoding_new.clone().mul(cs, &mut sum);
 
-        // rhs = {(g + g') == 0} ? zero : (g * g' + \gamma)
+        // rhs = g * g' + \gamma
         let mut gamma = Fq6::gamma(cs, params);
         let mut rhs = self.encoding.clone().mul(cs, &mut other.encoding);
         let rhs = rhs.add(cs, &mut gamma);
-
-        let zero = Fq6::zero(cs, params);
-        let is_zero_sum = sum.is_zero(cs);
-
-        let rhs = <Fq6<F, T, NonNativeFieldOverU16<F, T, N>, P::Ex6>>::conditionally_select(
-            cs,
-            is_zero_sum,
-            &zero,
-            &rhs,
-        );
 
         // Enforce equality
         Fq6::enforce_equal(cs, &lhs, &rhs);
@@ -320,20 +310,19 @@ where
         CS: ConstraintSystem<F>,
     {
         let mut result = Self::one(cs, self.get_params());
-        let mut found_one = false;
+        let mut base = self.clone();
 
-        for bit in BitIterator::new(exponent) {
-            let apply_squaring = Boolean::allocated_constant(cs, found_one);
-            let result_squared = result.square(cs);
-            result = Self::conditionally_select(cs, apply_squaring, &result_squared, &result);
-            if !found_one {
-                found_one = bit;
-            }
+        for i in BitIterator::new(exponent) {
+            let mut squared = result.square(cs);
+            let mut squared_and_multiplied = squared.mul(cs, &mut base);
+            let shall_multiply = Boolean::allocated_constant(cs, i);
 
-            let result_multiplied = result.mul(cs, self);
-            let apply_multiplication = Boolean::allocated_constant(cs, bit);
-            result =
-                Self::conditionally_select(cs, apply_multiplication, &result_multiplied, &result);
+            result = Self::conditionally_select(
+                cs,
+                shall_multiply,
+                &mut squared_and_multiplied,
+                &mut squared,
+            );
 
             result.normalize(cs);
         }

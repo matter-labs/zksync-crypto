@@ -394,9 +394,8 @@ impl<F: SmallField> UInt256<F> {
         let q = UInt256::allocate(cs, q);
         let r = UInt256::allocate(cs, r);
 
-        let mod_is_zero = Boolean::allocate(cs, m.is_zero());
+        let mod_is_zero = modulo.is_zero(cs);
         let bool_true = Boolean::allocated_constant(cs, true);
-        let bool_false = Boolean::allocated_constant(cs, false);
 
         let (_, m_ge_than_r) = r.overflowing_sub(cs, &modulo);
         let m_ge_than_r = Boolean::conditionally_select(cs, mod_is_zero, &bool_true, &m_ge_than_r);
@@ -408,8 +407,7 @@ impl<F: SmallField> UInt256<F> {
 
         let rhs = q.widening_mul(cs, &modulo, 8, 8);
         let r_u512 = r.to_u512(cs);
-        let (rhs, overflow) = rhs.overflowing_add(cs, &r_u512);
-        Boolean::enforce_equal(cs, &overflow, &bool_false);
+        let (rhs, _) = rhs.overflowing_add(cs, &r_u512);
 
         let are_equal = UInt512::equals(cs, &lhs, &rhs);
         Boolean::enforce_equal(cs, &are_equal, &bool_true);
