@@ -39,6 +39,16 @@ where
     ) -> Self {
         NonNativeFieldOverU16::<F, T, N>::allocate_checked(cs, witness, params)
     }
+
+    fn allocate_checked_with_tag<CS: ConstraintSystem<F>>(
+        cs: &mut CS,
+        witness: T,
+        params: &Arc<Self::Params>,
+        tag: Place
+    ) -> Self {
+        NonNativeFieldOverU16::<F, T, N>::allocate_checked_with_tag(cs, witness, params, tag)
+    }
+
     fn enforce_reduced<CS: ConstraintSystem<F>>(&mut self, cs: &mut CS) {
         NonNativeFieldOverU16::<F, T, N>::enforce_reduced(self, cs)
     }

@@ -26,6 +26,13 @@ pub trait NonNativeField<F: SmallField, T: pairing::ff::PrimeField>:
         params: &Arc<Self::Params>,
     ) -> Self;
 
+    fn allocate_checked_with_tag<CS: ConstraintSystem<F>>(
+        cs: &mut CS,
+        witness: T,
+        params: &Arc<Self::Params>,
+        place: Place
+    ) -> Self;
+
     fn enforce_reduced<CS: ConstraintSystem<F>>(&mut self, cs: &mut CS);
 
     fn enforce_equal<CS: ConstraintSystem<F>>(cs: &mut CS, a: &Self, b: &Self);

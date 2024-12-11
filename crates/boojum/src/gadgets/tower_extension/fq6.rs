@@ -853,6 +853,15 @@ where
         Fq2::enforce_equal(cs, &a.c1, &b.c1);
         Fq2::enforce_equal(cs, &a.c2, &b.c2);
     }
+    
+    fn allocate_checked_with_tag<CS: ConstraintSystem<F>>(
+        cs: &mut CS,
+        witness: T,
+        params: &Arc<Self::Params>,
+        place: crate::cs::Place
+    ) -> Self {
+        todo!()
+    }
 }
 
 impl<F, NN> Selectable<F> for Fq6<F, BN256Fq, NN, BN256Extension6Params>
