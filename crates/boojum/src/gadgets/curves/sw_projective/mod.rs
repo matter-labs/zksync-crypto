@@ -507,6 +507,13 @@ where
         Self::conditionally_select(cs, is_point2_inf, self, &result)
     }
 
+    pub unsafe fn convert_to_affine<CS: ConstraintSystem<F>>(&mut self, cs: &mut CS) -> (NN, NN) {
+        let x = self.x.div_unchecked(cs, &mut self.z);
+        let y = self.y.div_unchecked(cs, &mut self.z);
+
+        (x, y)
+    }
+
     pub fn convert_to_affine_or_default<CS: ConstraintSystem<F>>(
         &mut self,
         cs: &mut CS,
