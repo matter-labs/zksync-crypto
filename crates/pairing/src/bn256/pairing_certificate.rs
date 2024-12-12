@@ -295,8 +295,19 @@ pub fn prepare_all_line_functions(q: G2Affine) -> Vec<(Fq2, Fq2)> {
     l
 }
 
+pub fn prepare_g1_point(p: G1Affine) -> G1Affine {
+    // we "prepare" p by recomputing (x, y) -> (x', y') where: x' = - p.x / p.y; y' = -1 /p.y 
+    // it is required to enforce that in c0c3c4, c0 = 1
+    let mut y_new = p.y.inverse().unwrap();
+    y_new.negate();
+    let mut x_new = p.x;
+    x_new.mul_assign(&y_new);
+    
+    G1Affine::from_xy_unchecked(x_new, y_new)
+}
 
-fn miller_loop_with_prepared_lines(
+
+pub fn miller_loop_with_prepared_lines(
     eval_points: &[G1Affine],
     lines: &[Vec<(Fq2, Fq2)>],
 ) -> Fq12 {
@@ -423,21 +434,16 @@ fn test_bn_equivalence() {
 #[test]
 fn test_precomputed_lines() {
     let mut rng = rand::thread_rng();
-    let mut p = G1Affine::rand(&mut rng);
+    let p = G1Affine::rand(&mut rng);
     let q = G2Affine::rand(&mut rng);
 
     let res = Bn256::miller_loop(&[(&p.prepare(), &q.prepare())]);
     let lhs = Bn256::final_exponentiation(&res);
 
     let lines = prepare_all_line_functions(q);
-    // we also "prepare" p by recomputing (x, y) -> (x', y') where: x' = - p.x / p.y; y' = -1 /p.y 
-    // it is required to enforce that in c0c3c4, c0 = 1
-    let mut y_new = p.y.inverse().unwrap();
-    y_new.negate();
-    p.x.mul_assign(&y_new);
-    p.y = y_new;
-
-    let miller_loop_f = miller_loop_with_prepared_lines(&[p], &[lines]);
+    let p_prepared = prepare_g1_point(p);
+   
+    let miller_loop_f = miller_loop_with_prepared_lines(&[p_prepared], &[lines]);
     let rhs = Bn256::final_exponentiation(&miller_loop_f);
 
     assert_eq!(lhs, rhs);
