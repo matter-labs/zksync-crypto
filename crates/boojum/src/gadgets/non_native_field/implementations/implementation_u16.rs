@@ -428,6 +428,17 @@ where
         let a_max = self.tracker.into_max_value(&self.params.modulus_u1024);
         let b_max = other.tracker.into_max_value(&self.params.modulus_u1024);
 
+        // if length checks do not pass - apply agressive normalization
+
+        if (
+            self.tracker.max_moduluses * other.tracker.max_moduluses >= self.params.max_mods_before_multiplication as u32
+        ) || (
+            self.tracker.max_moduluses * other.tracker.max_moduluses >= self.params.max_mods_to_fit
+        ) {
+            self.normalize(cs);
+            other.normalize(cs);
+        }
+
         assert!(
             self.tracker.max_moduluses * other.tracker.max_moduluses
                 < self.params.max_mods_before_multiplication as u32
