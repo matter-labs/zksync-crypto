@@ -327,6 +327,7 @@ impl<
     fn get_gate_params<G: Gate<F>>(
         &self,
     ) -> <G::Evaluator as GateConstraintEvaluator<F>>::UniqueParameterizationParams {
+        println!("getting params for: {:}", G::Evaluator::type_name());
         self.gates_configuration
             .get_params::<G>()
             .expect("gate must be allowed")
