@@ -1,7 +1,7 @@
 use ff::{Field, PrimeField};
 use num_traits::identities::Zero;
 use rand::Rand;
-use crate::{bn256::{Bn256, G1Affine, G2Affine}, compact_bn256, CurveAffine, Engine, GenericCurveProjective};
+use crate::{bn256::{Bn256, G1Affine, G2Affine}, compact_bn256, CurveAffine, Engine, CurveProjective};
 use crate::bn256::*;
 use crate::bn256::fq::*;
 // use crate::bn256::FROBENIUS_COEFF_FQ6_C1;
@@ -218,8 +218,8 @@ pub fn prepare_all_line_functions(q: G2Affine) -> Vec<(Fq2, Fq2)> {
 
         let mut tmp = t.y;
         tmp.double();
-        tmp.inverse().unwrap();
-        alpha.mul_assign(&tmp);
+        let tmp_inv = tmp.inverse().unwrap();
+        alpha.mul_assign(&tmp_inv);
 
         let mut tmp = t.x;
         tmp.mul_assign(&alpha);
@@ -238,11 +238,11 @@ pub fn prepare_all_line_functions(q: G2Affine) -> Vec<(Fq2, Fq2)> {
         let mut mu = y1; 
 
         // alpha = (y2 - y1) / (x2 - x1)
-        alpha.sub_assign(&y2);
+        alpha.sub_assign(&y1);
         let mut tmp = x2; 
         tmp.sub_assign(&x1);
-        tmp.inverse().unwrap();
-        alpha.mul_assign(&tmp);
+        let tmp_inv = tmp.inverse().unwrap();
+        alpha.mul_assign(&tmp_inv);
 
         let mut tmp = x1; 
         tmp.mul_assign(&alpha);
@@ -261,8 +261,10 @@ pub fn prepare_all_line_functions(q: G2Affine) -> Vec<(Fq2, Fq2)> {
         t.double();
         l.push((alpha, mu));
 
-        if i != 0 {
-            let q_t = if i == 1 { q } else { q_negated };
+        let bit = SIX_U_PLUS_2_NAF[i-1];
+
+        if bit != 0 {
+            let q_t = if bit == 1 { q } else { q_negated };
             let (alpha, mu) = line_add(t.into_affine(), q_t);
             t.add_assign_mixed(&q_t);
             l.push((alpha, mu));
@@ -280,8 +282,7 @@ pub fn prepare_all_line_functions(q: G2Affine) -> Vec<(Fq2, Fq2)> {
 
     let mut pi_2_q_x = q.x; 
     pi_2_q_x.mul_assign(&FROBENIUS_COEFF_FQ6_C1[2]);
-    let mut pi_2_q = G2Affine::from_xy_checked(pi_2_q_x, q.y).unwrap();
-    pi_2_q.negate();
+    let pi_2_q = G2Affine::from_xy_checked(pi_2_q_x, q.y).unwrap();
 
     let (alpha, mu) = line_add(t.into_affine(), pi_1_q);
     t.add_assign_mixed(&pi_1_q);
@@ -292,6 +293,85 @@ pub fn prepare_all_line_functions(q: G2Affine) -> Vec<(Fq2, Fq2)> {
     l.push((alpha.into(), mu.into()));
 
     l
+}
+
+
+fn miller_loop_with_prepared_lines(
+    eval_points: &[G1Affine],
+    lines: &[Vec<(Fq2, Fq2)>],
+) -> Fq12 {
+    assert_eq!(eval_points.len(), lines.len());
+
+    fn line_evaluation(alpha: &Fq2, mu: &Fq2, p: &G1Affine) -> (Fq2, Fq2, Fq2) {
+        // previously: c0 = p.y; c3 = - lambda * p.x; c4 = -mu; 
+        // now we have: p = (x', y') where: x' = - p.x / p.y; y' = -1 /p.y 
+        // and compute c0 = 1, c3 = - lambda * p.x / p.y = lambda * p.x, c4 = - mu / p.y = mu * p.y
+        
+        // previously:
+        // let mut c3 = *alpha;
+        // c3.negate();
+        // c3.c0.mul_assign(&p.x);
+        // c3.c1.mul_assign(&p.x);
+        // let mut c4 = *mu;
+        // c4.negate();
+
+        let mut c3 = *alpha;
+        c3.c0.mul_assign(&p.x);
+        c3.c1.mul_assign(&p.x);
+        let mut c4 = *mu;
+        c4.c0.mul_assign(&p.y);
+        c4.c1.mul_assign(&p.y);
+        let c0 = Fq2::one();
+
+        (c0, c3, c4)
+    }
+    
+    let mut f = Fq12::one();
+
+    let mut lc = 0; 
+    for i in (1..SIX_U_PLUS_2_NAF.len()).rev() {
+        if i != SIX_U_PLUS_2_NAF.len() - 1 {
+            f.square();
+        }
+        let x = SIX_U_PLUS_2_NAF[i - 1];
+        for  (P, L) in eval_points.iter().zip(lines.iter()) {
+            let (alpha, mu) = L[lc];
+            let (c0, c1, c2) = line_evaluation(&alpha, &mu, P);
+            f.mul_by_034(&c0, &c1, &c2);
+
+            if x * x == 1 {
+                let (alpha, bias) = L[lc + 1];
+                let (c0, c1, c2) = line_evaluation(&alpha, &bias, P);
+                f.mul_by_034(&c0, &c1, &c2);
+            }
+        }
+
+        if x == 0 {
+            lc += 1;
+        } else {
+            lc += 2;
+        }
+    }
+
+    // Frobenius map part: p - p^2 + p^3 steps
+    // this part runs through each eval point and applies
+    // three additional line evaluations with special conditions.
+    // Todo_O_O need to ckeck if in circuits 3 frob line eval or 2 ???
+    for (P,  L) in eval_points.iter().zip(lines.iter()) {
+        for k in 0..2 {
+            let (alpha, mu) = L[lc + k];
+            
+            let (c0, c1, c2) = line_evaluation(&alpha, &mu, P);
+            f.mul_by_034(&c0, &c1, &c2);
+        }
+    }
+
+    lc += 2;
+
+    // Check we consumed all lines
+    assert_eq!(lc, lines[0].len());
+
+    f
 }
 
 
@@ -337,5 +417,32 @@ fn test_bn_equivalence() {
     let rhs = compact_bn256::Bn256::final_exponentiation(&miller_loop_result).unwrap();
 
     assert_eq!(lhs, rhs)
+}
+
+
+#[test]
+fn test_precomputed_lines() {
+    let mut rng = rand::thread_rng();
+    let mut p = G1Affine::rand(&mut rng);
+    let q = G2Affine::rand(&mut rng);
+
+    let res = Bn256::miller_loop(&[(&p.prepare(), &q.prepare())]);
+    let lhs = Bn256::final_exponentiation(&res);
+
+    let lines = prepare_all_line_functions(q);
+    // we also "prepare" p by recomputing (x, y) -> (x', y') where: x' = - p.x / p.y; y' = -1 /p.y 
+    // it is required to enforce that in c0c3c4, c0 = 1
+    let mut y_new = p.y.inverse().unwrap();
+    y_new.negate();
+    p.x.mul_assign(&y_new);
+    p.y = y_new;
+
+    let miller_loop_f = miller_loop_with_prepared_lines(&[p], &[lines]);
+    let rhs = Bn256::final_exponentiation(&miller_loop_f);
+
+    assert_eq!(lhs, rhs);
+
+    let certificate = construct_certificate(miller_loop_f);
+    assert!(!validate_ceritificate(&miller_loop_f, &certificate));
 }
 
