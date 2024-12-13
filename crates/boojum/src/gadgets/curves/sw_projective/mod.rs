@@ -473,6 +473,17 @@ where
         new
     }
 
+    pub fn add_mixed_inf_pass<CS: ConstraintSystem<F>>(
+        &mut self,
+        cs: &mut CS,
+        other_xy: &mut (NN, NN),
+        is_other_inf: Boolean<F>,
+    ) -> Self {
+        let result = self.add_sub_mixed_impl(cs, other_xy, false);
+
+        Self::conditionally_select(cs, is_other_inf, self, &result)
+    }
+
     pub fn add_mixed<CS: ConstraintSystem<F>>(
         &mut self,
         cs: &mut CS,
@@ -505,6 +516,13 @@ where
         let result = self.add_sub_mixed_impl(cs, other_xy, true);
 
         Self::conditionally_select(cs, is_point2_inf, self, &result)
+    }
+
+    pub unsafe fn convert_to_affine<CS: ConstraintSystem<F>>(&mut self, cs: &mut CS) -> (NN, NN) {
+        let x = self.x.div_unchecked(cs, &mut self.z);
+        let y = self.y.div_unchecked(cs, &mut self.z);
+
+        (x, y)
     }
 
     pub fn convert_to_affine_or_default<CS: ConstraintSystem<F>>(

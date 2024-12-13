@@ -80,23 +80,21 @@ where
     where
         CS: ConstraintSystem<F>,
     {
-        let mut result = Self::one(cs, self.c0.c0.get_params());
-        let mut found_one = false;
+        let mut result = Self::one(cs, self.get_params());
+        let mut base = self.clone();
 
         for i in BitIterator::new(exponent) {
-            let apply_squaring = Boolean::allocated_constant(cs, found_one);
-            let result_squared = result.square(cs);
-            result = Self::conditionally_select(cs, apply_squaring, &result_squared, &result);
-            if !found_one {
-                found_one = i;
-            }
+            let mut squared = result.square(cs);
+            let mut squared_and_multiplied = squared.mul(cs, &mut base);
+            let shall_multiply = Boolean::allocated_constant(cs, i);
 
-            let result_multiplied = result.mul(cs, self);
-            let apply_multiplication = Boolean::allocated_constant(cs, i);
-            result =
-                Self::conditionally_select(cs, apply_multiplication, &result_multiplied, &result);
+            result = Self::conditionally_select(
+                cs,
+                shall_multiply,
+                &mut squared_and_multiplied,
+                &mut squared,
+            );
 
-            // Normalize the result to stay in field
             NonNativeField::normalize(&mut result, cs);
         }
 
@@ -242,17 +240,20 @@ where
     where
         CS: ConstraintSystem<F>,
     {
-        let mut ab = self.c0.mul(cs, &mut self.c1);
-        let mut c0c1 = self.c0.add(cs, &mut self.c1);
+        // Karatsuba:
+        let mut a0 = self.c0.clone();
+        let mut a1 = self.c1.clone();
 
-        let mut c0 = self.c1.mul_by_nonresidue(cs);
-        let mut c0 = c0.add(cs, &mut self.c0);
-        let mut c0 = c0.mul(cs, &mut c0c1);
-        let mut c0 = c0.sub(cs, &mut ab);
+        let mut v0 = a0.square(cs);
+        let mut v1 = a1.square(cs);
 
-        let c1 = ab.double(cs);
-        let mut ab_residue = ab.mul_by_nonresidue(cs);
-        let c0 = c0.sub(cs, &mut ab_residue);
+        let mut tmp = v1.mul_by_nonresidue(cs); // c1^2 * w
+        let c0 = v0.add(cs, &mut tmp); // c0^2 + c1^2 * w
+
+        let mut a0_plus_a1 = a0.add(cs, &mut a1);
+        let mut a0_plus_a1_squared = a0_plus_a1.square(cs);
+        let mut tmp = a0_plus_a1_squared.sub(cs, &mut v0);
+        let c1 = tmp.sub(cs, &mut v1); // (c0 + c1)^2 - c0^2 - c1^2 <==> 2c0c1
 
         Self::new(c0, c1)
     }

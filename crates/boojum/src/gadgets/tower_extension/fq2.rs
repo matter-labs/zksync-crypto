@@ -231,18 +231,16 @@ where
     where
         CS: ConstraintSystem<F>,
     {
-        // Finding 8(a0 + a1*u)
+        // Finding 9(c0 + c1*u)
         let mut new = self.double(cs);
         new = new.double(cs);
         new = new.double(cs);
+        new = new.add(cs, self);
 
         // c0 <- 9*c0 - c1
-        let mut c0 = new.c0.add(cs, &mut self.c0);
-        let c0 = c0.sub(cs, &mut self.c1);
-
-        // c1 <- c0 + 9*c1
-        let mut c1 = new.c1.add(cs, &mut self.c1);
-        let c1 = c1.add(cs, &mut self.c0);
+        let c0 = new.c0.sub(cs, &mut self.c1);
+        // c1 <- 9*c1 + c0
+        let c1 = new.c1.add(cs, &mut self.c0);
 
         Self::new(c0, c1)
     }

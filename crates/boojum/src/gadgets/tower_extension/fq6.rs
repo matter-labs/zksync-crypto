@@ -258,25 +258,6 @@ where
         Self::new(c0, c1, c2)
     }
 
-    /// Multiplies the element `a=a0+a1*v+a2*v^2` in `Fq6` by the element `b = b1*v`
-    pub fn mul_by_c1<CS>(&mut self, cs: &mut CS, c1: &mut Fq2<F, T, NN, P::Ex2>) -> Self
-    where
-        CS: ConstraintSystem<F>,
-    {
-        let mut b_b = self.c1.mul(cs, c1);
-        let mut tmp = self.c1.add(cs, &mut self.c2);
-
-        let mut t1 = c1.mul(cs, &mut tmp);
-        let mut t1 = t1.sub(cs, &mut b_b);
-        let t1 = t1.mul_by_nonresidue(cs);
-
-        let mut tmp = self.c0.add(cs, &mut self.c1);
-        let mut t2 = c1.mul(cs, &mut tmp);
-        let t2 = t2.sub(cs, &mut b_b);
-
-        Self::new(t1, t2, b_b)
-    }
-
     /// Multiplies the element `a=a0+a1*v+a2*v^2` in `Fq6` by the element in `NonNativeField`
     pub fn mul_by_fq<CS>(&mut self, cs: &mut CS, c0: &mut NN) -> Self
     where
@@ -303,6 +284,30 @@ where
         Self::new(t0, t1, t2)
     }
 
+    /// Multiplies the element `a=a0+a1*v+a2*v^2` in `Fq6` by the element `b = b1*v`
+    pub fn mul_by_c1<CS>(&mut self, cs: &mut CS, c1: &mut Fq2<F, T, NN, P::Ex2>) -> Self
+    where
+        CS: ConstraintSystem<F>,
+    {
+        // Suppose a = a0 + a1*v + a2*v^2. In this case,
+        // (a0 + a1*v + a2*v^2) * c1 * v =
+        // a2*c1*\xi + a0*c1*v + a1*c1*v^2
+
+        let mut a0 = self.c0.clone();
+        let mut a1 = self.c1.clone();
+        let mut a2 = self.c2.clone();
+
+        // new_c0 <- a2*c1*\xi
+        let mut new_c0 = a2.mul(cs, c1);
+        let new_c0 = new_c0.mul_by_nonresidue(cs);
+        // new_c1 <- a0*c1
+        let new_c1 = a0.mul(cs, c1);
+        // new_c2 <- a1*c1
+        let new_c2 = a1.mul(cs, c1);
+
+        Self::new(new_c0, new_c1, new_c2)
+    }
+
     /// Multiplies the element `a=a0+a1*v+a2*v^2` in `Fq6` by the element `c2*v^2`
     pub fn mul_by_c2<CS>(&mut self, cs: &mut CS, c2: &mut Fq2<F, T, NN, P::Ex2>) -> Self
     where
@@ -311,22 +316,16 @@ where
         // Suppose a = a0 + a1*v + a2*v^2. In this case,
         // (a0 + a1*v + a2*v^2) * c2 * v^2 =
         // a1*c2*\xi + a2*c2*\xi*v + a0*c2*v^2
-        // NOTE: There might be a better way to calculate three coefficients
-        // without using 3 multiplications and 2 mul_by_nonresidues, similarly to mul_by_c1
-
-        // Setting coefficients
         let mut a0 = self.c0.clone();
         let mut a1 = self.c1.clone();
         let mut a2 = self.c2.clone();
 
+        let mut product = c2.mul_by_nonresidue(cs);
+
         // new_c0 <- a1*c2*\xi
-        let mut new_c0 = a1.mul(cs, c2);
-        new_c0 = new_c0.mul_by_nonresidue(cs);
-
+        let new_c0 = a1.mul(cs, &mut product);
         // new_c1 <- a2*c2*\xi
-        let mut new_c1 = a2.mul(cs, c2);
-        new_c1 = new_c1.mul_by_nonresidue(cs);
-
+        let new_c1 = a2.mul(cs, &mut product);
         // new_c2 <- a0*c2
         let new_c2 = a0.mul(cs, c2);
 
@@ -343,27 +342,34 @@ where
     where
         CS: ConstraintSystem<F>,
     {
-        let mut a_a = self.c0.mul(cs, c0);
-        let mut b_b = self.c1.mul(cs, c1);
+        // (a0+a1v+a2v^2)(b0+b1*v)
+        // a0b0 +a1b0v + a2b0v^2 + a0b1v + a1b1v^2 + a2b1v^3
+        // c0 = a0b0 + a2b1 xi
+        // c1 = a1b0 + a0b1 => (a1 + a0)(b0 + b1) - a1b1 - a0b0
+        // c2 = a2b0 + a1b1
 
-        let mut tmp = self.c1.add(cs, &mut self.c2);
-        let mut t1 = c1.mul(cs, &mut tmp);
-        let mut t1 = t1.sub(cs, &mut b_b);
-        let mut t1 = t1.mul_by_nonresidue(cs);
-        let t1 = t1.add(cs, &mut a_a);
+        let mut a0 = self.c0.clone();
+        let mut a1 = self.c1.clone();
+        let mut a2 = self.c2.clone();
+        let mut b0 = c0.clone();
+        let mut b1 = c1.clone();
 
-        let mut tmp = self.c0.add(cs, &mut self.c2);
-        let mut t3 = c0.mul(cs, &mut tmp);
-        let mut t3 = t3.sub(cs, &mut a_a);
-        let t3 = t3.add(cs, &mut b_b);
+        let mut a0b0 = a0.mul(cs, &mut b0);
+        let mut a2b1 = a2.mul(cs, &mut b1);
+        let mut c0 = a2b1.mul_by_nonresidue(cs);
+        c0 = a0b0.add(cs, &mut c0);
 
-        let mut t2 = c0.add(cs, c1);
-        let mut tmp = self.c0.add(cs, &mut self.c1);
-        let mut t2 = t2.mul(cs, &mut tmp);
-        let mut t2 = t2.sub(cs, &mut a_a);
-        let t2 = t2.sub(cs, &mut b_b);
+        let mut a1b1 = a1.mul(cs, &mut b1);
+        let mut a1_plus_a0 = a1.add(cs, &mut a0);
+        let mut b0_plus_b1 = b0.add(cs, &mut b1);
+        let mut c1 = a1_plus_a0.mul(cs, &mut b0_plus_b1);
+        c1 = c1.sub(cs, &mut a1b1);
+        c1 = c1.sub(cs, &mut a0b0);
 
-        Self::new(t1, t2, t3)
+        let mut a2b0 = a2.mul(cs, &mut b0);
+        let c2 = a2b0.add(cs, &mut a1b1);
+
+        Self::new(c0, c1, c2)
     }
 
     /// Find the inverse element in Fq6

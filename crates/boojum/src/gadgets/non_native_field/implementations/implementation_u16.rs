@@ -435,6 +435,7 @@ where
         ) || (
             self.tracker.max_moduluses * other.tracker.max_moduluses >= self.params.max_mods_to_fit
         ) {
+            println!("applying normalization");
             self.normalize(cs);
             other.normalize(cs);
         }
