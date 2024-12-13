@@ -430,16 +430,6 @@ where
 
         // if length checks do not pass - apply agressive normalization
 
-        if (
-            self.tracker.max_moduluses * other.tracker.max_moduluses >= self.params.max_mods_before_multiplication as u32
-        ) || (
-            self.tracker.max_moduluses * other.tracker.max_moduluses >= self.params.max_mods_to_fit
-        ) {
-            println!("applying normalization");
-            self.normalize(cs);
-            other.normalize(cs);
-        }
-
         assert!(
             self.tracker.max_moduluses * other.tracker.max_moduluses
                 < self.params.max_mods_before_multiplication as u32
