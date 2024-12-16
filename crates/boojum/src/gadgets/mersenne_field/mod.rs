@@ -1,4 +1,5 @@
 use crate::cs::gates::FmaGateInBaseFieldWithoutConstant;
+use crate::cs::gates::ReductionGate;
 use crate::gadgets::traits::allocatable::CSAllocatable;
 use crate::gadgets::SmallField;
 use crate::gadgets::num::Num;
@@ -12,6 +13,7 @@ use crate::config::CSSetupConfig;
 use crate::gadgets::boolean::Boolean;
 use crate::gadgets::traits::witnessable::WitnessHookable;
 use crate::cs::gates::FmaGateInBaseWithoutConstantParams;
+use crate::cs::gates::ReductionGateParams;
 use crate::gadgets::u32::UInt32;
 use crate::gadgets::traits::selectable::Selectable;
 use crate::gadgets::Place;
@@ -694,6 +696,113 @@ impl<F: SmallField> MersenneFiled<F> {
         result
     }
 
+    /// Computes self * other_mul + other_add_1 * other_add_2 + third_add
+    pub fn two_mul_and_two_add<CS: ConstraintSystem<F>>(
+        &self, 
+        cs: &mut CS, 
+        other_mul: &Self,
+        other_add_1: &Self,
+        other_add_2: &Self,
+        third_add: &Self,
+    ) -> Self {
+        // We will use the following system of constraints:
+        // (1) self * other_mul + third_add = tmp
+        // (2) tmp + other_add_1 * other_add_2 = tmp2
+        // (3) tmp2 - reduce * modulus= result
+        // (4) reduce has 32 bits
+        // (5) result has 31 bits
+        // Note that max value of number is 2^31 - 1, so the max value of a*b + c*d + e is 2*(2^31-1)^2 + (2^31-1)
+        // 2*(2^31-1)^2 + (2^31-1) = 2*(2^62 - 2*2^31 + 1) + (2^31-1) = 2^63 - 3*2^31 + 1
+        // This fits to 63 bits, so no Goldilocks overflow
+        // Also the max reduce value we can have is 2*(2^31 - 1) + 1 = 2^32 - 1 fits to 32 bits
+        
+        let tmp = Num::allocate_without_value(cs);
+        let tmp2 = Num::allocate_without_value(cs);
+        let reduce = Num::allocate_without_value(cs);
+        range_check_32_bits(cs, reduce.get_variable()); // 4th constraint
+        let result = Self::allocate_checked_without_value(cs, false); // 5th constraint
+        
+        if <CS::Config as CSConfig>::WitnessConfig::EVALUATE_WITNESS {
+            let value_fn = move |inputs: [F; 5]| {
+                let a = inputs[0].as_u64();
+                let b = inputs[1].as_u64();
+                let c = inputs[2].as_u64();
+                let d = inputs[3].as_u64();
+                let e = inputs[4].as_u64();
+                
+                let tmp = a * b + e;
+                let tmp2 = tmp + c * d;
+                let reduce = tmp2 / M31_MODULUS;
+                let result = tmp2 % M31_MODULUS;
+                assert!(reduce < 1<<32);
+
+                [
+                    F::from_u64_unchecked(tmp),
+                    F::from_u64_unchecked(tmp2),
+                    F::from_u64_unchecked(reduce),
+                    F::from_u64_unchecked(result)
+                ]
+            };
+
+            let dependencies = Place::from_variables(
+                [self.variable, other_mul.variable, other_add_1.variable, other_add_2.variable, third_add.variable]);
+            let outputs = Place::from_variables(
+                [tmp.get_variable(), tmp2.get_variable(), reduce.get_variable(), result.variable]);
+
+            cs.set_values_with_dependencies(&dependencies, &outputs, value_fn);
+        }
+
+        if cs.gate_is_allowed::<FmaGateInBaseFieldWithoutConstant<F>>() {
+            if <CS::Config as CSConfig>::SetupConfig::KEEP_SETUP == true {
+                // (1) self * other_mul + third_add = tmp
+                let params = FmaGateInBaseWithoutConstantParams {
+                    coeff_for_quadtaric_part: F::ONE,
+                    linear_term_coeff: F::ONE,
+                };
+
+                let gate = FmaGateInBaseFieldWithoutConstant {
+                    params,
+                    quadratic_part: (self.variable, other_mul.variable),
+                    linear_part: third_add.get_variable(),
+                    rhs_part: tmp.get_variable(),
+                };
+                gate.add_to_cs(cs);
+
+                // (2) tmp + other_add_1 * other_add_2 = tmp2
+                let params = FmaGateInBaseWithoutConstantParams {
+                    coeff_for_quadtaric_part: F::ONE,
+                    linear_term_coeff: F::ONE,
+                };
+
+                let gate = FmaGateInBaseFieldWithoutConstant {
+                    params,
+                    quadratic_part: (other_add_1.variable, other_add_2.variable),
+                    linear_part: tmp.get_variable(),
+                    rhs_part: tmp2.get_variable(),
+                };
+                gate.add_to_cs(cs);
+
+                // (3) tmp2 - reduce * modulus= result
+                let params = FmaGateInBaseWithoutConstantParams {
+                    coeff_for_quadtaric_part: F::ONE,
+                    linear_term_coeff: *F::from_u64_unchecked(M31_MODULUS).negate(),
+                };
+
+                let gate = FmaGateInBaseFieldWithoutConstant {
+                    params,
+                    quadratic_part: (tmp2.get_variable(), cs.allocate_constant(F::ONE)),
+                    linear_part: reduce.get_variable(),
+                    rhs_part: result.get_variable(),
+                };
+                gate.add_to_cs(cs);
+            }
+        } else {
+            unimplemented!()
+        }
+
+        result
+    }
+
     /// Computes self * other_mul - other_sub_1 * other_sub_2
     pub fn two_mul_and_sub<CS: ConstraintSystem<F>>(
         &self, 
@@ -783,6 +892,132 @@ impl<F: SmallField> MersenneFiled<F> {
                     params,
                     quadratic_part: (reduce.variable, cs.allocate_constant(F::ONE)),
                     linear_part: tmp2.get_variable(),
+                    rhs_part: result.variable,
+                };
+                gate.add_to_cs(cs);
+            }
+        } else {
+            unimplemented!()
+        }
+
+        result
+    }    
+
+
+    /// Computes self * other_mul - other_sub_1 * other_sub_2 + third_add
+    pub fn two_mul_and_sub_and_add<CS: ConstraintSystem<F>>(
+        &self, 
+        cs: &mut CS, 
+        other_mul: &Self,
+        other_sub_1: &Self,
+        other_sub_2: &Self,
+        third_add: &Self,
+    ) -> Self {
+        // We will use the following system of constraints:
+        // (1) self * other_mul + modulus^2 = tmp
+        // (2) tmp - other_sub_1 * other_sub_2 = tmp2
+        // (3) tmp2 + third_add = tmp3
+        // (4) tmp3 - reduce * modulus = result
+        // (5) reduce has 32 bits
+        // (6) result has 31 bits
+        // Note that max value of number is 2^31 - 1, so the value of a*b - c*d + e modulus^2 is between 0 and 2*(2^31-1)^2 + (2^31-1)
+        // 2*(2^31-1)^2 + (2^31-1) = 2*(2^62 - 2*2^31 + 1) + (2^31-1) = 2^63 - 3*2^31 + 1 fits to 63 bits, so no Goldilocks overflow
+        // also the max reduce value we can have is 2*(2^31 - 1) + 1 = 2^32 - 1 fits to 32 bits
+        
+        let tmp = Num::allocate_without_value(cs);
+        let tmp2 = Num::allocate_without_value(cs);
+        let tmp3 = Num::allocate_without_value(cs);
+        let reduce = Num::allocate_without_value(cs);
+        range_check_32_bits(cs, reduce.get_variable()); // 5th constraint
+        let result = Self::allocate_checked_without_value(cs, false); // 6th constraint
+        
+        if <CS::Config as CSConfig>::WitnessConfig::EVALUATE_WITNESS {
+            let value_fn = move |inputs: [F; 5]| {
+                let a = inputs[0].as_u64();
+                let b = inputs[1].as_u64();
+                let c = inputs[2].as_u64();
+                let d = inputs[3].as_u64();
+                let e = inputs[4].as_u64();
+                
+                let tmp = a * b + M31_MODULUS * M31_MODULUS;
+                let tmp2 = tmp - c * d;
+                let tmp3 = tmp2 + e;
+                
+                let reduce = tmp3 / M31_MODULUS;
+                let result = tmp3 % M31_MODULUS;
+                assert!(reduce < 1<<32);
+
+                [
+                    F::from_u64_unchecked(tmp),
+                    F::from_u64_unchecked(tmp2),
+                    F::from_u64_unchecked(tmp3),
+                    F::from_u64_unchecked(reduce),
+                    F::from_u64_unchecked(result)
+                ]
+            };
+
+            let dependencies = Place::from_variables(
+                [self.variable, other_mul.variable, other_sub_1.variable, other_sub_2.variable, third_add.variable]);
+            let outputs = Place::from_variables(
+                [tmp.get_variable(), tmp2.get_variable(), tmp3.get_variable(), reduce.get_variable(), result.variable]);
+
+            cs.set_values_with_dependencies(&dependencies, &outputs, value_fn);
+        }
+
+        if cs.gate_is_allowed::<FmaGateInBaseFieldWithoutConstant<F>>() {
+            if <CS::Config as CSConfig>::SetupConfig::KEEP_SETUP == true {
+                // (1) self * other_mul + modulus^2 = tmp
+                let params = FmaGateInBaseWithoutConstantParams {
+                    coeff_for_quadtaric_part: F::ONE,
+                    linear_term_coeff: F::from_u64_unchecked(M31_MODULUS * M31_MODULUS),
+                };
+
+                let gate = FmaGateInBaseFieldWithoutConstant {
+                    params,
+                    quadratic_part: (self.variable, other_mul.variable),
+                    linear_part: cs.allocate_constant(F::ONE),
+                    rhs_part: tmp.get_variable(),
+                };
+                gate.add_to_cs(cs);
+
+                // (2) tmp - other_sub_1 * other_sub_2 = tmp2
+                let params = FmaGateInBaseWithoutConstantParams {
+                    coeff_for_quadtaric_part: F::MINUS_ONE,
+                    linear_term_coeff: F::ONE,
+                };
+
+                let gate = FmaGateInBaseFieldWithoutConstant {
+                    params,
+                    quadratic_part: (other_sub_1.variable, other_sub_2.variable),
+                    linear_part: tmp.get_variable(),
+                    rhs_part: tmp2.variable,
+                };
+                gate.add_to_cs(cs);
+
+                // (3) tmp2 + third_add = tmp3
+                let params = FmaGateInBaseWithoutConstantParams {
+                    coeff_for_quadtaric_part: F::ONE,
+                    linear_term_coeff: F::ONE,
+                };
+
+                let gate = FmaGateInBaseFieldWithoutConstant {
+                    params,
+                    quadratic_part: (third_add.variable, cs.allocate_constant(F::ONE)),
+                    linear_part: tmp2.get_variable(),
+                    rhs_part: tmp3.variable,
+                };
+                gate.add_to_cs(cs);
+
+                // (4) tmp3 - reduce * modulus = result
+                let params = FmaGateInBaseWithoutConstantParams {
+                    coeff_for_quadtaric_part: *F::from_u64_unchecked(M31_MODULUS).negate(),
+                    linear_term_coeff: F::ONE,
+                };
+
+                let gate = FmaGateInBaseFieldWithoutConstant {
+                    params,
+                    quadratic_part: (reduce.variable, cs.allocate_constant(F::ONE)),
+                    linear_part: tmp3.get_variable(),
                     rhs_part: result.variable,
                 };
                 gate.add_to_cs(cs);
@@ -979,6 +1214,62 @@ pub fn get_15_bits_range_check_table<F: SmallField, CS: ConstraintSystem<F>>(
 ) -> Option<u32> {
     use crate::gadgets::tables::range_check_16_bits::RangeCheck15BitsTable;
     cs.get_table_id_for_marker::<RangeCheck15BitsTable<1>>()
+}
+
+/// Returns a and reduce_a such that unreduced_a = a + reduce_a * modulus
+/// a is constrainted to be in [0, 2^31 - 1]
+/// reduce_a has no additional constraints
+pub fn reduce_mersenne31<F: SmallField, CS: ConstraintSystem<F>>(
+    cs: &mut CS,
+    unreduced_a: Variable,
+) -> (MersenneFiled<F>, Variable) {
+    let a = MersenneFiled::allocate_checked_without_value(cs, false);
+    let reduce_a = cs.alloc_variable_without_value();
+
+    if <CS::Config as CSConfig>::WitnessConfig::EVALUATE_WITNESS {
+        let value_fn = move |inputs: [F; 1]| {
+            let unreduced_a = inputs[0].as_u64();
+
+            [F::from_u64_unchecked(unreduced_a % M31_MODULUS), F::from_u64_unchecked(unreduced_a / M31_MODULUS)]
+        };
+
+        let dependencies = Place::from_variables([unreduced_a]);
+        let outputs = Place::from_variables([a.get_variable(), reduce_a]);
+
+        cs.set_values_with_dependencies(&dependencies, &outputs, value_fn);
+    }
+    if cs.gate_is_allowed::<ReductionGate<F, 2>>() {
+        let params = ReductionGateParams {
+            reduction_constants: [F::ONE, F::from_u64_unchecked(M31_MODULUS)],
+        };
+
+        let gate = ReductionGate {
+            params,
+            terms: [a.get_variable(), reduce_a],
+            reduction_result: unreduced_a,
+        };
+        gate.add_to_cs(cs);
+    } else if cs.gate_is_allowed::<FmaGateInBaseFieldWithoutConstant<F>>() {
+        if <CS::Config as CSConfig>::SetupConfig::KEEP_SETUP == true {
+            // (1) self * other_mul + modulus^2 = tmp
+            let params = FmaGateInBaseWithoutConstantParams {
+                coeff_for_quadtaric_part: F::ONE,
+                linear_term_coeff: *F::from_u64_unchecked(M31_MODULUS).negate(),
+            };
+
+            let gate = FmaGateInBaseFieldWithoutConstant {
+                params,
+                quadratic_part: (unreduced_a, cs.allocate_constant(F::ONE)),
+                linear_part: reduce_a,
+                rhs_part: a.get_variable(),
+            };
+            gate.add_to_cs(cs);
+        }
+    } else {
+        unimplemented!()
+    }
+
+    (a, reduce_a)
 }
 
 impl<F: SmallField> CSAllocatable<F> for MersenneFiled<F> {

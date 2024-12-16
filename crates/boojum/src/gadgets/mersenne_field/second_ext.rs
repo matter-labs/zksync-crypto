@@ -129,10 +129,34 @@ impl<F: SmallField> MersenneComplex<F> {
         }
     }
 
+    pub fn mul_and_add<CS: ConstraintSystem<F>>(&self, cs: &mut CS, other_mul: &Self, other_add: &Self) -> Self {
+        Self {
+            x: self.x.two_mul_and_sub_and_add(cs, 
+                &other_mul.x, 
+                &other_mul.y, 
+                &self.y, 
+                &other_add.x
+            ),
+            y: self.x.two_mul_and_two_add(cs, 
+                &other_mul.y, 
+                &other_mul.x, 
+                &self.y, 
+                &other_add.y
+            ),
+        }
+    }
+
     pub fn mul_by_base<CS: ConstraintSystem<F>>(&self, cs: &mut CS, other: &MersenneFiled<F>) -> Self {
         Self {
             x: self.x.mul(cs, other),
             y: self.y.mul(cs, other),
+        }
+    }
+
+    pub fn mul_by_base_and_add<CS: ConstraintSystem<F>>(&self, cs: &mut CS, coeff: &MersenneFiled<F>, other: &Self) -> Self {
+        Self {
+            x: self.x.mul_and_add(cs, coeff, &other.x),
+            y: self.y.mul_and_add(cs, coeff, &other.y),
         }
     }
 
