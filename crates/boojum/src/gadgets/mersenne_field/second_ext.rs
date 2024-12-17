@@ -5,36 +5,36 @@ use super::*;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct MersenneComplex<F: SmallField> {
-    pub x: MersenneFiled<F>,
-    pub y: MersenneFiled<F>,
+    pub x: MersenneField<F>,
+    pub y: MersenneField<F>,
 }
 
 impl<F: SmallField> MersenneComplex<F> {
     pub fn allocated_constant<CS: ConstraintSystem<F>>(cs: &mut CS, value: Mersenne31Complex) -> Self {
         Self {
-            x: MersenneFiled::allocated_constant(cs, value.c0),
-            y: MersenneFiled::allocated_constant(cs, value.c1),
+            x: MersenneField::allocated_constant(cs, value.c0),
+            y: MersenneField::allocated_constant(cs, value.c1),
         }
     }
 
     pub fn zero<CS: ConstraintSystem<F>>(cs: &mut CS) -> Self {
         Self {
-            x: MersenneFiled::zero(cs),
-            y: MersenneFiled::zero(cs),
+            x: MersenneField::zero(cs),
+            y: MersenneField::zero(cs),
         }
     }
 
     pub fn one<CS: ConstraintSystem<F>>(cs: &mut CS) -> Self {
         Self {
-            x: MersenneFiled::one(cs),
-            y: MersenneFiled::zero(cs),
+            x: MersenneField::one(cs),
+            y: MersenneField::zero(cs),
         }
     }
 
     pub fn minus_one<CS: ConstraintSystem<F>>(cs: &mut CS) -> Self {
         Self {
-            x: MersenneFiled::minus_one(cs),
-            y: MersenneFiled::zero(cs),
+            x: MersenneField::minus_one(cs),
+            y: MersenneField::zero(cs),
         }
     }
 
@@ -58,16 +58,16 @@ impl<F: SmallField> MersenneComplex<F> {
     /// The coordinate values should be in range [0, 2^31 - 2]
     pub fn from_variables_checked<CS: ConstraintSystem<F>>(cs: &mut CS, variables: [Variable; 2], reduced: bool) -> Self {
         Self {
-            x: MersenneFiled::from_variable_checked(cs, variables[0], reduced),
-            y: MersenneFiled::from_variable_checked(cs, variables[1], reduced),
+            x: MersenneField::from_variable_checked(cs, variables[0], reduced),
+            y: MersenneField::from_variable_checked(cs, variables[1], reduced),
         }
     }
 
     /// The coordinate values should be in range [0, 2^31 - 2]
     pub fn allocate_checked_without_value<CS: ConstraintSystem<F>>(cs: &mut CS, reduced: bool) -> Self {
         Self {
-            x: MersenneFiled::allocate_checked_without_value(cs, reduced),
-            y: MersenneFiled::allocate_checked_without_value(cs, reduced),
+            x: MersenneField::allocate_checked_without_value(cs, reduced),
+            y: MersenneField::allocate_checked_without_value(cs, reduced),
         }
     }
 
@@ -77,8 +77,8 @@ impl<F: SmallField> MersenneComplex<F> {
         reduced: bool,
     ) -> Self {
         Self {
-            x: MersenneFiled::allocate_checked(cs, witness.c0, reduced),
-            y: MersenneFiled::allocate_checked(cs, witness.c1, reduced),
+            x: MersenneField::allocate_checked(cs, witness.c0, reduced),
+            y: MersenneField::allocate_checked(cs, witness.c1, reduced),
         }
     }
 
@@ -87,10 +87,10 @@ impl<F: SmallField> MersenneComplex<F> {
         self.y.enforce_reduced(cs);
     }
 
-    pub fn from_base<CS: ConstraintSystem<F>>(cs: &mut CS, value: MersenneFiled<F>) -> Self {
+    pub fn from_base<CS: ConstraintSystem<F>>(cs: &mut CS, value: MersenneField<F>) -> Self {
         Self {
             x: value,
-            y: MersenneFiled::zero(cs),
+            y: MersenneField::zero(cs),
         }
     }
 
@@ -146,14 +146,14 @@ impl<F: SmallField> MersenneComplex<F> {
         }
     }
 
-    pub fn mul_by_base<CS: ConstraintSystem<F>>(&self, cs: &mut CS, other: &MersenneFiled<F>) -> Self {
+    pub fn mul_by_base<CS: ConstraintSystem<F>>(&self, cs: &mut CS, other: &MersenneField<F>) -> Self {
         Self {
             x: self.x.mul(cs, other),
             y: self.y.mul(cs, other),
         }
     }
 
-    pub fn mul_by_base_and_add<CS: ConstraintSystem<F>>(&self, cs: &mut CS, coeff: &MersenneFiled<F>, other: &Self) -> Self {
+    pub fn mul_by_base_and_add<CS: ConstraintSystem<F>>(&self, cs: &mut CS, coeff: &MersenneField<F>, other: &Self) -> Self {
         Self {
             x: self.x.mul_and_add(cs, coeff, &other.x),
             y: self.y.mul_and_add(cs, coeff, &other.y),
@@ -185,8 +185,8 @@ impl<F: SmallField> MersenneComplex<F> {
         let reduce1 = Num::allocate_without_value(cs);
         let reduce2 = Num::allocate_without_value(cs);
         crate::gadgets::u8::range_check_u8_pair(cs, &[reduce1.get_variable(), reduce2.get_variable()]); // 6th constraint
-        let result_x = MersenneFiled::allocate_checked_without_value(cs, false); // 7th constraint
-        let result_y = MersenneFiled::allocate_checked_without_value(cs, false); // 8th constraint
+        let result_x = MersenneField::allocate_checked_without_value(cs, false); // 7th constraint
+        let result_y = MersenneField::allocate_checked_without_value(cs, false); // 8th constraint
 
         if <CS::Config as CSConfig>::WitnessConfig::EVALUATE_WITNESS {
             let value_fn = move |inputs: [F; 2]| {
@@ -415,8 +415,8 @@ impl<F: SmallField> Selectable<F> for MersenneComplex<F> {
         b: &Self,
     ) -> Self {
         Self {
-            x: MersenneFiled::conditionally_select(cs, flag, &a.x, &b.x),
-            y: MersenneFiled::conditionally_select(cs, flag, &a.y, &b.y),
+            x: MersenneField::conditionally_select(cs, flag, &a.x, &b.x),
+            y: MersenneField::conditionally_select(cs, flag, &a.y, &b.y),
         }
     }
     const SUPPORTS_PARALLEL_SELECT: bool = true;
@@ -545,7 +545,7 @@ mod tests {
         let cs = &mut owned_cs;
 
         let rand_base_witness = [0; 2].map(|_| Mersenne31Field::new(rand::random::<u32>() % M31_MODULUS as u32));
-        let rand_base_vars = rand_base_witness.map(|w| MersenneFiled::<F>::allocate_checked(cs, w, false));
+        let rand_base_vars = rand_base_witness.map(|w| MersenneField::<F>::allocate_checked(cs, w, false));
 
         let rand_witness = [0; 2].map(|_| 
             Mersenne31Complex {

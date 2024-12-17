@@ -30,7 +30,7 @@ const M31_MODULUS: u64 = (1 << 31) - 1;
 
 // #[derive(Derivative, serde::Serialize, serde::Deserialize)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub struct MersenneFiled<F: SmallField> {
+pub struct MersenneField<F: SmallField> {
     // the inner witness value is always reduced with the modulus
     // if reduced is true, then the reduction is proved and max possible value is 2^31 - 2
     // if reduced is false, then only 31-bit check is proved and max possible value is 2^31 - 1
@@ -40,7 +40,7 @@ pub struct MersenneFiled<F: SmallField> {
     pub(crate) _marker: std::marker::PhantomData<F>,
 }
 
-impl<F: SmallField> MersenneFiled<F> {
+impl<F: SmallField> MersenneField<F> {
     pub fn allocated_constant<CS: ConstraintSystem<F>>(cs: &mut CS, value: Mersenne31Field) -> Self {
         let variable = cs.allocate_constant(F::from_u64_unchecked(value.to_reduced_u32() as u64));
 
@@ -1222,8 +1222,8 @@ pub fn get_15_bits_range_check_table<F: SmallField, CS: ConstraintSystem<F>>(
 pub fn reduce_mersenne31<F: SmallField, CS: ConstraintSystem<F>>(
     cs: &mut CS,
     unreduced_a: Variable,
-) -> (MersenneFiled<F>, Variable) {
-    let a = MersenneFiled::allocate_checked_without_value(cs, false);
+) -> (MersenneField<F>, Variable) {
+    let a = MersenneField::allocate_checked_without_value(cs, false);
     let reduce_a = cs.alloc_variable_without_value();
 
     if <CS::Config as CSConfig>::WitnessConfig::EVALUATE_WITNESS {
@@ -1272,7 +1272,7 @@ pub fn reduce_mersenne31<F: SmallField, CS: ConstraintSystem<F>>(
     (a, reduce_a)
 }
 
-impl<F: SmallField> CSAllocatable<F> for MersenneFiled<F> {
+impl<F: SmallField> CSAllocatable<F> for MersenneField<F> {
     type Witness = Mersenne31Field;
 
     fn placeholder_witness() -> Self::Witness {
@@ -1298,7 +1298,7 @@ impl<F: SmallField> WitnessCastable<F, [F; 1]> for Mersenne31Field {
     }
 }
 
-impl<F: SmallField> CSWitnessable<F, 1> for MersenneFiled<F> {
+impl<F: SmallField> CSWitnessable<F, 1> for MersenneField<F> {
     type ConversionFunction = Convertor<F, [F; 1], Mersenne31Field>;
 
     fn witness_from_set_of_values(values: [F; 1]) -> Self::Witness {
@@ -1310,7 +1310,7 @@ impl<F: SmallField> CSWitnessable<F, 1> for MersenneFiled<F> {
     }
 }
 
-impl<F: SmallField> WitnessHookable<F> for MersenneFiled<F> {
+impl<F: SmallField> WitnessHookable<F> for MersenneField<F> {
     fn witness_hook<CS: ConstraintSystem<F>>(
         &self,
         cs: &CS,
@@ -1320,7 +1320,7 @@ impl<F: SmallField> WitnessHookable<F> for MersenneFiled<F> {
     }
 }
 
-impl<F: SmallField> Selectable<F> for MersenneFiled<F> {
+impl<F: SmallField> Selectable<F> for MersenneField<F> {
     #[must_use]
     fn conditionally_select<CS: ConstraintSystem<F>>(
         cs: &mut CS,
@@ -1461,7 +1461,7 @@ mod tests {
         let cs = &mut owned_cs;
 
         let rand_witness = [0; 4].map(|_| Mersenne31Field::new(rand::random::<u32>() % M31_MODULUS as u32));
-        let mut rand_vars = rand_witness.map(|w| MersenneFiled::<F>::allocate_checked(cs, w, false));
+        let mut rand_vars = rand_witness.map(|w| MersenneField::<F>::allocate_checked(cs, w, false));
 
         // enforce reduced
         for var in rand_vars.iter_mut() {

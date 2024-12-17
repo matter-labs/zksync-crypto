@@ -2,7 +2,6 @@ use mersenne_field::{Mersenne31Complex, Mersenne31Quartic};
 
 use super::*;
 use super::second_ext::*;
-use crate::gadgets::impls::limbs_decompose::decompose_into_limbs;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct MersenneQuartic<F: SmallField> {
@@ -51,7 +50,7 @@ impl<F: SmallField> MersenneQuartic<F> {
         [self.x.x.into_num(), self.x.y.into_num(), self.y.x.into_num(), self.y.y.into_num()]
     }
 
-    pub fn into_coeffs(&self) -> [MersenneFiled<F>; 4] {
+    pub fn into_coeffs(&self) -> [MersenneField<F>; 4] {
         [self.x.x, self.x.y, self.y.x, self.y.y]
     }
 
@@ -87,7 +86,7 @@ impl<F: SmallField> MersenneQuartic<F> {
         self.y.enforce_reduced(cs);
     }
 
-    pub fn from_base<CS: ConstraintSystem<F>>(cs: &mut CS, value: MersenneFiled<F>) -> Self {
+    pub fn from_base<CS: ConstraintSystem<F>>(cs: &mut CS, value: MersenneField<F>) -> Self {
         Self {
             x: MersenneComplex::from_base(cs, value),
             y: MersenneComplex::zero(cs),
@@ -432,14 +431,14 @@ impl<F: SmallField> MersenneQuartic<F> {
         }
     }
 
-    pub fn mul_by_base<CS: ConstraintSystem<F>>(&self, cs: &mut CS, other: &MersenneFiled<F>) -> Self {
+    pub fn mul_by_base<CS: ConstraintSystem<F>>(&self, cs: &mut CS, other: &MersenneField<F>) -> Self {
         Self {
             x: self.x.mul_by_base(cs, other),
             y: self.y.mul_by_base(cs, other),
         }
     }
 
-    pub fn mul_by_base_and_add<CS: ConstraintSystem<F>>(&self, cs: &mut CS, coeff: &MersenneFiled<F>, other: &Self) -> Self {
+    pub fn mul_by_base_and_add<CS: ConstraintSystem<F>>(&self, cs: &mut CS, coeff: &MersenneField<F>, other: &Self) -> Self {
         Self {
             x: self.x.mul_by_base_and_add(cs, coeff, &other.x),
             y: self.y.mul_by_base_and_add(cs, coeff, &other.y),
@@ -728,7 +727,7 @@ mod tests {
         let cs = &mut owned_cs;
 
         let rand_base_witness = [0; 2].map(|_| Mersenne31Field::new(rand::random::<u32>() % M31_MODULUS as u32));
-        let rand_base_vars = rand_base_witness.map(|w| MersenneFiled::<F>::allocate_checked(cs, w, false));
+        let rand_base_vars = rand_base_witness.map(|w| MersenneField::<F>::allocate_checked(cs, w, false));
 
         let rand_witness = [0; 3].map(|_|
             Mersenne31Quartic {
