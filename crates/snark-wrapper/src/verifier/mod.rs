@@ -20,7 +20,7 @@ use crate::franklin_crypto::plonk::circuit::bigint_new::BITWISE_LOGICAL_OPS_TABL
 use crate::franklin_crypto::plonk::circuit::boolean::Boolean;
 use crate::franklin_crypto::plonk::circuit::custom_rescue_gate::Rescue5CustomGate;
 use crate::franklin_crypto::plonk::circuit::goldilocks::prime_field_like::{GoldilocksAsFieldWrapper, GoldilocksExtAsFieldWrapper};
-use crate::franklin_crypto::plonk::circuit::goldilocks::GoldilocksField;
+use crate::franklin_crypto::plonk::circuit::goldilocks::{GoldilocksField, range_check_for_num_bits_coarsely};
 use crate::franklin_crypto::plonk::circuit::linear_combination::LinearCombination;
 use crate::franklin_crypto::plonk::circuit::Assignment;
 
@@ -203,7 +203,7 @@ fn aggregate_public_inputs<E: Engine, CS: ConstraintSystem<E>>(cs: &mut CS, publ
     // Firstly we check that public inputs have correct size
     use rescue_poseidon::franklin_crypto::plonk::circuit::goldilocks::range_check_for_num_bits;
     for pi in public_inputs.iter() {
-        range_check_for_num_bits(cs, &pi.into_num(), 64)?;
+        range_check_for_num_bits_coarsely(cs, &pi.into_num(), 64, false)?;
     }
 
     // compute aggregated pi value
