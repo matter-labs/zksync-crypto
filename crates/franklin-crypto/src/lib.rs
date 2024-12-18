@@ -8,6 +8,7 @@ extern crate blake2;
 extern crate blake2_rfc_bellman_edition as blake2_rfc;
 pub extern crate boojum;
 extern crate byteorder;
+extern crate core;
 extern crate derivative;
 extern crate digest;
 extern crate indexmap;
