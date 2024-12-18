@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.30.11](https://github.com/matter-labs/zksync-crypto/compare/v0.30.10...v0.30.11) (2024-12-18)
+
+
+### Bug Fixes
+
+* **snark-wrapper:** call range check with proper params ([#54](https://github.com/matter-labs/zksync-crypto/issues/54)) ([cba8e9c](https://github.com/matter-labs/zksync-crypto/commit/cba8e9c4334646ef85caedf1584fc7bbcd4656c5))
+* **snark-wrapper:** range check bitlen in snark wrapper circuit ([#56](https://github.com/matter-labs/zksync-crypto/issues/56)) ([4549fb2](https://github.com/matter-labs/zksync-crypto/commit/4549fb2fb2648537e4ac967c6bf9d7001ac93b69))
+
 ## [0.30.10](https://github.com/matter-labs/zksync-crypto/compare/v0.30.9...v0.30.10) (2024-11-27)
 
 
