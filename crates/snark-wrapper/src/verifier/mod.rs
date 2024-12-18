@@ -203,9 +203,9 @@ fn aggregate_public_inputs<E: Engine, CS: ConstraintSystem<E>>(cs: &mut CS, publ
     // Firstly we check that public inputs have correct size
     for pi in public_inputs.iter() {
         if let Ok(_) = cs.get_table(BITWISE_LOGICAL_OPS_TABLE_NAME) {
-            range_check_with_lookup(cs, &pi.into_num(), 64)?;
+            range_check_with_lookup(cs, &pi.into_num(), chunk_bit_size)?;
         } else {
-            range_check_with_naive(cs, &pi.into_num(), 64)?;
+            range_check_with_naive(cs, &pi.into_num(), chunk_bit_size)?;
         }
     }
 
