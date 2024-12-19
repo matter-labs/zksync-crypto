@@ -201,9 +201,12 @@ fn aggregate_public_inputs<E: Engine, CS: ConstraintSystem<E>>(cs: &mut CS, publ
     );
 
     // Firstly we check that public inputs have correct size
-    use rescue_poseidon::franklin_crypto::plonk::circuit::goldilocks::range_check_for_num_bits;
     for pi in public_inputs.iter() {
-        range_check_for_num_bits(cs, &pi.into_num(), 64)?;
+        if let Ok(_) = cs.get_table(BITWISE_LOGICAL_OPS_TABLE_NAME) {
+            range_check_with_lookup(cs, &pi.into_num(), chunk_bit_size)?;
+        } else {
+            range_check_with_naive(cs, &pi.into_num(), chunk_bit_size)?;
+        }
     }
 
     // compute aggregated pi value
@@ -228,4 +231,18 @@ fn aggregate_public_inputs<E: Engine, CS: ConstraintSystem<E>>(cs: &mut CS, publ
     lc.enforce_zero(cs)?;
 
     Ok(pi)
+}
+
+pub fn range_check_with_naive<E: Engine, CS: ConstraintSystem<E>>(cs: &mut CS, num: &Num<E>, num_bits: usize) -> Result<(), SynthesisError> {
+    use rescue_poseidon::franklin_crypto::plonk::circuit::goldilocks::range_check_for_num_bits;
+    range_check_for_num_bits(cs, num, num_bits)?;
+
+    Ok(())
+}
+
+pub fn range_check_with_lookup<E: Engine, CS: ConstraintSystem<E>>(cs: &mut CS, num: &Num<E>, num_bits: usize) -> Result<(), SynthesisError> {
+    let table = cs.get_table(BITWISE_LOGICAL_OPS_TABLE_NAME).unwrap();
+    use rescue_poseidon::franklin_crypto::plonk::circuit::bigint_new::enforce_range_check_using_bitop_table;
+    enforce_range_check_using_bitop_table(cs, &num.get_variable(), num_bits, table, false)?;
+    Ok(())
 }
