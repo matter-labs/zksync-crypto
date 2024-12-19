@@ -380,7 +380,9 @@ pub fn miller_loop_with_prepared_lines(
     lc += 2;
 
     // Check we consumed all lines
-    assert_eq!(lc, lines[0].len());
+    if !lines.is_empty() {
+        assert_eq!(lc, lines[0].len());
+    }
 
     f
 }
@@ -433,7 +435,8 @@ fn test_bn_equivalence() {
 
 #[test]
 fn test_precomputed_lines() {
-    let mut rng = rand::thread_rng();
+    let thread_rng = rand::thread_rng();
+    let mut rng = thread_rng;
     let p = G1Affine::rand(&mut rng);
     let q = G2Affine::rand(&mut rng);
 
