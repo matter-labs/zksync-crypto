@@ -47,8 +47,6 @@ impl<E: Engine> Hash for GoldilocksField<E> {
 }
 
 pub fn range_check_for_num_bits<E: Engine, CS: ConstraintSystem<E>>(cs: &mut CS, num: &Num<E>, num_bits: usize) -> Result<(), SynthesisError> {
-    assert!(num_bits % 16 == 0);
-
     if let Num::Constant(value) = num {
         for el in value.into_repr().as_ref().iter().skip(1) {
             assert_eq!(0, *el)
