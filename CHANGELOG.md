@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.30.12](https://github.com/matter-labs/zksync-crypto/compare/v0.30.11...v0.30.12) (2024-12-20)
+
+
+### Features
+
+* FFLONK ([#58](https://github.com/matter-labs/zksync-crypto/issues/58)) ([a57cf0f](https://github.com/matter-labs/zksync-crypto/commit/a57cf0fc5cee14fa6a361f0d5990ed2de8b094f5))
+
 ## [0.30.11](https://github.com/matter-labs/zksync-crypto/compare/v0.30.10...v0.30.11) (2024-12-18)
 
 
