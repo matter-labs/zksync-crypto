@@ -1,6 +1,7 @@
 use pairing::ff::Field;
 use pairing::{ff::PrimeField, BitIterator};
 use std::sync::Arc;
+use pairing::{bn256::{Fq, Fq12 as Fp12, Fq2 as Fp2, Fq6 as Fp6, G1Affine, G2Affine, G1, G2, FROBENIUS_COEFF_FQ6_C1, XI_TO_Q_MINUS_1_OVER_2}};
 
 use super::{fq12::Fq12, fq2::Fq2, fq6::Fq6, params::TorusExtension12Params};
 use crate::config::{CSConfig, CSWitnessEvaluationConfig};
@@ -115,8 +116,7 @@ where
         compressed_cnst.negate();
     
         let constant_encoding = Fq6::constant(cs, compressed_cnst, params);
-    
-        // Conditionally select either this constant encoding (if trivial) or the original encoding.
+
         let new_encoding = <Fq6<F, T, NonNativeFieldOverU16<F, T, N>, P::Ex6> as NonNativeField<F, T>>::conditionally_select(
             cs, 
             is_trivial, 
@@ -191,8 +191,10 @@ where
         CS: ConstraintSystem<F>,
     {
         let params = self.get_params();
-        let mut one = Fq6::one(cs, params);
-        let negative_one = one.negated(cs);
+        let one = Fq6::one(cs, params);
+        let mut tmp = one.clone();
+        let negative_one = tmp.negated(cs);
+
 
         // Since `g` is a pure `Fq6` element, `g+w` is just an `Fq12` element with `c0 = g` and `c1 = 1`.
         let mut numerator = Fq12::new(self.encoding.clone(), one);
@@ -314,7 +316,8 @@ where
     {
         let params = self.get_params();
         let mut gamma = Fq6::gamma(cs, params);
-    
+        let mut g1 = self.encoding.clone(); 
+        let mut g2 = other.encoding.clone();
         if is_safe {
             // exceptions in case g2 = - g1
             // modified formula looks like (here flag = exception_flag):
@@ -360,39 +363,29 @@ where
         } 
     }
 
-    pub fn pow_naf_decomposition<CS, S: AsRef<[i8]>>(
+    pub fn pow_naf_decomposition<CS>(
         &mut self,
         cs: &mut CS,
-        decomposition: S,
+        decomposition: &[i64],
         is_safe: bool
     ) -> Self
     where
         CS: ConstraintSystem<F>,
     {
-        // Intializing the result with 1
         let mut result = self.clone();
 
         // Preparing self and self inverse in advance
         let mut self_cloned = self.clone();
         let mut self_inverse = self.conjugate(cs);
 
-        for bit in decomposition.as_ref().iter().skip(1) {
-            result = result.square(cs);
-
-            // If bit is 1, multiply by initial torus
-            let bit_is_one = Boolean::allocated_constant(cs, *bit == 1);
-            let result_times_self = result.mul_optimal(cs, &mut self_cloned, is_safe);
-            result = Self::conditionally_select(cs, bit_is_one, &result_times_self, &result);
-
-            // If bit is -1, multiply by inverse initial torus
-            let bit_is_minus_one = Boolean::allocated_constant(cs, *bit == -1);
-            let result_times_self_inverse = result.mul_optimal(cs, &mut self_inverse, is_safe);
-            result = Self::conditionally_select(
-                cs,
-                bit_is_minus_one,
-                &result_times_self_inverse,
-                &result,
-            );
+        for bit in decomposition.iter().skip(1) {
+            result = result.square_optimal(cs, is_safe);
+            if *bit == 1i64 {
+                result = result.mul_optimal(cs, &mut self_cloned, is_safe);
+            }
+            if *bit == -1i64 {
+                result = result.mul_optimal(cs, &mut self_inverse, is_safe);
+            }
         }
 
         result
@@ -463,7 +456,7 @@ where
         let params = self.get_params();
         let mut gamma = Fq6::gamma(cs, params);
         let mut g = self.encoding.clone();
-    
+
         // exception_free formula looks like (here flag := is_exceptional)
         // res = 1/2 (g + [(\gamma * flag!) / (g + flag)])
         // unsafe formula is : res = 1/2 (g + \gamma / g);
