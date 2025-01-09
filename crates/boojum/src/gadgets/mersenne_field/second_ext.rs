@@ -55,6 +55,10 @@ impl<F: SmallField> MersenneComplex<F> {
         [self.x.into_num(), self.y.into_num()]
     }
 
+    pub fn into_uint32s(&self) -> [UInt32<F>; 2] {
+        [self.x.into_uint32(), self.y.into_uint32()]
+    }
+
     /// The coordinate values should be in range [0, 2^31 - 2]
     pub fn from_variables_checked<CS: ConstraintSystem<F>>(cs: &mut CS, variables: [Variable; 2], reduced: bool) -> Self {
         Self {
@@ -85,6 +89,13 @@ impl<F: SmallField> MersenneComplex<F> {
     pub fn enforce_reduced<CS: ConstraintSystem<F>>(&mut self, cs: &mut CS) {
         self.x.enforce_reduced(cs);
         self.y.enforce_reduced(cs);
+    }
+
+    pub fn from_coeffs(coefficients: [MersenneField<F>; 2]) -> Self {
+        Self {
+            x: coefficients[0],
+            y: coefficients[1],
+        }
     }
 
     pub fn from_base<CS: ConstraintSystem<F>>(cs: &mut CS, value: MersenneField<F>) -> Self {

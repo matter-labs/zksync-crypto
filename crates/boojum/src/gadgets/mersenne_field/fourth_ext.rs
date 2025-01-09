@@ -50,8 +50,19 @@ impl<F: SmallField> MersenneQuartic<F> {
         [self.x.x.into_num(), self.x.y.into_num(), self.y.x.into_num(), self.y.y.into_num()]
     }
 
+    pub fn into_uint32s(&self) -> [UInt32<F>; 4] {
+        [self.x.x.into_uint32(), self.x.y.into_uint32(), self.y.x.into_uint32(), self.y.y.into_uint32()]
+    }
+
     pub fn into_coeffs(&self) -> [MersenneField<F>; 4] {
         [self.x.x, self.x.y, self.y.x, self.y.y]
+    }
+
+    pub fn from_coeffs(coefficients: [MersenneField<F>; 4]) -> Self {
+        Self {
+            x: MersenneComplex::from_coeffs(coefficients[0..2].try_into().unwrap()),
+            y: MersenneComplex::from_coeffs(coefficients[2..4].try_into().unwrap()),
+        }
     }
 
     /// The coordinate values should be in range [0, 2^31 - 2]

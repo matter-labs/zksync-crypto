@@ -23,7 +23,7 @@ pub struct Word<F: SmallField> {
 // Rotations are 16, 12, 8 and 7. Rotations by 16 and 8 are "free", and rorations by 12 and 7 require extra
 // decomposition
 
-pub(crate) fn mixing_function_g<F: SmallField, CS: ConstraintSystem<F>>(
+pub fn mixing_function_g<F: SmallField, CS: ConstraintSystem<F>>(
     cs: &mut CS,
     space: &mut [Word<F>; 16],
     space_idxes: [usize; 4],

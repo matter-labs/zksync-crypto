@@ -23,6 +23,8 @@ use crate::config::CSWitnessEvaluationConfig;
 use mersenne_field::Mersenne31Field;
 use mersenne_field::field::Field;
 
+use super::u8::UInt8;
+
 pub mod second_ext;
 pub mod fourth_ext;
 
@@ -77,6 +79,10 @@ impl<F: SmallField> MersenneField<F> {
         Num::from_variable(self.variable)
     }
 
+    pub fn into_uint32(&self) -> UInt32<F> {
+        unsafe { UInt32::from_variable_unchecked(self.variable) }
+    }
+
     /// The value should be in range [0, 2^31 - 2]
     fn from_variable_checked<CS: ConstraintSystem<F>>(cs: &mut CS, variable: Variable, reduced: bool) -> Self {
         let mut result = Self {
@@ -111,6 +117,55 @@ impl<F: SmallField> MersenneField<F> {
         );
 
         Self::from_variable_checked(cs, variable, reduced)
+    }
+
+    pub fn from_uint32_with_reduction<CS: ConstraintSystem<F>>(cs: &mut CS, value: UInt32<F>) -> Self {
+        // We will use the following system of constraints:
+        // (1) value - reduce * modulus = result
+        // (2) reduce has 8 bits
+        // (3) result has 31 bits
+
+        let reduce = UInt8::allocate_without_value(cs); // 2nd constraint
+        let result = Self::allocate_checked_without_value(cs, false); // 3rd constraint
+
+        if <CS::Config as CSConfig>::WitnessConfig::EVALUATE_WITNESS {
+            let value_fn = move |inputs: [F; 1]| {
+                let value = inputs[0].as_u64();
+                
+                let reduce = value / M31_MODULUS;
+                let result = value % M31_MODULUS;
+                assert!(reduce < 1<<32);
+
+                [F::from_u64_unchecked(reduce), F::from_u64_unchecked(result)]
+            };
+
+            let dependencies = Place::from_variables([value.get_variable()]);
+            let outputs = Place::from_variables([reduce.get_variable(), result.variable]);
+
+            cs.set_values_with_dependencies(&dependencies, &outputs, value_fn);
+        }
+
+        if cs.gate_is_allowed::<FmaGateInBaseFieldWithoutConstant<F>>() {
+            if <CS::Config as CSConfig>::SetupConfig::KEEP_SETUP == true {
+                // (1) value + reduce * (-modulus) = result
+                let params = FmaGateInBaseWithoutConstantParams {
+                    coeff_for_quadtaric_part: F::ONE,
+                    linear_term_coeff: *F::from_u64_unchecked(M31_MODULUS).negate(),
+                };
+
+                let gate = FmaGateInBaseFieldWithoutConstant {
+                    params,
+                    quadratic_part: (value.variable, cs.allocate_constant(F::ONE)),
+                    linear_part: reduce.get_variable(),
+                    rhs_part: result.variable,
+                };
+                gate.add_to_cs(cs);
+            }
+        } else {
+            unimplemented!()
+        }
+
+        result
     }
 
     pub fn enforce_reduced<CS: ConstraintSystem<F>>(&mut self, cs: &mut CS) {
