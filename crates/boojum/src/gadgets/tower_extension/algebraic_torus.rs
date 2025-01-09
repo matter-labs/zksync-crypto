@@ -395,7 +395,7 @@ where
     where
         CS: ConstraintSystem<F>,
     {
-        let mut result = Self::one(cs, self.get_params());
+        let mut result = Self::zero(cs, self.get_params());
         let mut base = self.clone();
 
         for i in BitIterator::new(exponent) {
