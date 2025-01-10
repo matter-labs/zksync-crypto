@@ -44,4 +44,7 @@ mod test;
 pub const L1_VERIFIER_DOMAIN_SIZE_LOG: usize = 23;
 pub const MAX_COMBINED_DEGREE_FACTOR: usize = 9;
 pub(crate) const SANITY_CHECK: bool = true;
+#[cfg(feature = "allocator")]
 pub type FflonkAssembly<E, S, A = std::alloc::Global> = Assembly<E, PlonkCsWidth3Params, NaiveMainGate, S, A>;
+#[cfg(not(feature = "allocator"))]
+pub type FflonkAssembly<E, S> = Assembly<E, PlonkCsWidth3Params, NaiveMainGate, S>;
