@@ -178,6 +178,51 @@ impl<F: SmallField> MersenneComplex<F> {
         }
     }
 
+    pub fn exp_power_of_2<CS: ConstraintSystem<F>>(&self, cs: &mut CS, power_log: usize) -> Self {
+        let mut result = self.clone();
+        for _ in 0..power_log {
+            result = result.square(cs);
+        }
+        result
+    }
+
+    pub fn pow_const<CS: ConstraintSystem<F>>(&self, cs: &mut CS, mut power: usize) -> Self {
+        if power == 0 {
+            return Self::one(cs);
+        }
+
+        let mut bits = vec![];
+        while power > 0 {
+            bits.push(power & 1);
+            power >>= 1;
+        }
+
+        let mut result = self.clone();
+
+        for bit in bits.into_iter().rev().skip(1) {
+            result = result.square(cs);
+            if bit == 1 {
+                result = result.mul(cs, self);
+            }
+        }
+
+        result
+    }
+
+    pub fn pow<CS: ConstraintSystem<F>>(&self, cs: &mut CS, power_bits: &[Boolean<F>]) -> Self {
+        let one = Self::one(cs);
+        let mut result = Self::conditionally_select(cs, power_bits[0], &self, &one);
+
+        for bit in power_bits.iter().skip(1){
+            result = result.square(cs);
+
+            let res_mul = result.mul(cs, &self);
+            result = Self::conditionally_select(cs, *bit, &res_mul, &result);
+        }
+
+        result
+    }
+
     /// Computes (x + y * i)(2 + i) = (2x - y) + (2y + x)i
     pub fn mul_by_non_residue<CS: ConstraintSystem<F>>(&self, cs: &mut CS) -> Self {
         // We will use the following system of constraints:
@@ -343,6 +388,11 @@ impl<F: SmallField> MersenneComplex<F> {
         let x_equals = self.x.equals(cs, &mut other.x);
         let y_equals = self.y.equals(cs, &mut other.y);
         x_equals.and(cs, y_equals)
+    }
+
+    pub fn enforce_equal<CS: ConstraintSystem<F>>(&self, cs: &mut CS, other: &Self) {
+        self.x.enforce_equal(cs, &other.x);
+        self.y.enforce_equal(cs, &other.y);
     }
 
     pub fn mask<CS: ConstraintSystem<F>>(&self, cs: &mut CS, masking_bit: Boolean<F>) -> Self {

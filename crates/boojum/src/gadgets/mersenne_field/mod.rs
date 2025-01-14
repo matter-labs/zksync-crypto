@@ -84,7 +84,7 @@ impl<F: SmallField> MersenneField<F> {
     }
 
     /// The value should be in range [0, 2^31 - 2]
-    fn from_variable_checked<CS: ConstraintSystem<F>>(cs: &mut CS, variable: Variable, reduced: bool) -> Self {
+    pub fn from_variable_checked<CS: ConstraintSystem<F>>(cs: &mut CS, variable: Variable, reduced: bool) -> Self {
         let mut result = Self {
             variable,
             reduced: false,
@@ -481,6 +481,51 @@ impl<F: SmallField> MersenneField<F> {
 
     pub fn square<CS: ConstraintSystem<F>>(&self, cs: &mut CS) -> Self {
         self.mul(cs, self)
+    }
+
+    pub fn exp_power_of_2<CS: ConstraintSystem<F>>(&self, cs: &mut CS, power_log: usize) -> Self {
+        let mut result = self.clone();
+        for _ in 0..power_log {
+            result = result.square(cs);
+        }
+        result
+    }
+
+    pub fn pow_const<CS: ConstraintSystem<F>>(&self, cs: &mut CS, mut power: usize) -> Self {
+        if power == 0 {
+            return Self::one(cs);
+        }
+
+        let mut bits = vec![];
+        while power > 0 {
+            bits.push(power & 1);
+            power >>= 1;
+        }
+
+        let mut result = self.clone();
+
+        for bit in bits.into_iter().rev().skip(1) {
+            result = result.square(cs);
+            if bit == 1 {
+                result = result.mul(cs, self);
+            }
+        }
+
+        result
+    }
+
+    pub fn pow<CS: ConstraintSystem<F>>(&self, cs: &mut CS, power_bits: &[Boolean<F>]) -> Self {
+        let one = Self::one(cs);
+        let mut result = Self::conditionally_select(cs, power_bits[0], &self, &one);
+
+        for bit in power_bits.iter().skip(1){
+            result = result.square(cs);
+
+            let res_mul = result.mul(cs, &self);
+            result = Self::conditionally_select(cs, *bit, &res_mul, &result);
+        }
+
+        result
     }
 
     /// Computes - self * other
@@ -1191,6 +1236,10 @@ impl<F: SmallField> MersenneField<F> {
         self.enforce_reduced(cs);
         other.enforce_reduced(cs);
         Num::equals(cs, &self.into_num(), &other.into_num())
+    }
+
+    pub fn enforce_equal<CS: ConstraintSystem<F>>(&self, cs: &mut CS, other: &Self) {
+        Num::enforce_equal(cs, &self.into_num(), &other.into_num());
     }
 
     pub fn mask<CS: ConstraintSystem<F>>(&self, cs: &mut CS, masking_bit: Boolean<F>) -> Self {
