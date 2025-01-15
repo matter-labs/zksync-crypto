@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.30.13](https://github.com/matter-labs/zksync-crypto/compare/v0.30.12...v0.30.13) (2025-01-11)
+
+
+### Features
+
+* **bellman:** CRS constructor with custom allocator ([#62](https://github.com/matter-labs/zksync-crypto/issues/62)) ([296045b](https://github.com/matter-labs/zksync-crypto/commit/296045bcd948051fdfbb22a13c8bc72c5f2378b8))
+* **fflonk:** non-default allocator feature ([#61](https://github.com/matter-labs/zksync-crypto/issues/61)) ([debf9a3](https://github.com/matter-labs/zksync-crypto/commit/debf9a35c090eb58a862c3390827a097cdc43061))
+
 ## [0.30.12](https://github.com/matter-labs/zksync-crypto/compare/v0.30.11...v0.30.12) (2024-12-20)
 
 

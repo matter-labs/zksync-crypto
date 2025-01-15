@@ -6,7 +6,7 @@ resolver = "2"
 
 [workspace.package]
 # All the packages in the workspace should have the same version
-version = "0.30.12"
+version = "0.30.13"
 edition = "2021"
 authors = ["The Matter Labs Team <hello@matterlabs.dev>"]
 homepage = "https://zksync.io/"
@@ -17,17 +17,17 @@ categories = ["cryptography"]
 
 [workspace.dependencies]
 # Local dependencies
-bellman = { version = "=0.30.12", path = "crates/bellman", package = "zksync_bellman" }
-boojum = { version = "=0.30.12", path = "crates/boojum" }
-zksync_solidity_vk_codegen = { version = "=0.30.12", path = "crates/codegen" }
-codegen-bin = { version = "=0.30.12", path = "crates/codegen-bin" }
-cs_derive = { version = "=0.30.12", path = "crates/cs_derive", package = "zksync_cs_derive" }
-ff = { version = "=0.30.12", path = "crates/ff", package = "zksync_ff" }
-ff_derive = { version = "=0.30.12", path = "crates/ff_derive", package = "zksync_ff_derive" }
-franklin-crypto = { version = "=0.30.12", path = "crates/franklin-crypto" }
-pairing = { version = "=0.30.12", path = "crates/pairing", package = "zksync_pairing" }
-rescue_poseidon = { version = "=0.30.12", path = "crates/rescue-poseidon" }
-snark_wrapper = { version = "=0.30.12", path = "crates/snark-wrapper" }
+bellman = { version = "=0.30.13", path = "crates/bellman", package = "zksync_bellman" }
+boojum = { version = "=0.30.13", path = "crates/boojum" }
+zksync_solidity_vk_codegen = { version = "=0.30.13", path = "crates/codegen" }
+codegen-bin = { version = "=0.30.13", path = "crates/codegen-bin" }
+cs_derive = { version = "=0.30.13", path = "crates/cs_derive", package = "zksync_cs_derive" }
+ff = { version = "=0.30.13", path = "crates/ff", package = "zksync_ff" }
+ff_derive = { version = "=0.30.13", path = "crates/ff_derive", package = "zksync_ff_derive" }
+franklin-crypto = { version = "=0.30.13", path = "crates/franklin-crypto" }
+pairing = { version = "=0.30.13", path = "crates/pairing", package = "zksync_pairing" }
+rescue_poseidon = { version = "=0.30.13", path = "crates/rescue-poseidon" }
+snark_wrapper = { version = "=0.30.13", path = "crates/snark-wrapper" }
 
 [profile.release]
 debug = true
