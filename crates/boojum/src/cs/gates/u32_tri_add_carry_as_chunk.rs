@@ -44,7 +44,7 @@ impl<F: PrimeField> GateConstraintEvaluator<F> for U32TriAddCarryAsChunkConstrai
     #[inline]
     fn gate_purpose() -> GatePurpose {
         GatePurpose::Evaluatable {
-            max_constraint_degree: 2,
+            max_constraint_degree: 1,
             num_quotient_terms: 1,
         }
     }
