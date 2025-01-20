@@ -461,10 +461,7 @@ impl<F: SmallField> UInt8<F> {
                 no_borrow,
             );
 
-            let result = Self {
-                variable: result_var,
-                _marker: std::marker::PhantomData,
-            };
+            let result = Self::from_variable_checked(cs, result_var);
             result
         } else {
             unimplemented!()

@@ -106,6 +106,15 @@ pub fn round_function<F: SmallField, CS: ConstraintSystem<F>>(
         let (t1_rotated_19, _, _) = split_and_rotate(cs, t1, 19);
         let (t1_rotated_10, _, t1_rotated_10_decompose_high) = split_and_rotate(cs, t1, 10);
 
+        // These positions need to be range-checked manually to ensure
+        // [split_and_rotate] is sound.
+        let _ = tri_xor_many(
+            cs,
+            &[t1_rotated_10[7]],
+            &[t1_rotated_10[6]],
+            &[t1_rotated_10[5]],
+        );
+
         let mut t1_shifted_10 = t1_rotated_10;
         t1_shifted_10[7] = zero;
         t1_shifted_10[6] = zero;
