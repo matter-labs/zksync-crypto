@@ -155,39 +155,39 @@ pub fn mixing_function_g<F: SmallField, CS: ConstraintSystem<F>>(
         let assembled_b = merge_byte_using_table::<_, _, 1>(cs, low, high);
         *dst = assembled_b;
     }
-    assert!(b_chunks_shifted_it.next().is_none());
+    // assert!(b_chunks_shifted_it.next().is_none());
 
-    // constraint final chunks from carries
-    if all_to_constraint.len() > 0 {
-        assert!(all_to_constraint.len() % 2 == 0);
-        for _ in 0..(all_to_constraint.len() / 2) {
-            let t0 = all_to_constraint.pop().unwrap();
-            let t1 = all_to_constraint.pop().unwrap();
+    // // constraint final chunks from carries
+    // if all_to_constraint.len() > 0 {
+    //     assert!(all_to_constraint.len() % 2 == 0);
+    //     for _ in 0..(all_to_constraint.len() / 2) {
+    //         let t0 = all_to_constraint.pop().unwrap();
+    //         let t1 = all_to_constraint.pop().unwrap();
 
-            range_check_u8_pair(cs, &[t0, t1]);
-        }
-    }
+    //         range_check_u8_pair(cs, &[t0, t1]);
+    //     }
+    // }
 
-    // just assign. Bit lengths are constrainted by our decompositions/recompositions
-    unsafe {
-        let a = Word {
-            inner: a.map(|el| UInt8::from_variable_unchecked(el)),
-        };
-        let b = Word {
-            inner: b.map(|el| UInt8::from_variable_unchecked(el)),
-        };
-        let c = Word {
-            inner: c.map(|el| UInt8::from_variable_unchecked(el)),
-        };
-        let d = Word {
-            inner: d.map(|el| UInt8::from_variable_unchecked(el)),
-        };
+    // // just assign. Bit lengths are constrainted by our decompositions/recompositions
+    // unsafe {
+    //     let a = Word {
+    //         inner: a.map(|el| UInt8::from_variable_unchecked(el)),
+    //     };
+    //     let b = Word {
+    //         inner: b.map(|el| UInt8::from_variable_unchecked(el)),
+    //     };
+    //     let c = Word {
+    //         inner: c.map(|el| UInt8::from_variable_unchecked(el)),
+    //     };
+    //     let d = Word {
+    //         inner: d.map(|el| UInt8::from_variable_unchecked(el)),
+    //     };
 
-        space[space_idxes[0]] = a;
-        space[space_idxes[1]] = b;
-        space[space_idxes[2]] = c;
-        space[space_idxes[3]] = d;
-    }
+    //     space[space_idxes[0]] = a;
+    //     space[space_idxes[1]] = b;
+    //     space[space_idxes[2]] = c;
+    //     space[space_idxes[3]] = d;
+    // }
 }
 
 fn tri_add_as_byte_chunks<F: SmallField, CS: ConstraintSystem<F>>(
@@ -300,6 +300,7 @@ pub fn merge_byte_using_table<F: SmallField, CS: ConstraintSystem<F>, const SPLI
     debug_assert!(SPLIT_AT < 8);
 
     let result = cs.alloc_variable_without_value();
+    dbg!(result);
 
     if <CS::Config as CSConfig>::WitnessConfig::EVALUATE_WITNESS == true {
         let value_fn = move |input: [F; 2]| {

@@ -21,14 +21,14 @@ use crate::config::CSConfig;
 use crate::config::CSWitnessEvaluationConfig;
 
 use mersenne_field::Mersenne31Field;
-use mersenne_field::field::Field;
+use mersenne_field::field::{Field, PrimeField};
 
 use super::u8::UInt8;
 
 pub mod second_ext;
 pub mod fourth_ext;
 
-const M31_MODULUS: u64 = (1 << 31) - 1;
+pub const M31_MODULUS: u64 = Mersenne31Field::CHARACTERISTICS; // 2^31 - 1
 
 // #[derive(Derivative, serde::Serialize, serde::Deserialize)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -1276,8 +1276,22 @@ fn range_check_32_bits<F: SmallField, CS: ConstraintSystem<F>>(
             variable,
         );
 
-        cs.enforce_lookup::<1>(table_id, &[limbs[0]]);
-        cs.enforce_lookup::<1>(table_id, &[limbs[1]]);
+        let zero = cs.allocate_constant(F::ZERO );
+        match cs.get_lookup_params().lookup_width() {
+            1 => {
+                cs.enforce_lookup::<1>(table_id, &[limbs[0]]);
+                cs.enforce_lookup::<1>(table_id, &[limbs[1]]);
+            },
+            3 => {
+                cs.enforce_lookup::<3>(table_id, &[limbs[0], zero, zero]);
+                cs.enforce_lookup::<3>(table_id, &[limbs[1], zero, zero]);
+            },
+            4 => {
+                cs.enforce_lookup::<4>(table_id, &[limbs[0], zero, zero, zero]);
+                cs.enforce_lookup::<4>(table_id, &[limbs[1], zero, zero, zero]);
+            },
+            _ => unimplemented!()
+        }
     } else if let Some(_table_id) = get_8_by_8_range_check_table(&*cs) {
         let _ = UInt32::from_variable_checked(cs, variable);
     } else {
@@ -1301,8 +1315,22 @@ fn range_check_31_bits<F: SmallField, CS: ConstraintSystem<F>>(
             variable,
         );
 
-        cs.enforce_lookup::<1>(table_id_16, &[limbs[0]]);
-        cs.enforce_lookup::<1>(table_id_15, &[limbs[1]]);
+        let zero = cs.allocate_constant(F::ZERO );
+        match cs.get_lookup_params().lookup_width() {
+            1 => {
+                cs.enforce_lookup::<1>(table_id_16, &[limbs[0]]);
+                cs.enforce_lookup::<1>(table_id_15, &[limbs[1]]);
+            },
+            3 => {
+                cs.enforce_lookup::<3>(table_id_16, &[limbs[0], zero, zero]);
+                cs.enforce_lookup::<3>(table_id_15, &[limbs[1], zero, zero]);
+            },
+            4 => {
+                cs.enforce_lookup::<4>(table_id_16, &[limbs[0], zero, zero, zero]);
+                cs.enforce_lookup::<4>(table_id_15, &[limbs[1], zero, zero, zero]);
+            },
+            _ => unimplemented!()
+        }
     } else {
         unimplemented!()
     }
@@ -1311,13 +1339,23 @@ pub fn get_16_bits_range_check_table<F: SmallField, CS: ConstraintSystem<F>>(
     cs: &CS,
 ) -> Option<u32> {
     use crate::gadgets::tables::range_check_16_bits::RangeCheck16BitsTable;
-    cs.get_table_id_for_marker::<RangeCheck16BitsTable<1>>()
+    match cs.get_lookup_params().lookup_width() {
+        1 => cs.get_table_id_for_marker::<RangeCheck16BitsTable<1>>(),
+        3 => cs.get_table_id_for_marker::<RangeCheck16BitsTable<3>>(),
+        4 => cs.get_table_id_for_marker::<RangeCheck16BitsTable<4>>(),
+        _ => return None,
+    }
 }
 pub fn get_15_bits_range_check_table<F: SmallField, CS: ConstraintSystem<F>>(
     cs: &CS,
 ) -> Option<u32> {
     use crate::gadgets::tables::range_check_16_bits::RangeCheck15BitsTable;
-    cs.get_table_id_for_marker::<RangeCheck15BitsTable<1>>()
+    match cs.get_lookup_params().lookup_width() {
+        1 => cs.get_table_id_for_marker::<RangeCheck15BitsTable<1>>(),
+        3 => cs.get_table_id_for_marker::<RangeCheck15BitsTable<3>>(),
+        4 => cs.get_table_id_for_marker::<RangeCheck15BitsTable<4>>(),
+        _ => return None,
+    }
 }
 
 /// Returns a and reduce_a such that unreduced_a = a + reduce_a * modulus
@@ -1515,7 +1553,7 @@ mod tests {
 
         let builder = builder.allow_lookup(
             crate::cs::LookupParameters::UseSpecializedColumnsWithTableIdAsConstant {
-                width: 1,
+                width: 3,
                 num_repetitions: 10,
                 share_table_id: true,
             },
@@ -1557,10 +1595,10 @@ mod tests {
 
         // add tables
         let table = create_range_check_16_bits_table();
-        owned_cs.add_lookup_table::<RangeCheck16BitsTable<1>, 1>(table);
+        owned_cs.add_lookup_table::<RangeCheck16BitsTable<3>, 3>(table);
 
         let table = create_range_check_15_bits_table();
-        owned_cs.add_lookup_table::<RangeCheck15BitsTable<1>, 1>(table);
+        owned_cs.add_lookup_table::<RangeCheck15BitsTable<3>, 3>(table);
 
         let cs = &mut owned_cs;
 

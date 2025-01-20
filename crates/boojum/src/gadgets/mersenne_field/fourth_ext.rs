@@ -595,8 +595,22 @@ fn range_check_33_bits<F: SmallField, CS: ConstraintSystem<F>>(
             variable,
         );
 
-        cs.enforce_lookup::<1>(table_id, &[limb0]);
-        cs.enforce_lookup::<1>(table_id, &[limb1]);
+        let zero = cs.allocate_constant(F::ZERO );
+        match cs.get_lookup_params().lookup_width() {
+            1 => {
+                cs.enforce_lookup::<1>(table_id, &[limb0]);
+                cs.enforce_lookup::<1>(table_id, &[limb1]);
+            },
+            3 => {
+                cs.enforce_lookup::<3>(table_id, &[limb0, zero, zero]);
+                cs.enforce_lookup::<3>(table_id, &[limb1, zero, zero]);
+            },
+            4 => {
+                cs.enforce_lookup::<4>(table_id, &[limb0, zero, zero, zero]);
+                cs.enforce_lookup::<4>(table_id, &[limb1, zero, zero, zero]);
+            },
+            _ => unimplemented!()
+        }
         let _ = Boolean::from_variable_checked(cs, limb2);
     } else if let Some(_table_id) = get_8_by_8_range_check_table(&*cs) {
         let _ = UInt32::from_variable_checked(cs, variable);
