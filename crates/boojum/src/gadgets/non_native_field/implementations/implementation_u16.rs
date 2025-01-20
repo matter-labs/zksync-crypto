@@ -136,22 +136,7 @@ where
         // well, we just mul by 1
         let mut one: NonNativeFieldOverU16<F, T, N> =
             Self::allocated_constant(cs, T::one(), &self.params);
-        let mut normalized = self.mul(cs, &mut one);
-
-        // assert that we only have "modulus limbs" moduluses in this element
-        assert_eq!(normalized.non_zero_limbs, normalized.params.modulus_limbs);
-
-        // sub modulus
-        let modulus = self
-            .params
-            .modulus
-            .map(|el| cs.allocate_constant(F::from_u64_unchecked(el as u64)));
-        // for rare case when our modulus is exactly 16 * K bits, but we use larger representation
-        let els_to_skip = N - self.params.modulus_limbs;
-        let _ =
-            u16_long_subtraction_noborrow_must_borrow(cs, &normalized.limbs, &modulus, els_to_skip);
-        assert!(normalized.form == RepresentationForm::Normalized);
-        normalized.tracker.max_moduluses = 1;
+        let normalized = self.mul(cs, &mut one);
 
         // update self to normalized one
         *self = normalized;
@@ -764,7 +749,7 @@ where
             let new = Self {
                 limbs,
                 non_zero_limbs: used_words,
-                tracker: OverflowTracker { max_moduluses: 2 }, // NOTE: if self == 0, then limbs will be == modulus, so use 2
+                tracker: self.tracker,
                 form: RepresentationForm::Normalized,
                 params: self.params.clone(),
                 _marker: std::marker::PhantomData,

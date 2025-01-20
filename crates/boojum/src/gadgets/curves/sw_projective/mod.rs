@@ -451,6 +451,8 @@ where
         new
     }
 
+    /// Unsafe: expects the argument point is a valid affine point (i.e. not the point at infinity)
+    /// Otherwise, the result is incorrect
     pub fn add_mixed<CS: ConstraintSystem<F>>(
         &mut self,
         cs: &mut CS,
@@ -458,7 +460,8 @@ where
     ) -> Self {
         self.add_sub_mixed_impl(cs, other_xy, false)
     }
-
+    /// Unsafe: expects the argument point is a valid affine point (i.e. not the point at infinity)
+    /// Otherwise, the result is incorrect
     pub fn sub_mixed<CS: ConstraintSystem<F>>(
         &mut self,
         cs: &mut CS,
