@@ -2159,7 +2159,7 @@ pub fn verify_proof_over_cap<
     H::compare_output(cs, &current, &selected_cap_el)
 }
 
-pub(crate) fn binary_select<F: SmallField, T: Selectable<F>, CS: ConstraintSystem<F>>(
+pub fn binary_select<F: SmallField, T: Selectable<F>, CS: ConstraintSystem<F>>(
     cs: &mut CS,
     elements: &[T],
     bits: &[Boolean<F>],

@@ -38,7 +38,7 @@ convert_case = "0.6"
 firestorm = "0.5"
 tracing = { version = "0.1.37", optional = true }
 # mersenne_field = {path="../../../air_compiler/field", package="field"}
-mersenne_field = {git="https://github.com/matter-labs/air_compiler.git", package="field", branch="oh_for_zkos_wrapper"}
+mersenne_field = {git="https://github.com/matter-labs/air_compiler.git", package="field", branch="ad_zkos_wrapper"}
 
 [dev-dependencies]
 criterion = "0.4"
