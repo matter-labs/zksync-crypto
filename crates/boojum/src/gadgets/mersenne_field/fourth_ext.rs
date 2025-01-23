@@ -10,13 +10,6 @@ pub struct MersenneQuartic<F: SmallField> {
 }
 
 impl<F: SmallField> MersenneQuartic<F> {
-    pub fn allocated_constant<CS: ConstraintSystem<F>>(cs: &mut CS, value: Mersenne31Quartic) -> Self {
-        Self {
-            x: MersenneComplex::allocated_constant(cs, value.c0),
-            y: MersenneComplex::allocated_constant(cs, value.c1),
-        }
-    }
-
     pub fn zero<CS: ConstraintSystem<F>>(cs: &mut CS) -> Self {
         Self {
             x: MersenneComplex::zero(cs),
@@ -515,9 +508,9 @@ impl<F: SmallField> MersenneQuartic<F> {
 
     pub fn pow<CS: ConstraintSystem<F>>(&self, cs: &mut CS, power_bits: &[Boolean<F>]) -> Self {
         let one = Self::one(cs);
-        let mut result = Self::conditionally_select(cs, power_bits[0], &self, &one);
+        let mut result = Self::conditionally_select(cs, *power_bits.last().unwrap(), &self, &one);
 
-        for bit in power_bits.iter().skip(1){
+        for bit in power_bits.iter().rev().skip(1){
             result = result.square(cs);
 
             let res_mul = result.mul(cs, &self);
@@ -630,6 +623,12 @@ impl<F: SmallField> CSAllocatable<F> for MersenneQuartic<F> {
     }
     fn allocate<CS: ConstraintSystem<F>>(cs: &mut CS, witness: Self::Witness) -> Self {
         Self::allocate_checked(cs, witness, false)
+    }
+    fn allocate_constant<CS: ConstraintSystem<F>>(cs: &mut CS, witness: Self::Witness) -> Self {
+        Self {
+            x: MersenneComplex::allocate_constant(cs, witness.c0),
+            y: MersenneComplex::allocate_constant(cs, witness.c1),
+        }
     }
 }
 
@@ -897,6 +896,17 @@ mod tests {
         let mut res_witness = rand_witness[0];
         res_witness.mul_assign_by_base(&rand_base_witness[0]);
         let res_var = rand_vars[0].mul_by_base(cs, &rand_base_vars[0]);
+        assert_eq!(res_witness, res_var.witness_hook(&*cs)().unwrap());
+
+        // pow_const
+        let rand_power = rand::random::<u32>();
+        let res_witness = rand_witness[0].pow(rand_power);
+        let res_var = rand_vars[0].pow_const(cs, rand_power as usize);
+        assert_eq!(res_witness, res_var.witness_hook(&*cs)().unwrap());
+
+        // pow
+        let rand_power_bits: Vec<_> = (0..32).map(|i| Boolean::allocate(cs, (rand_power >> i) & 1 == 1)).collect();
+        let res_var = rand_vars[0].pow(cs, &rand_power_bits);
         assert_eq!(res_witness, res_var.witness_hook(&*cs)().unwrap());
 
         // div

@@ -10,13 +10,6 @@ pub struct MersenneComplex<F: SmallField> {
 }
 
 impl<F: SmallField> MersenneComplex<F> {
-    pub fn allocated_constant<CS: ConstraintSystem<F>>(cs: &mut CS, value: Mersenne31Complex) -> Self {
-        Self {
-            x: MersenneField::allocated_constant(cs, value.c0),
-            y: MersenneField::allocated_constant(cs, value.c1),
-        }
-    }
-
     pub fn zero<CS: ConstraintSystem<F>>(cs: &mut CS) -> Self {
         Self {
             x: MersenneField::zero(cs),
@@ -40,7 +33,7 @@ impl<F: SmallField> MersenneComplex<F> {
 
     /// Returns the quadratic non-residue in the field: 2 + i
     pub fn non_residue<CS: ConstraintSystem<F>>(cs: &mut CS) -> Self {
-        Self::allocated_constant(cs, Mersenne31Complex::QUADRATIC_NON_RESIDUE)
+        Self::allocate_constant(cs, Mersenne31Complex::QUADRATIC_NON_RESIDUE)
     }
 
     pub fn get_modulus_num<CS: ConstraintSystem<F>>(cs: &mut CS) -> Num<F> {
@@ -211,9 +204,9 @@ impl<F: SmallField> MersenneComplex<F> {
 
     pub fn pow<CS: ConstraintSystem<F>>(&self, cs: &mut CS, power_bits: &[Boolean<F>]) -> Self {
         let one = Self::one(cs);
-        let mut result = Self::conditionally_select(cs, power_bits[0], &self, &one);
+        let mut result = Self::conditionally_select(cs, *power_bits.last().unwrap(), &self, &one);
 
-        for bit in power_bits.iter().skip(1){
+        for bit in power_bits.iter().rev().skip(1){
             result = result.square(cs);
 
             let res_mul = result.mul(cs, &self);
@@ -422,6 +415,12 @@ impl<F: SmallField> CSAllocatable<F> for MersenneComplex<F> {
     }
     fn allocate<CS: ConstraintSystem<F>>(cs: &mut CS, witness: Self::Witness) -> Self {
         Self::allocate_checked(cs, witness, false)
+    }
+    fn allocate_constant<CS: ConstraintSystem<F>>(cs: &mut CS, witness: Self::Witness) -> Self {
+        Self {
+            x: MersenneField::allocate_constant(cs, witness.c0),
+            y: MersenneField::allocate_constant(cs, witness.c1),
+        }
     }
 }
 

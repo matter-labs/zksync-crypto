@@ -43,12 +43,6 @@ pub struct MersenneField<F: SmallField> {
 }
 
 impl<F: SmallField> MersenneField<F> {
-    pub fn allocated_constant<CS: ConstraintSystem<F>>(cs: &mut CS, value: Mersenne31Field) -> Self {
-        let variable = cs.allocate_constant(F::from_u64_unchecked(value.to_reduced_u32() as u64));
-
-        Self { variable, reduced: true, _marker: std::marker::PhantomData }
-    }
-
     pub fn zero<CS: ConstraintSystem<F>>(cs: &mut CS) -> Self {
         let variable = cs.allocate_constant(F::from_u64_unchecked(0));
 
@@ -516,9 +510,9 @@ impl<F: SmallField> MersenneField<F> {
 
     pub fn pow<CS: ConstraintSystem<F>>(&self, cs: &mut CS, power_bits: &[Boolean<F>]) -> Self {
         let one = Self::one(cs);
-        let mut result = Self::conditionally_select(cs, power_bits[0], &self, &one);
+        let mut result = Self::conditionally_select(cs, *power_bits.last().unwrap(), &self, &one);
 
-        for bit in power_bits.iter().skip(1){
+        for bit in power_bits.iter().rev().skip(1){
             result = result.square(cs);
 
             let res_mul = result.mul(cs, &self);
@@ -1425,6 +1419,11 @@ impl<F: SmallField> CSAllocatable<F> for MersenneField<F> {
     }
     fn allocate<CS: ConstraintSystem<F>>(cs: &mut CS, witness: Self::Witness) -> Self {
         Self::allocate_checked(cs, witness, false)
+    }
+    fn allocate_constant<CS: ConstraintSystem<F>>(cs: &mut CS, witness: Self::Witness) -> Self {
+        let variable = cs.allocate_constant(F::from_u64_unchecked(witness.to_reduced_u32() as u64));
+
+        Self { variable, reduced: true, _marker: std::marker::PhantomData }
     }
 }
 
