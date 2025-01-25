@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.30.13](https://github.com/matter-labs/zksync-crypto/compare/v0.30.12...v0.30.13) (2025-01-11)
+
+
+### Features
+
+* **bellman:** CRS constructor with custom allocator ([#62](https://github.com/matter-labs/zksync-crypto/issues/62)) ([296045b](https://github.com/matter-labs/zksync-crypto/commit/296045bcd948051fdfbb22a13c8bc72c5f2378b8))
+* **fflonk:** non-default allocator feature ([#61](https://github.com/matter-labs/zksync-crypto/issues/61)) ([debf9a3](https://github.com/matter-labs/zksync-crypto/commit/debf9a35c090eb58a862c3390827a097cdc43061))
+
+## [0.30.12](https://github.com/matter-labs/zksync-crypto/compare/v0.30.11...v0.30.12) (2024-12-20)
+
+
+### Features
+
+* FFLONK ([#58](https://github.com/matter-labs/zksync-crypto/issues/58)) ([a57cf0f](https://github.com/matter-labs/zksync-crypto/commit/a57cf0fc5cee14fa6a361f0d5990ed2de8b094f5))
+
+## [0.30.11](https://github.com/matter-labs/zksync-crypto/compare/v0.30.10...v0.30.11) (2024-12-18)
+
+
+### Bug Fixes
+
+* **snark-wrapper:** call range check with proper params ([#54](https://github.com/matter-labs/zksync-crypto/issues/54)) ([cba8e9c](https://github.com/matter-labs/zksync-crypto/commit/cba8e9c4334646ef85caedf1584fc7bbcd4656c5))
+* **snark-wrapper:** range check bitlen in snark wrapper circuit ([#56](https://github.com/matter-labs/zksync-crypto/issues/56)) ([4549fb2](https://github.com/matter-labs/zksync-crypto/commit/4549fb2fb2648537e4ac967c6bf9d7001ac93b69))
+
 ## [0.30.10](https://github.com/matter-labs/zksync-crypto/compare/v0.30.9...v0.30.10) (2024-11-27)
 
 

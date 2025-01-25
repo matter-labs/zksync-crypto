@@ -16,11 +16,28 @@ impl CrsType for CrsForMonomialForm {}
 impl CrsType for CrsForLagrangeForm {}
 impl CrsType for CrsForLagrangeFormOnCoset {}
 
-pub struct Crs<E: Engine, T: CrsType> {
+pub struct Crs<E: Engine, T: CrsType, #[cfg(feature = "allocator")] A: std::alloc::Allocator + Default = std::alloc::Global> {
+    #[cfg(feature = "allocator")]
+    pub g1_bases: Arc<Vec<E::G1Affine, A>>,
+    #[cfg(not(feature = "allocator"))]
     pub g1_bases: Arc<Vec<E::G1Affine>>,
+    #[cfg(feature = "allocator")]
+    pub g2_monomial_bases: Arc<Vec<E::G2Affine, A>>,
+    #[cfg(not(feature = "allocator"))]
     pub g2_monomial_bases: Arc<Vec<E::G2Affine>>,
 
     _marker: std::marker::PhantomData<T>,
+}
+
+#[cfg(feature = "allocator")]
+impl<E: Engine, T: CrsType, A: std::alloc::Allocator + Default> Crs<E, T, A> {
+    pub fn new_in(g1_bases: Vec<E::G1Affine, A>, g2_monomial_bases: Vec<E::G2Affine, A>) -> Self {
+        Self {
+            g1_bases: Arc::new(g1_bases),
+            g2_monomial_bases: Arc::new(g2_monomial_bases),
+            _marker: std::marker::PhantomData,
+        }
+    }
 }
 
 use crate::byteorder::BigEndian;
