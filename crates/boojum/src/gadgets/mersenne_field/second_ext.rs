@@ -150,20 +150,6 @@ impl<F: SmallField> MersenneComplex<F> {
         }
     }
 
-    pub fn mul_by_base<CS: ConstraintSystem<F>>(&self, cs: &mut CS, other: &MersenneField<F>) -> Self {
-        Self {
-            x: self.x.mul(cs, other),
-            y: self.y.mul(cs, other),
-        }
-    }
-
-    pub fn mul_by_base_and_add<CS: ConstraintSystem<F>>(&self, cs: &mut CS, coeff: &MersenneField<F>, other: &Self) -> Self {
-        Self {
-            x: self.x.mul_and_add(cs, coeff, &other.x),
-            y: self.y.mul_and_add(cs, coeff, &other.y),
-        }
-    }
-
     pub fn square<CS: ConstraintSystem<F>>(&self, cs: &mut CS) -> Self {
         Self {
             x: self.x.two_mul_and_sub(cs, &self.x, &self.y, &self.y),
@@ -660,12 +646,6 @@ mod tests {
         let mut res_witness = rand_witness[0];
         res_witness.mul_assign(&Mersenne31Complex::QUADRATIC_NON_RESIDUE);
         let res_var = rand_vars[0].mul_by_non_residue(cs);
-        assert_eq!(res_witness, res_var.witness_hook(&*cs)().unwrap());
-
-        // mul_by_base
-        let mut res_witness = rand_witness[0];
-        res_witness.mul_assign_by_base(&rand_base_witness[0]);
-        let res_var = rand_vars[0].mul_by_base(cs, &rand_base_vars[0]);
         assert_eq!(res_witness, res_var.witness_hook(&*cs)().unwrap());
 
         // div

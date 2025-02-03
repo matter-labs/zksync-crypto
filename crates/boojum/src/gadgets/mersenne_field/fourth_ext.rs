@@ -442,26 +442,26 @@ impl<F: SmallField> MersenneQuartic<F> {
         }
     }
 
-    pub fn mul_by_base<CS: ConstraintSystem<F>>(&self, cs: &mut CS, other: &MersenneField<F>) -> Self {
-        Self {
-            x: self.x.mul_by_base(cs, other),
-            y: self.y.mul_by_base(cs, other),
-        }
-    }
+    // pub fn mul_by_base<CS: ConstraintSystem<F>>(&self, cs: &mut CS, other: &MersenneField<F>) -> Self {
+    //     Self {
+    //         x: self.x.mul_by_base(cs, other),
+    //         y: self.y.mul_by_base(cs, other),
+    //     }
+    // }
 
-    pub fn mul_by_2nd_ext<CS: ConstraintSystem<F>>(&self, cs: &mut CS, other: &MersenneComplex<F>) -> Self {
-        Self {
-            x: self.x.mul(cs, other),
-            y: self.y.mul(cs, other),
-        }
-    }
+    // pub fn mul_by_2nd_ext<CS: ConstraintSystem<F>>(&self, cs: &mut CS, other: &MersenneComplex<F>) -> Self {
+    //     Self {
+    //         x: self.x.mul(cs, other),
+    //         y: self.y.mul(cs, other),
+    //     }
+    // }
 
-    pub fn mul_by_base_and_add<CS: ConstraintSystem<F>>(&self, cs: &mut CS, coeff: &MersenneField<F>, other: &Self) -> Self {
-        Self {
-            x: self.x.mul_by_base_and_add(cs, coeff, &other.x),
-            y: self.y.mul_by_base_and_add(cs, coeff, &other.y),
-        }
-    }
+    // pub fn mul_by_base_and_add<CS: ConstraintSystem<F>>(&self, cs: &mut CS, coeff: &MersenneField<F>, other: &Self) -> Self {
+    //     Self {
+    //         x: self.x.mul_by_base_and_add(cs, coeff, &other.x),
+    //         y: self.y.mul_by_base_and_add(cs, coeff, &other.y),
+    //     }
+    // }
 
     pub fn square<CS: ConstraintSystem<F>>(&self, cs: &mut CS) -> Self {
         // (a, b, c, d) = (a1, b1, c1, d1)^2
@@ -890,12 +890,6 @@ mod tests {
         res_witness.mul_assign(&rand_witness[1]);
         res_witness.add_assign(&rand_witness[2]);
         let res_var = rand_vars[0].mul_and_add_optimized(cs, &rand_vars[1], &rand_vars[2]);
-        assert_eq!(res_witness, res_var.witness_hook(&*cs)().unwrap());
-
-        // mul_by_base
-        let mut res_witness = rand_witness[0];
-        res_witness.mul_assign_by_base(&rand_base_witness[0]);
-        let res_var = rand_vars[0].mul_by_base(cs, &rand_base_vars[0]);
         assert_eq!(res_witness, res_var.witness_hook(&*cs)().unwrap());
 
         // pow_const

@@ -27,6 +27,7 @@ use super::u8::UInt8;
 
 pub mod second_ext;
 pub mod fourth_ext;
+pub mod extension_trait;
 
 pub const M31_MODULUS: u64 = Mersenne31Field::CHARACTERISTICS; // 2^31 - 1
 
