@@ -179,6 +179,10 @@ pub(crate) fn find_next_gate<K: std::hash::Hash + std::cmp::Eq>(
     capacity_per_row: usize,
     offered_row_idx: usize,
 ) -> (usize, usize) {
+    if capacity_per_row == 1 {
+        return (offered_row_idx, 0);
+    }
+    
     if let Some((existing_row_idx, num_instances)) = tooling.remove(&params) {
         if num_instances + 1 < capacity_per_row {
             tooling.insert(params, (existing_row_idx, num_instances + 1));
