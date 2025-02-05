@@ -136,6 +136,7 @@ pub mod reduction_gate;
 pub mod selection_gate;
 pub mod simple_non_linearity_with_constant;
 pub mod u32_add;
+pub mod u32_add_carry_as_chunk;
 pub mod u32_fma;
 pub mod u32_sub;
 pub mod u32_tri_add_carry_as_chunk;
@@ -164,6 +165,7 @@ pub use self::reduction_gate::*;
 pub use self::selection_gate::*;
 pub use self::simple_non_linearity_with_constant::*;
 pub use self::u32_add::*;
+pub use self::u32_add_carry_as_chunk::*;
 pub use self::u32_fma::*;
 pub use self::u32_sub::*;
 pub use self::u32_tri_add_carry_as_chunk::*;
@@ -179,6 +181,10 @@ pub(crate) fn find_next_gate<K: std::hash::Hash + std::cmp::Eq>(
     capacity_per_row: usize,
     offered_row_idx: usize,
 ) -> (usize, usize) {
+    if capacity_per_row == 1 {
+        return (offered_row_idx, 0);
+    }
+
     if let Some((existing_row_idx, num_instances)) = tooling.remove(&params) {
         if num_instances + 1 < capacity_per_row {
             tooling.insert(params, (existing_row_idx, num_instances + 1));
