@@ -272,7 +272,7 @@ impl<'de> ::serde::Deserialize<'de> for Fs {
         D: ::serde::Deserializer<'de>,
     {
         let repr = FsRepr::deserialize(deserializer)?;
-        let new = Self::from_repr(repr).expect("serialized representation is expected to be valid");
+        let new = Self::from_repr(repr).map_err(serde::de::Error::custom)?;
 
         Ok(new)
     }
