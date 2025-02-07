@@ -910,7 +910,7 @@ fn prime_field_impl(name: &syn::Ident, repr: &syn::Ident, mont_inv: u64, limbs: 
             where D: ::serde::Deserializer<'de>
             {
                 let repr = #repr::deserialize(deserializer)?;
-                let new = Self::from_repr(repr).expect("serialized representation is expected to be valid");
+                let new = Self::from_repr(repr).map_err(::serde::de::Error::custom)?;
 
                 Ok(new)
             }
