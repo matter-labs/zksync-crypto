@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.31.0](https://github.com/matter-labs/zksync-crypto/compare/v0.30.14...v0.31.0) (2025-02-10)
+
+
+### ⚠ BREAKING CHANGES
+
+* Changes for v27 upgrade ([#73](https://github.com/matter-labs/zksync-crypto/issues/73))
+
+### Features
+
+* Changes for v27 upgrade ([#73](https://github.com/matter-labs/zksync-crypto/issues/73)) ([81ea71c](https://github.com/matter-labs/zksync-crypto/commit/81ea71c56602b4fcca67c858a0b3d35a1dbacf83))
+
+
+### Bug Fixes
+
+* **boojum:** Added capacity_per_row == 1 case while finding next gate placement ([#68](https://github.com/matter-labs/zksync-crypto/issues/68)) ([4172d57](https://github.com/matter-labs/zksync-crypto/commit/4172d570fce583c030aa04e676d76323116da43a))
+
 ## [0.30.14](https://github.com/matter-labs/zksync-crypto/compare/v0.30.13...v0.30.14) (2025-02-06)
 
 
