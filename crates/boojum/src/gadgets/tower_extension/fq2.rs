@@ -638,12 +638,12 @@ where
         NN::enforce_equal(cs, &a.c0, &b.c0);
         NN::enforce_equal(cs, &a.c1, &b.c1);
     }
-    
+
     fn allocate_checked_with_tag<CS: ConstraintSystem<F>>(
         cs: &mut CS,
         witness: T,
         params: &Arc<Self::Params>,
-        place: Place
+        place: Place,
     ) -> Self {
         unimplemented!()
     }

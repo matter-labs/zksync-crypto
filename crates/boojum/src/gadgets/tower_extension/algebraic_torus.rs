@@ -1,7 +1,10 @@
+use pairing::bn256::{
+    Fq, Fq12 as Fp12, Fq2 as Fp2, Fq6 as Fp6, G1Affine, G2Affine, FROBENIUS_COEFF_FQ6_C1, G1, G2,
+    XI_TO_Q_MINUS_1_OVER_2,
+};
 use pairing::ff::Field;
 use pairing::{ff::PrimeField, BitIterator};
 use std::sync::Arc;
-use pairing::{bn256::{Fq, Fq12 as Fp12, Fq2 as Fp2, Fq6 as Fp6, G1Affine, G2Affine, G1, G2, FROBENIUS_COEFF_FQ6_C1, XI_TO_Q_MINUS_1_OVER_2}};
 
 use super::{fq12::Fq12, fq2::Fq2, fq6::Fq6, params::TorusExtension12Params};
 use crate::config::{CSConfig, CSWitnessEvaluationConfig};
@@ -107,26 +110,25 @@ where
     ) -> (Self, Boolean<F>) {
         let params = self.get_params();
         let mut elem = self.encoding.clone();
-    
+
         let is_trivial = elem.is_zero(cs);
-    
+
         let (c0, c1) = P::convert_from_structured_witness(cnst);
         let mut compressed_cnst = c1;
         compressed_cnst.mul_assign(&c0);
         compressed_cnst.negate();
-    
+
         let constant_encoding = Fq6::constant(cs, compressed_cnst, params);
 
-        let new_encoding = <Fq6<F, T, NonNativeFieldOverU16<F, T, N>, P::Ex6> as NonNativeField<F, T>>::conditionally_select(
-            cs, 
-            is_trivial, 
-            &constant_encoding, 
-            &self.encoding
+        let new_encoding = <Fq6<F, T, NonNativeFieldOverU16<F, T, N>, P::Ex6> as NonNativeField<
+            F,
+            T,
+        >>::conditionally_select(
+            cs, is_trivial, &constant_encoding, &self.encoding
         );
- 
+
         (Self::new(new_encoding), is_trivial)
     }
-    
 
     /// Compresses the `Fq12` element `c0 + c1*w` to the Torus (`T2`) element.
     ///
@@ -137,7 +139,7 @@ where
     pub fn compress<CS>(
         cs: &mut CS,
         f: &mut Fq12<F, T, NonNativeFieldOverU16<F, T, N>, P>,
-        is_safe: bool
+        is_safe: bool,
     ) -> Self
     where
         CS: ConstraintSystem<F>,
@@ -194,7 +196,6 @@ where
         let one = Fq6::one(cs, params);
         let mut tmp = one.clone();
         let negative_one = tmp.negated(cs);
-
 
         // Since `g` is a pure `Fq6` element, `g+w` is just an `Fq12` element with `c0 = g` and `c1 = 1`.
         let mut numerator = Fq12::new(self.encoding.clone(), one);
@@ -280,7 +281,7 @@ where
     /// `(g, g') -> (g * g' + \gamma) / (g + g')`
     ///
     /// The formula handles the exceptional case when `g + g'` is zero.
-    pub fn mul<CS>(&mut self, cs: &mut CS, other: &mut Self,) -> Self
+    pub fn mul<CS>(&mut self, cs: &mut CS, other: &mut Self) -> Self
     where
         CS: ConstraintSystem<F>,
     {
@@ -316,7 +317,7 @@ where
     {
         let params = self.get_params();
         let mut gamma = Fq6::gamma(cs, params);
-        let mut g1 = self.encoding.clone(); 
+        let mut g1 = self.encoding.clone();
         let mut g2 = other.encoding.clone();
         if is_safe {
             // exceptions in case g2 = - g1
@@ -326,24 +327,26 @@ where
             let mut lhs = self.encoding.clone();
             let mut rhs = other.encoding.clone().negated(cs);
             let exc_flag = lhs.equals(cs, &mut rhs);
-    
+
             let flag_as_fe = Fq6::from_boolean(cs, exc_flag, params);
-    
+
             // x = g1 * g2 + gamma
             let mut x = self.encoding.clone().mul(cs, &mut other.encoding.clone());
             x = x.add(cs, &mut gamma);
-    
+
             // If exceptional, we want to subtract x from itself, otherwise subtract zero
             let zero = Fq6::zero(cs, params);
-            let mut y = <Fq6<F, T, NonNativeFieldOverU16<F, T, N>, P::Ex6>>::conditionally_select(cs, exc_flag, &x, &zero);
-    
+            let mut y = <Fq6<F, T, NonNativeFieldOverU16<F, T, N>, P::Ex6>>::conditionally_select(
+                cs, exc_flag, &x, &zero,
+            );
+
             let mut numerator = x.sub(cs, &mut y);
-    
+
             let mut denominator = self.encoding.clone().add(cs, &mut other.encoding.clone());
             denominator = denominator.add(cs, &mut flag_as_fe.clone());
-    
+
             let encoding = numerator.div(cs, &mut denominator);
-    
+
             Self::new(encoding)
         } else {
             // g = (g1 * g2 + \gamma) / (g1 + g2)
@@ -355,19 +358,19 @@ where
             // This means, we are completely safe here and no additional checks are requierd
             let mut numerator = self.encoding.clone().mul(cs, &mut other.encoding.clone());
             numerator = numerator.add(cs, &mut gamma);
-    
+
             let mut denominator = self.encoding.clone().add(cs, &mut other.encoding.clone());
-    
+
             let encoding = numerator.div(cs, &mut denominator);
             Self::new(encoding)
-        } 
+        }
     }
 
     pub fn pow_naf_decomposition<CS>(
         &mut self,
         cs: &mut CS,
         decomposition: &[i64],
-        is_safe: bool
+        is_safe: bool,
     ) -> Self
     where
         CS: ConstraintSystem<F>,
@@ -464,35 +467,38 @@ where
         // where tmp := (\gamma * flag!) / (g + flag) in the first case and tmp := \gamma / g in the second
         let tmp = if is_safe {
             let is_exceptional = g.is_zero(cs);
-    
+
             // denom = g + flag
             let flag_as_fe = Fq6::from_boolean(cs, is_exceptional, params);
             let mut denom = g.clone().add(cs, &mut flag_as_fe.clone());
-    
+
             // numerator = gamma if not exceptional, else zero
             let zero = Fq6::zero(cs, params);
             let tmp = is_exceptional.negated(cs);
-            let mut numerator = <Fq6<F, T, NonNativeFieldOverU16<F, T, N>, P::Ex6>>::conditionally_select(cs, tmp, &gamma, &zero);
-    
+            let mut numerator =
+                <Fq6<F, T, NonNativeFieldOverU16<F, T, N>, P::Ex6>>::conditionally_select(
+                    cs, tmp, &gamma, &zero,
+                );
+
             numerator.div(cs, &mut denom)
         } else {
             // tmp = gamma / g
             let mut g_clone = g.clone();
             gamma.div(cs, &mut g_clone)
         };
-    
+
         // res = (g + tmp)/2
         let mut sum = g.clone().add(cs, &mut tmp.clone());
-    
+
         let mut two = Fq6::one(cs, params);
         two = two.double(cs);
         let mut inv_2 = two.inverse(cs);
-    
+
         let mut res = sum.clone().mul(cs, &mut inv_2);
 
         let double_res = res.clone().double(cs);
         Fq6::enforce_equal(cs, &sum, &double_res);
-    
+
         Self::new(res)
     }
 
