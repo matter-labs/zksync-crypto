@@ -484,6 +484,8 @@ where
         Self::conditionally_select(cs, is_other_inf, self, &result)
     }
 
+    /// Unsafe: expects the argument point is a valid affine point (i.e. not the point at infinity)
+    /// Otherwise, the result is incorrect
     pub fn add_mixed<CS: ConstraintSystem<F>>(
         &mut self,
         cs: &mut CS,
@@ -500,7 +502,8 @@ where
 
         Self::conditionally_select(cs, is_point2_inf, self, &result)
     }
-
+    /// Unsafe: expects the argument point is a valid affine point (i.e. not the point at infinity)
+    /// Otherwise, the result is incorrect
     pub fn sub_mixed<CS: ConstraintSystem<F>>(
         &mut self,
         cs: &mut CS,
