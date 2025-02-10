@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.30.14](https://github.com/matter-labs/zksync-crypto/compare/v0.30.13...v0.30.14) (2025-02-06)
+
+
+### Bug Fixes
+
+* **ci:** Update github-hosted runner label ([#66](https://github.com/matter-labs/zksync-crypto/issues/66)) ([121a6bc](https://github.com/matter-labs/zksync-crypto/commit/121a6bc69e51aef110ffce6cd00bffe13cd0041e))
+* Handle serialization errors instead of panicking ([#69](https://github.com/matter-labs/zksync-crypto/issues/69)) ([21bcb37](https://github.com/matter-labs/zksync-crypto/commit/21bcb37d1504da270e623d4826a7de3b05413100))
+
 ## [0.30.13](https://github.com/matter-labs/zksync-crypto/compare/v0.30.12...v0.30.13) (2025-01-11)
 
 
