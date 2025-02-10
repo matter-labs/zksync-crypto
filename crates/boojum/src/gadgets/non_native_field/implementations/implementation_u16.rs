@@ -112,7 +112,7 @@ where
         cs: &mut CS,
         witness: T,
         params: &Arc<NonNativeFieldOverU16Params<T, N>>,
-        tag: Place
+        tag: Place,
     ) -> Self {
         let new = Self::allocate_checked_without_value(cs, params);
 
