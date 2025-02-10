@@ -44,7 +44,7 @@ where
         cs: &mut CS,
         witness: T,
         params: &Arc<Self::Params>,
-        tag: Place
+        tag: Place,
     ) -> Self {
         NonNativeFieldOverU16::<F, T, N>::allocate_checked_with_tag(cs, witness, params, tag)
     }

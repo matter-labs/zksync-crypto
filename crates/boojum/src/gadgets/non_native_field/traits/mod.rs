@@ -30,7 +30,7 @@ pub trait NonNativeField<F: SmallField, T: pairing::ff::PrimeField>:
         cs: &mut CS,
         witness: T,
         params: &Arc<Self::Params>,
-        place: Place
+        place: Place,
     ) -> Self;
 
     fn enforce_reduced<CS: ConstraintSystem<F>>(&mut self, cs: &mut CS);
