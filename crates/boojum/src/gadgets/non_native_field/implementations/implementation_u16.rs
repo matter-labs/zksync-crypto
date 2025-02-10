@@ -749,7 +749,9 @@ where
             let new = Self {
                 limbs,
                 non_zero_limbs: used_words,
-                tracker: OverflowTracker { max_moduluses: self.tracker.max_moduluses + 1 },
+                tracker: OverflowTracker {
+                    max_moduluses: self.tracker.max_moduluses + 1,
+                },
                 form: RepresentationForm::Normalized,
                 params: self.params.clone(),
                 _marker: std::marker::PhantomData,
