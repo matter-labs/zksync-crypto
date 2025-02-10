@@ -824,7 +824,7 @@ impl<F: SmallField> UInt32<F> {
             let boolean_true = Boolean::allocated_constant(cs, true);
             let allocated_constant = UInt32::allocated_constant(cs, constant);
             let no_borrow = cs.allocate_constant(F::ZERO);
-            let _ = UIntXAddGate::<32>::perform_subtraction_with_expected_borrow_out(
+            let o = UIntXAddGate::<32>::perform_subtraction_with_expected_borrow_out(
                 cs,
                 remainder.variable,
                 allocated_constant.variable,
@@ -832,6 +832,8 @@ impl<F: SmallField> UInt32<F> {
                 no_borrow,
                 boolean_true.variable,
             );
+            // Range-check o
+            let _ = UInt32::from_variable_checked(cs, o);
         } else {
             unimplemented!()
         }
