@@ -7,7 +7,7 @@ use pairing::{
 
 use super::params::{bn256::BN256Extension2Params, Extension2Params};
 
-use crate::cs::{Place, Variable};
+use crate::cs::Variable;
 use crate::gadgets::traits::allocatable::CSPlaceholder;
 use crate::gadgets::traits::encodable::{CircuitVarLengthEncodable, WitnessVarLengthEncodable};
 use crate::{
@@ -637,15 +637,6 @@ where
     {
         NN::enforce_equal(cs, &a.c0, &b.c0);
         NN::enforce_equal(cs, &a.c1, &b.c1);
-    }
-
-    fn allocate_checked_with_tag<CS: ConstraintSystem<F>>(
-        cs: &mut CS,
-        witness: T,
-        params: &Arc<Self::Params>,
-        place: Place,
-    ) -> Self {
-        unimplemented!()
     }
 }
 

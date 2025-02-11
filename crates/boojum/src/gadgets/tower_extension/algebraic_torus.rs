@@ -1,7 +1,3 @@
-use pairing::bn256::{
-    Fq, Fq12 as Fp12, Fq2 as Fp2, Fq6 as Fp6, G1Affine, G2Affine, FROBENIUS_COEFF_FQ6_C1, G1, G2,
-    XI_TO_Q_MINUS_1_OVER_2,
-};
 use pairing::ff::Field;
 use pairing::{ff::PrimeField, BitIterator};
 use std::sync::Arc;
@@ -317,8 +313,6 @@ where
     {
         let params = self.get_params();
         let mut gamma = Fq6::gamma(cs, params);
-        let mut g1 = self.encoding.clone();
-        let mut g2 = other.encoding.clone();
         if is_safe {
             // exceptions in case g2 = - g1
             // modified formula looks like (here flag = exception_flag):
@@ -488,13 +482,13 @@ where
         };
 
         // res = (g + tmp)/2
-        let mut sum = g.clone().add(cs, &mut tmp.clone());
+        let sum = g.clone().add(cs, &mut tmp.clone());
 
         let mut two = Fq6::one(cs, params);
         two = two.double(cs);
         let mut inv_2 = two.inverse(cs);
 
-        let mut res = sum.clone().mul(cs, &mut inv_2);
+        let res = sum.clone().mul(cs, &mut inv_2);
 
         let double_res = res.clone().double(cs);
         Fq6::enforce_equal(cs, &sum, &double_res);

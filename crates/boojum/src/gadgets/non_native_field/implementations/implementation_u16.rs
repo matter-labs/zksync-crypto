@@ -108,40 +108,6 @@ where
         new
     }
 
-    pub fn allocate_checked_with_tag<CS: ConstraintSystem<F>>(
-        cs: &mut CS,
-        witness: T,
-        params: &Arc<NonNativeFieldOverU16Params<T, N>>,
-        tag: Place,
-    ) -> Self {
-        let new = Self::allocate_checked_without_value(cs, params);
-
-        if <CS::Config as CSConfig>::WitnessConfig::EVALUATE_WITNESS == true {
-            let modulus_limbs = params.modulus_limbs;
-            let value_fn = move |_input: &[F], dst: &mut DstBuffer<'_, '_, F>| {
-                let limbs = fe_to_u16_words::<_, N>(&witness);
-                for (idx, el) in limbs.into_iter().enumerate() {
-                    if idx < modulus_limbs {
-                        dst.push(F::from_u64_unchecked(el as u64));
-                    } else {
-                        assert_eq!(el, 0);
-                    }
-                }
-            };
-
-            let mut outputs = Vec::with_capacity(params.modulus_limbs);
-            outputs.extend(
-                Place::from_variables(new.limbs)
-                    .into_iter()
-                    .take(params.modulus_limbs),
-            );
-
-            cs.set_values_with_dependencies_vararg(&[tag], &outputs, value_fn);
-        }
-
-        new
-    }
-
     pub fn enforce_reduced<CS: ConstraintSystem<F>>(&mut self, cs: &mut CS) {
         assert_eq!(self.form, RepresentationForm::Normalized);
         if self.tracker.max_moduluses == 1 && self.form == RepresentationForm::Normalized {
