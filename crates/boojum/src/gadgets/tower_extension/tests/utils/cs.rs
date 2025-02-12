@@ -103,7 +103,6 @@ pub fn create_test_cs(
             builder,
             GatePlacementStrategy::UseGeneralPurposeColumns,
         );
-        // let owned_cs = DotProductGate::<4>::configure_for_cs(owned_cs, GatePlacementStrategy::UseSpecializedColumns { num_repetitions: 1, share_constants: true });
         let builder =
             NopGate::configure_builder(builder, GatePlacementStrategy::UseGeneralPurposeColumns);
 
@@ -117,46 +116,11 @@ pub fn create_test_cs(
     let builder = configure(builder);
     let mut owned_cs = builder.build(max_variables);
 
-    // add tables
-    // let table = create_xor8_table();
-    // owned_cs.add_lookup_table::<Xor8Table, 3>(table);
-
-    // let table = create_and8_table();
-    // owned_cs.add_lookup_table::<And8Table, 3>(table);
-
-    // seq_macro::seq!(C in 0..32 {
-    //     let table = create_fixed_base_mul_table::<F, 0, C>();
-    //     owned_cs.add_lookup_table::<FixedBaseMulTable<0, C>, 3>(table);
-    //     let table = create_fixed_base_mul_table::<F, 1, C>();
-    //     owned_cs.add_lookup_table::<FixedBaseMulTable<1, C>, 3>(table);
-    //     let table = create_fixed_base_mul_table::<F, 2, C>();
-    //     owned_cs.add_lookup_table::<FixedBaseMulTable<2, C>, 3>(table);
-    //     let table = create_fixed_base_mul_table::<F, 3, C>();
-    //     owned_cs.add_lookup_table::<FixedBaseMulTable<3, C>, 3>(table);
-    //     let table = create_fixed_base_mul_table::<F, 4, C>();
-    //     owned_cs.add_lookup_table::<FixedBaseMulTable<4, C>, 3>(table);
-    //     let table = create_fixed_base_mul_table::<F, 5, C>();
-    //     owned_cs.add_lookup_table::<FixedBaseMulTable<5, C>, 3>(table);
-    //     let table = create_fixed_base_mul_table::<F, 6, C>();
-    //     owned_cs.add_lookup_table::<FixedBaseMulTable<6, C>, 3>(table);
-    //     let table = create_fixed_base_mul_table::<F, 7, C>();
-    //     owned_cs.add_lookup_table::<FixedBaseMulTable<7, C>, 3>(table);
-    // });
-
     use crate::gadgets::tables::create_range_check_16_bits_table;
     use crate::gadgets::tables::RangeCheck16BitsTable;
 
     let table = create_range_check_16_bits_table();
     owned_cs.add_lookup_table::<RangeCheck16BitsTable, 1>(table);
-
-    // let table = create_byte_split_table::<F, 1>();
-    // owned_cs.add_lookup_table::<ByteSplitTable<1>, 3>(table);
-    // let table = create_byte_split_table::<F, 2>();
-    // owned_cs.add_lookup_table::<ByteSplitTable<2>, 3>(table);
-    // let table = create_byte_split_table::<F, 3>();
-    // owned_cs.add_lookup_table::<ByteSplitTable<3>, 3>(table);
-    // let table = create_byte_split_table::<F, 4>();
-    // owned_cs.add_lookup_table::<ByteSplitTable<4>, 3>(table);
 
     owned_cs
 }
