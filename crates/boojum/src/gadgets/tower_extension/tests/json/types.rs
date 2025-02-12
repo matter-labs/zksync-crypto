@@ -2,11 +2,10 @@
 
 use std::sync::Arc;
 
-//use boojum::cs::traits::cs::ConstraintSystem;
 use crate::{
     field::goldilocks::GoldilocksField,
     gadgets::{
-        curves::sw_projective::{extended::ExtendedSWProjectivePoint, SWProjectivePoint},
+        curves::sw_projective::SWProjectivePoint,
         non_native_field::implementations::{NonNativeFieldOverU16, NonNativeFieldOverU16Params},
         tower_extension::{
             algebraic_torus::TorusWrapper,
@@ -20,14 +19,7 @@ use crate::{
 };
 use serde::{Deserialize, Serialize};
 
-//use crate::bn254::{
-//    /BN256BaseNNField, BN256Fq12NNField, BN256Fq2NNField, BN256Fq6NNField, BN256SWProjectivePoint,
-//    BN256SWProjectivePointTwisted,
-//};
-use crate::{
-    //bn254::{tests::utils::cs::bn254_base_field_params, BN256Fq},
-    cs::traits::cs::ConstraintSystem,
-};
+use crate::cs::traits::cs::ConstraintSystem;
 
 type F = GoldilocksField;
 type P = GoldilocksField;
@@ -36,7 +28,6 @@ use crate::pairing::bn256::fq::Fq as BN256Fq;
 use crate::pairing::bn256::fr::Fr as BN256Fr;
 
 pub use crate::pairing::bn256::G1Affine as BN256Affine;
-use crate::pairing::bn256::G2Affine as BN256AffineTwisted;
 
 use crate::gadgets::tower_extension::{
     fq12::Fq12 as NonNativeFq12, fq2::Fq2 as NonNativeFq2, fq6::Fq6 as NonNativeFq6,
@@ -70,9 +61,6 @@ pub type BN256TorusWrapper<F> =
 // --- SW Projective points for BN256 curves: regular and twisted ---
 /// SW Projective point for BN256 curve over non-extended base field
 pub type BN256SWProjectivePoint<F> = SWProjectivePoint<F, BN256Affine, BN256BaseNNField<F>>;
-/// SW Projective point for twisted BN256 curve over extended base field `Fp2`
-pub type BN256SWProjectivePointTwisted<F> =
-    ExtendedSWProjectivePoint<F, BN256Fq, BN256AffineTwisted, BN256Fq2NNField<F>>;
 
 /// Representation of an elliptic curve point in raw form (as strings)
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -124,19 +112,6 @@ impl RawG1Point {
 pub struct RawG2Point {
     pub x: RawFq2,
     pub y: RawFq2,
-}
-
-impl RawG2Point {
-    /// Converts a raw point to a projective point
-    pub fn to_projective_point<CS: ConstraintSystem<F>>(
-        &self,
-        cs: &mut CS,
-    ) -> BN256SWProjectivePointTwisted<F> {
-        let x_nn = self.x.to_fq2(cs);
-        let y_nn = self.y.to_fq2(cs);
-
-        BN256SWProjectivePointTwisted::<F>::from_xy_unchecked(cs, x_nn, y_nn)
-    }
 }
 
 /// Representation of an `Fq2` element in a raw form (as strings)
