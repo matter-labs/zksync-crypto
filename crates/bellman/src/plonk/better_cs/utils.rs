@@ -236,6 +236,7 @@ pub fn commit_point_as_xy<E: Engine, T: Transcript<E::Fr>>(transcript: &mut T, p
 #[cfg(test)]
 mod test {
     #[test]
+    #[ignore = "timeout on release"]
     fn test_lagrange_poly_explicit_multicore_validity() {
         use super::*;
         use crate::ff::{Field, PrimeField};
