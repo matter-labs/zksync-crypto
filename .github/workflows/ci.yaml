@@ -49,7 +49,7 @@ jobs:
         run: cargo install cargo-nextest
 
       - name: Run tests
-        run: cargo nextest run --no-fail-fast --jobs=3
+        run: cargo nextest run --no-fail-fast --jobs=3 --release
 
   ci-success:
     name: Github Status Check
