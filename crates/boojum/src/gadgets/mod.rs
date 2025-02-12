@@ -18,7 +18,6 @@ pub mod sha256;
 pub mod tables;
 pub mod tower_extension;
 pub mod traits;
-pub mod u1024;
 pub mod u16;
 pub mod u160;
 pub mod u256;
