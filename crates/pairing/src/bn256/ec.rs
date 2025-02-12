@@ -150,7 +150,7 @@ macro_rules! curve_impl {
             fn zero() -> Self {
                 $affine {
                     x: $basefield::zero(),
-                    y: $basefield::one(),
+                    y: $basefield::zero(),
                     infinity: true,
                 }
             }

@@ -4,6 +4,7 @@ pub mod fq12;
 pub mod fq2;
 pub mod fq6;
 pub mod fr;
+pub mod pairing_certificate;
 
 pub use self::ec::{G1Affine, G1Compressed, G1Prepared, G1Uncompressed, G2Affine, G2Compressed, G2Prepared, G2Uncompressed, G1, G2};
 pub use self::fq::{Fq, FqRepr, FROBENIUS_COEFF_FQ6_C1, XI_TO_Q_MINUS_1_OVER_2};
@@ -11,6 +12,7 @@ pub use self::fq12::Fq12;
 pub use self::fq2::Fq2;
 pub use self::fq6::Fq6;
 pub use self::fr::{Fr, FrRepr};
+pub use self::pairing_certificate::*;
 
 use super::{CurveAffine, Engine};
 
