@@ -860,7 +860,6 @@ mod tests {
     };
     use crate::gadgets::traits::witnessable::WitnessHookable;
     use crate::worker::Worker;
-    use mersenne_field::FieldExtension;
 
     type F = GoldilocksField;
 
@@ -935,12 +934,7 @@ mod tests {
         owned_cs.add_lookup_table::<RangeCheck15BitsTable<1>, 1>(table);
 
         let cs = &mut owned_cs;
-
-        let rand_base_witness =
-            [0; 2].map(|_| Mersenne31Field::new(rand::random::<u32>() % M31_MODULUS as u32));
-        let rand_base_vars =
-            rand_base_witness.map(|w| MersenneField::<F>::allocate_checked(cs, w, false));
-
+            
         let rand_witness = [0; 3].map(|_| Mersenne31Quartic {
             c0: Mersenne31Complex {
                 c0: Mersenne31Field::new(rand::random::<u32>() % M31_MODULUS as u32),

@@ -36,9 +36,6 @@ pub fn mixing_function_g<F: SmallField, CS: ConstraintSystem<F>>(
     // let mut c = space[space_idxes[2]].inner.map(|el| el.variable);
     let mut d = space[space_idxes[3]].inner.map(|el| el.variable);
 
-    let zero_var = cs.allocate_constant(F::ZERO);
-    let zero_word = [zero_var; 4];
-
     let mut all_to_constraint = ArrayVec::<Variable, 8>::new();
 
     // v[a] := (v[a] + v[b] + x) mod 2**w

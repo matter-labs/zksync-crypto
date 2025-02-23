@@ -199,7 +199,7 @@ impl<F: SmallField> MersenneField<F> {
                 let mut a = F::from_u64_unchecked(M31_MODULUS);
                 a.sub_assign(&inputs[0]);
 
-                [a.inverse().unwrap()]
+                [a.inverse().expect("Failed to reduce mersenne field")]
             };
 
             let dependencies = Place::from_variables([self.variable]);
@@ -1431,6 +1431,7 @@ pub fn reduce_mersenne31<F: SmallField, CS: ConstraintSystem<F>>(
     cs: &mut CS,
     unreduced_a: Variable,
 ) -> (MersenneField<F>, Variable) {
+    // FIXME: this should probably be "reduced = true" - so that we have a single representation.
     let a = MersenneField::allocate_checked_without_value(cs, false);
     let reduce_a = cs.alloc_variable_without_value();
 
@@ -1603,6 +1604,7 @@ mod tests {
     use crate::cs::traits::gate::GatePlacementStrategy;
     use crate::dag::CircuitResolverOpts;
     use crate::field::goldilocks::GoldilocksField;
+    use crate::field::U64Representable;
     use crate::gadgets::tables::range_check_16_bits::{
         create_range_check_15_bits_table, create_range_check_16_bits_table, RangeCheck15BitsTable,
         RangeCheck16BitsTable,
@@ -1681,7 +1683,7 @@ mod tests {
         let cs = &mut owned_cs;
 
         let rand_witness =
-            [0; 4].map(|_| Mersenne31Field::new(rand::random::<u32>() % M31_MODULUS as u32));
+            [0; 5].map(|_| Mersenne31Field::new(rand::random::<u32>() % M31_MODULUS as u32));
         let mut rand_vars =
             rand_witness.map(|w| MersenneField::<F>::allocate_checked(cs, w, false));
 
@@ -1765,6 +1767,29 @@ mod tests {
         let res_var = rand_vars[0].two_mul_and_sub(cs, &rand_vars[1], &rand_vars[2], &rand_vars[3]);
         assert_eq!(res_witness, res_var.witness_hook(&*cs)().unwrap());
 
+        // two_mul_and_two_add
+        let mut res_witness = rand_witness[0];
+        res_witness.mul_assign(&rand_witness[1]);
+        let mut tmp = rand_witness[2];
+        tmp.mul_assign(&rand_witness[3]);
+        res_witness.add_assign(&tmp);
+        res_witness.add_assign(&rand_witness[4]);
+        
+        let res_var = rand_vars[0].two_mul_and_two_add(cs, &rand_vars[1], &rand_vars[2], &rand_vars[3], &rand_vars[4]);
+        assert_eq!(res_witness, res_var.witness_hook(&*cs)().unwrap());
+
+        // two_mul_and_sub_and_add
+
+        let mut res_witness = rand_witness[0];
+        res_witness.mul_assign(&rand_witness[1]);
+        let mut tmp = rand_witness[2];
+        tmp.mul_assign(&rand_witness[3]);
+        res_witness.sub_assign(&tmp);
+        res_witness.add_assign(&rand_witness[4]);
+        
+        let res_var = rand_vars[0].two_mul_and_sub_and_add(cs, &rand_vars[1], &rand_vars[2], &rand_vars[3], &rand_vars[4]);
+        assert_eq!(res_witness, res_var.witness_hook(&*cs)().unwrap());
+
         // div
         let mut res_witness = rand_witness[0];
         res_witness.mul_assign(&rand_witness[1].inverse().unwrap_or(Mersenne31Field::ZERO));
@@ -1782,6 +1807,20 @@ mod tests {
         let from_uint32 = MersenneField::<F>::from_uint32_with_reduction(cs, tmp_val);
         assert_eq!(101, from_uint32.witness_hook(&*cs)().unwrap().0);
 
+
+        // double - large.
+        let double_large_input = MersenneField::<F>::allocate_checked(cs, Mersenne31Field::new(2u32.pow(31) - 1 ), false);
+        let double_large_output = double_large_input.double(cs);
+        assert_eq!(0, double_large_output.witness_hook(&*cs)().unwrap().0);
+
+
+        let pow_input = MersenneField::<F>::allocate_checked(cs, Mersenne31Field::new(11), false);
+        let pow_output = pow_input.pow_const(cs, 5);
+        assert_eq!(161051, pow_output.witness_hook(&*cs)().unwrap().0);
+
+        let exp_pow_output = pow_input.exp_power_of_2(cs, 2);
+        assert_eq!(14641, exp_pow_output.witness_hook(&*cs)().unwrap().0);
+
         let worker = Worker::new_with_num_threads(8);
 
         drop(cs);
@@ -1789,4 +1828,91 @@ mod tests {
         let mut owned_cs = owned_cs.into_assembly::<Global>();
         assert!(owned_cs.check_if_satisfied(&worker));
     }
+
+    #[test]
+    #[should_panic = "Failed to reduce mersenne field"]
+    fn test_reduce_failed() {
+        let geometry = CSGeometry {
+            num_columns_under_copy_permutation: 60,
+            num_witness_columns: 0,
+            num_constant_columns: 4,
+            max_allowed_constraint_degree: 4,
+        };
+
+        use crate::config::DevCSConfig;
+        type RCfg = <DevCSConfig as CSConfig>::ResolverConfig;
+        use crate::cs::cs_builder_reference::*;
+        let builder_impl =
+            CsReferenceImplementationBuilder::<F, F, DevCSConfig>::new(geometry, 1 << 18);
+        use crate::cs::cs_builder::new_builder;
+        let builder = new_builder::<_, F>(builder_impl);
+
+        let builder = builder.allow_lookup(
+            crate::cs::LookupParameters::UseSpecializedColumnsWithTableIdAsConstant {
+                width: 3,
+                num_repetitions: 10,
+                share_table_id: true,
+            },
+        );
+
+        let builder = ConstantsAllocatorGate::configure_builder(
+            builder,
+            GatePlacementStrategy::UseGeneralPurposeColumns,
+        );
+        let builder = FmaGateInBaseFieldWithoutConstant::configure_builder(
+            builder,
+            GatePlacementStrategy::UseGeneralPurposeColumns,
+        );
+        let builder = ReductionGate::<F, 4>::configure_builder(
+            builder,
+            GatePlacementStrategy::UseGeneralPurposeColumns,
+        );
+        let builder = DotProductGate::<4>::configure_builder(
+            builder,
+            GatePlacementStrategy::UseGeneralPurposeColumns,
+        );
+        let builder = UIntXAddGate::<16>::configure_builder(
+            builder,
+            GatePlacementStrategy::UseGeneralPurposeColumns,
+        );
+        let builder = SelectionGate::configure_builder(
+            builder,
+            GatePlacementStrategy::UseGeneralPurposeColumns,
+        );
+        let builder =
+            NopGate::configure_builder(builder, GatePlacementStrategy::UseGeneralPurposeColumns);
+
+        let builder = ReductionGate::<F, 2>::configure_builder(
+            builder,
+            GatePlacementStrategy::UseGeneralPurposeColumns,
+        );
+
+        let mut owned_cs = builder.build(CircuitResolverOpts::new(1 << 20));
+
+        // add tables
+        let table = create_range_check_16_bits_table();
+        owned_cs.add_lookup_table::<RangeCheck16BitsTable<3>, 3>(table);
+
+        let table = create_range_check_15_bits_table();
+        owned_cs.add_lookup_table::<RangeCheck15BitsTable<3>, 3>(table);
+
+        let cs = &mut owned_cs;
+
+
+        let variable = cs.alloc_single_variable_from_witness(F::from_u64_unchecked(
+            2u64.pow(31) - 1
+        ));
+
+        let mut max_value = MersenneField::<F>::from_variable_checked(cs, variable, false);
+
+        max_value.enforce_reduced(cs);
+
+        let worker = Worker::new_with_num_threads(8);
+
+        drop(cs);
+        owned_cs.pad_and_shrink();
+        let mut owned_cs = owned_cs.into_assembly::<Global>();
+        assert!(owned_cs.check_if_satisfied(&worker));
+    }
+
 }
