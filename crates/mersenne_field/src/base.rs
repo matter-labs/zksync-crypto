@@ -432,11 +432,7 @@ impl PrimeField for Mersenne31Field {
     #[track_caller]
     fn as_boolean(&self) -> bool {
         let as_uint = self.to_reduced_u32();
-        assert!(
-            as_uint == 0 || as_uint == 1,
-            "expected boolean value, got {}",
-            as_uint
-        );
+        assert!(as_uint == 0 || as_uint == 1, "expected boolean value, got {}", as_uint);
 
         as_uint != 0
     }
@@ -509,7 +505,6 @@ mod tests {
         assert_eq!(f.to_reduced_u32(), 0);
         assert!(f.is_zero());
 
-
         let h = Mersenne31Field::default();
         assert!(h.is_zero());
 
@@ -530,10 +525,8 @@ mod tests {
 
         assert!(f < one);
         assert!(h < one);
-
     }
-    
- 
+
     #[test]
     fn test_add() {
         let a = Mersenne31Field::new(1);
@@ -565,20 +558,20 @@ mod tests {
         let f = d - e;
         assert_eq!(f.0, Mersenne31Field::ORDER - 1);
     }
- 
+
     #[test]
     fn test_mul() {
         let mut a = Mersenne31Field::new(2);
         let b = Mersenne31Field::new(3);
         a.mul_assign(&b);
         assert_eq!(a.0, 6);
-        
+
         let mut d = Mersenne31Field::new(Mersenne31Field::ORDER - 1);
         let e = Mersenne31Field::new(2);
         d.mul_assign(&e);
         assert_eq!(d.0, Mersenne31Field::ORDER - 2);
     }
- 
+
     #[test]
     fn test_inverse() {
         let mut a = Mersenne31Field::new(3);
@@ -589,7 +582,7 @@ mod tests {
         let zero = Mersenne31Field::new(0);
         assert!(zero.inverse().is_none());
     }
- 
+
     #[test]
     fn test_sqrt() {
         let a = Mersenne31Field::new(4);
@@ -599,7 +592,7 @@ mod tests {
         let b = Mersenne31Field::new(5);
         assert!(b.sqrt().is_none());
     }
- 
+
     #[test]
     fn test_large_numbers() {
         let mut a = Mersenne31Field::new(Mersenne31Field::ORDER - 1);
@@ -673,7 +666,6 @@ mod tests {
         let expected = a + a;
         assert_eq!(b.to_reduced_u32(), expected.to_reduced_u32());
         assert_eq!(b.to_reduced_u32(), 14);
-
     }
 
     #[test]
@@ -731,5 +723,4 @@ mod tests {
         let expected = Mersenne31Field::new(Mersenne31Field::ORDER - 2);
         assert_eq!(b.to_reduced_u32(), expected.to_reduced_u32());
     }
-
 }

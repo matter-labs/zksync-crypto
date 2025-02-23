@@ -45,12 +45,8 @@ impl core::fmt::Display for Mersenne31ComplexVectorized {
 use rand::Rng;
 impl Rand for Mersenne31ComplexVectorized {
     fn random_element<R: Rng + ?Sized>(rng: &mut R) -> Mersenne31ComplexVectorized {
-        let t_real = [(); WIDTH].map(|_| {
-            Mersenne31Field::from_u64_unchecked(rng.gen_range(0..Mersenne31Field::CHARACTERISTICS))
-        });
-        let t_imag = [(); WIDTH].map(|_| {
-            Mersenne31Field::from_u64_unchecked(rng.gen_range(0..Mersenne31Field::CHARACTERISTICS))
-        });
+        let t_real = [(); WIDTH].map(|_| Mersenne31Field::from_u64_unchecked(rng.gen_range(0..Mersenne31Field::CHARACTERISTICS)));
+        let t_imag = [(); WIDTH].map(|_| Mersenne31Field::from_u64_unchecked(rng.gen_range(0..Mersenne31Field::CHARACTERISTICS)));
         Mersenne31ComplexVectorized {
             c0: Mersenne31FieldVectorized(t_real),
             c1: Mersenne31FieldVectorized(t_imag),
@@ -282,29 +278,19 @@ impl FieldExtension<Mersenne31FieldVectorized> for Mersenne31ComplexVectorized {
 
     #[inline(always)]
     fn coeffs_in_base(&self) -> &[Mersenne31FieldVectorized] {
-        unsafe {
-            core::slice::from_raw_parts(self.c0.0.as_ptr() as *const Mersenne31FieldVectorized, 2)
-        }
+        unsafe { core::slice::from_raw_parts(self.c0.0.as_ptr() as *const Mersenne31FieldVectorized, 2) }
     }
 
     #[inline(always)]
     fn from_coeffs_in_base(coeffs: &[Mersenne31FieldVectorized]) -> Self {
-        Self {
-            c0: coeffs[0],
-            c1: coeffs[1],
-        }
+        Self { c0: coeffs[0], c1: coeffs[1] }
     }
 
     fn from_coeffs_in_base_ref(coeffs: &[&Mersenne31FieldVectorized]) -> Self {
-        Self {
-            c0: *coeffs[0],
-            c1: *coeffs[1],
-        }
+        Self { c0: *coeffs[0], c1: *coeffs[1] }
     }
 
-    fn from_coeffs_in_base_iter<I: Iterator<Item = Mersenne31FieldVectorized>>(
-        mut coeffs_iter: I,
-    ) -> Self {
+    fn from_coeffs_in_base_iter<I: Iterator<Item = Mersenne31FieldVectorized>>(mut coeffs_iter: I) -> Self {
         Self {
             c0: coeffs_iter.next().unwrap(),
             c1: coeffs_iter.next().unwrap(),
@@ -331,10 +317,7 @@ impl FieldExtension<Mersenne31FieldVectorized> for Mersenne31ComplexVectorized {
     }
 
     fn from_base_coeffs_array(coefs: &[Mersenne31FieldVectorized; 2]) -> Self {
-        Self {
-            c0: coefs[0],
-            c1: coefs[1],
-        }
+        Self { c0: coefs[0], c1: coefs[1] }
     }
 }
 
@@ -351,10 +334,7 @@ impl FieldLikeVectorized for Mersenne31ComplexVectorized {
     }
 
     fn get_base_element(&self, idx: usize) -> Self::Base {
-        Self::Base::from_coeffs_in_base(&[
-            self.c0.get_base_element(idx),
-            self.c1.get_base_element(idx),
-        ])
+        Self::Base::from_coeffs_in_base(&[self.c0.get_base_element(idx), self.c1.get_base_element(idx)])
     }
 
     fn from_base_elements(input: &[Self::Base]) -> Self {

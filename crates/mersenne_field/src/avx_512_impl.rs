@@ -27,9 +27,7 @@ impl core::fmt::Display for Mersenne31FieldVectorized {
 use rand::Rng;
 impl Rand for Mersenne31FieldVectorized {
     fn random_element<R: Rng + ?Sized>(rng: &mut R) -> Mersenne31FieldVectorized {
-        let t = [(); WIDTH].map(|_| {
-            Mersenne31Field::from_u64_unchecked(rng.gen_range(0..Mersenne31Field::CHARACTERISTICS))
-        });
+        let t = [(); WIDTH].map(|_| Mersenne31Field::from_u64_unchecked(rng.gen_range(0..Mersenne31Field::CHARACTERISTICS)));
         Mersenne31FieldVectorized(t)
     }
 }
@@ -80,33 +78,15 @@ impl Mersenne31FieldVectorized {
     }
 
     #[inline]
-    pub fn interleave_radix4(
-        &self,
-        b: Self,
-        c: Self,
-        d: Self,
-        block_len: usize,
-    ) -> (Self, Self, Self, Self) {
-        let (v0, v1, v2, v3) = (
-            self.to_vector(),
-            b.to_vector(),
-            c.to_vector(),
-            d.to_vector(),
-        );
+    pub fn interleave_radix4(&self, b: Self, c: Self, d: Self, block_len: usize) -> (Self, Self, Self, Self) {
+        let (v0, v1, v2, v3) = (self.to_vector(), b.to_vector(), c.to_vector(), d.to_vector());
         let (res0, res1, res2, res3) = match block_len {
             1 => interleave1_radix4(v0, v1, v2, v3),
             4 => interleave4_radix4(v0, v1, v2, v3),
             16 => (v0, v1, v2, v3),
             _ => panic!("unsupported block_len"),
         };
-        unsafe {
-            (
-                Self::from_vector(res0),
-                Self::from_vector(res1),
-                Self::from_vector(res2),
-                Self::from_vector(res3),
-            )
-        }
+        unsafe { (Self::from_vector(res0), Self::from_vector(res1), Self::from_vector(res2), Self::from_vector(res3)) }
     }
 
     pub fn rotate<const N: i32>(&mut self) -> &mut Self {
@@ -141,9 +121,7 @@ fn sub(lhs: __m512i, rhs: __m512i) -> __m512i {
 #[inline]
 #[must_use]
 fn movehdup_epi32(a: __m512i) -> __m512i {
-    unsafe {
-        x86_64::_mm512_castps_si512(x86_64::_mm512_movehdup_ps(x86_64::_mm512_castsi512_ps(a)))
-    }
+    unsafe { x86_64::_mm512_castps_si512(x86_64::_mm512_movehdup_ps(x86_64::_mm512_castsi512_ps(a))) }
 }
 
 #[inline]
@@ -205,12 +183,7 @@ pub fn mul_m31c_interleaved(a: __m512i, b: __m512i, x: __m512i, y: __m512i) -> (
 
 #[inline]
 #[must_use]
-pub fn mul_by_twiddle_m31c_interleaved(
-    a: __m512i,
-    b: __m512i,
-    x: __m512i,
-    y: __m512i,
-) -> (__m512i, __m512i) {
+pub fn mul_by_twiddle_m31c_interleaved(a: __m512i, b: __m512i, x: __m512i, y: __m512i) -> (__m512i, __m512i) {
     unsafe {
         let ax_c0 = mask_moveldup_epi32(a, ODDS, x);
         let ax_c1 = mask_movehdup_epi32(x, EVENS, a);
@@ -353,78 +326,25 @@ impl Default for Mersenne31FieldVectorized {
 
 #[inline]
 #[must_use]
-fn interleave1_radix4(
-    a: __m512i,
-    b: __m512i,
-    c: __m512i,
-    d: __m512i,
-) -> (__m512i, __m512i, __m512i, __m512i) {
+fn interleave1_radix4(a: __m512i, b: __m512i, c: __m512i, d: __m512i) -> (__m512i, __m512i, __m512i, __m512i) {
     unsafe {
         // res0 = [ a0 b0 c0 d0 a4 b4 c4 d4 a8 b8 c8 d8 ac bc cc dc ]
         // res1 = [ a1 b1 c1 d1 a5 b5 c5 d5 a9 b9 c9 d9 ad bd cd dd ]
         // res2 = [ a2 b2 c2 d2 a6 b6 c6 d6 aa ba ca da ae be ce de ]
         // res3 = [ a3 b3 c3 d3 a7 b7 c7 d7 ab bb cb db af bf cf df ]
 
-        let mut res0 = x86_64::_mm512_permutex2var_epi32(
-            a,
-            transmute::<[u32; WIDTH], _>([0, 16, 0, 0, 4, 20, 0, 0, 8, 24, 0, 0, 12, 28, 0, 0]),
-            b,
-        );
-        res0 = x86_64::_mm512_permutex2var_epi32(
-            res0,
-            transmute::<[u32; WIDTH], _>([0, 1, 16, 0, 4, 5, 20, 0, 8, 9, 24, 0, 12, 13, 28, 0]),
-            c,
-        );
-        res0 = x86_64::_mm512_permutex2var_epi32(
-            res0,
-            transmute::<[u32; WIDTH], _>([0, 1, 2, 16, 4, 5, 6, 20, 8, 9, 10, 24, 12, 13, 14, 28]),
-            d,
-        );
-        let mut res1 = x86_64::_mm512_permutex2var_epi32(
-            a,
-            transmute::<[u32; WIDTH], _>([1, 17, 0, 0, 5, 21, 0, 0, 9, 25, 0, 0, 13, 29, 0, 0]),
-            b,
-        );
-        res1 = x86_64::_mm512_permutex2var_epi32(
-            res1,
-            transmute::<[u32; WIDTH], _>([0, 1, 17, 0, 4, 5, 21, 0, 8, 9, 25, 0, 12, 13, 29, 0]),
-            c,
-        );
-        res1 = x86_64::_mm512_permutex2var_epi32(
-            res1,
-            transmute::<[u32; WIDTH], _>([0, 1, 2, 17, 4, 5, 6, 21, 8, 9, 10, 25, 12, 13, 14, 29]),
-            d,
-        );
-        let mut res2 = x86_64::_mm512_permutex2var_epi32(
-            a,
-            transmute::<[u32; WIDTH], _>([2, 18, 0, 0, 6, 22, 0, 0, 10, 26, 0, 0, 14, 30, 0, 0]),
-            b,
-        );
-        res2 = x86_64::_mm512_permutex2var_epi32(
-            res2,
-            transmute::<[u32; WIDTH], _>([0, 1, 18, 0, 4, 5, 22, 0, 8, 9, 26, 0, 12, 13, 30, 0]),
-            c,
-        );
-        res2 = x86_64::_mm512_permutex2var_epi32(
-            res2,
-            transmute::<[u32; WIDTH], _>([0, 1, 2, 18, 4, 5, 6, 22, 8, 9, 10, 26, 12, 13, 14, 30]),
-            d,
-        );
-        let mut res3 = x86_64::_mm512_permutex2var_epi32(
-            a,
-            transmute::<[u32; WIDTH], _>([3, 19, 0, 0, 7, 23, 0, 0, 11, 27, 0, 0, 15, 31, 0, 0]),
-            b,
-        );
-        res3 = x86_64::_mm512_permutex2var_epi32(
-            res3,
-            transmute::<[u32; WIDTH], _>([0, 1, 19, 0, 4, 5, 23, 0, 8, 9, 27, 0, 12, 13, 31, 0]),
-            c,
-        );
-        res3 = x86_64::_mm512_permutex2var_epi32(
-            res3,
-            transmute::<[u32; WIDTH], _>([0, 1, 2, 19, 4, 5, 6, 23, 8, 9, 10, 27, 12, 13, 14, 31]),
-            d,
-        );
+        let mut res0 = x86_64::_mm512_permutex2var_epi32(a, transmute::<[u32; WIDTH], _>([0, 16, 0, 0, 4, 20, 0, 0, 8, 24, 0, 0, 12, 28, 0, 0]), b);
+        res0 = x86_64::_mm512_permutex2var_epi32(res0, transmute::<[u32; WIDTH], _>([0, 1, 16, 0, 4, 5, 20, 0, 8, 9, 24, 0, 12, 13, 28, 0]), c);
+        res0 = x86_64::_mm512_permutex2var_epi32(res0, transmute::<[u32; WIDTH], _>([0, 1, 2, 16, 4, 5, 6, 20, 8, 9, 10, 24, 12, 13, 14, 28]), d);
+        let mut res1 = x86_64::_mm512_permutex2var_epi32(a, transmute::<[u32; WIDTH], _>([1, 17, 0, 0, 5, 21, 0, 0, 9, 25, 0, 0, 13, 29, 0, 0]), b);
+        res1 = x86_64::_mm512_permutex2var_epi32(res1, transmute::<[u32; WIDTH], _>([0, 1, 17, 0, 4, 5, 21, 0, 8, 9, 25, 0, 12, 13, 29, 0]), c);
+        res1 = x86_64::_mm512_permutex2var_epi32(res1, transmute::<[u32; WIDTH], _>([0, 1, 2, 17, 4, 5, 6, 21, 8, 9, 10, 25, 12, 13, 14, 29]), d);
+        let mut res2 = x86_64::_mm512_permutex2var_epi32(a, transmute::<[u32; WIDTH], _>([2, 18, 0, 0, 6, 22, 0, 0, 10, 26, 0, 0, 14, 30, 0, 0]), b);
+        res2 = x86_64::_mm512_permutex2var_epi32(res2, transmute::<[u32; WIDTH], _>([0, 1, 18, 0, 4, 5, 22, 0, 8, 9, 26, 0, 12, 13, 30, 0]), c);
+        res2 = x86_64::_mm512_permutex2var_epi32(res2, transmute::<[u32; WIDTH], _>([0, 1, 2, 18, 4, 5, 6, 22, 8, 9, 10, 26, 12, 13, 14, 30]), d);
+        let mut res3 = x86_64::_mm512_permutex2var_epi32(a, transmute::<[u32; WIDTH], _>([3, 19, 0, 0, 7, 23, 0, 0, 11, 27, 0, 0, 15, 31, 0, 0]), b);
+        res3 = x86_64::_mm512_permutex2var_epi32(res3, transmute::<[u32; WIDTH], _>([0, 1, 19, 0, 4, 5, 23, 0, 8, 9, 27, 0, 12, 13, 31, 0]), c);
+        res3 = x86_64::_mm512_permutex2var_epi32(res3, transmute::<[u32; WIDTH], _>([0, 1, 2, 19, 4, 5, 6, 23, 8, 9, 10, 27, 12, 13, 14, 31]), d);
 
         (res0, res1, res2, res3)
     }
@@ -432,78 +352,25 @@ fn interleave1_radix4(
 
 #[inline]
 #[must_use]
-fn interleave4_radix4(
-    a: __m512i,
-    b: __m512i,
-    c: __m512i,
-    d: __m512i,
-) -> (__m512i, __m512i, __m512i, __m512i) {
+fn interleave4_radix4(a: __m512i, b: __m512i, c: __m512i, d: __m512i) -> (__m512i, __m512i, __m512i, __m512i) {
     unsafe {
         // res0 = [ a0 a1 a2 a3 b0 b1 b2 b3 c0 c1 c2 c3 d0 d1 d2 d3 ]
         // res1 = [ a4 a5 a6 a7 b4 b5 b6 b7 c4 c5 c6 c7 d4 d5 d6 d7 ]
         // res2 = [ a8 a9 aa ab b8 b9 ba bb c8 c9 ca cb d8 d9 da db ]
         // res3 = [ ac ad ae af bc bd be bf cc cd ce cf dc dd de df ]
 
-        let mut res0 = x86_64::_mm512_permutex2var_epi64(
-            a,
-            transmute::<[u64; WIDTH / 2], _>([0, 1, 8, 9, 0, 0, 0, 0]),
-            b,
-        );
-        res0 = x86_64::_mm512_permutex2var_epi64(
-            res0,
-            transmute::<[u64; WIDTH / 2], _>([0, 1, 2, 3, 8, 9, 0, 0]),
-            c,
-        );
-        res0 = x86_64::_mm512_permutex2var_epi64(
-            res0,
-            transmute::<[u64; WIDTH / 2], _>([0, 1, 2, 3, 4, 5, 8, 9]),
-            d,
-        );
-        let mut res1 = x86_64::_mm512_permutex2var_epi64(
-            a,
-            transmute::<[u64; WIDTH / 2], _>([2, 3, 10, 11, 0, 0, 0, 0]),
-            b,
-        );
-        res1 = x86_64::_mm512_permutex2var_epi64(
-            res1,
-            transmute::<[u64; WIDTH / 2], _>([0, 1, 2, 3, 10, 11, 0, 0]),
-            c,
-        );
-        res1 = x86_64::_mm512_permutex2var_epi64(
-            res1,
-            transmute::<[u64; WIDTH / 2], _>([0, 1, 2, 3, 4, 5, 10, 11]),
-            d,
-        );
-        let mut res2 = x86_64::_mm512_permutex2var_epi64(
-            a,
-            transmute::<[u64; WIDTH / 2], _>([4, 5, 12, 13, 0, 0, 0, 0]),
-            b,
-        );
-        res2 = x86_64::_mm512_permutex2var_epi64(
-            res2,
-            transmute::<[u64; WIDTH / 2], _>([0, 1, 2, 3, 12, 13, 0, 0]),
-            c,
-        );
-        res2 = x86_64::_mm512_permutex2var_epi64(
-            res2,
-            transmute::<[u64; WIDTH / 2], _>([0, 1, 2, 3, 4, 5, 12, 13]),
-            d,
-        );
-        let mut res3 = x86_64::_mm512_permutex2var_epi64(
-            a,
-            transmute::<[u64; WIDTH / 2], _>([6, 7, 14, 15, 0, 0, 0, 0]),
-            b,
-        );
-        res3 = x86_64::_mm512_permutex2var_epi64(
-            res3,
-            transmute::<[u64; WIDTH / 2], _>([0, 1, 2, 3, 14, 15, 0, 0]),
-            c,
-        );
-        res3 = x86_64::_mm512_permutex2var_epi64(
-            res3,
-            transmute::<[u64; WIDTH / 2], _>([0, 1, 2, 3, 4, 5, 14, 15]),
-            d,
-        );
+        let mut res0 = x86_64::_mm512_permutex2var_epi64(a, transmute::<[u64; WIDTH / 2], _>([0, 1, 8, 9, 0, 0, 0, 0]), b);
+        res0 = x86_64::_mm512_permutex2var_epi64(res0, transmute::<[u64; WIDTH / 2], _>([0, 1, 2, 3, 8, 9, 0, 0]), c);
+        res0 = x86_64::_mm512_permutex2var_epi64(res0, transmute::<[u64; WIDTH / 2], _>([0, 1, 2, 3, 4, 5, 8, 9]), d);
+        let mut res1 = x86_64::_mm512_permutex2var_epi64(a, transmute::<[u64; WIDTH / 2], _>([2, 3, 10, 11, 0, 0, 0, 0]), b);
+        res1 = x86_64::_mm512_permutex2var_epi64(res1, transmute::<[u64; WIDTH / 2], _>([0, 1, 2, 3, 10, 11, 0, 0]), c);
+        res1 = x86_64::_mm512_permutex2var_epi64(res1, transmute::<[u64; WIDTH / 2], _>([0, 1, 2, 3, 4, 5, 10, 11]), d);
+        let mut res2 = x86_64::_mm512_permutex2var_epi64(a, transmute::<[u64; WIDTH / 2], _>([4, 5, 12, 13, 0, 0, 0, 0]), b);
+        res2 = x86_64::_mm512_permutex2var_epi64(res2, transmute::<[u64; WIDTH / 2], _>([0, 1, 2, 3, 12, 13, 0, 0]), c);
+        res2 = x86_64::_mm512_permutex2var_epi64(res2, transmute::<[u64; WIDTH / 2], _>([0, 1, 2, 3, 4, 5, 12, 13]), d);
+        let mut res3 = x86_64::_mm512_permutex2var_epi64(a, transmute::<[u64; WIDTH / 2], _>([6, 7, 14, 15, 0, 0, 0, 0]), b);
+        res3 = x86_64::_mm512_permutex2var_epi64(res3, transmute::<[u64; WIDTH / 2], _>([0, 1, 2, 3, 14, 15, 0, 0]), c);
+        res3 = x86_64::_mm512_permutex2var_epi64(res3, transmute::<[u64; WIDTH / 2], _>([0, 1, 2, 3, 4, 5, 14, 15]), d);
 
         (res0, res1, res2, res3)
     }
@@ -512,12 +379,7 @@ fn interleave4_radix4(
 #[inline]
 #[must_use]
 fn interleave1_antidiagonal(x: __m512i, y: __m512i) -> __m512i {
-    const INTERLEAVE1_INDICES: __m512i = unsafe {
-        transmute::<[u32; WIDTH], _>([
-            0x01, 0x10, 0x03, 0x12, 0x05, 0x14, 0x07, 0x16, 0x09, 0x18, 0x0b, 0x1a, 0x0d, 0x1c,
-            0x0f, 0x1e,
-        ])
-    };
+    const INTERLEAVE1_INDICES: __m512i = unsafe { transmute::<[u32; WIDTH], _>([0x01, 0x10, 0x03, 0x12, 0x05, 0x14, 0x07, 0x16, 0x09, 0x18, 0x0b, 0x1a, 0x0d, 0x1c, 0x0f, 0x1e]) };
     unsafe { x86_64::_mm512_permutex2var_epi32(x, INTERLEAVE1_INDICES, y) }
 }
 
@@ -528,46 +390,33 @@ fn interleave1(x: __m512i, y: __m512i) -> (__m512i, __m512i) {
     unsafe {
         //   res0 = [ x0  y0  x2  y2  x4  y4  x6  y6  x8  y8  xa  ya  xc  yc  xe  ye ],
         //   res1 = [ x1  y1  x3  y3  x5  y5  x7  y7  x9  y9  xb  yb  xd  yd  xf  yf ].
-        (
-            x86_64::_mm512_mask_blend_epi32(EVENS, t, x),
-            x86_64::_mm512_mask_blend_epi32(EVENS, y, t),
-        )
+        (x86_64::_mm512_mask_blend_epi32(EVENS, t, x), x86_64::_mm512_mask_blend_epi32(EVENS, y, t))
     }
 }
 
 #[inline]
 #[must_use]
 fn interleave4(x: __m512i, y: __m512i) -> (__m512i, __m512i) {
-    const INTERLEAVE4_INDICES: __m512i = unsafe {
-        transmute::<[u64; WIDTH / 2], _>([0o02, 0o03, 0o10, 0o11, 0o06, 0o07, 0o14, 0o15])
-    };
+    const INTERLEAVE4_INDICES: __m512i = unsafe { transmute::<[u64; WIDTH / 2], _>([0o02, 0o03, 0o10, 0o11, 0o06, 0o07, 0o14, 0o15]) };
     unsafe {
         let t = x86_64::_mm512_permutex2var_epi64(x, INTERLEAVE4_INDICES, y);
 
         //   res0 = [ x0  x1  x2  x3  y0  y1  y2  y3  x8  x9  xa  xb  y8  y9  ya  yb ],
         //   res1 = [ x4  x5  x6  x7  y4  y5  y6  y7  xc  xd  xe  xf  yc  yd  ye  yf ].
-        (
-            x86_64::_mm512_mask_blend_epi32(EVENS4, t, x),
-            x86_64::_mm512_mask_blend_epi32(EVENS4, y, t),
-        )
+        (x86_64::_mm512_mask_blend_epi32(EVENS4, t, x), x86_64::_mm512_mask_blend_epi32(EVENS4, y, t))
     }
 }
 
 impl Mersenne31FieldVectorized {
     #[inline(always)]
-    pub fn slice_into_base_slice_mut(
-        input: &mut [Mersenne31FieldVectorized],
-    ) -> &mut [Mersenne31Field] {
+    pub fn slice_into_base_slice_mut(input: &mut [Mersenne31FieldVectorized]) -> &mut [Mersenne31Field] {
         let result_len = input.len() * WIDTH;
-        unsafe {
-            core::slice::from_raw_parts_mut(input.as_ptr() as *mut Mersenne31Field, result_len)
-        }
+        unsafe { core::slice::from_raw_parts_mut(input.as_ptr() as *mut Mersenne31Field, result_len) }
     }
 }
 
 impl BaseField for Mersenne31FieldVectorized {
-    const QUADRATIC_NON_RESIDUE: Mersenne31FieldVectorized =
-        Mersenne31FieldVectorized([Mersenne31Field::MINUS_ONE; WIDTH]);
+    const QUADRATIC_NON_RESIDUE: Mersenne31FieldVectorized = Mersenne31FieldVectorized([Mersenne31Field::MINUS_ONE; WIDTH]);
 
     fn mul_by_non_residue(elem: &mut Self) {
         elem.negate();

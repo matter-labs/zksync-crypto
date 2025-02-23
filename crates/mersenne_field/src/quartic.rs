@@ -38,14 +38,8 @@ impl Mersenne31Quartic {
     #[inline(always)]
     pub const fn from_array_of_base(els: [Mersenne31Field; 4]) -> Self {
         Self {
-            c0: Mersenne31Complex {
-                c0: els[0],
-                c1: els[1],
-            },
-            c1: Mersenne31Complex {
-                c0: els[2],
-                c1: els[3],
-            },
+            c0: Mersenne31Complex { c0: els[0], c1: els[1] },
+            c1: Mersenne31Complex { c0: els[2], c1: els[3] },
         }
     }
 
@@ -264,10 +258,7 @@ impl FieldExtension<Mersenne31Complex> for Mersenne31Quartic {
 
     #[inline(always)]
     fn from_base_coeffs_array(coefs: &[Mersenne31Complex; 2]) -> Self {
-        Self {
-            c0: coefs[0],
-            c1: coefs[1],
-        }
+        Self { c0: coefs[0], c1: coefs[1] }
     }
 
     #[inline(always)]
@@ -348,27 +339,15 @@ impl FieldExtension<Mersenne31Field> for Mersenne31Quartic {
     #[inline(always)]
     fn from_base_coeffs_array(coefs: &[Mersenne31Field; 4]) -> Self {
         Self {
-            c0: Mersenne31Complex {
-                c0: coefs[0],
-                c1: coefs[1],
-            },
-            c1: Mersenne31Complex {
-                c0: coefs[2],
-                c1: coefs[3],
-            },
+            c0: Mersenne31Complex { c0: coefs[0], c1: coefs[1] },
+            c1: Mersenne31Complex { c0: coefs[2], c1: coefs[3] },
         }
     }
 
     fn from_coeffs_in_base(coefs: &[Mersenne31Field]) -> Self {
         Self {
-            c0: Mersenne31Complex {
-                c0: coefs[0],
-                c1: coefs[1],
-            },
-            c1: Mersenne31Complex {
-                c0: coefs[2],
-                c1: coefs[3],
-            },
+            c0: Mersenne31Complex { c0: coefs[0], c1: coefs[1] },
+            c1: Mersenne31Complex { c0: coefs[2], c1: coefs[3] },
         }
     }
 
@@ -400,10 +379,7 @@ impl FieldExtension<Mersenne31Field> for Mersenne31Quartic {
 
     fn from_base(elem: Mersenne31Field) -> Self {
         let c0 = Mersenne31Complex::from_base(elem);
-        Self {
-            c0,
-            c1: Mersenne31Complex::ZERO,
-        }
+        Self { c0, c1: Mersenne31Complex::ZERO }
     }
 
     fn get_coef_mut(&mut self, _idx: usize) -> &mut Mersenne31Field {

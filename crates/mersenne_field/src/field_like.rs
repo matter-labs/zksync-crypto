@@ -14,8 +14,7 @@ pub trait FieldLikeVectorized: Field {
 
     fn as_base_array(&self) -> [Self::Base; Self::SIZE_FACTOR] {
         let as_slice = core::slice::from_ref(self);
-        let as_base_slice =
-            unsafe { core::slice::from_raw_parts(as_slice.as_ptr() as *mut Self::Base, 16) };
+        let as_base_slice = unsafe { core::slice::from_raw_parts(as_slice.as_ptr() as *mut Self::Base, 16) };
         as_base_slice.try_into().unwrap()
     }
 }
