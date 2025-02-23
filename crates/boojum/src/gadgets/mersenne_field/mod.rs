@@ -31,7 +31,6 @@ pub mod second_ext;
 
 pub const M31_MODULUS: u64 = Mersenne31Field::CHARACTERISTICS; // 2^31 - 1
 
-// #[derive(Derivative, serde::Serialize, serde::Deserialize)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct MersenneField<F: SmallField> {
     // the inner witness value is always reduced with the modulus
@@ -149,6 +148,8 @@ impl<F: SmallField> MersenneField<F> {
                 let reduce = value / M31_MODULUS;
                 let result = value % M31_MODULUS;
                 assert!(reduce < 1 << 32);
+                // FIXME: this currently allows two different witnesses when result == 0.
+                // as both 0 and M31_modulus are accepted.
 
                 [F::from_u64_unchecked(reduce), F::from_u64_unchecked(result)]
             };
@@ -1775,6 +1776,11 @@ mod tests {
         res_witness = res_witness.inverse().unwrap_or(Mersenne31Field::ZERO);
         let res_var = rand_vars[0].inverse_or_zero(cs);
         assert_eq!(res_witness, res_var.witness_hook(&*cs)().unwrap());
+
+        // from uint32
+        let tmp_val = UInt32::allocated_constant(cs, 2u32.pow(31) + 100);
+        let from_uint32 = MersenneField::<F>::from_uint32_with_reduction(cs, tmp_val);
+        assert_eq!(101, from_uint32.witness_hook(&*cs)().unwrap().0);
 
         let worker = Worker::new_with_num_threads(8);
 
