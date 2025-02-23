@@ -4,9 +4,7 @@ use crate::field::Field;
 use crate::field::PrimeField;
 use crate::Mersenne31Field;
 use core::ops::{Add, Mul, Sub};
-// use crate::field_like::FieldLikeVectorized;
 use seq_macro::seq;
-// use crate::prover::prover::Timer;
 
 pub const WIDTH: usize = 16;
 

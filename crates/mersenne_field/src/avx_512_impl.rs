@@ -24,7 +24,6 @@ impl core::fmt::Display for Mersenne31FieldVectorized {
     }
 }
 
-// use core::Rand;
 use rand::Rng;
 impl Rand for Mersenne31FieldVectorized {
     fn random_element<R: Rng + ?Sized>(rng: &mut R) -> Mersenne31FieldVectorized {
