@@ -2,9 +2,11 @@ use super::*;
 use crate::cs::cs_builder::*;
 use crate::gadgets::traits::castable::WitnessCastable;
 
-// for a, b, c being u8x4 we output a + b mod 2^32 as u8x4 and a + b / 2^32
+// for a, b being u8x4 we output (a + b) mod 2^32 as u8x4 and (a + b) / 2^32 (a.k.a carry-out)
 // `carry_out` is boolean constrainted
-// but `c` parts are NOT. We will use separate range checks
+// We will use separate range checks.
+
+// TODO: verify range checks !!
 
 #[derive(Derivative)]
 #[derivative(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -12,8 +14,8 @@ pub struct U32AddCarryAsChunkConstraintEvaluator;
 
 impl U32AddCarryAsChunkConstraintEvaluator {
     const fn principal_width() -> usize {
-        4 * 2 + // input
-        4 + 1 // output
+        4 * 2 + // input (a, b)
+        4 + 1 // output (out, carry)
     }
 }
 
@@ -216,7 +218,6 @@ impl U32AddCarryAsChunkGate {
     >(
         builder: CsBuilder<TImpl, F, GC, TB>,
         placement_strategy: GatePlacementStrategy,
-        // ) -> CsBuilder<TImpl, F, GC::DescendantHolder<Self, NextGateCounterWithoutParams>, TB> {
     ) -> CsBuilder<TImpl, F, (GateTypeEntry<F, Self, NextGateCounterWithoutParams>, GC), TB> {
         builder.allow_gate(placement_strategy, (), None)
     }
@@ -236,7 +237,7 @@ impl U32AddCarryAsChunkGate {
                 let tooling: &mut NextGateCounterWithoutParams = cs
                     .get_gates_config_mut()
                     .get_aux_data_mut::<Self, _>()
-                    .expect("gate must be allowed");
+                    .expect("U32AddCarryAsChunkGate gate must be allowed");
                 let (row, num_instances_already_placed) =
                     find_next_gate_without_params(tooling, capacity_per_row, offered_row_idx);
                 drop(tooling);
@@ -264,7 +265,7 @@ impl U32AddCarryAsChunkGate {
                 let tooling: &mut NextGateCounterWithoutParams = cs
                     .get_gates_config_mut()
                     .get_aux_data_mut::<Self, _>()
-                    .expect("gate must be allowed");
+                    .expect("U32AddCarryAsChunkGate gate must be allowed");
                 let (row, num_instances_already_placed) =
                     find_next_specialized_gate_without_params(tooling, capacity_per_row);
                 cs.place_gate_specialized(&self, num_instances_already_placed, row);
@@ -308,6 +309,7 @@ impl U32AddCarryAsChunkGate {
         debug_assert!(F::CAPACITY_BITS >= 33);
         debug_assert!(cs.gate_is_allowed::<Self>());
 
+        // 5 output variables - 4 for "output" and 1 for carry
         let output_variables = cs.alloc_multiple_variables_without_values::<5>();
 
         if <CS::Config as CSConfig>::WitnessConfig::EVALUATE_WITNESS {

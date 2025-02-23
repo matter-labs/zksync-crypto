@@ -322,7 +322,6 @@ pub fn merge_byte_using_table<F: SmallField, CS: ConstraintSystem<F>, const SPLI
     debug_assert!(SPLIT_AT < 8);
 
     let result = cs.alloc_variable_without_value();
-    // dbg!(result);
 
     if <CS::Config as CSConfig>::WitnessConfig::EVALUATE_WITNESS == true {
         let value_fn = move |input: [F; 2]| {
