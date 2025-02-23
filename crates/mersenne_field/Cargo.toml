@@ -1,0 +1,15 @@
+[package]
+name = "mersenne_field"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+serde.workspace = true
+rand = { workspace = true, default-features = false }
+seq-macro = "0.3"
+
+[features]
+use_division = []
+default = []
+modular_ops = ["use_division"]
+modular_ext4_ops = ["modular_ops"]
