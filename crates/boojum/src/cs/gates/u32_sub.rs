@@ -37,7 +37,7 @@ impl<F: PrimeField> GateConstraintEvaluator<F> for U32SubConstraintEvaluator {
     #[inline]
     fn gate_purpose() -> GatePurpose {
         GatePurpose::Evaluatable {
-            max_constraint_degree: 1,
+            max_constraint_degree: 2,
             num_quotient_terms: 2,
         }
     }
