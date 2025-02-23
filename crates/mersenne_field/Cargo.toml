@@ -1,0 +1,22 @@
+[package]
+name = "mersenne_field"
+version.workspace = true
+edition = "2021"
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+license.workspace = true
+keywords.workspace = true
+categories.workspace = true
+description = "Mersenne field operations"
+
+[dependencies]
+serde = { version = "1", default-features = false, features = ["derive", "alloc"]}
+rand = {version = "0.8", default-features = false }
+seq-macro = "0.3"
+
+[features]
+use_division = []
+default = []
+modular_ops = ["use_division"]
+modular_ext4_ops = ["modular_ops"]
