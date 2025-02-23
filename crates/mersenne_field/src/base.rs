@@ -536,3 +536,148 @@ impl BaseField for Mersenne31Field {
         Self::mul_by_non_residue_impl(elem);
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::hash::DefaultHasher;
+
+    use super::*;
+
+    #[test]
+    // New assumes that u32 is inside the field.
+    fn test_new() {
+        let a = Mersenne31Field::new(0);
+        assert_eq!(a.0, 0);
+
+        let b = Mersenne31Field::new(Mersenne31Field::ORDER - 1);
+        assert_eq!(b.0, Mersenne31Field::ORDER - 1);
+    }
+    #[test]
+    fn test_from_nonreduced_u32() {
+        let a = Mersenne31Field::from_nonreduced_u32(Mersenne31Field::ORDER);
+        assert_eq!(a.0, 0);
+
+        let b = Mersenne31Field::from_nonreduced_u32(Mersenne31Field::ORDER + 1);
+        assert_eq!(b.0, 1);
+
+        let c = Mersenne31Field::from_nonreduced_u32(2 * Mersenne31Field::ORDER - 1);
+        assert_eq!(c.0, Mersenne31Field::ORDER - 1);
+
+        let d = Mersenne31Field::from_nonreduced_u32(2 * Mersenne31Field::ORDER);
+        assert_eq!(d.0, 0);
+
+        let e = Mersenne31Field::from_nonreduced_u32(u32::MAX);
+        assert_eq!(e.0, 1);
+    }
+
+    #[test]
+    fn test_two_zeros() {
+        let d = Mersenne31Field::new(Mersenne31Field::ORDER - 1);
+        let e = Mersenne31Field::new(1);
+        let f = d + e;
+        // Zero here can be represented as 0 or 2^31 - 1.
+        assert_eq!(f.to_reduced_u32(), 0);
+        assert!(f.is_zero());
+
+
+        let h = Mersenne31Field::default();
+        assert!(h.is_zero());
+
+        assert_eq!(h, f);
+
+        let h = Mersenne31Field::default();
+        assert_eq!(h, f);
+
+        let mut h_hasher = DefaultHasher::default();
+        h.hash(&mut h_hasher);
+
+        let mut f_hasher = DefaultHasher::default();
+        f.hash(&mut f_hasher);
+
+        assert_eq!(f_hasher.finish(), h_hasher.finish());
+
+        let one = Mersenne31Field::ONE;
+
+        assert!(f < one);
+        assert!(h < one);
+
+    }
+    
+ 
+    #[test]
+    fn test_add() {
+        let a = Mersenne31Field::new(1);
+        let b = Mersenne31Field::new(2);
+        let c = a + b;
+        assert_eq!(c.0, 3);
+
+        let d = Mersenne31Field::new(Mersenne31Field::ORDER - 1);
+        let e = Mersenne31Field::new(1);
+        let f = d + e;
+        // Zero here can be represented as 0 or 2^31 - 1.
+        assert_eq!(f.to_reduced_u32(), 0);
+        assert!(f.is_zero_impl());
+        // But adding +1 to 0 should give 1.
+        let g = f + e;
+        assert_eq!(g.0, 1);
+        assert!(g.is_zero_impl() == false);
+    }
+
+    #[test]
+    fn test_sub() {
+        let a = Mersenne31Field::new(3);
+        let b = Mersenne31Field::new(2);
+        let c = a - b;
+        assert_eq!(c.0, 1);
+
+        let d = Mersenne31Field::new(0);
+        let e = Mersenne31Field::new(1);
+        let f = d - e;
+        assert_eq!(f.0, Mersenne31Field::ORDER - 1);
+    }
+ 
+    #[test]
+    fn test_mul() {
+        let mut a = Mersenne31Field::new(2);
+        let b = Mersenne31Field::new(3);
+        a.mul_assign(&b);
+        assert_eq!(a.0, 6);
+        
+        let mut d = Mersenne31Field::new(Mersenne31Field::ORDER - 1);
+        let e = Mersenne31Field::new(2);
+        d.mul_assign(&e);
+        assert_eq!(d.0, Mersenne31Field::ORDER - 2);
+    }
+ 
+    #[test]
+    fn test_inverse() {
+        let mut a = Mersenne31Field::new(3);
+        let inv_a = a.inverse().unwrap();
+        let one = a.mul_assign(&inv_a);
+        assert_eq!(one.0, 1);
+
+        let zero = Mersenne31Field::new(0);
+        assert!(zero.inverse().is_none());
+    }
+ 
+    #[test]
+    fn test_sqrt() {
+        let a = Mersenne31Field::new(4);
+        let sqrt_a = a.sqrt().unwrap();
+        assert_eq!(sqrt_a.0, 2);
+
+        let b = Mersenne31Field::new(5);
+        assert!(b.sqrt().is_none());
+    }
+ 
+    #[test]
+    fn test_large_numbers() {
+        let mut a = Mersenne31Field::new(Mersenne31Field::ORDER - 1);
+        let b = Mersenne31Field::new(Mersenne31Field::ORDER - 2);
+        let c = a + b;
+        assert_eq!(c.0, Mersenne31Field::ORDER - 3);
+
+        let d = a.mul_assign(&b);
+        assert_eq!(d.0, 2);
+    }
+}

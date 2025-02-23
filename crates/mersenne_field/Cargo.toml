@@ -4,8 +4,12 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-serde.workspace = true
-rand = { workspace = true, default-features = false }
+#serde.workspace = true
+serde = { version = "1", default-features = false, features = ["derive", "alloc"]}
+
+rand = {version = "0.8", default-features = false }
+
+#rand = { workspace = true, default-features = false }
 seq-macro = "0.3"
 
 [features]
