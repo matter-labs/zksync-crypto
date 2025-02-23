@@ -91,23 +91,6 @@ impl Mersenne31Field {
     }
 
     #[inline(always)]
-    pub const fn from_negative_u64_with_reduction(x: u64) -> Self {
-        let x_low = (x as u32) & ((1 << 31) - 1);
-        let x_high = ((x >> 31) as u32) & ((1 << 31) - 1);
-        let x_sign = (x >> 63) as u32;
-        let res_wrapped = x_low.wrapping_add(x_high);
-        let res_wrapped = res_wrapped - x_sign;
-        let msb = res_wrapped & (1 << 31);
-        let mut sum = res_wrapped;
-        sum ^= msb;
-        let mut res = sum + (msb != 0) as u32;
-        if res >= Self::ORDER {
-            res -= Self::ORDER;
-        }
-        Mersenne31Field(res)
-    }
-
-    #[inline(always)]
     pub const fn from_u62(x: u64) -> Self {
         let product_low = (x as u32) & ((1 << 31) - 1);
         let product_high = (x >> 31) as u32;
@@ -257,59 +240,6 @@ impl Mersenne31Field {
         self.0 = ops::mul_mod(self.0, other.0);
         self
     }
-
-    // #[cfg(all(feature = "use_division", feature = "use_mulmod_csr"))]
-    // #[inline(always)]
-    // pub(crate) const fn mul_assign_impl(&'_ mut self, other: &Self) -> &'_ mut Self {
-    //     #[inline(always)]
-    //     const fn ct_impl(a: u32, b: u32) -> u32 {
-    //         let product = (a as u64) * (b as u64);
-    //         let product_low = (product as u32) & ((1 << 31) - 1);
-    //         let product_high = (product >> 31) as u32;
-    //         reduce_with_division(product_low + product_high)
-    //     }
-
-    //     #[inline(always)]
-    //     #[cfg(target_arch = "riscv32")]
-    //     fn rt_impl(a: u32, b: u32) -> u32 {
-    //         let mut result;
-    //         unsafe {
-    //             core::arch::asm!(
-    //                 "csrrw x0, 0x7c2, {inp1}",
-    //                 "csrrw {rd}, 0x7c2, {inp2}",
-    //                 inp1 = in(reg) a,
-    //                 inp2 = in(reg) b,
-    //                 rd = out(reg) result,
-    //                 options(nomem, nostack, preserves_flags)
-    //             )
-    //         }
-
-    //         result
-    //     }
-
-    //     #[inline(always)]
-    //     #[cfg(not(target_arch = "riscv32"))]
-    //     fn rt_impl(a: u32, b: u32) -> u32 {
-    //         let product = (a as u64) * (b as u64);
-    //         let product_low = (product as u32) & ((1 << 31) - 1);
-    //         let product_high = (product >> 31) as u32;
-    //         reduce_with_division(product_low + product_high)
-    //     }
-
-    //     #[inline(always)]
-    //     const fn impl_inner(a: u32, b: u32) -> u32 {
-    //         core::intrinsics::const_eval_select(
-    //             (a,b,),
-    //             ct_impl,
-    //             rt_impl,
-    //         )
-    //     }
-
-    //     *self = Self(impl_inner(self.0, other.0));
-
-    //     self
-
-    // }
 
     #[inline(always)]
     pub(crate) const fn square_impl(&'_ mut self) -> &'_ mut Self {
@@ -680,4 +610,126 @@ mod tests {
         let d = a.mul_assign(&b);
         assert_eq!(d.0, 2);
     }
+
+    #[test]
+    fn test_mul_2exp_u64_identity() {
+        // Check that rotating by 31 bits (full rotation) returns the original element.
+        let a = Mersenne31Field::new(0x1ABCDEF);
+        assert_eq!(a.mul_2exp_u64(31).0, a.0);
+        assert_eq!(a.mul_2exp_u64(0).0, a.0);
+        assert_eq!(a.mul_2exp_u64(31 * 800_000).0, a.0);
+    }
+
+    #[test]
+    fn test_mul_2exp_u64_rotation() {
+        // For a rotation by 1 bit, compute the expected value manually.
+        let a = Mersenne31Field::new(0x1234567);
+        let expected = 0x2468ace;
+        assert_eq!(a.mul_2exp_u64(1).0, expected);
+    }
+
+    #[test]
+    fn test_div_2exp_u64_identity() {
+        // Check that rotating right by 31 bits (full rotation) returns the original element.
+        let a = Mersenne31Field::new(0x1ABCDEF);
+        assert_eq!(a.div_2exp_u64(31).0, a.0);
+        assert_eq!(a.div_2exp_u64(0).0, a.0);
+        assert_eq!(a.div_2exp_u64(31 * 800_000).0, a.0);
+    }
+
+    #[test]
+    fn test_div_2exp_u64_rotation() {
+        // For a rotation by 1 bit to the right, compute the expected value manually.
+        let a = Mersenne31Field::new(0x2468ace);
+
+        assert_eq!(a.div_2exp_u64(1).0, 0x1234567);
+    }
+
+    #[test]
+    fn test_from_u62() {
+        // For x = 1 << 31, we have:
+        // product_low = 0, product_high = 1, so result = add_mod(0, 1) = 1.
+        let a = Mersenne31Field::from_u62(1u64 << 31);
+        assert_eq!(a.0, 1);
+
+        // For x less than 2^31, from_u62 should act as the identity.
+        let b = Mersenne31Field::from_u62(42);
+        assert_eq!(b.0, 42);
+
+        // For a composite x = (high << 31) + low.
+        // Let high = 10 and low = 100.
+        let x = (10u64 << 31) + 100;
+        let expected = 110;
+        let c = Mersenne31Field::from_u62(x);
+        assert_eq!(c.0, expected);
+    }
+
+    #[test]
+    fn test_mul_by_two() {
+        // Test that multiplying by two is equivalent to addition with itself.
+        let a = Mersenne31Field::new(7);
+        let mut b = a;
+        b.mul_by_two();
+        let expected = a + a;
+        assert_eq!(b.to_reduced_u32(), expected.to_reduced_u32());
+        assert_eq!(b.to_reduced_u32(), 14);
+
+    }
+
+    #[test]
+    fn test_div_by_two() {
+        // Test that dividing by two is the inverse of multiplying by two.
+        let a = Mersenne31Field::new(14);
+        let mut b = a;
+        b.div_by_two();
+        // Since 14 / 2 = 7 modulo ORDER
+        let expected = Mersenne31Field::new(7);
+        assert_eq!(b.to_reduced_u32(), expected.to_reduced_u32());
+
+        b.div_by_two();
+        // 1073741827 * 2 % ORDER = 7
+        assert_eq!(b.to_reduced_u32(), 1073741827);
+    }
+
+    #[test]
+    fn test_fused_mul_add_assign() {
+        // Test fused multiply-add: result = self + a * b.
+        let a = Mersenne31Field::new(2);
+        let b = Mersenne31Field::new(3);
+        let mut result = Mersenne31Field::new(4);
+        result.fused_mul_add_assign(&a, &b);
+        // Expected: 4 + (2 * 3) = 10.
+        let expected = Mersenne31Field::new(10);
+        assert_eq!(result.to_reduced_u32(), expected.to_reduced_u32());
+    }
+
+    #[test]
+    fn test_negate() {
+        // Test negate for a nonzero element.
+        let mut a = Mersenne31Field::new(5);
+        a.negate();
+        let expected = Mersenne31Field::new(Mersenne31Field::ORDER - 5);
+        assert_eq!(a.to_reduced_u32(), expected.to_reduced_u32());
+
+        // Test negate on zero remains zero.
+        let mut zero = Mersenne31Field::new(0);
+        zero.negate();
+        assert_eq!(zero.to_reduced_u32(), 0);
+    }
+
+    #[test]
+    fn test_double() {
+        // Test double for an element.
+        let mut a = Mersenne31Field::new(6);
+        a.double();
+        assert_eq!(a.to_reduced_u32(), 12);
+
+        // Test double when wrapping around the modulus.
+        let mut b = Mersenne31Field::new(Mersenne31Field::ORDER - 1);
+        b.double();
+        // (ORDER - 1) * 2 mod ORDER should equal ORDER - 2.
+        let expected = Mersenne31Field::new(Mersenne31Field::ORDER - 2);
+        assert_eq!(b.to_reduced_u32(), expected.to_reduced_u32());
+    }
+
 }
