@@ -843,8 +843,14 @@ impl<T: Debug, F: SmallField, Cfg: CSResolverConfig> BufferGuide<T, F, Cfg> {
 impl<T: Copy + Debug, F: SmallField, Cfg: CSResolverConfig> Guide<T, F, Cfg>
     for BufferGuide<T, F, Cfg>
 {
-    type PushOrder<'a>         = BufferGuideOrder       <'a, T, F, Cfg> where T: 'a;
-    type FinalizationOrder<'a> = BufferGuideFinalization<'a, T, F, Cfg> where T: 'a;
+    type PushOrder<'a>
+        = BufferGuideOrder<'a, T, F, Cfg>
+    where
+        T: 'a;
+    type FinalizationOrder<'a>
+        = BufferGuideFinalization<'a, T, F, Cfg>
+    where
+        T: 'a;
 
     fn push(
         &mut self,

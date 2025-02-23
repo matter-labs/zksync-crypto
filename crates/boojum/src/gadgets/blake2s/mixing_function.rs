@@ -4,8 +4,8 @@ use crate::cs::gates::{
 };
 use crate::cs::Variable;
 use crate::cs::{
-    gates::u32_tri_add_carry_as_chunk::U32TriAddCarryAsChunkGate, traits::cs::ConstraintSystem,
     gates::u32_add_carry_as_chunk::U32AddCarryAsChunkGate,
+    gates::u32_tri_add_carry_as_chunk::U32TriAddCarryAsChunkGate, traits::cs::ConstraintSystem,
 };
 use crate::gadgets::tables::xor8::Xor8Table;
 use crate::gadgets::traits::castable::WitnessCastable;
@@ -64,11 +64,8 @@ pub fn mixing_function_g<F: SmallField, CS: ConstraintSystem<F>>(
     // v[b] := (v[b] ^ v[c]) >>> R2
 
     // second op has unpleasant roration, but nevetheless
-    let (new_c, to_constraint) = add_as_byte_chunks(
-        cs,
-        &space[space_idxes[2]].inner.map(|el| el.variable),
-        &d
-    );
+    let (new_c, to_constraint) =
+        add_as_byte_chunks(cs, &space[space_idxes[2]].inner.map(|el| el.variable), &d);
     let mut c = new_c;
     all_to_constraint.extend(to_constraint);
     // here we have to rotate by 12 after xor, so we decompose, xor, and recompose

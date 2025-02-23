@@ -1,7 +1,7 @@
 use mersenne_field::{Mersenne31Complex, Mersenne31Quartic};
 
-use super::*;
 use super::second_ext::*;
+use super::*;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct MersenneQuartic<F: SmallField> {
@@ -36,15 +36,30 @@ impl<F: SmallField> MersenneQuartic<F> {
     }
 
     pub fn get_variables(&self) -> [Variable; 4] {
-        [self.x.x.variable, self.x.y.variable, self.y.x.variable, self.y.y.variable]
+        [
+            self.x.x.variable,
+            self.x.y.variable,
+            self.y.x.variable,
+            self.y.y.variable,
+        ]
     }
 
     pub fn into_nums(&self) -> [Num<F>; 4] {
-        [self.x.x.into_num(), self.x.y.into_num(), self.y.x.into_num(), self.y.y.into_num()]
+        [
+            self.x.x.into_num(),
+            self.x.y.into_num(),
+            self.y.x.into_num(),
+            self.y.y.into_num(),
+        ]
     }
 
     pub fn into_uint32s(&self) -> [UInt32<F>; 4] {
-        [self.x.x.into_uint32(), self.x.y.into_uint32(), self.y.x.into_uint32(), self.y.y.into_uint32()]
+        [
+            self.x.x.into_uint32(),
+            self.x.y.into_uint32(),
+            self.y.x.into_uint32(),
+            self.y.y.into_uint32(),
+        ]
     }
 
     pub fn into_coeffs(&self) -> [MersenneField<F>; 4] {
@@ -59,7 +74,11 @@ impl<F: SmallField> MersenneQuartic<F> {
     }
 
     /// The coordinate values should be in range [0, 2^31 - 2]
-    fn from_variables_checked<CS: ConstraintSystem<F>>(cs: &mut CS, variables: [Variable; 4], reduced: bool) -> Self {
+    fn from_variables_checked<CS: ConstraintSystem<F>>(
+        cs: &mut CS,
+        variables: [Variable; 4],
+        reduced: bool,
+    ) -> Self {
         Self {
             x: MersenneComplex::from_variables_checked(cs, [variables[0], variables[1]], reduced),
             y: MersenneComplex::from_variables_checked(cs, [variables[2], variables[3]], reduced),
@@ -143,9 +162,17 @@ impl<F: SmallField> MersenneQuartic<F> {
         }
     }
 
-    pub fn mul_and_add<CS: ConstraintSystem<F>>(&self, cs: &mut CS, other_mul: &Self, other_add: &Self) -> Self {
+    pub fn mul_and_add<CS: ConstraintSystem<F>>(
+        &self,
+        cs: &mut CS,
+        other_mul: &Self,
+        other_add: &Self,
+    ) -> Self {
         // (a + bj)(c + dj) + (e + fj) = (ac + kbd + e) + (ad + bc + f)j
-        let kbd_plus_e = self.y.mul_by_non_residue(cs).mul_and_add(cs, &other_mul.y, &other_add.x);
+        let kbd_plus_e = self
+            .y
+            .mul_by_non_residue(cs)
+            .mul_and_add(cs, &other_mul.y, &other_add.x);
         let bc_plus_f = self.y.mul_and_add(cs, &other_mul.x, &other_add.y);
 
         Self {
@@ -179,21 +206,33 @@ impl<F: SmallField> MersenneQuartic<F> {
         // (5) tmp4 - reduce_a * modulus = a
         // reduce_a has 33 bits
         // a has 31 bits
-        let tmp1 = FmaGateInBaseFieldWithoutConstant::compute_fma(cs,
-            F::ONE, (a1.variable, a2.variable),
-            F::from_u64_unchecked(M31_MODULUS * (M31_MODULUS + 1)), one
+        let tmp1 = FmaGateInBaseFieldWithoutConstant::compute_fma(
+            cs,
+            F::ONE,
+            (a1.variable, a2.variable),
+            F::from_u64_unchecked(M31_MODULUS * (M31_MODULUS + 1)),
+            one,
         );
-        let tmp2 = FmaGateInBaseFieldWithoutConstant::compute_fma(cs,
-            F::MINUS_ONE, (b1.variable, b2.variable),
-            F::ONE, tmp1
+        let tmp2 = FmaGateInBaseFieldWithoutConstant::compute_fma(
+            cs,
+            F::MINUS_ONE,
+            (b1.variable, b2.variable),
+            F::ONE,
+            tmp1,
         );
-        let tmp3 = FmaGateInBaseFieldWithoutConstant::compute_fma(cs,
-            F::TWO, (c1c2_minus_d1d2.variable, one),
-            F::ONE, tmp2
+        let tmp3 = FmaGateInBaseFieldWithoutConstant::compute_fma(
+            cs,
+            F::TWO,
+            (c1c2_minus_d1d2.variable, one),
+            F::ONE,
+            tmp2,
         );
-        let tmp4 = FmaGateInBaseFieldWithoutConstant::compute_fma(cs,
-            F::MINUS_ONE, (c1d2_plus_d1c2.variable, one),
-            F::ONE, tmp3
+        let tmp4 = FmaGateInBaseFieldWithoutConstant::compute_fma(
+            cs,
+            F::MINUS_ONE,
+            (c1d2_plus_d1c2.variable, one),
+            F::ONE,
+            tmp3,
         );
 
         let (a, reduce_a) = reduce_mersenne31(cs, tmp4);
@@ -206,17 +245,26 @@ impl<F: SmallField> MersenneQuartic<F> {
         // (4) tmp8 - reduce_b * modulus = b
         // reduce_b has 33 bits
         // b has 31 bits
-        let tmp6 = FmaGateInBaseFieldWithoutConstant::compute_fma(cs,
-            F::ONE, (a1.variable, b2.variable),
-            F::ONE, c1c2_minus_d1d2.variable
+        let tmp6 = FmaGateInBaseFieldWithoutConstant::compute_fma(
+            cs,
+            F::ONE,
+            (a1.variable, b2.variable),
+            F::ONE,
+            c1c2_minus_d1d2.variable,
         );
-        let tmp7 = FmaGateInBaseFieldWithoutConstant::compute_fma(cs,
-            F::ONE, (b1.variable, a2.variable),
-            F::ONE, tmp6
+        let tmp7 = FmaGateInBaseFieldWithoutConstant::compute_fma(
+            cs,
+            F::ONE,
+            (b1.variable, a2.variable),
+            F::ONE,
+            tmp6,
         );
-        let tmp8 = FmaGateInBaseFieldWithoutConstant::compute_fma(cs,
-            F::TWO, (c1d2_plus_d1c2.variable, one),
-            F::ONE, tmp7
+        let tmp8 = FmaGateInBaseFieldWithoutConstant::compute_fma(
+            cs,
+            F::TWO,
+            (c1d2_plus_d1c2.variable, one),
+            F::ONE,
+            tmp7,
         );
 
         let (b, reduce_b) = reduce_mersenne31(cs, tmp8);
@@ -230,21 +278,33 @@ impl<F: SmallField> MersenneQuartic<F> {
         // (6) tmp13 - reduce_c * modulus = c
         // reduce_c has 33 bits
         // c has 31 bits
-        let tmp10 = FmaGateInBaseFieldWithoutConstant::compute_fma(cs,
-            F::ONE, (a1.variable, c2.variable),
-            F::from_u64_unchecked(2*M31_MODULUS*M31_MODULUS), one
+        let tmp10 = FmaGateInBaseFieldWithoutConstant::compute_fma(
+            cs,
+            F::ONE,
+            (a1.variable, c2.variable),
+            F::from_u64_unchecked(2 * M31_MODULUS * M31_MODULUS),
+            one,
         );
-        let tmp11 = FmaGateInBaseFieldWithoutConstant::compute_fma(cs,
-            F::MINUS_ONE, (b1.variable, d2.variable),
-            F::ONE, tmp10
+        let tmp11 = FmaGateInBaseFieldWithoutConstant::compute_fma(
+            cs,
+            F::MINUS_ONE,
+            (b1.variable, d2.variable),
+            F::ONE,
+            tmp10,
         );
-        let tmp12 = FmaGateInBaseFieldWithoutConstant::compute_fma(cs,
-            F::ONE, (c1.variable, a2.variable),
-            F::ONE, tmp11
+        let tmp12 = FmaGateInBaseFieldWithoutConstant::compute_fma(
+            cs,
+            F::ONE,
+            (c1.variable, a2.variable),
+            F::ONE,
+            tmp11,
         );
-        let tmp13 = FmaGateInBaseFieldWithoutConstant::compute_fma(cs,
-            F::MINUS_ONE, (d1.variable, b2.variable),
-            F::ONE, tmp12
+        let tmp13 = FmaGateInBaseFieldWithoutConstant::compute_fma(
+            cs,
+            F::MINUS_ONE,
+            (d1.variable, b2.variable),
+            F::ONE,
+            tmp12,
         );
 
         let (c, reduce_c) = reduce_mersenne31(cs, tmp13);
@@ -258,39 +318,50 @@ impl<F: SmallField> MersenneQuartic<F> {
         // (5) tmp18 - reduce_d * modulus = d
         // reduce_d has 33 bits
         // d has 31 bits
-        let tmp15 = FmaGateInBaseFieldWithoutConstant::compute_fma(cs,
-            F::ONE, (a1.variable, d2.variable),
-            F::ZERO, one
+        let tmp15 = FmaGateInBaseFieldWithoutConstant::compute_fma(
+            cs,
+            F::ONE,
+            (a1.variable, d2.variable),
+            F::ZERO,
+            one,
         );
-        let tmp16 = FmaGateInBaseFieldWithoutConstant::compute_fma(cs,
-            F::ONE, (b1.variable, c2.variable),
-            F::ONE, tmp15
+        let tmp16 = FmaGateInBaseFieldWithoutConstant::compute_fma(
+            cs,
+            F::ONE,
+            (b1.variable, c2.variable),
+            F::ONE,
+            tmp15,
         );
-        let tmp17 = FmaGateInBaseFieldWithoutConstant::compute_fma(cs,
-            F::ONE, (c1.variable, b2.variable),
-            F::ONE, tmp16
+        let tmp17 = FmaGateInBaseFieldWithoutConstant::compute_fma(
+            cs,
+            F::ONE,
+            (c1.variable, b2.variable),
+            F::ONE,
+            tmp16,
         );
-        let tmp18 = FmaGateInBaseFieldWithoutConstant::compute_fma(cs,
-            F::ONE, (d1.variable, a2.variable),
-            F::ONE, tmp17
+        let tmp18 = FmaGateInBaseFieldWithoutConstant::compute_fma(
+            cs,
+            F::ONE,
+            (d1.variable, a2.variable),
+            F::ONE,
+            tmp17,
         );
 
         let (d, reduce_d) = reduce_mersenne31(cs, tmp18);
         range_check_33_bits(cs, reduce_d);
 
         Self {
-            x: MersenneComplex {
-                x: a,
-                y: b,
-            },
-            y: MersenneComplex {
-                x: c,
-                y: d,
-            }
+            x: MersenneComplex { x: a, y: b },
+            y: MersenneComplex { x: c, y: d },
         }
     }
 
-    pub fn mul_and_add_optimized<CS: ConstraintSystem<F>>(&self, cs: &mut CS, other_mul: &Self, other_add: &Self) -> Self {
+    pub fn mul_and_add_optimized<CS: ConstraintSystem<F>>(
+        &self,
+        cs: &mut CS,
+        other_mul: &Self,
+        other_add: &Self,
+    ) -> Self {
         // (a, b, c, d) = (a1, b1, c1, d1)(a2, b2, c2, d2) + (a3, b3, c3, d3)
         // (a, b) = (a1, b1)(a2, b2) + (c1, d1)(c2, d2)(2, 1) + (a3, b3)
         // (c, d) = (a1, b1)(c2, d2) + (c1, d1)(a2, b2) + (c3, d3)
@@ -317,25 +388,40 @@ impl<F: SmallField> MersenneQuartic<F> {
         // (6) tmp5 - reduce_a * modulus = a
         // reduce_a has 33 bits
         // a has 31 bits
-        let tmp1 = FmaGateInBaseFieldWithoutConstant::compute_fma(cs,
-            F::ONE, (a1.variable, a2.variable),
-            F::ONE, a3.variable
+        let tmp1 = FmaGateInBaseFieldWithoutConstant::compute_fma(
+            cs,
+            F::ONE,
+            (a1.variable, a2.variable),
+            F::ONE,
+            a3.variable,
         );
-        let tmp2 = FmaGateInBaseFieldWithoutConstant::compute_fma(cs,
-            F::MINUS_ONE, (b1.variable, b2.variable),
-            F::ONE, tmp1
+        let tmp2 = FmaGateInBaseFieldWithoutConstant::compute_fma(
+            cs,
+            F::MINUS_ONE,
+            (b1.variable, b2.variable),
+            F::ONE,
+            tmp1,
         );
-        let tmp3 = FmaGateInBaseFieldWithoutConstant::compute_fma(cs,
-            F::TWO, (c1c2_minus_d1d2.variable, one),
-            F::ONE, tmp2
+        let tmp3 = FmaGateInBaseFieldWithoutConstant::compute_fma(
+            cs,
+            F::TWO,
+            (c1c2_minus_d1d2.variable, one),
+            F::ONE,
+            tmp2,
         );
-        let tmp4 = FmaGateInBaseFieldWithoutConstant::compute_fma(cs,
-            F::MINUS_ONE, (c1d2_plus_d1c2.variable, one),
-            F::ONE, tmp3
+        let tmp4 = FmaGateInBaseFieldWithoutConstant::compute_fma(
+            cs,
+            F::MINUS_ONE,
+            (c1d2_plus_d1c2.variable, one),
+            F::ONE,
+            tmp3,
         );
-        let tmp5 = FmaGateInBaseFieldWithoutConstant::compute_fma(cs,
-            F::from_u64_unchecked(M31_MODULUS * (M31_MODULUS + 1)), (one, one),
-            F::ONE, tmp4
+        let tmp5 = FmaGateInBaseFieldWithoutConstant::compute_fma(
+            cs,
+            F::from_u64_unchecked(M31_MODULUS * (M31_MODULUS + 1)),
+            (one, one),
+            F::ONE,
+            tmp4,
         );
 
         let (a, reduce_a) = reduce_mersenne31(cs, tmp5);
@@ -349,21 +435,33 @@ impl<F: SmallField> MersenneQuartic<F> {
         // (5) tmp9 - reduce_b * modulus = b
         // reduce_b has 33 bits
         // b has 31 bits
-        let tmp6 = FmaGateInBaseFieldWithoutConstant::compute_fma(cs,
-            F::ONE, (a1.variable, b2.variable),
-            F::ONE, b3.variable
+        let tmp6 = FmaGateInBaseFieldWithoutConstant::compute_fma(
+            cs,
+            F::ONE,
+            (a1.variable, b2.variable),
+            F::ONE,
+            b3.variable,
         );
-        let tmp7 = FmaGateInBaseFieldWithoutConstant::compute_fma(cs,
-            F::ONE, (b1.variable, a2.variable),
-            F::ONE, tmp6
+        let tmp7 = FmaGateInBaseFieldWithoutConstant::compute_fma(
+            cs,
+            F::ONE,
+            (b1.variable, a2.variable),
+            F::ONE,
+            tmp6,
         );
-        let tmp8 = FmaGateInBaseFieldWithoutConstant::compute_fma(cs,
-            F::TWO, (c1d2_plus_d1c2.variable, one),
-            F::ONE, tmp7
+        let tmp8 = FmaGateInBaseFieldWithoutConstant::compute_fma(
+            cs,
+            F::TWO,
+            (c1d2_plus_d1c2.variable, one),
+            F::ONE,
+            tmp7,
         );
-        let tmp9 = FmaGateInBaseFieldWithoutConstant::compute_fma(cs,
-            F::ONE, (c1c2_minus_d1d2.variable, one),
-            F::ONE, tmp8
+        let tmp9 = FmaGateInBaseFieldWithoutConstant::compute_fma(
+            cs,
+            F::ONE,
+            (c1c2_minus_d1d2.variable, one),
+            F::ONE,
+            tmp8,
         );
 
         let (b, reduce_b) = reduce_mersenne31(cs, tmp9);
@@ -378,25 +476,40 @@ impl<F: SmallField> MersenneQuartic<F> {
         // (6) tmp14 - reduce_c * modulus = c
         // reduce_c has 33 bits
         // c has 31 bits
-        let tmp10 = FmaGateInBaseFieldWithoutConstant::compute_fma(cs,
-            F::ONE, (a1.variable, c2.variable),
-            F::ONE, c3.variable
+        let tmp10 = FmaGateInBaseFieldWithoutConstant::compute_fma(
+            cs,
+            F::ONE,
+            (a1.variable, c2.variable),
+            F::ONE,
+            c3.variable,
         );
-        let tmp11 = FmaGateInBaseFieldWithoutConstant::compute_fma(cs,
-            F::MINUS_ONE, (b1.variable, d2.variable),
-            F::ONE, tmp10
+        let tmp11 = FmaGateInBaseFieldWithoutConstant::compute_fma(
+            cs,
+            F::MINUS_ONE,
+            (b1.variable, d2.variable),
+            F::ONE,
+            tmp10,
         );
-        let tmp12 = FmaGateInBaseFieldWithoutConstant::compute_fma(cs,
-            F::ONE, (c1.variable, a2.variable),
-            F::ONE, tmp11
+        let tmp12 = FmaGateInBaseFieldWithoutConstant::compute_fma(
+            cs,
+            F::ONE,
+            (c1.variable, a2.variable),
+            F::ONE,
+            tmp11,
         );
-        let tmp13 = FmaGateInBaseFieldWithoutConstant::compute_fma(cs,
-            F::MINUS_ONE, (d1.variable, b2.variable),
-            F::ONE, tmp12
+        let tmp13 = FmaGateInBaseFieldWithoutConstant::compute_fma(
+            cs,
+            F::MINUS_ONE,
+            (d1.variable, b2.variable),
+            F::ONE,
+            tmp12,
         );
-        let tmp14 = FmaGateInBaseFieldWithoutConstant::compute_fma(cs,
-            F::from_u64_unchecked(2*M31_MODULUS*M31_MODULUS), (one, one),
-            F::ONE, tmp13
+        let tmp14 = FmaGateInBaseFieldWithoutConstant::compute_fma(
+            cs,
+            F::from_u64_unchecked(2 * M31_MODULUS * M31_MODULUS),
+            (one, one),
+            F::ONE,
+            tmp13,
         );
 
         let (c, reduce_c) = reduce_mersenne31(cs, tmp14);
@@ -410,35 +523,41 @@ impl<F: SmallField> MersenneQuartic<F> {
         // (5) tmp18 - reduce_d * modulus = d
         // reduce_d has 33 bits
         // d has 31 bits
-        let tmp15 = FmaGateInBaseFieldWithoutConstant::compute_fma(cs,
-            F::ONE, (a1.variable, d2.variable),
-            F::ONE, d3.variable
+        let tmp15 = FmaGateInBaseFieldWithoutConstant::compute_fma(
+            cs,
+            F::ONE,
+            (a1.variable, d2.variable),
+            F::ONE,
+            d3.variable,
         );
-        let tmp16 = FmaGateInBaseFieldWithoutConstant::compute_fma(cs,
-            F::ONE, (b1.variable, c2.variable),
-            F::ONE, tmp15
+        let tmp16 = FmaGateInBaseFieldWithoutConstant::compute_fma(
+            cs,
+            F::ONE,
+            (b1.variable, c2.variable),
+            F::ONE,
+            tmp15,
         );
-        let tmp17 = FmaGateInBaseFieldWithoutConstant::compute_fma(cs,
-            F::ONE, (c1.variable, b2.variable),
-            F::ONE, tmp16
+        let tmp17 = FmaGateInBaseFieldWithoutConstant::compute_fma(
+            cs,
+            F::ONE,
+            (c1.variable, b2.variable),
+            F::ONE,
+            tmp16,
         );
-        let tmp18 = FmaGateInBaseFieldWithoutConstant::compute_fma(cs,
-            F::ONE, (d1.variable, a2.variable),
-            F::ONE, tmp17
+        let tmp18 = FmaGateInBaseFieldWithoutConstant::compute_fma(
+            cs,
+            F::ONE,
+            (d1.variable, a2.variable),
+            F::ONE,
+            tmp17,
         );
 
         let (d, reduce_d) = reduce_mersenne31(cs, tmp18);
         range_check_33_bits(cs, reduce_d);
 
         Self {
-            x: MersenneComplex {
-                x: a,
-                y: b,
-            },
-            y: MersenneComplex {
-                x: c,
-                y: d,
-            }
+            x: MersenneComplex { x: a, y: b },
+            y: MersenneComplex { x: c, y: d },
         }
     }
 
@@ -510,7 +629,7 @@ impl<F: SmallField> MersenneQuartic<F> {
         let one = Self::one(cs);
         let mut result = Self::conditionally_select(cs, *power_bits.last().unwrap(), &self, &one);
 
-        for bit in power_bits.iter().rev().skip(1){
+        for bit in power_bits.iter().rev().skip(1) {
             result = result.square(cs);
 
             let res_mul = result.mul(cs, &self);
@@ -565,7 +684,11 @@ impl<F: SmallField> MersenneQuartic<F> {
         }
     }
 
-    pub fn mask_negated<CS: ConstraintSystem<F>>(&self, cs: &mut CS, masking_bit: Boolean<F>) -> Self {
+    pub fn mask_negated<CS: ConstraintSystem<F>>(
+        &self,
+        cs: &mut CS,
+        masking_bit: Boolean<F>,
+    ) -> Self {
         Self {
             x: self.x.mask_negated(cs, masking_bit),
             y: self.y.mask_negated(cs, masking_bit),
@@ -573,36 +696,30 @@ impl<F: SmallField> MersenneQuartic<F> {
     }
 }
 
-fn range_check_33_bits<F: SmallField, CS: ConstraintSystem<F>>(
-    cs: &mut CS,
-    variable: Variable,
-) {
+fn range_check_33_bits<F: SmallField, CS: ConstraintSystem<F>>(cs: &mut CS, variable: Variable) {
+    use crate::gadgets::impls::limbs_decompose::decompose_into_limbs;
     use crate::gadgets::non_native_field::implementations::get_16_bits_range_check_table;
     use crate::gadgets::u8::get_8_by_8_range_check_table;
-    use crate::gadgets::impls::limbs_decompose::decompose_into_limbs;
 
     if let Some(table_id) = get_16_bits_range_check_table(&*cs) {
-        let [limb0, limb1, limb2] = decompose_into_limbs::<F, CS, 3>(
-            cs,
-            F::from_u64_unchecked(1u64 << 16),
-            variable,
-        );
+        let [limb0, limb1, limb2] =
+            decompose_into_limbs::<F, CS, 3>(cs, F::from_u64_unchecked(1u64 << 16), variable);
 
-        let zero = cs.allocate_constant(F::ZERO );
+        let zero = cs.allocate_constant(F::ZERO);
         match cs.get_lookup_params().lookup_width() {
             1 => {
                 cs.enforce_lookup::<1>(table_id, &[limb0]);
                 cs.enforce_lookup::<1>(table_id, &[limb1]);
-            },
+            }
             3 => {
                 cs.enforce_lookup::<3>(table_id, &[limb0, zero, zero]);
                 cs.enforce_lookup::<3>(table_id, &[limb1, zero, zero]);
-            },
+            }
             4 => {
                 cs.enforce_lookup::<4>(table_id, &[limb0, zero, zero, zero]);
                 cs.enforce_lookup::<4>(table_id, &[limb1, zero, zero, zero]);
-            },
-            _ => unimplemented!()
+            }
+            _ => unimplemented!(),
         }
         let _ = Boolean::from_variable_checked(cs, limb2);
     } else if let Some(_table_id) = get_8_by_8_range_check_table(&*cs) {
@@ -634,7 +751,7 @@ impl<F: SmallField> CSAllocatable<F> for MersenneQuartic<F> {
 
 impl<F: SmallField> WitnessCastable<F, [F; 4]> for Mersenne31Quartic {
     fn cast_from_source(witness: [F; 4]) -> Self {
-        Mersenne31Quartic{
+        Mersenne31Quartic {
             c0: Mersenne31Complex::cast_from_source(witness[0..2].try_into().unwrap()),
             c1: Mersenne31Complex::cast_from_source(witness[2..4].try_into().unwrap()),
         }
@@ -645,7 +762,7 @@ impl<F: SmallField> WitnessCastable<F, [F; 4]> for Mersenne31Quartic {
             F::from_u64_unchecked(self.c0.c0.to_reduced_u32() as u64),
             F::from_u64_unchecked(self.c0.c1.to_reduced_u32() as u64),
             F::from_u64_unchecked(self.c1.c0.to_reduced_u32() as u64),
-            F::from_u64_unchecked(self.c1.c1.to_reduced_u32() as u64)
+            F::from_u64_unchecked(self.c1.c1.to_reduced_u32() as u64),
         ]
     }
 }
@@ -658,7 +775,12 @@ impl<F: SmallField> CSWitnessable<F, 4> for MersenneQuartic<F> {
     }
 
     fn as_variables_set(&self) -> [Variable; 4] {
-        [self.x.x.variable, self.x.y.variable, self.y.x.variable, self.y.y.variable]
+        [
+            self.x.x.variable,
+            self.x.y.variable,
+            self.y.x.variable,
+            self.y.y.variable,
+        ]
     }
 }
 
@@ -728,17 +850,17 @@ mod tests {
     use super::*;
     use crate::cs::*;
 
-    use mersenne_field::FieldExtension;
     use crate::cs::gates::*;
     use crate::cs::traits::gate::GatePlacementStrategy;
     use crate::dag::CircuitResolverOpts;
     use crate::field::goldilocks::GoldilocksField;
     use crate::gadgets::tables::range_check_16_bits::{
-        create_range_check_16_bits_table, RangeCheck16BitsTable,
-        create_range_check_15_bits_table, RangeCheck15BitsTable,
+        create_range_check_15_bits_table, create_range_check_16_bits_table, RangeCheck15BitsTable,
+        RangeCheck16BitsTable,
     };
     use crate::gadgets::traits::witnessable::WitnessHookable;
     use crate::worker::Worker;
+    use mersenne_field::FieldExtension;
 
     type F = GoldilocksField;
 
@@ -814,22 +936,23 @@ mod tests {
 
         let cs = &mut owned_cs;
 
-        let rand_base_witness = [0; 2].map(|_| Mersenne31Field::new(rand::random::<u32>() % M31_MODULUS as u32));
-        let rand_base_vars = rand_base_witness.map(|w| MersenneField::<F>::allocate_checked(cs, w, false));
+        let rand_base_witness =
+            [0; 2].map(|_| Mersenne31Field::new(rand::random::<u32>() % M31_MODULUS as u32));
+        let rand_base_vars =
+            rand_base_witness.map(|w| MersenneField::<F>::allocate_checked(cs, w, false));
 
-        let rand_witness = [0; 3].map(|_|
-            Mersenne31Quartic {
-                c0: Mersenne31Complex {
-                    c0: Mersenne31Field::new(rand::random::<u32>() % M31_MODULUS as u32),
-                    c1: Mersenne31Field::new(rand::random::<u32>() % M31_MODULUS as u32),
-                },
-                c1: Mersenne31Complex {
-                    c0: Mersenne31Field::new(rand::random::<u32>() % M31_MODULUS as u32),
-                    c1: Mersenne31Field::new(rand::random::<u32>() % M31_MODULUS as u32),
-                },
-            }
-        );
-        let mut rand_vars = rand_witness.map(|w| MersenneQuartic::<F>::allocate_checked(cs, w, false));
+        let rand_witness = [0; 3].map(|_| Mersenne31Quartic {
+            c0: Mersenne31Complex {
+                c0: Mersenne31Field::new(rand::random::<u32>() % M31_MODULUS as u32),
+                c1: Mersenne31Field::new(rand::random::<u32>() % M31_MODULUS as u32),
+            },
+            c1: Mersenne31Complex {
+                c0: Mersenne31Field::new(rand::random::<u32>() % M31_MODULUS as u32),
+                c1: Mersenne31Field::new(rand::random::<u32>() % M31_MODULUS as u32),
+            },
+        });
+        let mut rand_vars =
+            rand_witness.map(|w| MersenneQuartic::<F>::allocate_checked(cs, w, false));
 
         // enforce reduced
         for var in rand_vars.iter_mut() {
@@ -899,7 +1022,9 @@ mod tests {
         assert_eq!(res_witness, res_var.witness_hook(&*cs)().unwrap());
 
         // pow
-        let rand_power_bits: Vec<_> = (0..32).map(|i| Boolean::allocate(cs, (rand_power >> i) & 1 == 1)).collect();
+        let rand_power_bits: Vec<_> = (0..32)
+            .map(|i| Boolean::allocate(cs, (rand_power >> i) & 1 == 1))
+            .collect();
         let res_var = rand_vars[0].pow(cs, &rand_power_bits);
         assert_eq!(res_witness, res_var.witness_hook(&*cs)().unwrap());
 
@@ -914,7 +1039,6 @@ mod tests {
         res_witness = res_witness.inverse().unwrap_or(Mersenne31Quartic::ZERO);
         let res_var = rand_vars[0].inverse_or_zero(cs);
         assert_eq!(res_witness, res_var.witness_hook(&*cs)().unwrap());
-
 
         let worker = Worker::new_with_num_threads(8);
 
