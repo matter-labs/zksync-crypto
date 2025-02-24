@@ -1774,8 +1774,14 @@ mod tests {
         tmp.mul_assign(&rand_witness[3]);
         res_witness.add_assign(&tmp);
         res_witness.add_assign(&rand_witness[4]);
-        
-        let res_var = rand_vars[0].two_mul_and_two_add(cs, &rand_vars[1], &rand_vars[2], &rand_vars[3], &rand_vars[4]);
+
+        let res_var = rand_vars[0].two_mul_and_two_add(
+            cs,
+            &rand_vars[1],
+            &rand_vars[2],
+            &rand_vars[3],
+            &rand_vars[4],
+        );
         assert_eq!(res_witness, res_var.witness_hook(&*cs)().unwrap());
 
         // two_mul_and_sub_and_add
@@ -1786,8 +1792,14 @@ mod tests {
         tmp.mul_assign(&rand_witness[3]);
         res_witness.sub_assign(&tmp);
         res_witness.add_assign(&rand_witness[4]);
-        
-        let res_var = rand_vars[0].two_mul_and_sub_and_add(cs, &rand_vars[1], &rand_vars[2], &rand_vars[3], &rand_vars[4]);
+
+        let res_var = rand_vars[0].two_mul_and_sub_and_add(
+            cs,
+            &rand_vars[1],
+            &rand_vars[2],
+            &rand_vars[3],
+            &rand_vars[4],
+        );
         assert_eq!(res_witness, res_var.witness_hook(&*cs)().unwrap());
 
         // div
@@ -1807,12 +1819,11 @@ mod tests {
         let from_uint32 = MersenneField::<F>::from_uint32_with_reduction(cs, tmp_val);
         assert_eq!(101, from_uint32.witness_hook(&*cs)().unwrap().0);
 
-
         // double - large.
-        let double_large_input = MersenneField::<F>::allocate_checked(cs, Mersenne31Field::new(2u32.pow(31) - 1 ), false);
+        let double_large_input =
+            MersenneField::<F>::allocate_checked(cs, Mersenne31Field::new(2u32.pow(31) - 1), false);
         let double_large_output = double_large_input.double(cs);
         assert_eq!(0, double_large_output.witness_hook(&*cs)().unwrap().0);
-
 
         let pow_input = MersenneField::<F>::allocate_checked(cs, Mersenne31Field::new(11), false);
         let pow_output = pow_input.pow_const(cs, 5);
@@ -1898,10 +1909,8 @@ mod tests {
 
         let cs = &mut owned_cs;
 
-
-        let variable = cs.alloc_single_variable_from_witness(F::from_u64_unchecked(
-            2u64.pow(31) - 1
-        ));
+        let variable =
+            cs.alloc_single_variable_from_witness(F::from_u64_unchecked(2u64.pow(31) - 1));
 
         let mut max_value = MersenneField::<F>::from_variable_checked(cs, variable, false);
 
@@ -1914,5 +1923,4 @@ mod tests {
         let mut owned_cs = owned_cs.into_assembly::<Global>();
         assert!(owned_cs.check_if_satisfied(&worker));
     }
-
 }

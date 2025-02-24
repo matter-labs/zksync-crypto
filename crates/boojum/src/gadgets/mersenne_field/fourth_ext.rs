@@ -934,7 +934,7 @@ mod tests {
         owned_cs.add_lookup_table::<RangeCheck15BitsTable<1>, 1>(table);
 
         let cs = &mut owned_cs;
-            
+
         let rand_witness = [0; 3].map(|_| Mersenne31Quartic {
             c0: Mersenne31Complex {
                 c0: Mersenne31Field::new(rand::random::<u32>() % M31_MODULUS as u32),
