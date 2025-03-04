@@ -25,6 +25,7 @@ cs_derive = { version = "=0.31.0", path = "crates/cs_derive", package = "zksync_
 ff = { version = "=0.31.0", path = "crates/ff", package = "zksync_ff" }
 ff_derive = { version = "=0.31.0", path = "crates/ff_derive", package = "zksync_ff_derive" }
 franklin-crypto = { version = "=0.31.0", path = "crates/franklin-crypto" }
+mersenne_field = { version = "=0.31.0", path = "crates/mersenne_field" }
 pairing = { version = "=0.31.0", path = "crates/pairing", package = "zksync_pairing" }
 rescue_poseidon = { version = "=0.31.0", path = "crates/rescue-poseidon" }
 snark_wrapper = { version = "=0.31.0", path = "crates/snark-wrapper" }
