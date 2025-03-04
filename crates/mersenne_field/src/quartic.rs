@@ -38,14 +38,8 @@ impl Mersenne31Quartic {
     #[inline(always)]
     pub const fn from_array_of_base(els: [Mersenne31Field; 4]) -> Self {
         Self {
-            c0: Mersenne31Complex {
-                c0: els[0],
-                c1: els[1],
-            },
-            c1: Mersenne31Complex {
-                c0: els[2],
-                c1: els[3],
-            },
+            c0: Mersenne31Complex { c0: els[0], c1: els[1] },
+            c1: Mersenne31Complex { c0: els[2], c1: els[3] },
         }
     }
 
@@ -61,9 +55,7 @@ impl Mersenne31Quartic {
     #[cfg(not(target_arch = "riscv32"))]
     #[inline(always)]
     pub const fn project_ref_from_array(els: &'_ [Mersenne31Field; 4]) -> &'_ Self {
-        if core::mem::align_of::<Self>() == core::mem::align_of::<Mersenne31Field>()
-            && core::mem::size_of::<Self>() == core::mem::size_of::<Mersenne31Field>() * 4
-        {
+        if core::mem::align_of::<Self>() == core::mem::align_of::<Mersenne31Field>() && core::mem::size_of::<Self>() == core::mem::size_of::<Mersenne31Field>() * 4 {
             // alignments and expected sized match, so we can just cast pointer
             unsafe { core::mem::transmute(els) }
         } else {
@@ -288,10 +280,7 @@ impl FieldExtension<Mersenne31Complex> for Mersenne31Quartic {
 
     #[inline(always)]
     fn from_base_coeffs_array(coefs: &[Mersenne31Complex; 2]) -> Self {
-        Self {
-            c0: coefs[0],
-            c1: coefs[1],
-        }
+        Self { c0: coefs[0], c1: coefs[1] }
     }
 
     #[inline(always)]
@@ -372,27 +361,15 @@ impl FieldExtension<Mersenne31Field> for Mersenne31Quartic {
     #[inline(always)]
     fn from_base_coeffs_array(coefs: &[Mersenne31Field; 4]) -> Self {
         Self {
-            c0: Mersenne31Complex {
-                c0: coefs[0],
-                c1: coefs[1],
-            },
-            c1: Mersenne31Complex {
-                c0: coefs[2],
-                c1: coefs[3],
-            },
+            c0: Mersenne31Complex { c0: coefs[0], c1: coefs[1] },
+            c1: Mersenne31Complex { c0: coefs[2], c1: coefs[3] },
         }
     }
 
     fn from_coeffs_in_base(coefs: &[Mersenne31Field]) -> Self {
         Self {
-            c0: Mersenne31Complex {
-                c0: coefs[0],
-                c1: coefs[1],
-            },
-            c1: Mersenne31Complex {
-                c0: coefs[2],
-                c1: coefs[3],
-            },
+            c0: Mersenne31Complex { c0: coefs[0], c1: coefs[1] },
+            c1: Mersenne31Complex { c0: coefs[2], c1: coefs[3] },
         }
     }
 
@@ -424,10 +401,7 @@ impl FieldExtension<Mersenne31Field> for Mersenne31Quartic {
 
     fn from_base(elem: Mersenne31Field) -> Self {
         let c0 = Mersenne31Complex::from_base(elem);
-        Self {
-            c0,
-            c1: Mersenne31Complex::ZERO,
-        }
+        Self { c0, c1: Mersenne31Complex::ZERO }
     }
 
     fn get_coef_mut(&mut self, _idx: usize) -> &mut Mersenne31Field {
@@ -444,11 +418,7 @@ fn fma_implementation(dst: &mut Mersenne31Quartic, a: &Mersenne31Quartic, b: &Me
 
 #[cfg(all(target_arch = "riscv32", feature = "modular_ext4_ops"))]
 #[inline(always)]
-fn fma_implementation_via_delegation(
-    dst: &mut Mersenne31Quartic,
-    a: &Mersenne31Quartic,
-    b: &Mersenne31Quartic,
-) {
+fn fma_implementation_via_delegation(dst: &mut Mersenne31Quartic, a: &Mersenne31Quartic, b: &Mersenne31Quartic) {
     // NOTE: no guaranteed reduction here, so we will need to be carefull to fully reduce
     // for comparisons after such functions
 
@@ -465,16 +435,13 @@ fn fma_implementation_via_delegation(
 
 // We need these for precompile to work with data in RAM and not ROM
 #[cfg(all(target_arch = "riscv32", feature = "modular_ext4_ops"))]
-pub static mut ZERO_STATIC: core::mem::MaybeUninit<Mersenne31Quartic> =
-    core::mem::MaybeUninit::uninit();
+pub static mut ZERO_STATIC: core::mem::MaybeUninit<Mersenne31Quartic> = core::mem::MaybeUninit::uninit();
 
 #[cfg(all(target_arch = "riscv32", feature = "modular_ext4_ops"))]
-pub static mut ONE_STATIC: core::mem::MaybeUninit<Mersenne31Quartic> =
-    core::mem::MaybeUninit::uninit();
+pub static mut ONE_STATIC: core::mem::MaybeUninit<Mersenne31Quartic> = core::mem::MaybeUninit::uninit();
 
 #[cfg(all(target_arch = "riscv32", feature = "modular_ext4_ops"))]
-pub static mut MINUS_ONE_STATIC: core::mem::MaybeUninit<Mersenne31Quartic> =
-    core::mem::MaybeUninit::uninit();
+pub static mut MINUS_ONE_STATIC: core::mem::MaybeUninit<Mersenne31Quartic> = core::mem::MaybeUninit::uninit();
 
 impl Mersenne31Quartic {
     #[cfg(not(all(target_arch = "riscv32", feature = "modular_ext4_ops")))]
@@ -484,10 +451,8 @@ impl Mersenne31Quartic {
     pub const PREFER_FMA: bool = false;
 
     #[cfg(not(all(target_arch = "riscv32", feature = "modular_ext4_ops")))]
-    pub const CAN_PROJECT_FROM_BASE: bool = const {
-        core::mem::align_of::<Self>() == core::mem::align_of::<Mersenne31Field>()
-            && core::mem::size_of::<Self>() == core::mem::size_of::<Mersenne31Field>() * 4
-    };
+    pub const CAN_PROJECT_FROM_BASE: bool =
+        const { core::mem::align_of::<Self>() == core::mem::align_of::<Mersenne31Field>() && core::mem::size_of::<Self>() == core::mem::size_of::<Mersenne31Field>() * 4 };
 
     #[cfg(all(target_arch = "riscv32", feature = "modular_ext4_ops"))]
     pub const USE_SPEC_MUL_BY_BASE_VIA_MUL_BY_SELF: bool = true;
