@@ -68,9 +68,8 @@ pub trait Field:
     #[inline(always)]
     fn fused_mul_add_assign(&'_ mut self, a: &Self, b: &Self) -> &'_ mut Self {
         // Default implementation
-        let mut t = *a;
-        t.mul_assign(&b);
-        self.add_assign(&t);
+        self.mul_assign(a);
+        self.add_assign(b);
 
         self
     }

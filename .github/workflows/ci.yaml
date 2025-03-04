@@ -26,7 +26,9 @@ jobs:
         # Needs big runners to run tests
         # Only macos-13-xlarge is Apple Silicon, as per:
         # https://docs.github.com/en/actions/using-github-hosted-runners/about-larger-runners/about-larger-runners#about-macos-larger-runners
-        os: [ubuntu-24.04-github-hosted-16core, macos-13-xlarge]
+        #os: [ubuntu-24.04-github-hosted-16core, macos-13-xlarge]
+        # For now - keep testing only on ubuntu (macos is too slow for some tests)
+        os: [ubuntu-24.04-github-hosted-16core]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4

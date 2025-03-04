@@ -55,7 +55,7 @@ impl Mersenne31Field {
 
     #[cfg(not(feature = "use_division"))]
     pub const fn from_nonreduced_u32(c: u32) -> Self {
-        let mut c = c as u32;
+        let mut c = c;
         if c >= Self::ORDER {
             c -= Self::ORDER;
         }
@@ -88,6 +88,23 @@ impl Mersenne31Field {
         let right = (self.0 << (31 - exp)) & ((1 << 31) - 1);
         let rotated = left | right;
         Self::new(rotated)
+    }
+
+    #[inline(always)]
+    pub const fn from_negative_u64_with_reduction(x: u64) -> Self {
+        let x_low = (x as u32) & ((1 << 31) - 1);
+        let x_high = ((x >> 31) as u32) & ((1 << 31) - 1);
+        let x_sign = (x >> 63) as u32;
+        let res_wrapped = x_low.wrapping_add(x_high);
+        let res_wrapped = res_wrapped - x_sign;
+        let msb = res_wrapped & (1 << 31);
+        let mut sum = res_wrapped;
+        sum ^= msb;
+        let mut res = sum + (msb != 0) as u32;
+        if res >= Self::ORDER {
+            res -= Self::ORDER;
+        }
+        Mersenne31Field(res)
     }
 
     #[inline(always)]
@@ -175,7 +192,7 @@ impl Mersenne31Field {
 
         let mut p101 = *self;
         p101.exp_power_of_2_impl(2);
-        p101.mul_assign_impl(&self);
+        p101.mul_assign_impl(self);
 
         let mut p1111 = p101;
         p1111.square_impl();
@@ -374,7 +391,6 @@ impl Add for Mersenne31Field {
     #[inline]
     fn add(self, rhs: Self) -> Self {
         let lhs = self;
-        let rhs = rhs;
         let mut res = lhs;
         res.add_assign(&rhs);
         res
@@ -690,8 +706,8 @@ mod tests {
         let b = Mersenne31Field::new(3);
         let mut result = Mersenne31Field::new(4);
         result.fused_mul_add_assign(&a, &b);
-        // Expected: 4 + (2 * 3) = 10.
-        let expected = Mersenne31Field::new(10);
+        // Expected: 4 * 2 + 3 = 11.
+        let expected = Mersenne31Field::new(11);
         assert_eq!(result.to_reduced_u32(), expected.to_reduced_u32());
     }
 

@@ -84,7 +84,7 @@ pub(crate) const fn mul_mod(a: u32, b: u32) -> u32 {
 
 #[cfg(not(target_arch = "riscv32"))]
 #[inline(always)]
-pub(crate) const fn fma_mod(c: u32, a: u32, b: u32) -> u32 {
+pub(crate) const fn fma_mod(a: u32, b: u32, c: u32) -> u32 {
     // we can "save" on reduction, by using a fact that for N bit integer one can do multiplication + 2 additions
     // without overflowing 2N bits, so we will have our high and low parts in the same ranges as normally expected
     // by add_mod
@@ -96,7 +96,7 @@ pub(crate) const fn fma_mod(c: u32, a: u32, b: u32) -> u32 {
 
 #[cfg(target_arch = "riscv32")]
 #[inline(always)]
-pub(crate) const fn fma_mod(c: u32, a: u32, b: u32) -> u32 {
+pub(crate) const fn fma_mod(a: u32, b: u32, c: u32) -> u32 {
     let t = mul_mod(a, b);
     add_mod(c, t)
 }

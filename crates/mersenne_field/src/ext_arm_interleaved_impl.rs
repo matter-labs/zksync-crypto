@@ -256,9 +256,9 @@ impl FieldExtension<Mersenne31FieldVectorized> for Mersenne31ComplexVectorizedIn
     #[inline(always)]
     fn get_coef_mut(&mut self, idx: usize) -> &mut Mersenne31FieldVectorized {
         if idx == 0 {
-            return &mut self.chunk_0;
+            &mut self.chunk_0
         } else if idx == 1 {
-            return &mut self.chunk_1;
+            &mut self.chunk_1
         } else {
             panic!("Invalid index");
         }
