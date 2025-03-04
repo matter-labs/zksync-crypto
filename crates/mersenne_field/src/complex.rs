@@ -80,7 +80,10 @@ impl Mersenne31Complex {
     }
 
     pub fn div_2exp_u64(&self, exp: u64) -> Self {
-        Self::new(self.real_part().div_2exp_u64(exp), self.imag_part().div_2exp_u64(exp))
+        Self::new(
+            self.real_part().div_2exp_u64(exp),
+            self.imag_part().div_2exp_u64(exp),
+        )
     }
 
     #[inline(always)]
@@ -422,13 +425,23 @@ impl TwoAdicField for Mersenne31Complex {
 
 impl core::fmt::Debug for Mersenne31Complex {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(f, "F2[{}, {}]", self.c0.as_u64_reduced(), self.c1.as_u64_reduced())
+        write!(
+            f,
+            "F2[{}, {}]",
+            self.c0.as_u64_reduced(),
+            self.c1.as_u64_reduced()
+        )
     }
 }
 
 impl core::fmt::Display for Mersenne31Complex {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(f, "F2[{}, {}]", self.c0.as_u64_reduced(), self.c1.as_u64_reduced())
+        write!(
+            f,
+            "F2[{}, {}]",
+            self.c0.as_u64_reduced(),
+            self.c1.as_u64_reduced()
+        )
     }
 }
 
@@ -451,16 +464,25 @@ impl FieldExtension<Mersenne31Field> for Mersenne31Complex {
 
     #[inline(always)]
     fn from_base_coeffs_array(coefs: &[Mersenne31Field; 2]) -> Self {
-        Self { c0: coefs[0], c1: coefs[1] }
+        Self {
+            c0: coefs[0],
+            c1: coefs[1],
+        }
     }
 
     fn from_coeffs_in_base(coeffs: &[Mersenne31Field]) -> Self {
-        Self { c0: coeffs[0], c1: coeffs[1] }
+        Self {
+            c0: coeffs[0],
+            c1: coeffs[1],
+        }
     }
 
     #[inline(always)]
     fn from_coeffs_in_base_ref(coeffs: &[&Mersenne31Field]) -> Self {
-        Self { c0: *coeffs[0], c1: *coeffs[1] }
+        Self {
+            c0: *coeffs[0],
+            c1: *coeffs[1],
+        }
     }
 
     #[inline(always)]
@@ -490,7 +512,10 @@ impl FieldExtension<Mersenne31Field> for Mersenne31Complex {
 
     #[inline(always)]
     fn from_base(elem: Mersenne31Field) -> Self {
-        Self { c0: elem, c1: Mersenne31Field::ZERO }
+        Self {
+            c0: elem,
+            c1: Mersenne31Field::ZERO,
+        }
     }
 
     #[inline(always)]

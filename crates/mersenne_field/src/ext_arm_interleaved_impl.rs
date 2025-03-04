@@ -20,7 +20,11 @@ pub struct Mersenne31ComplexVectorizedInterleaved {
 impl From<Mersenne31Complex> for Mersenne31ComplexVectorizedInterleaved {
     #[inline]
     fn from(value: Mersenne31Complex) -> Self {
-        unsafe { transmute::<[Mersenne31Complex; WIDTH], Mersenne31ComplexVectorizedInterleaved>([value; WIDTH]) }
+        unsafe {
+            transmute::<[Mersenne31Complex; WIDTH], Mersenne31ComplexVectorizedInterleaved>(
+                [value; WIDTH],
+            )
+        }
     }
 }
 
@@ -46,20 +50,38 @@ impl Rand for Mersenne31ComplexVectorizedInterleaved {
         let chunk_0 = [(); WIDTH / 2].map(|_| Mersenne31Complex::random_element(rng));
         let chunk_1 = [(); WIDTH / 2].map(|_| Mersenne31Complex::random_element(rng));
         Mersenne31ComplexVectorizedInterleaved {
-            chunk_0: unsafe { transmute::<[Mersenne31Complex; WIDTH / 2], Mersenne31FieldVectorized>(chunk_0) },
-            chunk_1: unsafe { transmute::<[Mersenne31Complex; WIDTH / 2], Mersenne31FieldVectorized>(chunk_1) },
+            chunk_0: unsafe {
+                transmute::<[Mersenne31Complex; WIDTH / 2], Mersenne31FieldVectorized>(chunk_0)
+            },
+            chunk_1: unsafe {
+                transmute::<[Mersenne31Complex; WIDTH / 2], Mersenne31FieldVectorized>(chunk_1)
+            },
         }
     }
 }
 
 impl Field for Mersenne31ComplexVectorizedInterleaved {
     const ZERO: Self = {
-        let v = unsafe { transmute::<[Mersenne31Complex; WIDTH / 2], Mersenne31FieldVectorized>([Mersenne31Complex::ZERO; WIDTH / 2]) };
-        Self { chunk_0: v, chunk_1: v }
+        let v = unsafe {
+            transmute::<[Mersenne31Complex; WIDTH / 2], Mersenne31FieldVectorized>(
+                [Mersenne31Complex::ZERO; WIDTH / 2],
+            )
+        };
+        Self {
+            chunk_0: v,
+            chunk_1: v,
+        }
     };
     const ONE: Self = {
-        let v = unsafe { transmute::<[Mersenne31Complex; WIDTH / 2], Mersenne31FieldVectorized>([Mersenne31Complex::ONE; WIDTH / 2]) };
-        Self { chunk_0: v, chunk_1: v }
+        let v = unsafe {
+            transmute::<[Mersenne31Complex; WIDTH / 2], Mersenne31FieldVectorized>(
+                [Mersenne31Complex::ONE; WIDTH / 2],
+            )
+        };
+        Self {
+            chunk_0: v,
+            chunk_1: v,
+        }
     };
 
     #[inline(always)]
@@ -136,12 +158,18 @@ impl Mul for Mersenne31ComplexVectorizedInterleaved {
     type Output = Self;
     #[inline]
     fn mul(self, rhs: Self) -> Self {
-        let mut value0 = unsafe { transmute::<Mersenne31ComplexVectorizedInterleaved, [Mersenne31Complex; WIDTH]>(self) };
-        let value1 = unsafe { transmute::<Mersenne31ComplexVectorizedInterleaved, [Mersenne31Complex; WIDTH]>(rhs) };
+        let mut value0 = unsafe {
+            transmute::<Mersenne31ComplexVectorizedInterleaved, [Mersenne31Complex; WIDTH]>(self)
+        };
+        let value1 = unsafe {
+            transmute::<Mersenne31ComplexVectorizedInterleaved, [Mersenne31Complex; WIDTH]>(rhs)
+        };
         seq!(N in 0..16 {
             value0[N].mul_assign(&value1[N]);
         });
-        unsafe { transmute::<[Mersenne31Complex; WIDTH], Mersenne31ComplexVectorizedInterleaved>(value0) }
+        unsafe {
+            transmute::<[Mersenne31Complex; WIDTH], Mersenne31ComplexVectorizedInterleaved>(value0)
+        }
     }
 }
 
@@ -160,35 +188,51 @@ impl Mul<Mersenne31ComplexVectorized> for Mersenne31ComplexVectorizedInterleaved
     type Output = Self;
     #[inline]
     fn mul(self, rhs: Mersenne31ComplexVectorized) -> Self {
-        let mut value0 = unsafe { transmute::<Mersenne31ComplexVectorizedInterleaved, [Mersenne31Complex; WIDTH]>(self) };
+        let mut value0 = unsafe {
+            transmute::<Mersenne31ComplexVectorizedInterleaved, [Mersenne31Complex; WIDTH]>(self)
+        };
         seq!(N in 0..16 {
             let value1 = Mersenne31Complex::from_coeffs_in_base(&[rhs.c0.0[N], rhs.c1.0[N]]);
             value0[N].mul_assign(&value1);
         });
-        unsafe { transmute::<[Mersenne31Complex; WIDTH], Mersenne31ComplexVectorizedInterleaved>(value0) }
+        unsafe {
+            transmute::<[Mersenne31Complex; WIDTH], Mersenne31ComplexVectorizedInterleaved>(value0)
+        }
     }
 }
 
 #[inline]
-pub fn rotate_90_forward(value: Mersenne31ComplexVectorizedInterleaved) -> Mersenne31ComplexVectorizedInterleaved {
-    let mut value0 = unsafe { transmute::<Mersenne31ComplexVectorizedInterleaved, [Mersenne31Complex; WIDTH]>(value) };
+pub fn rotate_90_forward(
+    value: Mersenne31ComplexVectorizedInterleaved,
+) -> Mersenne31ComplexVectorizedInterleaved {
+    let mut value0 = unsafe {
+        transmute::<Mersenne31ComplexVectorizedInterleaved, [Mersenne31Complex; WIDTH]>(value)
+    };
     seq!(N in 0..16 {
         let mut c0 = value0[N].c0;
         value0[N].c0 = value0[N].c1;
         value0[N].c1 = *c0.negate();
     });
-    unsafe { transmute::<[Mersenne31Complex; WIDTH], Mersenne31ComplexVectorizedInterleaved>(value0) }
+    unsafe {
+        transmute::<[Mersenne31Complex; WIDTH], Mersenne31ComplexVectorizedInterleaved>(value0)
+    }
 }
 
 #[inline]
-pub fn rotate_90_inversed(value: Mersenne31ComplexVectorizedInterleaved) -> Mersenne31ComplexVectorizedInterleaved {
-    let mut value0 = unsafe { transmute::<Mersenne31ComplexVectorizedInterleaved, [Mersenne31Complex; WIDTH]>(value) };
+pub fn rotate_90_inversed(
+    value: Mersenne31ComplexVectorizedInterleaved,
+) -> Mersenne31ComplexVectorizedInterleaved {
+    let mut value0 = unsafe {
+        transmute::<Mersenne31ComplexVectorizedInterleaved, [Mersenne31Complex; WIDTH]>(value)
+    };
     seq!(N in 0..16 {
         let mut c1 = value0[N].c1;
         value0[N].c1 = value0[N].c0;
         value0[N].c0 = *c1.negate();
     });
-    unsafe { transmute::<[Mersenne31Complex; WIDTH], Mersenne31ComplexVectorizedInterleaved>(value0) }
+    unsafe {
+        transmute::<[Mersenne31Complex; WIDTH], Mersenne31ComplexVectorizedInterleaved>(value0)
+    }
 }
 
 impl FieldExtension<Mersenne31FieldVectorized> for Mersenne31ComplexVectorizedInterleaved {
@@ -220,7 +264,12 @@ impl FieldExtension<Mersenne31FieldVectorized> for Mersenne31ComplexVectorizedIn
     #[inline(always)]
     fn coeffs_in_base(&self) -> &[Mersenne31FieldVectorized] {
         // &[self.c0, self.c1]
-        unsafe { core::slice::from_raw_parts(self.chunk_0.0.as_ptr() as *const Mersenne31FieldVectorized, 2) }
+        unsafe {
+            core::slice::from_raw_parts(
+                self.chunk_0.0.as_ptr() as *const Mersenne31FieldVectorized,
+                2,
+            )
+        }
     }
 
     #[inline(always)]
@@ -238,7 +287,9 @@ impl FieldExtension<Mersenne31FieldVectorized> for Mersenne31ComplexVectorizedIn
         }
     }
 
-    fn from_coeffs_in_base_iter<I: Iterator<Item = Mersenne31FieldVectorized>>(mut coeffs_iter: I) -> Self {
+    fn from_coeffs_in_base_iter<I: Iterator<Item = Mersenne31FieldVectorized>>(
+        mut coeffs_iter: I,
+    ) -> Self {
         Self {
             chunk_0: coeffs_iter.next().unwrap(),
             chunk_1: coeffs_iter.next().unwrap(),
@@ -256,16 +307,19 @@ impl FieldExtension<Mersenne31FieldVectorized> for Mersenne31ComplexVectorizedIn
     #[inline(always)]
     fn get_coef_mut(&mut self, idx: usize) -> &mut Mersenne31FieldVectorized {
         if idx == 0 {
-            return &mut self.chunk_0;
+            &mut self.chunk_0
         } else if idx == 1 {
-            return &mut self.chunk_1;
+            &mut self.chunk_1
         } else {
             panic!("Invalid index");
         }
     }
 
     fn from_base_coeffs_array(coefs: &[Mersenne31FieldVectorized; 2]) -> Self {
-        Self { chunk_0: coefs[0], chunk_1: coefs[1] }
+        Self {
+            chunk_0: coefs[0],
+            chunk_1: coefs[1],
+        }
     }
 }
 

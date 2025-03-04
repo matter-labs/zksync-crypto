@@ -48,8 +48,12 @@ impl core::fmt::Display for Mersenne31ComplexVectorized {
 use rand::Rng;
 impl Rand for Mersenne31ComplexVectorized {
     fn random_element<R: Rng + ?Sized>(rng: &mut R) -> Mersenne31ComplexVectorized {
-        let t_real = [(); WIDTH].map(|_| Mersenne31Field::from_u64_unchecked(rng.gen_range(0..Mersenne31Field::CHARACTERISTICS)));
-        let t_imag = [(); WIDTH].map(|_| Mersenne31Field::from_u64_unchecked(rng.gen_range(0..Mersenne31Field::CHARACTERISTICS)));
+        let t_real = [(); WIDTH].map(|_| {
+            Mersenne31Field::from_u64_unchecked(rng.gen_range(0..Mersenne31Field::CHARACTERISTICS))
+        });
+        let t_imag = [(); WIDTH].map(|_| {
+            Mersenne31Field::from_u64_unchecked(rng.gen_range(0..Mersenne31Field::CHARACTERISTICS))
+        });
         Mersenne31ComplexVectorized {
             c0: Mersenne31FieldVectorized(t_real),
             c1: Mersenne31FieldVectorized(t_imag),
@@ -281,19 +285,29 @@ impl FieldExtension<Mersenne31FieldVectorized> for Mersenne31ComplexVectorized {
 
     #[inline(always)]
     fn coeffs_in_base(&self) -> &[Mersenne31FieldVectorized] {
-        unsafe { core::slice::from_raw_parts(self.c0.0.as_ptr() as *const Mersenne31FieldVectorized, 2) }
+        unsafe {
+            core::slice::from_raw_parts(self.c0.0.as_ptr() as *const Mersenne31FieldVectorized, 2)
+        }
     }
 
     #[inline(always)]
     fn from_coeffs_in_base(coeffs: &[Mersenne31FieldVectorized]) -> Self {
-        Self { c0: coeffs[0], c1: coeffs[1] }
+        Self {
+            c0: coeffs[0],
+            c1: coeffs[1],
+        }
     }
 
     fn from_coeffs_in_base_ref(coeffs: &[&Mersenne31FieldVectorized]) -> Self {
-        Self { c0: *coeffs[0], c1: *coeffs[1] }
+        Self {
+            c0: *coeffs[0],
+            c1: *coeffs[1],
+        }
     }
 
-    fn from_coeffs_in_base_iter<I: Iterator<Item = Mersenne31FieldVectorized>>(mut coeffs_iter: I) -> Self {
+    fn from_coeffs_in_base_iter<I: Iterator<Item = Mersenne31FieldVectorized>>(
+        mut coeffs_iter: I,
+    ) -> Self {
         Self {
             c0: coeffs_iter.next().unwrap(),
             c1: coeffs_iter.next().unwrap(),
@@ -320,7 +334,10 @@ impl FieldExtension<Mersenne31FieldVectorized> for Mersenne31ComplexVectorized {
     }
 
     fn from_base_coeffs_array(coefs: &[Mersenne31FieldVectorized; 2]) -> Self {
-        Self { c0: coefs[0], c1: coefs[1] }
+        Self {
+            c0: coefs[0],
+            c1: coefs[1],
+        }
     }
 }
 
@@ -334,8 +351,20 @@ fn interleave_f2_from_base(a: &mut [__m512i]) {
         // res0 = [ a0 a2 a4 a6 a8 aa ac ae b0 b2 b4 b6 b8 ba bc be ]
         // res1 = [ a1 a3 a5 a7 a9 ab ad af b1 b3 b5 b7 b9 bb bd bf ]
 
-        let res0 = x86_64::_mm512_permutex2var_epi32(a[0], transmute::<[u32; WIDTH], _>([0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30]), a[1]);
-        let res1 = x86_64::_mm512_permutex2var_epi32(a[0], transmute::<[u32; WIDTH], _>([1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31]), a[1]);
+        let res0 = x86_64::_mm512_permutex2var_epi32(
+            a[0],
+            transmute::<[u32; WIDTH], _>([
+                0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30,
+            ]),
+            a[1],
+        );
+        let res1 = x86_64::_mm512_permutex2var_epi32(
+            a[0],
+            transmute::<[u32; WIDTH], _>([
+                1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31,
+            ]),
+            a[1],
+        );
         a[0] = res0;
         a[1] = res1;
     }
@@ -351,8 +380,18 @@ fn interleave_f2_into_base(a: &mut [__m512i]) {
         // res0 = [ a0 b0 a1 b1 a2 b2 a3 b3 a4 b4 a5 b5 a6 b6 a7 b7 ]
         // res1 = [ a8 b8 a9 b9 aa ba ab bb ac bc ad bd ae be af bf]
 
-        let res0 = x86_64::_mm512_permutex2var_epi32(a[0], transmute::<[u32; WIDTH], _>([0, 16, 1, 17, 2, 18, 3, 19, 4, 20, 5, 21, 6, 22, 7, 23]), a[1]);
-        let res1 = x86_64::_mm512_permutex2var_epi32(a[0], transmute::<[u32; WIDTH], _>([8, 24, 9, 25, 10, 26, 11, 27, 12, 28, 13, 29, 14, 30, 15, 31]), a[1]);
+        let res0 = x86_64::_mm512_permutex2var_epi32(
+            a[0],
+            transmute::<[u32; WIDTH], _>([0, 16, 1, 17, 2, 18, 3, 19, 4, 20, 5, 21, 6, 22, 7, 23]),
+            a[1],
+        );
+        let res1 = x86_64::_mm512_permutex2var_epi32(
+            a[0],
+            transmute::<[u32; WIDTH], _>([
+                8, 24, 9, 25, 10, 26, 11, 27, 12, 28, 13, 29, 14, 30, 15, 31,
+            ]),
+            a[1],
+        );
         a[0] = res0;
         a[1] = res1;
     }
@@ -387,7 +426,10 @@ impl FieldLikeVectorized for Mersenne31ComplexVectorized {
     }
 
     fn get_base_element(&self, idx: usize) -> Self::Base {
-        Self::Base::from_coeffs_in_base(&[self.c0.get_base_element(idx), self.c1.get_base_element(idx)])
+        Self::Base::from_coeffs_in_base(&[
+            self.c0.get_base_element(idx),
+            self.c1.get_base_element(idx),
+        ])
     }
 
     fn from_base_elements(input: &[Self::Base]) -> Self {
