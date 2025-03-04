@@ -4,9 +4,7 @@ use crate::field::Field;
 use crate::field::PrimeField;
 use crate::Mersenne31Field;
 use core::ops::{Add, Mul, Sub};
-// use crate::field_like::FieldLikeVectorized;
 use seq_macro::seq;
-// use crate::prover::prover::Timer;
 
 pub const WIDTH: usize = 16;
 
@@ -24,9 +22,7 @@ impl core::fmt::Display for Mersenne31FieldVectorized {
 use rand::Rng;
 impl Rand for Mersenne31FieldVectorized {
     fn random_element<R: Rng + ?Sized>(rng: &mut R) -> Mersenne31FieldVectorized {
-        let t = [(); WIDTH].map(|_| {
-            Mersenne31Field::from_u64_unchecked(rng.gen_range(0..Mersenne31Field::CHARACTERISTICS))
-        });
+        let t = [(); WIDTH].map(|_| Mersenne31Field::from_u64_unchecked(rng.gen_range(0..Mersenne31Field::CHARACTERISTICS)));
         Mersenne31FieldVectorized(t)
     }
 }
@@ -92,19 +88,14 @@ impl Default for Mersenne31FieldVectorized {
 
 impl Mersenne31FieldVectorized {
     #[inline(always)]
-    pub fn slice_into_base_slice_mut(
-        input: &mut [Mersenne31FieldVectorized],
-    ) -> &mut [Mersenne31Field] {
+    pub fn slice_into_base_slice_mut(input: &mut [Mersenne31FieldVectorized]) -> &mut [Mersenne31Field] {
         let result_len = input.len() * WIDTH;
-        unsafe {
-            core::slice::from_raw_parts_mut(input.as_ptr() as *mut Mersenne31Field, result_len)
-        }
+        unsafe { core::slice::from_raw_parts_mut(input.as_ptr() as *mut Mersenne31Field, result_len) }
     }
 }
 
 impl BaseField for Mersenne31FieldVectorized {
-    const QUADRATIC_NON_RESIDUE: Mersenne31FieldVectorized =
-        Mersenne31FieldVectorized([Mersenne31Field::MINUS_ONE; WIDTH]);
+    const QUADRATIC_NON_RESIDUE: Mersenne31FieldVectorized = Mersenne31FieldVectorized([Mersenne31Field::MINUS_ONE; WIDTH]);
 
     fn mul_by_non_residue(elem: &mut Self) {
         elem.negate();

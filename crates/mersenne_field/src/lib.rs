@@ -7,6 +7,8 @@
 #![feature(core_intrinsics)]
 #![feature(const_eval_select)]
 #![cfg_attr(target_feature = "avx512f", feature(stdarch_x86_avx512))]
+#![feature(const_mut_refs)]
+#![feature(const_option)]
 
 use core::fmt::Debug;
 use core::fmt::Display;
@@ -64,10 +66,7 @@ pub use self::ext_arm_impl::*;
 pub use self::ext_arm_interleaved_impl::*;
 
 const _: () = const {
-    #[cfg(all(
-        any(feature = "use_division", feature = "modular_ops"),
-        not(target_arch = "riscv32")
-    ))]
+    #[cfg(all(any(feature = "use_division", feature = "modular_ops"), not(target_arch = "riscv32")))]
     compile_error!("`use_division` and `modular ops` features are intended for simulated (provable) machines and should not be activated otherwise");
 
     ()
@@ -102,9 +101,7 @@ pub fn batch_inverse_checked<F: Field>(input: &mut [F], tmp_buffer: &mut [F]) ->
     // for a set of a, b, c, d we have
     // - input = [1, a, ab, abc],
     // - accumulator = abcd
-    let mut grand_inverse = accumulator
-        .inverse()
-        .expect("batch inverse must be called on sets without zeroes");
+    let mut grand_inverse = accumulator.inverse().expect("batch inverse must be called on sets without zeroes");
 
     // grand_inverse = a^-1 b^-1 c^-1 d^-1
     for (tmp, original) in tmp_buffer.iter().rev().zip(input.iter_mut().rev()) {
