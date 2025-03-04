@@ -706,8 +706,8 @@ mod tests {
         let b = Mersenne31Field::new(3);
         let mut result = Mersenne31Field::new(4);
         result.fused_mul_add_assign(&a, &b);
-        // Expected: 4 + (2 * 3) = 10.
-        let expected = Mersenne31Field::new(10);
+        // Expected: 4 * 2 + 3 = 11.
+        let expected = Mersenne31Field::new(11);
         assert_eq!(result.to_reduced_u32(), expected.to_reduced_u32());
     }
 

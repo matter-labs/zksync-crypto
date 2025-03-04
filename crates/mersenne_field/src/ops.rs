@@ -114,6 +114,11 @@ pub(crate) const fn add_mod(a: u32, b: u32) -> u32 {
 const fn add_mod_ct(a: u32, b: u32) -> u32 {
     reduce_with_division_ct(a.wrapping_add(b))
 }
+#[cfg(all(target_arch = "riscv32", not(feature = "use_division"),))]
+#[inline(always)]
+fn add_mod_rt_riscv(a: u32, b: u32) -> u32 {
+    add_mod_ct(a, b)
+}
 
 #[cfg(all(target_arch = "riscv32", feature = "use_division", not(feature = "modular_ops")))]
 #[inline(always)]
@@ -148,6 +153,12 @@ pub(crate) const fn sub_mod(a: u32, b: u32) -> u32 {
 #[inline(always)]
 const fn sub_mod_ct(a: u32, b: u32) -> u32 {
     reduce_with_division_ct(crate::Mersenne31Field::ORDER.wrapping_add(a).wrapping_sub(b))
+}
+
+#[cfg(all(target_arch = "riscv32", not(feature = "use_division"),))]
+#[inline(always)]
+fn sub_mod_rt_riscv(a: u32, b: u32) -> u32 {
+    sub_mod_ct(a, b)
 }
 
 #[cfg(all(target_arch = "riscv32", feature = "use_division", not(feature = "modular_ops")))]
@@ -186,6 +197,12 @@ const fn mul_mod_ct(a: u32, b: u32) -> u32 {
     let product_low = (product as u32) & ((1 << 31) - 1);
     let product_high = (product >> 31) as u32;
     reduce_with_division_ct(product_low.wrapping_add(product_high))
+}
+
+#[cfg(all(target_arch = "riscv32", not(feature = "use_division"),))]
+#[inline(always)]
+fn mul_mod_rt_riscv(a: u32, b: u32) -> u32 {
+    mul_mod_ct(a, b)
 }
 
 #[cfg(all(target_arch = "riscv32", feature = "use_division", not(feature = "modular_ops")))]
