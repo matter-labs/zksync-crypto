@@ -102,7 +102,7 @@ where
     }
     #[must_use]
     fn inverse_unchecked<CS: ConstraintSystem<F>>(&mut self, cs: &mut CS) -> Self {
-        NonNativeFieldOverU16::<F, T, N>::allocate_inverse_or_zero(&self, cs)
+        NonNativeFieldOverU16::<F, T, N>::inverse_unchecked(self, cs)
     }
     #[must_use]
     fn is_zero<CS: ConstraintSystem<F>>(&mut self, cs: &mut CS) -> Boolean<F> {
