@@ -392,24 +392,24 @@ where
     where
         CS: ConstraintSystem<F>,
     {
-        let mut result = Self::zero(cs, self.get_params());
+        let mut result = self.clone();
         let mut base = self.clone();
+        let mut base_inverse = self.inverse(cs);
 
-        for i in BitIterator::new(exponent) {
-            let mut squared = result.square(cs);
-            let mut squared_and_multiplied = squared.mul(cs, &mut base);
-            let shall_multiply = Boolean::allocated_constant(cs, i);
+        let mut bits: Vec<bool> = BitIterator::new(exponent).collect();
+        bits.reverse();
 
-            result = Self::conditionally_select(
-                cs,
-                shall_multiply,
-                &mut squared_and_multiplied,
-                &mut squared,
-            );
-
-            result.normalize(cs);
+        for bit in bits.iter().skip(1) {
+            base = base.square(cs);
+            if *bit {
+                result = result.mul(cs, &mut base);
+            }
+        }
+        if bits[0] == false {
+            result = result.mul(cs, &mut base_inverse);
         }
 
+        result.normalize(cs);
         result
     }
 
