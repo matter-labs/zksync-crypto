@@ -2558,7 +2558,7 @@ mod test {
     }
 
     #[test]
-    #[ignore = "timeout on release"]
+    #[ignore = "Test is too slow"]
     fn test_lde_explicit_multicore_validity() {
         use super::*;
         use crate::ff::{Field, PrimeField};
