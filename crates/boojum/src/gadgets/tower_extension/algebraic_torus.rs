@@ -11,9 +11,7 @@ use crate::{
     cs::traits::cs::ConstraintSystem,
     field::SmallField,
     gadgets::{
-        boolean::Boolean,
-        non_native_field::traits::NonNativeField,
-        traits::{hardexp_compatible::HardexpCompatible, selectable::Selectable},
+        boolean::Boolean, non_native_field::traits::NonNativeField, traits::selectable::Selectable,
     },
 };
 
@@ -554,63 +552,5 @@ where
         );
 
         Self::new(encoding)
-    }
-}
-
-impl<F, T, const N: usize, P> HardexpCompatible<F>
-    for TorusWrapper<F, T, NonNativeFieldOverU16<F, T, N>, P>
-where
-    F: SmallField,
-    T: PrimeField,
-    P: TorusExtension12Params<T>,
-    [(); N + 1]:,
-{
-    fn mul<CS>(&mut self, cs: &mut CS, other: &mut Self) -> Self
-    where
-        CS: ConstraintSystem<F>,
-    {
-        self.mul(cs, other)
-    }
-
-    fn square<CS>(&mut self, cs: &mut CS) -> Self
-    where
-        CS: ConstraintSystem<F>,
-    {
-        self.square(cs)
-    }
-
-    fn conjugate<CS>(&mut self, cs: &mut CS) -> Self
-    where
-        CS: ConstraintSystem<F>,
-    {
-        self.conjugate(cs)
-    }
-
-    fn inverse<CS>(&mut self, cs: &mut CS) -> Self
-    where
-        CS: ConstraintSystem<F>,
-    {
-        self.inverse(cs)
-    }
-
-    fn frobenius_map<CS>(&mut self, cs: &mut CS, power: usize) -> Self
-    where
-        CS: ConstraintSystem<F>,
-    {
-        self.frobenius_map(cs, power)
-    }
-
-    fn pow_u32<CS, S: AsRef<[u64]>>(&mut self, cs: &mut CS, exponent: S) -> Self
-    where
-        CS: ConstraintSystem<F>,
-    {
-        self.pow_u32(cs, exponent)
-    }
-
-    fn normalize<CS>(&mut self, cs: &mut CS)
-    where
-        CS: ConstraintSystem<F>,
-    {
-        self.normalize(cs);
     }
 }

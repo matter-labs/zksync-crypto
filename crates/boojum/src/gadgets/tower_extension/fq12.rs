@@ -11,6 +11,7 @@ use super::{
     },
 };
 
+use crate::cs::Variable;
 use crate::gadgets::traits::allocatable::CSPlaceholder;
 use crate::gadgets::traits::encodable::{CircuitVarLengthEncodable, WitnessVarLengthEncodable};
 use crate::{
@@ -24,7 +25,6 @@ use crate::{
         },
     },
 };
-use crate::{cs::Variable, gadgets::traits::hardexp_compatible::HardexpCompatible};
 
 /// `Fq12` field extension implementation in the constraint system. It is implemented
 /// as `Fq6[w]/(w^2-v)` where `w^6=9+u`. In other words, it is a set of
@@ -778,63 +778,5 @@ where
             );
 
         Self::new(c0, c1)
-    }
-}
-
-impl<F, T, NN, P> HardexpCompatible<F> for Fq12<F, T, NN, P>
-where
-    F: SmallField,
-    T: PrimeField,
-    NN: NonNativeField<F, T>,
-    P: Extension12Params<T>,
-{
-    fn conjugate<CS>(&mut self, cs: &mut CS) -> Self
-    where
-        CS: ConstraintSystem<F>,
-    {
-        self.conjugate(cs)
-    }
-
-    fn pow_u32<CS, S: AsRef<[u64]>>(&mut self, cs: &mut CS, exponent: S) -> Self
-    where
-        CS: ConstraintSystem<F>,
-    {
-        self.pow_u32(cs, exponent)
-    }
-
-    fn frobenius_map<CS>(&mut self, cs: &mut CS, power: usize) -> Self
-    where
-        CS: ConstraintSystem<F>,
-    {
-        self.frobenius_map(cs, power)
-    }
-
-    fn mul<CS>(&mut self, cs: &mut CS, other: &mut Self) -> Self
-    where
-        CS: ConstraintSystem<F>,
-    {
-        self.mul(cs, other)
-    }
-
-    fn square<CS>(&mut self, cs: &mut CS) -> Self
-    where
-        CS: ConstraintSystem<F>,
-    {
-        self.square(cs)
-    }
-
-    fn inverse<CS>(&mut self, cs: &mut CS) -> Self
-    where
-        CS: ConstraintSystem<F>,
-    {
-        self.inverse(cs)
-    }
-
-    fn normalize<CS>(&mut self, cs: &mut CS)
-    where
-        CS: ConstraintSystem<F>,
-    {
-        self.c0.normalize(cs);
-        self.c1.normalize(cs);
     }
 }
