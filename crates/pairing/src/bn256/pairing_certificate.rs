@@ -61,7 +61,7 @@ pub fn prepare_all_line_functions(q: G2Affine) -> Vec<(Fq2, Fq2)> {
 
     for i in (1..SIX_U_PLUS_2_NAF.len()).rev() {
         let (alpha, mu) = line_double(t.into_affine());
-        t.double();
+        t.double_with_alpha(alpha);
         l.push((alpha, mu));
 
         let bit = SIX_U_PLUS_2_NAF[i - 1];
@@ -69,7 +69,7 @@ pub fn prepare_all_line_functions(q: G2Affine) -> Vec<(Fq2, Fq2)> {
         if bit != 0 {
             let q_t = if bit == 1 { q } else { q_negated };
             let (alpha, mu) = line_add(t.into_affine(), q_t);
-            t.add_assign_mixed(&q_t);
+            t.add_assign_mixed_with_alpha(&q_t, alpha);
             l.push((alpha, mu));
         }
     }
@@ -88,16 +88,15 @@ pub fn prepare_all_line_functions(q: G2Affine) -> Vec<(Fq2, Fq2)> {
     let pi_2_q = G2Affine::from_xy_checked(pi_2_q_x, q.y).unwrap();
 
     let (alpha, mu) = line_add(t.into_affine(), pi_1_q);
-    t.add_assign_mixed(&pi_1_q);
+    t.add_assign_mixed_with_alpha(&pi_1_q, alpha);
     l.push((alpha.into(), mu.into()));
 
     let (alpha, mu) = line_add(t.into_affine(), pi_2_q);
-    t.add_assign_mixed(&pi_2_q);
+    t.add_assign_mixed_with_alpha(&pi_2_q, alpha);
     l.push((alpha.into(), mu.into()));
 
     l
 }
-
 pub fn prepare_g1_point(p: G1Affine) -> G1Affine {
     // we "prepare" p by recomputing (x, y) -> (x', y') where: x' = - p.x / p.y; y' = -1 /p.y
     // it is required to enforce that in c0c3c4, c0 = 1
