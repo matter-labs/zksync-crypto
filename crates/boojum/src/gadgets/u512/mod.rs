@@ -236,12 +236,11 @@ impl<F: SmallField> UInt512<F> {
             let limb_is_zero = limb.is_zero(cs);
             Boolean::enforce_equal(cs, &limb_is_zero, &bool_true);
         }
-        
+
         let mut inner = [UInt32::<F>::zero(cs); 16];
         inner[..16].copy_from_slice(&remainders[..16]);
         UInt512 { inner }
     }
-
 
     #[must_use]
     pub fn overflowing_sub<CS: ConstraintSystem<F>>(

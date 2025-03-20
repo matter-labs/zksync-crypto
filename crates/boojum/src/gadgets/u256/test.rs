@@ -1,8 +1,31 @@
 #[cfg(test)]
 mod tests {
-    use crate::{config::DevCSConfig, cs::{cs_builder::{new_builder, CsBuilder, CsBuilderImpl}, cs_builder_reference::CsReferenceImplementationBuilder, gates::{BooleanConstraintGate, ConstantsAllocatorGate, DotProductGate, FmaGateInBaseFieldWithoutConstant, NopGate, ReductionGate, SelectionGate, U8x4FMAGate, UIntXAddGate, ZeroCheckGate}, traits::{cs::ConstraintSystem, gate::GatePlacementStrategy}, CSGeometry, GateConfigurationHolder, LookupParameters, StaticToolboxHolder}, field::SmallField, gadgets::{tables::{create_and8_table, create_byte_split_table, create_xor8_table, And8Table, Xor8Table}, tower_extension::tests::utils::cs::create_test_cs, traits::{allocatable::CSAllocatable, witnessable::WitnessHookable}, u256::UInt256}, worker::Worker};
-    use ethereum_types::U256;
     use crate::field::goldilocks::GoldilocksField;
+    use crate::{
+        config::DevCSConfig,
+        cs::{
+            cs_builder::{new_builder, CsBuilder, CsBuilderImpl},
+            cs_builder_reference::CsReferenceImplementationBuilder,
+            gates::{
+                BooleanConstraintGate, ConstantsAllocatorGate, DotProductGate,
+                FmaGateInBaseFieldWithoutConstant, NopGate, ReductionGate, SelectionGate,
+                U8x4FMAGate, UIntXAddGate, ZeroCheckGate,
+            },
+            traits::{cs::ConstraintSystem, gate::GatePlacementStrategy},
+            CSGeometry, GateConfigurationHolder, LookupParameters, StaticToolboxHolder,
+        },
+        field::SmallField,
+        gadgets::{
+            tables::{
+                create_and8_table, create_byte_split_table, create_xor8_table, And8Table, Xor8Table,
+            },
+            tower_extension::tests::utils::cs::create_test_cs,
+            traits::{allocatable::CSAllocatable, witnessable::WitnessHookable},
+            u256::UInt256,
+        },
+        worker::Worker,
+    };
+    use ethereum_types::U256;
 
     type F = GoldilocksField;
     type P = GoldilocksField;
@@ -15,17 +38,15 @@ mod tests {
         let b_value = U256::from(987654321u64);
         let modulo_value = U256::from(11111u64);
 
-
         let a = UInt256::allocate(cs, a_value);
         let b = UInt256::allocate(cs, b_value);
         let modulo = UInt256::allocate(cs, modulo_value);
 
-
         let result = a.modmul(cs, &b, &modulo);
 
-
-        let expected_value = (a_value.full_mul(b_value) % modulo_value).try_into().unwrap();
-
+        let expected_value = (a_value.full_mul(b_value) % modulo_value)
+            .try_into()
+            .unwrap();
 
         let result_value = result.witness_hook(cs)().unwrap();
         assert_eq!(result_value, expected_value, "modmul result is incorrect");
@@ -39,7 +60,7 @@ mod tests {
             max_allowed_constraint_degree: 4,
         };
         let max_variables = 1 << 27;
-    
+
         fn configure<
             F: SmallField,
             T: CsBuilderImpl<F, T>,
@@ -85,22 +106,23 @@ mod tests {
                 false,
             );
 
-            let builder =
-                NopGate::configure_builder(builder, GatePlacementStrategy::UseGeneralPurposeColumns);
-    
+            let builder = NopGate::configure_builder(
+                builder,
+                GatePlacementStrategy::UseGeneralPurposeColumns,
+            );
+
             builder
         }
-    
+
         let builder_impl =
             CsReferenceImplementationBuilder::<F, P, DevCSConfig>::new(geometry, 1 << 21);
         let builder = new_builder::<_, F>(builder_impl);
-    
+
         let builder = configure(builder);
         let mut owned_cs = builder.build(max_variables);
-    
+
         let table = create_xor8_table();
         owned_cs.add_lookup_table::<Xor8Table, 3>(table);
-
 
         let cs = &mut owned_cs;
 
@@ -114,7 +136,9 @@ mod tests {
 
         let result = a.modmul(cs, &b, &modulo);
 
-        let expected_value = (a_value.full_mul(b_value) % modulo_value).try_into().unwrap();
+        let expected_value = (a_value.full_mul(b_value) % modulo_value)
+            .try_into()
+            .unwrap();
         let result_value = result.witness_hook(cs)().unwrap();
         assert_eq!(result_value, expected_value, "modmul result is incorrect");
 

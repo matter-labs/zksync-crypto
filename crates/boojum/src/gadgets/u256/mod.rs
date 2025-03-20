@@ -396,7 +396,7 @@ impl<F: SmallField> UInt256<F> {
             let upper = U256([value.0[4], value.0[5], value.0[6], value.0[7]]);
             (lower, upper)
         };
-    
+
         let (q_low, q_high) = split_u512(q);
 
         let r: U256 = r.try_into().unwrap();
