@@ -1,4 +1,3 @@
-
 #[cfg(test)]
 mod tests {
     use crate::{config::DevCSConfig, cs::{cs_builder::{new_builder, CsBuilder, CsBuilderImpl}, cs_builder_reference::CsReferenceImplementationBuilder, gates::{BooleanConstraintGate, ConstantsAllocatorGate, DotProductGate, FmaGateInBaseFieldWithoutConstant, NopGate, ReductionGate, SelectionGate, U8x4FMAGate, UIntXAddGate, ZeroCheckGate}, traits::{cs::ConstraintSystem, gate::GatePlacementStrategy}, CSGeometry, GateConfigurationHolder, LookupParameters, StaticToolboxHolder}, field::SmallField, gadgets::{tables::{create_and8_table, create_byte_split_table, create_xor8_table, And8Table, Xor8Table}, tower_extension::tests::utils::cs::create_test_cs, traits::{allocatable::CSAllocatable, witnessable::WitnessHookable}, u256::UInt256}, worker::Worker};
