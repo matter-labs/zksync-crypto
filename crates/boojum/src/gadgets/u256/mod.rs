@@ -1,3 +1,6 @@
+#[cfg(test)]
+pub mod test;
+
 use super::*;
 use crate::cs::traits::cs::ConstraintSystem;
 use crate::cs::traits::cs::DstBuffer;
@@ -388,10 +391,17 @@ impl<F: SmallField> UInt256<F> {
             false => product.div_mod(m.into()),
         };
 
-        let q: U256 = q.try_into().unwrap();
+        let split_u512 = |value: U512| -> (U256, U256) {
+            let lower = U256([value.0[0], value.0[1], value.0[2], value.0[3]]);
+            let upper = U256([value.0[4], value.0[5], value.0[6], value.0[7]]);
+            (lower, upper)
+        };
+    
+        let (q_low, q_high) = split_u512(q);
+
         let r: U256 = r.try_into().unwrap();
 
-        let q = UInt256::allocate(cs, q);
+        let q = UInt512::allocate(cs, (q_low, q_high));
         let r = UInt256::allocate(cs, r);
 
         let mod_is_zero = modulo.is_zero(cs);
@@ -405,7 +415,7 @@ impl<F: SmallField> UInt256<F> {
         let zero = UInt512::zero(cs);
         let lhs = UInt512::conditionally_select(cs, mod_is_zero, &zero, &lhs);
 
-        let rhs = q.widening_mul(cs, &modulo, 8, 8);
+        let rhs = q.widening_mul_with_u256_truncated(cs, &modulo, 16, 8);
         let r_u512 = r.to_u512(cs);
         let (rhs, _) = rhs.overflowing_add(cs, &r_u512);
 

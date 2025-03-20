@@ -205,6 +205,45 @@ impl<F: SmallField> UInt512<F> {
     }
 
     #[must_use]
+    pub fn widening_mul_with_u256_truncated<CS: ConstraintSystem<F>>(
+        &self,
+        cs: &mut CS,
+        other: &UInt256<F>,
+        self_limbs: usize,
+        other_limbs: usize,
+    ) -> Self {
+        assert!(self_limbs + other_limbs <= 24);
+        let zero = UInt32::allocated_constant(cs, 0);
+        let mut remainders = vec![UInt32::<F>::zero(cs); self_limbs + other_limbs];
+
+        for i in 0..self_limbs {
+            let mut carry = UInt32::allocated_constant(cs, 0);
+            for j in 0..other_limbs {
+                let res = UInt32::fma_with_carry(
+                    cs,
+                    self.inner[i],
+                    other.inner[j],
+                    if i == 0 { zero } else { remainders[i + j] },
+                    carry,
+                );
+                (remainders[i + j], carry) = (res[0].0, res[1].0);
+            }
+            remainders[i + other_limbs] = carry;
+        }
+
+        let bool_true = Boolean::allocated_constant(cs, true);
+        for limb in &remainders[16..] {
+            let limb_is_zero = limb.is_zero(cs);
+            Boolean::enforce_equal(cs, &limb_is_zero, &bool_true);
+        }
+        
+        let mut inner = [UInt32::<F>::zero(cs); 16];
+        inner[..16].copy_from_slice(&remainders[..16]);
+        UInt512 { inner }
+    }
+
+
+    #[must_use]
     pub fn overflowing_sub<CS: ConstraintSystem<F>>(
         &self,
         cs: &mut CS,
