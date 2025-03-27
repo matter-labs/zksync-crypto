@@ -1048,6 +1048,10 @@ where
         let params = Arc::new(NonNativeFieldOverU16Params::<T, N>::create());
         Self::allocate_checked(cs, witness.get(), &params)
     }
+    fn allocate_constant<CS: ConstraintSystem<F>>(cs: &mut CS, witness: Self::Witness) -> Self {
+        let params = Arc::new(NonNativeFieldOverU16Params::<T, N>::create());
+        Self::allocated_constant(cs, witness.get(), &params)
+    }
 }
 
 impl<F: SmallField, T: pairing::ff::PrimeField, const N: usize> CSPlaceholder<F>
