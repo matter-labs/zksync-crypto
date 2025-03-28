@@ -252,12 +252,11 @@ where
     {
         let is_even = Boolean::allocated_constant(cs, power % 2 == 0);
 
-        // TODO: check what non-residue == -1.
+        // If you going to use other curve then check if non-residue == -1. Currently used for BN256 curve.
 
         let c0 = self.c0.clone();
         let c1 = self.c1.negated(cs);
 
-        // TODO: assert what Fp2 under CS computes frobenius map same as without CS and this optimizational hack.
 
         <Fq2<F, T, NN, P> as NonNativeField<F, T>>::conditionally_select(
             cs,
@@ -582,9 +581,11 @@ where
     where
         CS: ConstraintSystem<F>,
     {
-        // TODO: Make check for zero.
         let mut self_cloned = self.clone();
-        self_cloned.inverse(cs)
+        let is_zero = self_cloned.is_zero(cs);
+        let inverse = self_cloned.inverse(cs);
+        let output =  Self::conditionally_select(cs, is_zero, &self, &inverse);
+        output
     }
 
     fn inverse_unchecked<CS>(&mut self, cs: &mut CS) -> Self

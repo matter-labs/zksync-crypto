@@ -701,9 +701,11 @@ where
     where
         CS: ConstraintSystem<F>,
     {
-        // TODO: Make check for zero.
         let mut self_cloned = self.clone();
-        self_cloned.inverse(cs)
+        let is_zero = self_cloned.is_zero(cs);
+        let inverse = self_cloned.inverse(cs);
+        let output =  Self::conditionally_select(cs, is_zero, &self, &inverse);
+        output
     }
 
     fn inverse_unchecked<CS>(&mut self, cs: &mut CS) -> Self
