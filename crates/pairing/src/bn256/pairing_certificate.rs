@@ -165,7 +165,6 @@ pub fn miller_loop_with_prepared_lines(eval_points: &[G1Affine], lines: &[Vec<(F
     // Frobenius map part: p - p^2 + p^3 steps
     // this part runs through each eval point and applies
     // three additional line evaluations with special conditions.
-    // Todo_O_O need to ckeck if in circuits 3 frob line eval or 2 ???
     for (p, l) in eval_points.iter().zip(lines.iter()) {
         for k in 0..2 {
             let (alpha, mu) = l[lc + k];

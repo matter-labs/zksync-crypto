@@ -701,9 +701,7 @@ where
     where
         CS: ConstraintSystem<F>,
     {
-        // TODO: Make check for zero.
-        let mut self_cloned = self.clone();
-        self_cloned.inverse(cs)
+        unimplemented!();
     }
 
     fn inverse_unchecked<CS>(&mut self, cs: &mut CS) -> Self

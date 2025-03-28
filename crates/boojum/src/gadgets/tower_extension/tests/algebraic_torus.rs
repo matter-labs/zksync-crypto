@@ -183,40 +183,46 @@ pub mod test {
         }
     }
 
-    // / Tests the power operation using naf decomposition over Algebraic Torus.
-    // /
-    // / The tests are run against the test cases defined in [`TORUS_TEST_CASES`], which
-    // / are generated using the `sage` script in `gen/torus.sage`.
-    // #[test]
-    // fn test_torus_naf_power() {
-    //     // Preparing the constraint system and parameters
-    //     let mut owned_cs = create_test_cs(1 << 21);
-    //     let cs = &mut owned_cs;
+    /// The NAF  decomposition of the scalar u used in the final exponentiation
+    const U_WNAF: [i64; 63] = [
+        1, 0, 0, 0, 1, 0, 1, 0, 0, -1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 1, 1, 0, 1, 0,
+        0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, -1, 0,
+        0, 0, 1,
+    ];
 
-    //     // Running tests from file: validating sum, diff, prod, and quot
-    //     const DEBUG_FREQUENCY: usize = 2;
-    //     for (i, test) in TORUS_TEST_CASES.tests.iter().enumerate() {
-    //         // Reading input (only the first scalar)
-    //         let u = U_WNAF;
-    //         let mut scalar_1 = test.scalar_1.to_fq12(cs);
+    /// Tests the power operation using NAF decomposition over Algebraic Torus.
+    ///
+    /// The test verifies two cases:
+    /// 1. Raising to power u (using U_WNAF decomposition)
+    /// 2. Raising to power 13 (using [1, 0, -1, 0, 1] decomposition)
+    ///
+    /// The tests are run against the test cases defined in [`TORUS_TEST_CASES`], which
+    /// are generated using the `sage` script in `gen/torus.sage`.
+    #[test]
+    fn test_torus_naf_power() {
+        let mut owned_cs = create_test_cs(1 << 21);
+        let cs = &mut owned_cs;
 
-    //         // Compressing input (only the first scalar)
-    //         let mut scalar_1_torus: BN256TorusWrapper<F> =
-    //             TorusWrapper::compress::<_, true>(cs, &mut scalar_1);
+        const DEBUG_FREQUENCY: usize = 2;
+        for (i, test) in TORUS_TEST_CASES.tests.iter().enumerate() {
+            let mut scalar_1 = test.scalar_1.to_fq12(cs);
 
-    //         // Expected:
-    //         let expected_power_u = test.expected.power_u_encoding.to_fq6(cs);
-    //         let expected_power_13 = test.expected.power_13_encoding.to_fq6(cs);
+            let mut scalar_1_torus: BN256TorusWrapper<F> =
+                TorusWrapper::compress(cs, &mut scalar_1, true);
 
-    //         // Actual:
-    //         let power_u = scalar_1_torus.pow_naf_decomposition(cs, u);
-    //         let power_13 = scalar_1_torus.pow_naf_decomposition(cs, &[1, 0, -1, 0, 1]);
+            // Expected:
+            let expected_power_u = test.expected.power_u_encoding.to_fq6(cs);
+            let expected_power_13 = test.expected.power_13_encoding.to_fq6(cs);
 
-    //         // Asserting:
-    //         assert_equal_fq6(cs, &power_u.encoding, &expected_power_u);
-    //         assert_equal_fq6(cs, &power_13.encoding, &expected_power_13);
+            // Actual:
+            let power_u = scalar_1_torus.pow_naf_decomposition(cs, &U_WNAF, true);
+            let power_13 = scalar_1_torus.pow_naf_decomposition(cs, &[1, 0, -1, 0, 1], true);
 
-    //         debug_success("torus raising to power", i, DEBUG_FREQUENCY);
-    //     }
-    // }
+            // Asserting:
+            assert_equal_fq6(cs, &power_u.encoding, &expected_power_u);
+            assert_equal_fq6(cs, &power_13.encoding, &expected_power_13);
+
+            debug_success("torus raising to power", i, DEBUG_FREQUENCY);
+        }
+    }
 }
