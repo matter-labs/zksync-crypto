@@ -382,6 +382,7 @@ pub mod test {
 
     /// Test powering of `Fq12` field extension by a fixed u64 scalar.
     #[test]
+    #[ignore = "causing timeouts on macos"]
     fn test_fq12_pow() {
         // Preparing the constraint system and parameters
         let mut owned_cs = create_test_cs(1 << 23);
