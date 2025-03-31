@@ -150,7 +150,7 @@ macro_rules! curve_impl {
             fn zero() -> Self {
                 $affine {
                     x: $basefield::zero(),
-                    y: $basefield::one(),
+                    y: $basefield::zero(),
                     infinity: true,
                 }
             }
@@ -1392,6 +1392,44 @@ pub mod g2 {
             }
 
             ret
+        }
+        pub fn double_with_alpha(&mut self, alpha: Fq2) {
+            //x_r = alpha^2 - 2 * x
+            let mut x_r = alpha;
+            x_r.square();
+            x_r.sub_assign(&self.x);
+            x_r.sub_assign(&self.x);
+
+            // y_r = alpha * (x - x_r) - y
+            let mut y_r = self.x;
+            y_r.sub_assign(&x_r);
+            y_r.mul_assign(&alpha);
+            y_r.sub_assign(&self.y);
+
+            self.x = x_r;
+            self.y = y_r;
+        }
+
+        pub fn add_assign_mixed_with_alpha(&mut self, other: &G2Affine, alpha: Fq2) {
+            let x1 = self.x;
+            let y1 = self.y;
+            let x2 = other.x;
+            let y2 = other.y;
+
+            // x_r = alpha^2 - x1 - x2
+            let mut x_r = alpha;
+            x_r.square();
+            x_r.sub_assign(&x1);
+            x_r.sub_assign(&x2);
+
+            // y_r = alpha * (x1 - x_r) - y1
+            let mut y_r = x1;
+            y_r.sub_assign(&x_r);
+            y_r.mul_assign(&alpha);
+            y_r.sub_assign(&y1);
+
+            self.x = x_r;
+            self.y = y_r;
         }
     }
 

@@ -197,10 +197,18 @@ pub const FROBENIUS_COEFF_FQ12_C1: [Fq2; 12] = [
 ];
 
 // -((2**256) mod q) mod q
-pub const NEGATIVE_ONE: Fq = Fq(FqRepr([0x974bc177a0000006, 0xf13771b2da58a367, 0x51e1a2470908122e, 0x2259d6b14729c0fa]));
+pub const NEGATIVE_ONE: Fq = Fq(FqRepr([0x68c3488912edefaa, 0x8d087f6872aabf4f, 0x51e1a24709081231, 0x2259d6b14729c0fa]));
 
 #[cfg(test)]
 use rand::{Rand, SeedableRng, XorShiftRng};
+
+#[test]
+fn test_neg_one() {
+    let mut o = Fq::one();
+    o.negate();
+
+    assert_eq!(NEGATIVE_ONE, o);
+}
 
 #[test]
 fn test_fq_repr_from() {

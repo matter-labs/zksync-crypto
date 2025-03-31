@@ -1,18 +1,20 @@
-use crypto_bigint::CheckedMul;
-
+use super::utils::*;
+use super::*;
 use crate::cs::gates::{
     ConstantAllocatableCS, DotProductGate, FmaGateInBaseFieldWithoutConstant, UIntXAddGate,
 };
 use crate::cs::traits::cs::DstBuffer;
+use crate::field::traits::field_like::PrimeFieldLike;
 use crate::gadgets::boolean::Boolean;
 use crate::gadgets::num::Num;
 use crate::gadgets::traits::allocatable::CSAllocatable;
 use crate::gadgets::traits::castable::WitnessCastable;
 use crate::gadgets::traits::selectable::Selectable;
 use crate::gadgets::traits::witnessable::{CSWitnessable, WitnessHookable};
-
-use super::utils::*;
-use super::*;
+use crypto_bigint::CheckedMul;
+use serde::de::Visitor;
+use serde::{de, Deserialize, Deserializer, Serialize};
+use std::fmt;
 
 impl<F: SmallField, T: pairing::ff::PrimeField, const N: usize> NonNativeFieldOverU16<F, T, N>
 where
@@ -124,6 +126,25 @@ where
         let els_to_skip = N - self.params.modulus_limbs;
         let _ = u16_long_subtraction_noborrow_must_borrow(cs, &self.limbs, &modulus, els_to_skip);
         self.tracker.max_moduluses = 1;
+    }
+
+    pub fn enforce_equal<CS: ConstraintSystem<F>>(cs: &mut CS, a: &Self, b: &Self) {
+        let mut a = a.clone();
+        let mut b = b.clone();
+
+        a.normalize(cs);
+        b.normalize(cs);
+
+        if <CS::Config as CSConfig>::DebugConfig::PERFORM_RUNTIME_ASSERTS {
+            assert_eq!(
+                a.non_zero_limbs, b.non_zero_limbs,
+                "enforce equal failed: non_zero_limbs divergence"
+            );
+        }
+
+        for (a_el, b_el) in a.limbs.iter().zip(b.limbs.iter()) {
+            Num::enforce_equal(cs, &Num::from_variable(*a_el), &Num::from_variable(*b_el));
+        }
     }
 
     pub fn normalize<CS: ConstraintSystem<F>>(&mut self, cs: &mut CS)
@@ -243,6 +264,7 @@ where
             }
         }
 
+        assert!(self.tracker.max_moduluses <= self.params.max_mods_to_fit);
         new
     }
 
@@ -319,6 +341,7 @@ where
             }
         }
 
+        assert!(self.tracker.max_moduluses <= self.params.max_mods_to_fit);
         new
     }
 
@@ -355,6 +378,8 @@ where
 
         let a_max = self.tracker.into_max_value(&self.params.modulus_u1024);
         let b_max = other.tracker.into_max_value(&self.params.modulus_u1024);
+
+        // if length checks do not pass - apply agressive normalization
 
         assert!(
             self.tracker.max_moduluses * other.tracker.max_moduluses
@@ -698,6 +723,7 @@ where
         // enforce that r is canonical
         new.enforce_reduced(cs);
 
+        assert!(self.tracker.max_moduluses <= self.params.max_mods_to_fit);
         new
     }
 
@@ -845,6 +871,7 @@ where
             }
         }
 
+        assert!(self.tracker.max_moduluses <= self.params.max_mods_to_fit);
         new
     }
 
@@ -1005,24 +1032,79 @@ where
 
 impl<F: SmallField, T: pairing::ff::PrimeField, const N: usize> CSAllocatable<F>
     for NonNativeFieldOverU16<F, T, N>
+where
+    [(); N + 1]:,
 {
     type Witness = FFProxyValue<T, N>;
 
     fn placeholder_witness() -> Self::Witness {
         FFProxyValue { value: T::zero() }
     }
-    fn allocate_without_value<CS: ConstraintSystem<F>>(_cs: &mut CS) -> Self {
-        unimplemented!("we need parameters to do it")
+    fn allocate_without_value<CS: ConstraintSystem<F>>(cs: &mut CS) -> Self {
+        let params = Arc::new(NonNativeFieldOverU16Params::<T, N>::create());
+        Self::allocate_checked_without_value(cs, &params)
     }
-    fn allocate<CS: ConstraintSystem<F>>(_cs: &mut CS, _witness: Self::Witness) -> Self {
-        unimplemented!("we need parameters to do it")
+    fn allocate<CS: ConstraintSystem<F>>(cs: &mut CS, witness: Self::Witness) -> Self {
+        let params = Arc::new(NonNativeFieldOverU16Params::<T, N>::create());
+        Self::allocate_checked(cs, witness.get(), &params)
+    }
+    fn allocate_constant<CS: ConstraintSystem<F>>(cs: &mut CS, witness: Self::Witness) -> Self {
+        let params = Arc::new(NonNativeFieldOverU16Params::<T, N>::create());
+        Self::allocated_constant(cs, witness.get(), &params)
+    }
+}
+
+impl<F: SmallField, T: pairing::ff::PrimeField, const N: usize> CSPlaceholder<F>
+    for NonNativeFieldOverU16<F, T, N>
+{
+    fn placeholder<CS: ConstraintSystem<F>>(cs: &mut CS) -> Self {
+        let variable = Variable::placeholder();
+
+        Self {
+            limbs: [variable; N],
+            non_zero_limbs: 0,
+            tracker: OverflowTracker { max_moduluses: 0 },
+            form: RepresentationForm::Normalized,
+            params: Arc::new(NonNativeFieldOverU16Params::placeholder(cs)),
+            _marker: std::marker::PhantomData,
+        }
+    }
+}
+
+impl<F: SmallField, T: pairing::ff::PrimeField, const N: usize> CircuitVarLengthEncodable<F>
+    for NonNativeFieldOverU16<F, T, N>
+where
+    [(); N + 1]:,
+{
+    fn encoding_length(&self) -> usize {
+        N
+    }
+
+    fn encode_to_buffer<CS: ConstraintSystem<F>>(&self, _cs: &mut CS, dst: &mut Vec<Variable>) {
+        dst.extend_from_slice(self.limbs.as_slice())
+    }
+}
+
+impl<F: SmallField, T: pairing::ff::PrimeField, const N: usize> WitnessVarLengthEncodable<F>
+    for NonNativeFieldOverU16<F, T, N>
+where
+    [(); N + 1]:,
+{
+    fn witness_encoding_length(_witness: &Self::Witness) -> usize {
+        N
+    }
+
+    fn encode_witness_to_buffer(witness: &Self::Witness, dst: &mut Vec<F>) {
+        for el in witness.cast_into_source().into_iter() {
+            dst.push(el);
+        }
     }
 }
 
 // We need this to ensure no conflicting implementations without negative impls
 
-#[derive(Derivative)]
-#[derivative(Clone, Copy, Debug, Hash)]
+#[derive(Derivative, Serialize, PartialEq)]
+#[derivative(Clone, Copy, Debug, Hash, Eq)]
 pub struct FFProxyValue<T: pairing::ff::PrimeField, const N: usize> {
     value: T,
 }
@@ -1030,6 +1112,72 @@ pub struct FFProxyValue<T: pairing::ff::PrimeField, const N: usize> {
 impl<T: pairing::ff::PrimeField, const N: usize> FFProxyValue<T, N> {
     pub const fn get(&self) -> T {
         self.value
+    }
+    pub fn set(value: T) -> Self {
+        Self { value }
+    }
+}
+
+// Implement custom Deserialize, because we cannot derive:
+// PrimeField inherits only DeserializeOwned.
+impl<'de, T, const N: usize> Deserialize<'de> for FFProxyValue<T, N>
+where
+    T: pairing::ff::PrimeField,
+{
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct FFProxyValueVisitor<T, const N: usize>
+        where
+            T: pairing::ff::PrimeField,
+        {
+            marker: std::marker::PhantomData<T>,
+        }
+
+        impl<'de, T, const N: usize> Visitor<'de> for FFProxyValueVisitor<T, N>
+        where
+            T: pairing::ff::PrimeField + serde::de::DeserializeOwned,
+        {
+            type Value = FFProxyValue<T, N>;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("a valid PrimeField value")
+            }
+
+            fn visit_map<M>(self, mut map: M) -> Result<Self::Value, M::Error>
+            where
+                M: de::MapAccess<'de>,
+            {
+                let mut value = None;
+
+                while let Some(key) = map.next_key()? {
+                    match key {
+                        "value" => {
+                            if value.is_some() {
+                                return Err(de::Error::duplicate_field("value"));
+                            }
+                            value = Some(map.next_value()?);
+                        }
+                        _ => {
+                            return Err(de::Error::unknown_field(key, FIELDS));
+                        }
+                    }
+                }
+
+                let value = value.ok_or_else(|| de::Error::missing_field("value"))?;
+                Ok(FFProxyValue { value })
+            }
+        }
+
+        const FIELDS: &[&str] = &["value"];
+        deserializer.deserialize_struct(
+            "FFProxyValue",
+            FIELDS,
+            FFProxyValueVisitor {
+                marker: std::marker::PhantomData,
+            },
+        )
     }
 }
 
@@ -1062,14 +1210,23 @@ impl<F: SmallField, T: pairing::ff::PrimeField, const N: usize> WitnessCastable<
     }
 
     fn cast_into_source(self) -> [F; N] {
-        unimplemented!("we allow non-reduced representations, so we should not use this function")
+        let value_as_u16s = fe_to_u16_words::<T, N>(&self.value);
+        let mut result = [F::one(&mut ()); N];
+        for (dst, src) in result.iter_mut().zip(value_as_u16s.iter()) {
+            *dst = F::from_u64_unchecked(*src as u64);
+        }
+
+        result
     }
 }
 
 use crate::gadgets::traits::castable::Convertor;
+use crate::gadgets::traits::encodable::{CircuitVarLengthEncodable, WitnessVarLengthEncodable};
 
 impl<F: SmallField, T: pairing::ff::PrimeField, const N: usize> CSWitnessable<F, N>
     for NonNativeFieldOverU16<F, T, N>
+where
+    [(); N + 1]:,
 {
     type ConversionFunction = Convertor<F, [F; N], FFProxyValue<T, N>>;
 
@@ -1084,6 +1241,8 @@ impl<F: SmallField, T: pairing::ff::PrimeField, const N: usize> CSWitnessable<F,
 
 impl<F: SmallField, T: pairing::ff::PrimeField, const N: usize> WitnessHookable<F>
     for NonNativeFieldOverU16<F, T, N>
+where
+    [(); N + 1]:,
 {
     fn witness_hook<CS: ConstraintSystem<F>>(
         &self,
