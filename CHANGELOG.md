@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.32.0](https://github.com/matter-labs/zksync-crypto/compare/v0.31.0...v0.32.0) (2025-03-31)
+
+
+### ⚠ BREAKING CHANGES
+
+* ec precompiles ([#77](https://github.com/matter-labs/zksync-crypto/issues/77))
+
+### Features
+
+* ec precompiles ([#77](https://github.com/matter-labs/zksync-crypto/issues/77)) ([af2c69a](https://github.com/matter-labs/zksync-crypto/commit/af2c69a525707037adb2d253c815553902b2f84b))
+
 ## [0.31.0](https://github.com/matter-labs/zksync-crypto/compare/v0.30.14...v0.31.0) (2025-02-10)
 
 
