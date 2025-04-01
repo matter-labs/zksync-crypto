@@ -1,10 +1,6 @@
 name: "Rust CI"
 on:
   pull_request:
-    paths:
-      - "crates/**"
-      - "Cargo.toml"
-      - ".github/workflows/ci.yaml"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
