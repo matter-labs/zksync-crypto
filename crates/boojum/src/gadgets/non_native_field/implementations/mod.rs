@@ -9,7 +9,7 @@ use crate::cs::traits::cs::ConstraintSystem;
 use crate::gadgets::traits::allocatable::CSPlaceholder;
 use crate::gadgets::u16::UInt16;
 use crate::{cs::Variable, gadgets::u8::get_8_by_8_range_check_table};
-use crypto_bigint::{CheckedMul, NonZero, Zero, Uint};
+use crypto_bigint::{CheckedMul, NonZero, Uint, Zero};
 
 pub mod impl_traits;
 pub mod implementation_u16;
