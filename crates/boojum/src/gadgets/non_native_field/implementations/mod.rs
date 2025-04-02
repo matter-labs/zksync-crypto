@@ -9,13 +9,13 @@ use crate::cs::traits::cs::ConstraintSystem;
 use crate::gadgets::traits::allocatable::CSPlaceholder;
 use crate::gadgets::u16::UInt16;
 use crate::{cs::Variable, gadgets::u8::get_8_by_8_range_check_table};
-use crypto_bigint::{CheckedMul, NonZero, Uint, Zero};
+use crypto_bigint::{nlimbs, CheckedMul, NonZero, Uint, Zero};
 
 pub mod impl_traits;
 pub mod implementation_u16;
 pub mod utils;
 
-pub type U1024 = Uint<1024>;
+pub type U1024 = Uint<{ nlimbs!(1024) }>;
 
 // Small note on the strategy - because we are quite flexible in what range check tables we use we have a few options:
 // - if we only need field ops we can create many lookup arguments that are basically 16 bit range checks
