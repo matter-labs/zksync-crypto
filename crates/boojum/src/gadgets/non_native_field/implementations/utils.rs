@@ -3,7 +3,6 @@ use crate::{
     cs::gates::{ReductionGate, ReductionGateParams, UIntXAddGate},
     gadgets::{boolean::Boolean, num::Num, traits::selectable::Selectable},
 };
-use crypto_bigint::U1024;
 
 pub(crate) fn fe_to_u16_words<T: pairing::ff::PrimeField, const N: usize>(src: &T) -> [u16; N] {
     let mut result = [0u16; N];
