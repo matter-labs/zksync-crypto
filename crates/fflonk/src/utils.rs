@@ -497,7 +497,8 @@ pub(crate) fn precompute_all_lagrange_basis_evaluations<F: PrimeField>(
     y: F,
     setup_requires_opening_at_shifted_point: bool,
     first_round_requires_opening_at_shifted_point: bool,
-) -> (Vec<F>, [Vec<F>; 3]) {
+    provided_montgomery_inverse: Option<F>,
+    ) -> (F, [Vec<F>; 3]) { 
     assert!(interpolation_size_of_setup.is_power_of_two());
     assert!(interpolation_size_of_first_round.is_power_of_two());
     assert_eq!(interpolation_size_of_second_round, 3);
@@ -553,12 +554,31 @@ pub(crate) fn precompute_all_lagrange_basis_evaluations<F: PrimeField>(
     if SANITY_CHECK {
         assert_eq!(lagrange_basis_evals_of_second_round, _lagrange_basis_evals_of_second_round);
     }
+
     let mut flattened_inverses = lagrange_basis_inverses_of_setup_polys;
     flattened_inverses.extend(lagrange_basis_inverses_of_first_round);
     flattened_inverses.extend(lagrange_basis_inverses_of_second_round);
+
+    let mut montgomery_inverse = F::one();
+    for x in &flattened_inverses {
+        montgomery_inverse.mul_assign(x);
+    }
+
+    if let Some(provided_inv) = provided_montgomery_inverse {
+        // Verify the provided inverse matches the computed product
+        assert_eq!(
+            provided_inv, montgomery_inverse,
+            "Invalid Montgomery inverse: provided does not match product of denominator inverses"
+        );
+    }
+
     (
-        flattened_inverses,
-        [lagrange_basis_evals_of_setup_polys, lagrange_basis_evals_of_first_round, lagrange_basis_evals_of_second_round],
+        montgomery_inverse,
+        [
+            lagrange_basis_evals_of_setup_polys,
+            lagrange_basis_evals_of_first_round,
+            lagrange_basis_evals_of_second_round,
+        ],
     )
 }
 
