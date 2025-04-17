@@ -31,7 +31,7 @@ jobs:
           rustflags: ""
 
       - name: Install sccache
-        uses: mozilla-actions/sccache-action@v0.0.4
+        uses: mozilla-actions/sccache-action@v0.0.9
 
       # Bellman crate *must* build on stable, because parts of the core
       # codebase are only used in the context of stable compiler.
