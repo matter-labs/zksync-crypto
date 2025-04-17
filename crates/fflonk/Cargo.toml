@@ -11,7 +11,7 @@ categories.workspace = true
 description = "Reference implementation of fflonk prover and verifier"
 
 [dependencies]
-franklin-crypto = { workspace = true, features = ["allocator"] }
+franklin-crypto = { workspace = true, optional = true, default-features = true}
 num-bigint = { version = "0.4", features = ["serde"] }
 num-traits = "0.2"
 rand = "0.4"
@@ -22,5 +22,6 @@ bincode = "1.3"
 byteorder = "1"
 
 [features]
-default = ["sanity"]
+default = ["franklin-crypto"]
 sanity = []
+allocator  = ["franklin-crypto/allocator"]

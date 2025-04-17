@@ -3,7 +3,6 @@ use crate::{
     cs::gates::{ReductionGate, ReductionGateParams, UIntXAddGate},
     gadgets::{boolean::Boolean, num::Num, traits::selectable::Selectable},
 };
-use crypto_bigint::U1024;
 
 pub(crate) fn fe_to_u16_words<T: pairing::ff::PrimeField, const N: usize>(src: &T) -> [u16; N] {
     let mut result = [0u16; N];
@@ -21,22 +20,22 @@ pub(crate) fn fe_to_u16_words<T: pairing::ff::PrimeField, const N: usize>(src: &
         if 4 * idx < N {
             result[4 * idx] = a;
         } else {
-            debug_assert_eq!(a, 0);
+            assert_eq!(a, 0);
         }
         if 4 * idx + 1 < N {
             result[4 * idx + 1] = b;
         } else {
-            debug_assert_eq!(b, 0);
+            assert_eq!(b, 0);
         }
         if 4 * idx + 2 < N {
             result[4 * idx + 2] = c;
         } else {
-            debug_assert_eq!(c, 0);
+            assert_eq!(c, 0);
         }
         if 4 * idx + 3 < N {
             result[4 * idx + 3] = d;
         } else {
-            debug_assert_eq!(d, 0);
+            assert_eq!(d, 0);
         }
     }
 
@@ -245,7 +244,7 @@ pub fn split_out_u32_carry_from_zero_low<F: SmallField, CS: ConstraintSystem<F>>
     lhs: Variable,
     rhs: Variable,
 ) -> (Boolean<F>, (Variable, Variable)) {
-    debug_assert!(F::CAPACITY_BITS >= 48);
+    assert!(F::CAPACITY_BITS >= 48);
     let outputs = cs.alloc_multiple_variables_without_values::<3>();
     if <CS::Config as CSConfig>::WitnessConfig::EVALUATE_WITNESS == true {
         let value_fn = move |input: [F; 2]| {
@@ -270,7 +269,7 @@ pub fn split_out_u32_carry_from_zero_low<F: SmallField, CS: ConstraintSystem<F>>
             diff >>= 16;
             let high = diff as u16;
             diff >>= 16;
-            debug_assert_eq!(diff, 0);
+            assert_eq!(diff, 0);
             [
                 F::from_u64_unchecked(swap as u64),
                 F::from_u64_unchecked(low as u64),

@@ -6,7 +6,13 @@
     "packages": {
         ".": {
             "component": "zksync-crypto",
-            "release-type": "simple"
+            "release-type": "simple",
+            "extra-files": [
+                {
+                    "type": "generic",
+                    "path": "Cargo.toml"
+                }
+            ]
         }
     }
 }

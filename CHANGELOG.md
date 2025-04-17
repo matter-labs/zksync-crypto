@@ -1,5 +1,55 @@
 # Changelog
 
+## [0.32.0](https://github.com/matter-labs/zksync-crypto/compare/v0.31.0...v0.32.0) (2025-03-31)
+
+
+### ⚠ BREAKING CHANGES
+
+* ec precompiles ([#77](https://github.com/matter-labs/zksync-crypto/issues/77))
+
+### Features
+
+* ec precompiles ([#77](https://github.com/matter-labs/zksync-crypto/issues/77)) ([af2c69a](https://github.com/matter-labs/zksync-crypto/commit/af2c69a525707037adb2d253c815553902b2f84b))
+
+## [0.31.0](https://github.com/matter-labs/zksync-crypto/compare/v0.30.14...v0.31.0) (2025-02-10)
+
+
+### ⚠ BREAKING CHANGES
+
+* Changes for v27 upgrade ([#73](https://github.com/matter-labs/zksync-crypto/issues/73))
+
+### Features
+
+* Changes for v27 upgrade ([#73](https://github.com/matter-labs/zksync-crypto/issues/73)) ([81ea71c](https://github.com/matter-labs/zksync-crypto/commit/81ea71c56602b4fcca67c858a0b3d35a1dbacf83))
+
+
+### Bug Fixes
+
+* **boojum:** Added capacity_per_row == 1 case while finding next gate placement ([#68](https://github.com/matter-labs/zksync-crypto/issues/68)) ([4172d57](https://github.com/matter-labs/zksync-crypto/commit/4172d570fce583c030aa04e676d76323116da43a))
+
+## [0.30.14](https://github.com/matter-labs/zksync-crypto/compare/v0.30.13...v0.30.14) (2025-02-06)
+
+
+### Bug Fixes
+
+* **ci:** Update github-hosted runner label ([#66](https://github.com/matter-labs/zksync-crypto/issues/66)) ([121a6bc](https://github.com/matter-labs/zksync-crypto/commit/121a6bc69e51aef110ffce6cd00bffe13cd0041e))
+* Handle serialization errors instead of panicking ([#69](https://github.com/matter-labs/zksync-crypto/issues/69)) ([21bcb37](https://github.com/matter-labs/zksync-crypto/commit/21bcb37d1504da270e623d4826a7de3b05413100))
+
+## [0.30.13](https://github.com/matter-labs/zksync-crypto/compare/v0.30.12...v0.30.13) (2025-01-11)
+
+
+### Features
+
+* **bellman:** CRS constructor with custom allocator ([#62](https://github.com/matter-labs/zksync-crypto/issues/62)) ([296045b](https://github.com/matter-labs/zksync-crypto/commit/296045bcd948051fdfbb22a13c8bc72c5f2378b8))
+* **fflonk:** non-default allocator feature ([#61](https://github.com/matter-labs/zksync-crypto/issues/61)) ([debf9a3](https://github.com/matter-labs/zksync-crypto/commit/debf9a35c090eb58a862c3390827a097cdc43061))
+
+## [0.30.12](https://github.com/matter-labs/zksync-crypto/compare/v0.30.11...v0.30.12) (2024-12-20)
+
+
+### Features
+
+* FFLONK ([#58](https://github.com/matter-labs/zksync-crypto/issues/58)) ([a57cf0f](https://github.com/matter-labs/zksync-crypto/commit/a57cf0fc5cee14fa6a361f0d5990ed2de8b094f5))
+
 ## [0.30.11](https://github.com/matter-labs/zksync-crypto/compare/v0.30.10...v0.30.11) (2024-12-18)
 
 

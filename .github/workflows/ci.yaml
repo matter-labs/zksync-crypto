@@ -1,10 +1,6 @@
 name: "Rust CI"
 on:
   pull_request:
-    paths:
-      - "crates/**"
-      - "Cargo.toml"
-      - ".github/workflows/ci.yaml"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -26,7 +22,7 @@ jobs:
         # Needs big runners to run tests
         # Only macos-13-xlarge is Apple Silicon, as per:
         # https://docs.github.com/en/actions/using-github-hosted-runners/about-larger-runners/about-larger-runners#about-macos-larger-runners
-        os: [ubuntu-22.04-github-hosted-16core, macos-13-xlarge]
+        os: [ubuntu-24.04-github-hosted-16core, macos-13-xlarge]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -49,7 +45,7 @@ jobs:
         run: cargo install cargo-nextest
 
       - name: Run tests
-        run: cargo nextest run --no-fail-fast
+        run: cargo nextest run --no-fail-fast --jobs=3 --release
 
   ci-success:
     name: Github Status Check

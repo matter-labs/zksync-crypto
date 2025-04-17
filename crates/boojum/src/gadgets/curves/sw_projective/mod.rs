@@ -1,3 +1,6 @@
+// Short weierstrass projective curve point implementation.
+// Primarily based on the paper: https://eprint.iacr.org/2015/1060.pdf
+
 use super::*;
 
 use crate::gadgets::traits::selectable::Selectable;
@@ -46,6 +49,23 @@ where
         let x = NN::allocated_constant(cs, C::Base::zero(), params);
         let y = NN::allocated_constant(cs, C::Base::one(), params);
         let z = NN::allocated_constant(cs, C::Base::zero(), params);
+
+        Self {
+            x,
+            y,
+            z,
+            _marker: std::marker::PhantomData,
+        }
+    }
+
+    pub fn one<CS: ConstraintSystem<F>>(cs: &mut CS, params: &std::sync::Arc<NN::Params>) -> Self {
+        use pairing::ff::Field;
+
+        let one = C::one();
+        let (x, y) = one.into_xy_unchecked();
+        let x = NN::allocated_constant(cs, x, params);
+        let y = NN::allocated_constant(cs, y, params);
+        let z = NN::allocated_constant(cs, C::Base::one(), params);
 
         Self {
             x,
@@ -451,20 +471,59 @@ where
         new
     }
 
+    pub fn add_mixed_inf_pass<CS: ConstraintSystem<F>>(
+        &mut self,
+        cs: &mut CS,
+        other_xy: &mut (NN, NN),
+        is_other_inf: Boolean<F>,
+    ) -> Self {
+        let result = self.add_sub_mixed_impl(cs, other_xy, false);
+
+        Self::conditionally_select(cs, is_other_inf, self, &result)
+    }
+
+    /// Unsafe: expects the argument point is a valid affine point (i.e. not the point at infinity)
+    /// Otherwise, the result is incorrect
     pub fn add_mixed<CS: ConstraintSystem<F>>(
         &mut self,
         cs: &mut CS,
         other_xy: &mut (NN, NN),
     ) -> Self {
-        self.add_sub_mixed_impl(cs, other_xy, false)
-    }
+        let (x, y) = other_xy;
 
+        let x_is_zero = x.is_zero(cs);
+        let y_is_zero = y.is_zero(cs);
+
+        let is_point2_inf = x_is_zero.and(cs, y_is_zero);
+
+        let result = self.add_sub_mixed_impl(cs, other_xy, false);
+
+        Self::conditionally_select(cs, is_point2_inf, self, &result)
+    }
+    /// Unsafe: expects the argument point is a valid affine point (i.e. not the point at infinity)
+    /// Otherwise, the result is incorrect
     pub fn sub_mixed<CS: ConstraintSystem<F>>(
         &mut self,
         cs: &mut CS,
         other_xy: &mut (NN, NN),
     ) -> Self {
-        self.add_sub_mixed_impl(cs, other_xy, true)
+        let (x, y) = other_xy;
+
+        let x_is_zero = x.is_zero(cs);
+        let y_is_zero = y.is_zero(cs);
+
+        let is_point2_inf = x_is_zero.and(cs, y_is_zero);
+
+        let result = self.add_sub_mixed_impl(cs, other_xy, true);
+
+        Self::conditionally_select(cs, is_point2_inf, self, &result)
+    }
+
+    pub fn convert_to_affine<CS: ConstraintSystem<F>>(&mut self, cs: &mut CS) -> (NN, NN) {
+        let x = self.x.div_unchecked(cs, &mut self.z);
+        let y = self.y.div_unchecked(cs, &mut self.z);
+
+        (x, y)
     }
 
     pub fn convert_to_affine_or_default<CS: ConstraintSystem<F>>(
@@ -489,6 +548,12 @@ where
         let y = NN::conditionally_select(cs, is_point_at_infty, &default_y, &y_for_safe_z);
 
         ((x, y), is_point_at_infty)
+    }
+
+    pub fn enforce_reduced<CS: ConstraintSystem<F>>(&mut self, cs: &mut CS) {
+        self.x.enforce_reduced(cs);
+        self.y.enforce_reduced(cs);
+        self.z.enforce_reduced(cs);
     }
 }
 

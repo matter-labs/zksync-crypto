@@ -1,3 +1,6 @@
+#[cfg(test)]
+pub mod test;
+
 use super::*;
 use crate::cs::traits::cs::ConstraintSystem;
 use crate::cs::traits::cs::DstBuffer;
@@ -12,7 +15,7 @@ use crate::gadgets::traits::witnessable::WitnessHookable;
 use crate::gadgets::u32::UInt32;
 use crate::gadgets::u512::UInt512;
 use crate::gadgets::u8::UInt8;
-use ethereum_types::U256;
+use ethereum_types::{U256, U512};
 
 use crate::config::*;
 
@@ -330,6 +333,13 @@ impl<F: SmallField> UInt256<F> {
     }
 
     #[must_use]
+    pub fn to_u512<CS: ConstraintSystem<F>>(&self, cs: &mut CS) -> UInt512<F> {
+        let mut u512 = UInt512::zero(cs);
+        u512.inner[..8].copy_from_slice(&self.inner);
+        u512
+    }
+
+    #[must_use]
     pub fn div2<CS: ConstraintSystem<F>>(&self, cs: &mut CS) -> Self {
         let byte_split_id = cs
             .get_table_id_for_marker::<ByteSplitTable<1>>()
@@ -350,6 +360,69 @@ impl<F: SmallField> UInt256<F> {
             bit = Some(new_bit);
         });
         Self::from_le_bytes(cs, bytes)
+    }
+
+    /// Finds the result of multiplying `self` by `other` mod `modulo`.
+    pub fn modmul<CS: ConstraintSystem<F>>(
+        &self,
+        cs: &mut CS,
+        other: &UInt256<F>,
+        modulo: &UInt256<F>,
+    ) -> UInt256<F> {
+        let a = self.witness_hook(cs)().unwrap_or_else(|| {
+            assert!(!<CS::Config as CSConfig>::WitnessConfig::EVALUATE_WITNESS);
+            U256::zero()
+        });
+
+        let b = other.witness_hook(cs)().unwrap_or_else(|| {
+            assert!(!<CS::Config as CSConfig>::WitnessConfig::EVALUATE_WITNESS);
+            U256::zero()
+        });
+
+        let m = modulo.witness_hook(cs)().unwrap_or_else(|| {
+            assert!(!<CS::Config as CSConfig>::WitnessConfig::EVALUATE_WITNESS);
+            U256::one()
+        });
+
+        let product = a.full_mul(b);
+
+        let (q, r) = match m.is_zero() {
+            true => (U512::zero(), U512::zero()),
+            false => product.div_mod(m.into()),
+        };
+
+        let split_u512 = |value: U512| -> (U256, U256) {
+            let lower = U256([value.0[0], value.0[1], value.0[2], value.0[3]]);
+            let upper = U256([value.0[4], value.0[5], value.0[6], value.0[7]]);
+            (lower, upper)
+        };
+
+        let (q_low, q_high) = split_u512(q);
+
+        let r: U256 = r.try_into().unwrap();
+
+        let q = UInt512::allocate(cs, (q_low, q_high));
+        let r = UInt256::allocate(cs, r);
+
+        let mod_is_zero = modulo.is_zero(cs);
+        let bool_true = Boolean::allocated_constant(cs, true);
+
+        let (_, m_ge_than_r) = r.overflowing_sub(cs, &modulo);
+        let m_ge_than_r = Boolean::conditionally_select(cs, mod_is_zero, &bool_true, &m_ge_than_r);
+        Boolean::enforce_equal(cs, &m_ge_than_r, &bool_true);
+
+        let lhs = self.widening_mul(cs, other, 8, 8);
+        let zero = UInt512::zero(cs);
+        let lhs = UInt512::conditionally_select(cs, mod_is_zero, &zero, &lhs);
+
+        let rhs = q.widening_mul_with_u256_truncated(cs, &modulo, 16, 8);
+        let r_u512 = r.to_u512(cs);
+        let (rhs, _) = rhs.overflowing_add(cs, &r_u512);
+
+        let are_equal = UInt512::equals(cs, &lhs, &rhs);
+        Boolean::enforce_equal(cs, &are_equal, &bool_true);
+
+        r
     }
 }
 
