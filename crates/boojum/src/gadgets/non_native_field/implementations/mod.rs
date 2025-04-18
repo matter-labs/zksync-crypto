@@ -220,7 +220,12 @@ pub fn get_16_bits_range_check_table<F: SmallField, CS: ConstraintSystem<F>>(
     cs: &CS,
 ) -> Option<u32> {
     use crate::gadgets::tables::range_check_16_bits::RangeCheck16BitsTable;
-    cs.get_table_id_for_marker::<RangeCheck16BitsTable>()
+    match cs.get_lookup_params().lookup_width() {
+        1 => cs.get_table_id_for_marker::<RangeCheck16BitsTable<1>>(),
+        3 => cs.get_table_id_for_marker::<RangeCheck16BitsTable<3>>(),
+        4 => cs.get_table_id_for_marker::<RangeCheck16BitsTable<4>>(),
+        _ => return None,
+    }
 }
 
 pub fn range_check_u16<F: SmallField, CS: ConstraintSystem<F>>(cs: &mut CS, variable: Variable) {
