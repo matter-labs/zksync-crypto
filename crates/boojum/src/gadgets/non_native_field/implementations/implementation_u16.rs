@@ -1142,9 +1142,6 @@ where
             type Value = FFProxyValue<T, N>;
 
             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                {
-                    eprintln!("Stacktrace: {:?}", std::backtrace::Backtrace::capture());
-                }
                 formatter.write_str("a valid PrimeField value")
             }
 
