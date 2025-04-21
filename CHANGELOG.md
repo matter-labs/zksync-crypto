@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.32.1](https://github.com/matter-labs/zksync-crypto/compare/v0.32.0...v0.32.1) (2025-04-21)
+
+
+### Bug Fixes
+
+* **boojum:** Fixed issue with FFProxy serialization ([#104](https://github.com/matter-labs/zksync-crypto/issues/104)) ([6dbb55b](https://github.com/matter-labs/zksync-crypto/commit/6dbb55bcd90c7bf41ffa60ba121a3853cf6d314c))
+* dont import U1024 ([#102](https://github.com/matter-labs/zksync-crypto/issues/102)) ([9e7c307](https://github.com/matter-labs/zksync-crypto/commit/9e7c307bc97fb7c68d7453cf5bfb5c9a732364fc))
+* remove Cargo.lock file from .gitignore ([#100](https://github.com/matter-labs/zksync-crypto/issues/100)) ([a4245bc](https://github.com/matter-labs/zksync-crypto/commit/a4245bc720af2b0691118a5f2ea8201ca4662def))
+
 ## [0.32.0](https://github.com/matter-labs/zksync-crypto/compare/v0.31.0...v0.32.0) (2025-03-31)
 
 
