@@ -12,7 +12,7 @@ use crate::gadgets::traits::castable::WitnessCastable;
 use crate::gadgets::traits::selectable::Selectable;
 use crate::gadgets::traits::witnessable::{CSWitnessable, WitnessHookable};
 use crypto_bigint::CheckedMul;
-use serde::de::Visitor;
+use serde::de::{SeqAccess, Visitor};
 use serde::{de, Deserialize, Deserializer, Serialize};
 use std::fmt;
 
@@ -1142,6 +1142,9 @@ where
             type Value = FFProxyValue<T, N>;
 
             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                {
+                    eprintln!("Stacktrace: {:?}", std::backtrace::Backtrace::capture());
+                }
                 formatter.write_str("a valid PrimeField value")
             }
 
@@ -1167,6 +1170,24 @@ where
 
                 let value = value.ok_or_else(|| de::Error::missing_field("value"))?;
                 Ok(FFProxyValue { value })
+            }
+
+            fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+            where
+                A: SeqAccess<'de>,
+            {
+                let size_hint = seq.size_hint();
+                let size_hint = std::cmp::min(size_hint.unwrap_or(0), 4096);
+                let mut values: Vec<T> = Vec::with_capacity(size_hint);
+
+                while let Ok(result) = seq.next_element() {
+                    match result {
+                        Some(value) => values.push(value),
+                        None => break,
+                    }
+                }
+                assert_eq!(values.len(), 1, "Deserialize expected a single value");
+                Ok(FFProxyValue { value: values[0] })
             }
         }
 
@@ -1308,7 +1329,31 @@ mod test {
         create_range_check_16_bits_table, RangeCheck16BitsTable,
     };
     use crate::worker::Worker;
+    use pairing::bn256::Fr;
     use pairing::ff::{Field, PrimeField};
+    use pairing::from_hex;
+
+    // Tests serialize and deserialize using bincode.
+    #[test]
+    fn test_serialize() {
+        let value: Fr =
+            from_hex("0000000000000000000000000000000000000000000000000000000000123456").unwrap();
+
+        let witness = FFProxyValue::<Fr, 16>::set(value);
+        let serialized = bincode::serialize(&witness).unwrap();
+        let deserialized: FFProxyValue<Fr, 16> = bincode::deserialize(&serialized).unwrap();
+        assert_eq!(witness, deserialized);
+    }
+    // New test: JSON serialize/deserialize.
+    #[test]
+    fn test_json_serialize() {
+        let value: Fr =
+            from_hex("0000000000000000000000000000000000000000000000000000000000000001").unwrap();
+        let witness = FFProxyValue::<Fr, 16>::set(value);
+        let json = serde_json::to_string(&witness).unwrap();
+        let deserialized: FFProxyValue<Fr, 16> = serde_json::from_str(&json).unwrap();
+        assert_eq!(witness, deserialized);
+    }
 
     type F = GoldilocksField;
     type Ext = pairing::bn256::Fq;
