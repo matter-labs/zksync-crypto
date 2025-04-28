@@ -2,7 +2,6 @@ use crate::{cs::Place, field::SmallField};
 use derivative::*;
 
 pub mod impls;
-pub mod mersenne_field;
 
 pub mod boolean;
 pub mod num;
