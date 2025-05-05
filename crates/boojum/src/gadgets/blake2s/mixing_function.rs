@@ -5,6 +5,7 @@ use crate::cs::gates::{
 use crate::cs::Variable;
 use crate::cs::{
     gates::u32_tri_add_carry_as_chunk::U32TriAddCarryAsChunkGate, traits::cs::ConstraintSystem,
+    gates::u32_add_carry_as_chunk::U32AddCarryAsChunkGate,
 };
 use crate::gadgets::tables::xor8::Xor8Table;
 use crate::gadgets::traits::castable::WitnessCastable;
@@ -23,7 +24,7 @@ pub struct Word<F: SmallField> {
 // Rotations are 16, 12, 8 and 7. Rotations by 16 and 8 are "free", and rorations by 12 and 7 require extra
 // decomposition
 
-pub(crate) fn mixing_function_g<F: SmallField, CS: ConstraintSystem<F>>(
+pub fn mixing_function_g<F: SmallField, CS: ConstraintSystem<F>>(
     cs: &mut CS,
     space: &mut [Word<F>; 16],
     space_idxes: [usize; 4],
@@ -63,11 +64,10 @@ pub(crate) fn mixing_function_g<F: SmallField, CS: ConstraintSystem<F>>(
     // v[b] := (v[b] ^ v[c]) >>> R2
 
     // second op has unpleasant roration, but nevetheless
-    let (new_c, to_constraint) = tri_add_as_byte_chunks(
+    let (new_c, to_constraint) = add_as_byte_chunks(
         cs,
         &space[space_idxes[2]].inner.map(|el| el.variable),
-        &d,
-        &zero_word,
+        &d
     );
     let mut c = new_c;
     all_to_constraint.extend(to_constraint);
@@ -124,7 +124,7 @@ pub(crate) fn mixing_function_g<F: SmallField, CS: ConstraintSystem<F>>(
     // v[b] := (v[b] ^ v[c]) >>> R4
 
     // again op has unpleasant roration, but nevetheless
-    let (new_c, to_constraint) = tri_add_as_byte_chunks(cs, &c, &d, &zero_word);
+    let (new_c, to_constraint) = add_as_byte_chunks(cs, &c, &d);
     c = new_c;
     all_to_constraint.extend(to_constraint);
     // here we have to rotate by 7 after xor, so we decompose, xor, and recompose
@@ -187,6 +187,31 @@ pub(crate) fn mixing_function_g<F: SmallField, CS: ConstraintSystem<F>>(
         space[space_idxes[1]] = b;
         space[space_idxes[2]] = c;
         space[space_idxes[3]] = d;
+    }
+}
+
+fn add_as_byte_chunks<F: SmallField, CS: ConstraintSystem<F>>(
+    cs: &mut CS,
+    a: &[Variable; 4],
+    b: &[Variable; 4],
+) -> ([Variable; 4], ArrayVec<Variable, 2>) {
+    if cs.gate_is_allowed::<U32AddCarryAsChunkGate>() {
+        let (out, carry) = U32AddCarryAsChunkGate::perform_addition(cs, *a, *b);
+
+        let mut to_constraint = ArrayVec::new();
+        to_constraint.push(carry);
+
+        (out, to_constraint)
+    } else if cs.gate_is_allowed::<U32TriAddCarryAsChunkGate>() {
+        let zero_vars = [cs.allocate_constant(F::ZERO); 4];
+        let (out, carry) = U32TriAddCarryAsChunkGate::perform_addition(cs, *a, *b, zero_vars);
+
+        let mut to_constraint = ArrayVec::new();
+        to_constraint.push(carry);
+
+        (out, to_constraint)
+    } else {
+        unimplemented!()
     }
 }
 
@@ -300,6 +325,7 @@ pub fn merge_byte_using_table<F: SmallField, CS: ConstraintSystem<F>, const SPLI
     debug_assert!(SPLIT_AT < 8);
 
     let result = cs.alloc_variable_without_value();
+    // dbg!(result);
 
     if <CS::Config as CSConfig>::WitnessConfig::EVALUATE_WITNESS == true {
         let value_fn = move |input: [F; 2]| {
