@@ -2,7 +2,7 @@ use super::*;
 use crate::cs::cs_builder::*;
 use crate::gadgets::traits::castable::WitnessCastable;
 
-// for a, b, c being u8x4 we output a + b mod 2^32 as u8x4 and a + b / 2^32
+// for a, b being u8x4 we output a + b mod 2^32 as u8x4 and a + b / 2^32
 // `carry_out` is boolean constrainted
 // but `c` parts are NOT. We will use separate range checks
 
