@@ -26,7 +26,7 @@ use crate::{cs::Variable, field::SmallField};
 #[derive(Derivative)]
 #[derivative(Clone, Copy, Debug, Hash, Eq, PartialEq)]
 pub struct UInt32<F: SmallField> {
-    pub(crate) variable: Variable,
+    pub variable: Variable,
     pub(crate) _marker: std::marker::PhantomData<F>,
 }
 

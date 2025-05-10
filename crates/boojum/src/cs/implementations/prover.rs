@@ -196,7 +196,7 @@ impl<
 
         let interactive_soundness =
             (F::CAPACITY_BITS * 2) - base_system_degree.trailing_zeros() as usize;
-        dbg!(interactive_soundness);
+        log!("interactive soundness: {:?}", interactive_soundness);
 
         let cap_size = proof_config.merkle_tree_cap_size;
         assert!(cap_size > 0);
@@ -258,7 +258,7 @@ impl<
         // so we propagate the parameters to the corresponding places
         let quotient_degree = min_lde_degree_for_gates;
 
-        dbg!(quotient_degree);
+        log!("quotient degree = {:?}", quotient_degree);
 
         // now we can commit to public inputs also before potentially moving computations to vectorized form
         for value in public_inputs_only_values.iter().copied() {
@@ -600,10 +600,22 @@ impl<
             .map(|evaluator| evaluator.total_quotient_terms_over_all_repetitions)
             .sum();
 
-        dbg!(total_num_lookup_argument_terms);
-        dbg!(total_num_gate_terms_for_specialized_columns);
-        dbg!(total_num_gate_terms_for_general_purpose_columns);
-        dbg!(num_intermediate_partial_product_relations);
+        log!(
+            "total_num_lookup_argument_terms: {:?}",
+            total_num_lookup_argument_terms
+        );
+        log!(
+            "total_num_gate_terms_for_specialized_columns: {:?}",
+            total_num_gate_terms_for_specialized_columns
+        );
+        log!(
+            "total_num_gate_terms_for_general_purpose_columns: {:?}",
+            total_num_gate_terms_for_general_purpose_columns
+        );
+        log!(
+            "num_intermediate_partial_product_relations: {:?}",
+            num_intermediate_partial_product_relations
+        );
 
         let total_num_terms =
             total_num_lookup_argument_terms // and lookup is first
@@ -2087,8 +2099,11 @@ impl<
             domain_size.trailing_zeros(),
         );
 
-        dbg!(&interpolation_log2s_schedule);
-        dbg!(cap_size);
+        log!(
+            "interpolation_log2s_schedule: {:?}",
+            interpolation_log2s_schedule
+        );
+        log!("cap_size: {:?}", cap_size);
 
         let fri_data = do_fri::<F, P, EXT, TR, H, Global, Global>(
             c0_as_poly.clone(),
