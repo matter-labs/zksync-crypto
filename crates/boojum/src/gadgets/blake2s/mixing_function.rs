@@ -61,10 +61,9 @@ pub fn mixing_function_g<F: SmallField, CS: ConstraintSystem<F>>(
     // v[b] := (v[b] ^ v[c]) >>> R2
 
     // second op has unpleasant roration, but nevetheless
-    let (new_c, to_constraint) =
+    let (new_c, _to_constraint) =
         add_as_byte_chunks(cs, &space[space_idxes[2]].inner.map(|el| el.variable), &d);
     let mut c = new_c;
-    all_to_constraint.extend(to_constraint);
     // here we have to rotate by 12 after xor, so we decompose, xor, and recompose
 
     let not_shifted_b = xor_many(cs, &b, &c);
@@ -118,9 +117,8 @@ pub fn mixing_function_g<F: SmallField, CS: ConstraintSystem<F>>(
     // v[b] := (v[b] ^ v[c]) >>> R4
 
     // again op has unpleasant roration, but nevetheless
-    let (new_c, to_constraint) = add_as_byte_chunks(cs, &c, &d);
+    let (new_c, _to_constraint) = add_as_byte_chunks(cs, &c, &d);
     c = new_c;
-    all_to_constraint.extend(to_constraint);
     // here we have to rotate by 7 after xor, so we decompose, xor, and recompose
 
     let not_shifted_b = xor_many(cs, &b, &c);
