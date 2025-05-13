@@ -1413,7 +1413,7 @@ mod test {
 
         // add tables
         let table = create_range_check_16_bits_table();
-        owned_cs.add_lookup_table::<RangeCheck16BitsTable, 1>(table);
+        owned_cs.add_lookup_table::<RangeCheck16BitsTable<1>, 1>(table);
 
         let cs = &mut owned_cs;
 
