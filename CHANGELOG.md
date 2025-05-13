@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.32.2](https://github.com/matter-labs/zksync-crypto/compare/v0.32.1...v0.32.2) (2025-05-13)
+
+
+### Features
+
+* Features for new proving system ([#105](https://github.com/matter-labs/zksync-crypto/issues/105)) ([949f38a](https://github.com/matter-labs/zksync-crypto/commit/949f38ac03bd2bc27e39961c08f6fe4996855f4b))
+
 ## [0.32.1](https://github.com/matter-labs/zksync-crypto/compare/v0.32.0...v0.32.1) (2025-04-21)
 
 
