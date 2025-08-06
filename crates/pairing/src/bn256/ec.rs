@@ -1414,7 +1414,7 @@ pub mod g2 {
             let x1 = self.x;
             let y1 = self.y;
             let x2 = other.x;
-            let y2 = other.y;
+            //let y2 = other.y;
 
             // x_r = alpha^2 - x1 - x2
             let mut x_r = alpha;

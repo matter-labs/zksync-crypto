@@ -7,8 +7,6 @@
 #![feature(allocator_api)]
 extern crate alloc;
 
-use alloc::vec::Vec;
-
 extern crate byteorder;
 extern crate rand;
 
@@ -31,7 +29,6 @@ pub use self::base::*;
 
 use core::error::Error;
 use core::fmt;
-use ff::{Field, PrimeField, PrimeFieldDecodingError, PrimeFieldRepr, ScalarEngine, SqrtField};
 
 /// An "engine" is a collection of types (fields, elliptic curve groups, etc.)
 /// with well-defined relationships. In particular, the G1/G2 curve groups are

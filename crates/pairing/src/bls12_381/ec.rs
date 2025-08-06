@@ -967,11 +967,11 @@ pub mod g1 {
     }
 
     impl G1Affine {
-        fn scale_by_cofactor(&self) -> G1 {
+        /*fn scale_by_cofactor(&self) -> G1 {
             // G1 cofactor = (x - 1)^2 / 3  = 76329603384216526031706109802092473003
             let cofactor = BitIterator::new([0x8c00aaab0000aaab, 0x396c8c005555e156]);
             self.mul_bits(cofactor)
-        }
+        }*/
 
         fn get_generator() -> Self {
             G1Affine {
