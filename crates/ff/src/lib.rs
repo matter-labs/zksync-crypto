@@ -1,4 +1,8 @@
 #![allow(unused_imports)]
+#![no_std]
+#![feature(allocator_api)]
+
+extern crate alloc;
 
 extern crate byteorder;
 extern crate hex as hex_ext;
@@ -15,10 +19,21 @@ extern crate ff_derive;
 #[cfg(feature = "derive")]
 pub use ff_derive::*;
 
-use std::error::Error;
-use std::fmt;
-use std::hash;
-use std::io::{self, Read, Write};
+use alloc::format;
+use alloc::string::String;
+use alloc::vec::Vec;
+use core::error::Error;
+use core::fmt;
+use core::hash;
+use core::num;
+
+use core::result::Result;
+use embedded_io::{Read, Write};
+
+//use std::error::Error;
+//use std::fmt;
+//use std::hash;
+//use std::io::{self, Read, Write};
 
 /// This trait represents an element of a field.
 pub trait Field: Sized + Eq + Copy + Clone + Send + Sync + fmt::Debug + fmt::Display + 'static + rand::Rand + hash::Hash + Default + serde::Serialize + serde::de::DeserializeOwned {
@@ -146,44 +161,56 @@ pub trait PrimeFieldRepr:
     fn shl(&mut self, amt: u32);
 
     /// Writes this `PrimeFieldRepr` as a big endian integer.
-    fn write_be<W: Write>(&self, mut writer: W) -> io::Result<()> {
-        use byteorder::{BigEndian, WriteBytesExt};
+    fn write_be<W: Write>(&self, mut writer: W) -> Result<(), String> {
+        //use byteorder::{BigEndian, WriteBytesExt};
 
         for digit in self.as_ref().iter().rev() {
-            writer.write_u64::<BigEndian>(*digit)?;
+            let bytes = digit.to_be_bytes();
+            writer.write_all(&bytes).unwrap();
+
+            //writer.write_u64::<BigEndian>(*digit)?;
         }
 
         Ok(())
     }
 
     /// Reads a big endian integer into this representation.
-    fn read_be<R: Read>(&mut self, mut reader: R) -> io::Result<()> {
-        use byteorder::{BigEndian, ReadBytesExt};
+    fn read_be<R: Read>(&mut self, mut reader: R) -> Result<(), String> {
+        //use byteorder::{BigEndian, ReadBytesExt};
 
         for digit in self.as_mut().iter_mut().rev() {
-            *digit = reader.read_u64::<BigEndian>()?;
+            //*digit = reader.read_u64::<BigEndian>()?;
+            let mut buf = [0u8; 8];
+            reader.read_exact(&mut buf).unwrap();
+            *digit = u64::from_be_bytes(buf);
         }
 
         Ok(())
     }
 
     /// Writes this `PrimeFieldRepr` as a little endian integer.
-    fn write_le<W: Write>(&self, mut writer: W) -> io::Result<()> {
-        use byteorder::{LittleEndian, WriteBytesExt};
+    fn write_le<W: Write>(&self, mut writer: W) -> Result<(), String> {
+        //use byteorder::{LittleEndian, WriteBytesExt};
 
         for digit in self.as_ref().iter() {
-            writer.write_u64::<LittleEndian>(*digit)?;
+            let bytes = digit.to_le_bytes();
+            writer.write_all(&bytes).unwrap();
+
+            //writer.write_u64::<LittleEndian>(*digit)?;
         }
 
         Ok(())
     }
 
     /// Reads a little endian integer into this representation.
-    fn read_le<R: Read>(&mut self, mut reader: R) -> io::Result<()> {
-        use byteorder::{LittleEndian, ReadBytesExt};
+    fn read_le<R: Read>(&mut self, mut reader: R) -> Result<(), String> {
+        //use byteorder::{LittleEndian, ReadBytesExt};
 
         for digit in self.as_mut().iter_mut() {
-            *digit = reader.read_u64::<LittleEndian>()?;
+            let mut buf = [0u8; 8];
+            reader.read_exact(&mut buf).unwrap();
+            *digit = u64::from_le_bytes(buf);
+            //*digit = reader.read_u64::<LittleEndian>()?;
         }
 
         Ok(())
@@ -398,7 +425,7 @@ mod arith_impl {
     /// the borrow value.
     #[inline(always)]
     pub fn sbb(a: u64, b: u64, borrow: &mut u64) -> u64 {
-        use std::num::Wrapping;
+        use core::num::Wrapping;
 
         let tmp = (1u128 << 64).wrapping_add(u128::from(a)).wrapping_sub(u128::from(b)).wrapping_sub(u128::from(*borrow));
 
@@ -411,7 +438,7 @@ mod arith_impl {
     /// carry value.
     #[inline(always)]
     pub fn adc(a: u64, b: u64, carry: &mut u64) -> u64 {
-        use std::num::Wrapping;
+        use core::num::Wrapping;
 
         let tmp = u128::from(a).wrapping_add(u128::from(b)).wrapping_add(u128::from(*carry));
 
@@ -424,7 +451,7 @@ mod arith_impl {
     /// and setting carry to the most significant digit.
     #[inline(always)]
     pub fn mac_with_carry(a: u64, b: u64, c: u64, carry: &mut u64) -> u64 {
-        use std::num::Wrapping;
+        use core::num::Wrapping;
 
         let tmp = (u128::from(a)).wrapping_add(u128::from(b).wrapping_mul(u128::from(c))).wrapping_add(u128::from(*carry));
 
@@ -582,6 +609,9 @@ pub use to_hex::{from_hex, to_hex};
 
 mod to_hex {
     use super::{hex_ext, PrimeField, PrimeFieldRepr};
+    use alloc::format;
+    use alloc::string::String;
+    use alloc::vec::Vec;
 
     pub fn to_hex<F: PrimeField>(el: &F) -> String {
         let repr = el.into_repr();

@@ -17,10 +17,12 @@ exclude = [
 [dependencies]
 ff_derive = { workspace = true, optional = true }
 
-byteorder = "1"
-rand = "0.4"
-hex = {version = "0.4"}
-serde = "1"
+hex = {version = "0.4", default-features = false, features = ["alloc"]}
+rand = { version = "0.4", default-features = false}
+byteorder = { version = "1", default-features = false}
+serde = {version = "1", features = ["derive"], default-features = false}
+
+embedded-io = { version = "0.6.1", features = ["alloc"]}
 
 [features]
 default = []

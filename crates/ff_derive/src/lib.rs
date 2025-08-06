@@ -32,6 +32,7 @@ pub fn prime_field_asm(input: proc_macro::TokenStream) -> proc_macro::TokenStrea
 pub fn prime_field(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     // Parse the type definition
     let ast: syn::DeriveInput = syn::parse(input).unwrap();
+    println!("hello");
 
     // The struct we're deriving for is a wrapper around a "Repr" type we must construct.
     let repr_ident = fetch_wrapped_ident(&ast.data).expect("PrimeField derive only operates over tuple structs of a single item");
