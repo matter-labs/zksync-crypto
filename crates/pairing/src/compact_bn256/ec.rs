@@ -16,8 +16,8 @@ macro_rules! curve_impl {
             pub(crate) y: $basefield,
         }
 
-        impl ::std::fmt::Display for $affine {
-            fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+        impl ::core::fmt::Display for $affine {
+            fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
                 if self.x.is_zero() && self.y.is_zero() {
                     write!(f, "{}(Infinity)", $name)
                 } else {
@@ -33,8 +33,8 @@ macro_rules! curve_impl {
             pub(crate) z: $basefield,
         }
 
-        impl ::std::fmt::Display for $projective {
-            fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+        impl ::core::fmt::Display for $projective {
+            fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
                 write!(f, "{}", self.into_affine())
             }
         }
@@ -253,7 +253,7 @@ macro_rules! curve_impl {
                 // Section 3.2
 
                 // First pass: compute [a, ab, abc, ...]
-                let mut prod = Vec::with_capacity(v.len());
+                let mut prod = alloc::vec::Vec::with_capacity(v.len());
                 let mut tmp = $basefield::one();
                 for g in v
                     .iter_mut()
@@ -639,9 +639,9 @@ pub mod g1 {
     use super::super::{Bn256, Fq, Fq12, FqRepr, Fr, FrRepr};
     use super::g2::G2Affine;
     use crate::{CurveAffine, CurveProjective, EncodedPoint, Engine, GroupDecodingError, RawEncodable};
+    use core::fmt;
     use ff::{BitIterator, Field, PrimeField, PrimeFieldRepr, SqrtField};
     use rand::{Rand, Rng};
-    use std::fmt;
 
     curve_impl!("G1", G1, G1Affine, G1Prepared, Fq, Fr, G1Uncompressed, G1Compressed, G2Affine);
 
@@ -1050,9 +1050,9 @@ pub mod g2 {
     use super::super::{Bn256, Fq, Fq12, Fq2, FqRepr, Fr, FrRepr};
     use super::g1::G1Affine;
     use crate::{CurveAffine, CurveProjective, EncodedPoint, Engine, GroupDecodingError};
+    use core::fmt;
     use ff::{BitIterator, Field, PrimeField, PrimeFieldRepr, SqrtField};
     use rand::{Rand, Rng};
-    use std::fmt;
 
     curve_impl!("G2", G2, G2Affine, G2Prepared, Fq2, Fr, G2Uncompressed, G2Compressed, G1Affine);
 
@@ -1362,7 +1362,7 @@ pub mod g2 {
 
     #[derive(Clone, Debug)]
     pub struct G2Prepared {
-        pub(crate) coeffs: Vec<(Fq2, Fq2, Fq2)>,
+        pub(crate) coeffs: alloc::vec::Vec<(Fq2, Fq2, Fq2)>,
         pub(crate) infinity: bool,
     }
 

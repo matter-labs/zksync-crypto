@@ -3,6 +3,11 @@
 #![deny(missing_debug_implementations)]
 // Asm is only available on nightly, with this unstable feature
 #![cfg_attr(feature = "asm", feature(asm_const))]
+#![no_std]
+#![feature(allocator_api)]
+extern crate alloc;
+
+use alloc::vec::Vec;
 
 extern crate byteorder;
 extern crate rand;
@@ -24,9 +29,9 @@ pub use self::wnaf::Wnaf;
 mod base;
 pub use self::base::*;
 
+use core::error::Error;
+use core::fmt;
 use ff::{Field, PrimeField, PrimeFieldDecodingError, PrimeFieldRepr, ScalarEngine, SqrtField};
-use std::error::Error;
-use std::fmt;
 
 /// An "engine" is a collection of types (fields, elliptic curve groups, etc.)
 /// with well-defined relationships. In particular, the G1/G2 curve groups are

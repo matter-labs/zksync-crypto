@@ -6,15 +6,18 @@ extern crate syn;
 #[macro_use]
 extern crate quote;
 
+extern crate alloc;
+
 extern crate num_bigint;
 extern crate num_integer;
 extern crate num_traits;
 
+use alloc::format;
+use core::str::FromStr;
 use num_bigint::BigUint;
 use num_integer::Integer;
 use num_traits::{One, ToPrimitive, Zero};
 use quote::TokenStreamExt;
-use std::str::FromStr;
 
 mod utils;
 use utils::*;
@@ -32,7 +35,6 @@ pub fn prime_field_asm(input: proc_macro::TokenStream) -> proc_macro::TokenStrea
 pub fn prime_field(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     // Parse the type definition
     let ast: syn::DeriveInput = syn::parse(input).unwrap();
-    println!("hello");
 
     // The struct we're deriving for is a wrapper around a "Repr" type we must construct.
     let repr_ident = fetch_wrapped_ident(&ast.data).expect("PrimeField derive only operates over tuple structs of a single item");
@@ -76,7 +78,7 @@ pub fn prime_field(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             can_use = false;
         }
 
-        if top_limb > (std::u64::MAX / 2) - 1 {
+        if top_limb > (core::u64::MAX / 2) - 1 {
             can_use = false;
         }
         can_use
@@ -88,7 +90,7 @@ pub fn prime_field(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             can_use = false;
         }
 
-        if top_limb > (std::u64::MAX / 4) - 1 {
+        if top_limb > (core::u64::MAX / 4) - 1 {
             assert!(!can_use, "can not use optimistic CIOS for this modulus");
             can_use = false;
         }
@@ -166,9 +168,9 @@ fn prime_field_repr_impl(repr: &syn::Ident, limbs: usize) -> proc_macro2::TokenS
             pub [u64; #limbs]
         );
 
-        impl ::std::fmt::Debug for #repr
+        impl ::core::fmt::Debug for #repr
         {
-            fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+            fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
                 write!(f, "0x")?;
                 for i in self.0.iter().rev() {
                     write!(f, "{:016x}", *i)?;
@@ -185,8 +187,8 @@ fn prime_field_repr_impl(repr: &syn::Ident, limbs: usize) -> proc_macro2::TokenS
             }
         }
 
-        impl ::std::fmt::Display for #repr {
-            fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+        impl ::core::fmt::Display for #repr {
+            fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
                 write!(f, "0x")?;
                 for i in self.0.iter().rev() {
                     write!(f, "{:016x}", *i)?;
@@ -196,8 +198,8 @@ fn prime_field_repr_impl(repr: &syn::Ident, limbs: usize) -> proc_macro2::TokenS
             }
         }
 
-        impl std::hash::Hash for #repr {
-            fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        impl core::hash::Hash for #repr {
+            fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
                 for limb in self.0.iter() {
                     limb.hash(state);
                 }
@@ -221,7 +223,7 @@ fn prime_field_repr_impl(repr: &syn::Ident, limbs: usize) -> proc_macro2::TokenS
         impl From<u64> for #repr {
             #[inline(always)]
             fn from(val: u64) -> #repr {
-                use std::default::Default;
+                use core::default::Default;
 
                 let mut repr = Self::default();
                 repr.0[0] = val;
@@ -231,22 +233,22 @@ fn prime_field_repr_impl(repr: &syn::Ident, limbs: usize) -> proc_macro2::TokenS
 
         impl Ord for #repr {
             #[inline(always)]
-            fn cmp(&self, other: &#repr) -> ::std::cmp::Ordering {
+            fn cmp(&self, other: &#repr) -> ::core::cmp::Ordering {
                 for (a, b) in self.0.iter().rev().zip(other.0.iter().rev()) {
                     if a < b {
-                        return ::std::cmp::Ordering::Less
+                        return ::core::cmp::Ordering::Less
                     } else if a > b {
-                        return ::std::cmp::Ordering::Greater
+                        return ::core::cmp::Ordering::Greater
                     }
                 }
 
-                ::std::cmp::Ordering::Equal
+                ::core::cmp::Ordering::Equal
             }
         }
 
         impl PartialOrd for #repr {
             #[inline(always)]
-            fn partial_cmp(&self, other: &#repr) -> Option<::std::cmp::Ordering> {
+            fn partial_cmp(&self, other: &#repr) -> Option<::core::cmp::Ordering> {
                 Some(self.cmp(other))
             }
         }
@@ -277,7 +279,7 @@ fn prime_field_repr_impl(repr: &syn::Ident, limbs: usize) -> proc_macro2::TokenS
                 while n >= 64 {
                     let mut t = 0;
                     for i in self.0.iter_mut().rev() {
-                        ::std::mem::swap(&mut t, i);
+                        ::core::mem::swap(&mut t, i);
                     }
                     n -= 64;
                 }
@@ -325,7 +327,7 @@ fn prime_field_repr_impl(repr: &syn::Ident, limbs: usize) -> proc_macro2::TokenS
                 while n >= 64 {
                     let mut t = 0;
                     for i in &mut self.0 {
-                        ::std::mem::swap(&mut t, i);
+                        ::core::mem::swap(&mut t, i);
                     }
                     n -= 64;
                 }
@@ -1010,25 +1012,25 @@ fn prime_field_impl(name: &syn::Ident, repr: &syn::Ident, can_use_cios_mul: bool
     );
 
     quote! {
-        impl ::std::marker::Copy for #name { }
+        impl ::core::marker::Copy for #name { }
 
-        impl ::std::clone::Clone for #name {
+        impl ::core::clone::Clone for #name {
             fn clone(&self) -> #name {
                 *self
             }
         }
 
-        impl ::std::cmp::PartialEq for #name {
+        impl ::core::cmp::PartialEq for #name {
             fn eq(&self, other: &#name) -> bool {
                 self.0 == other.0
             }
         }
 
-        impl ::std::cmp::Eq for #name { }
+        impl ::core::cmp::Eq for #name { }
 
-        impl ::std::fmt::Debug for #name
+        impl ::core::fmt::Debug for #name
         {
-            fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+            fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
                 write!(f, "{}({:?})", stringify!(#name), self.into_repr())
             }
         }
@@ -1036,20 +1038,20 @@ fn prime_field_impl(name: &syn::Ident, repr: &syn::Ident, can_use_cios_mul: bool
         /// Elements are ordered lexicographically.
         impl Ord for #name {
             #[inline(always)]
-            fn cmp(&self, other: &#name) -> ::std::cmp::Ordering {
+            fn cmp(&self, other: &#name) -> ::core::cmp::Ordering {
                 self.into_repr().cmp(&other.into_repr())
             }
         }
 
         impl PartialOrd for #name {
             #[inline(always)]
-            fn partial_cmp(&self, other: &#name) -> Option<::std::cmp::Ordering> {
+            fn partial_cmp(&self, other: &#name) -> Option<::core::cmp::Ordering> {
                 Some(self.cmp(other))
             }
         }
 
-        impl ::std::fmt::Display for #name {
-            fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+        impl ::core::fmt::Display for #name {
+            fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
                 write!(f, "{}({})", stringify!(#name), self.into_repr())
             }
         }
@@ -1086,7 +1088,7 @@ fn prime_field_impl(name: &syn::Ident, repr: &syn::Ident, can_use_cios_mul: bool
 
                     Ok(r)
                 } else {
-                    Err(crate::ff::PrimeFieldDecodingError::NotInField(format!("{}", r.0)))
+                    Err(crate::ff::PrimeFieldDecodingError::NotInField(alloc::format!("{}", r.0)))
                 }
             }
 
@@ -1095,7 +1097,7 @@ fn prime_field_impl(name: &syn::Ident, repr: &syn::Ident, can_use_cios_mul: bool
                 if r.is_valid() {
                     Ok(r)
                 } else {
-                    Err(crate::ff::PrimeFieldDecodingError::NotInField(format!("{}", r.0)))
+                    Err(crate::ff::PrimeFieldDecodingError::NotInField(alloc::format!("{}", r.0)))
                 }
             }
 
@@ -1260,14 +1262,14 @@ fn prime_field_impl(name: &syn::Ident, repr: &syn::Ident, can_use_cios_mul: bool
             }
         }
 
-        impl std::default::Default for #name {
+        impl core::default::Default for #name {
             fn default() -> Self {
                 Self::zero()
             }
         }
 
-        impl std::hash::Hash for #name {
-            fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        impl core::hash::Hash for #name {
+            fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
                 for limb in self.0.as_ref().iter() {
                     limb.hash(state);
                 }

@@ -5,6 +5,8 @@ pub mod fq2;
 pub mod fq6;
 pub mod fr;
 
+use alloc::vec;
+
 #[cfg(test)]
 mod tests;
 

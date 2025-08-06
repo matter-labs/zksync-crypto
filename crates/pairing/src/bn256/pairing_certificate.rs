@@ -8,7 +8,7 @@ use ff::Field;
 
 use super::{Fq12, Fq2};
 
-pub fn prepare_all_line_functions(q: G2Affine) -> Vec<(Fq2, Fq2)> {
+pub fn prepare_all_line_functions(q: G2Affine) -> alloc::vec::Vec<(Fq2, Fq2)> {
     fn line_double(t: G2Affine) -> (Fq2, Fq2) {
         let mut alpha = t.x;
         let mut mu = t.y;
@@ -108,7 +108,7 @@ pub fn prepare_g1_point(p: G1Affine) -> G1Affine {
     G1Affine::from_xy_unchecked(x_new, y_new)
 }
 
-pub fn miller_loop_with_prepared_lines(eval_points: &[G1Affine], lines: &[Vec<(Fq2, Fq2)>]) -> Fq12 {
+pub fn miller_loop_with_prepared_lines(eval_points: &[G1Affine], lines: &[alloc::vec::Vec<(Fq2, Fq2)>]) -> Fq12 {
     assert_eq!(eval_points.len(), lines.len());
 
     fn line_evaluation(alpha: &Fq2, mu: &Fq2, p: &G1Affine) -> (Fq2, Fq2, Fq2) {

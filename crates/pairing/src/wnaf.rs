@@ -1,5 +1,8 @@
 use super::{CurveProjective, PrimeField, PrimeFieldRepr};
 
+use alloc::vec;
+use alloc::vec::Vec;
+
 /// Replaces the contents of `table` with a w-NAF window table for the given window size.
 pub(crate) fn wnaf_table<G: CurveProjective>(table: &mut Vec<G>, mut base: G, window: usize) {
     table.truncate(0);

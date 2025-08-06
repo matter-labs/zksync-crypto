@@ -1,6 +1,6 @@
 use crate::ff::*;
 use crate::*;
-use std::fmt;
+use core::fmt;
 
 /// Projective representation of an elliptic curve point guaranteed to be
 /// in the correct prime order subgroup.
@@ -163,7 +163,7 @@ pub trait GenericRawEncodable<const N: usize>: GenericUncompressedEncodable<N> {
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
 pub struct EncodingBytes<G: GenericCurveAffine, const N: usize> {
     bytes: [u8; N],
-    _marker: std::marker::PhantomData<G>,
+    _marker: core::marker::PhantomData<G>,
 }
 
 impl<G: GenericCurveAffine, const N: usize> AsRef<[u8]> for EncodingBytes<G, N> {
@@ -183,7 +183,7 @@ impl<G: GenericCurveAffine, const N: usize> EncodingBytes<G, N> {
     pub fn empty() -> Self {
         Self {
             bytes: [0u8; N],
-            _marker: std::marker::PhantomData,
+            _marker: core::marker::PhantomData,
         }
     }
 
@@ -201,7 +201,7 @@ impl<G: GenericCurveAffine, const N: usize> EncodingBytes<G, N> {
     pub fn from_bytes(bytes: [u8; N]) -> Self {
         Self {
             bytes,
-            _marker: std::marker::PhantomData,
+            _marker: core::marker::PhantomData,
         }
     }
 }

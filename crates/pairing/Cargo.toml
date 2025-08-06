@@ -13,10 +13,10 @@ description = "Pairing-friendly elliptic curve library, based on pairing crate"
 [dependencies]
 ff = { workspace = true, features = ["derive"] }
 
-rand = "0.4"
-byteorder = "1"
+rand = { version = "0.4", default-features = false}
+byteorder = { version = "1", default-features = false}
 cfg-if = "1.0"
-serde = {version = "1", features = ["derive"]}
+serde = {version = "1", features = ["derive"], default-features = false}
 
 [features]
 default = []

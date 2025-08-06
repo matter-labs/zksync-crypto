@@ -16,6 +16,8 @@ pub use self::pairing_certificate::*;
 
 use super::{CurveAffine, Engine};
 
+use alloc::vec;
+
 use ff::{Field, ScalarEngine};
 
 #[derive(Clone, Copy, Debug)]
