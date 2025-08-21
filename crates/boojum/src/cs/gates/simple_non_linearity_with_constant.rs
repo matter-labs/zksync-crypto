@@ -184,8 +184,8 @@ impl<F: SmallField, const N: usize> Gate<F> for SimpleNonlinearityGate<F, N> {
                         &evaluator, &geometry,
                     );
 
-                    let keys: Vec<_> = tooling.keys().map(|el| el.as_u64_reduced()).collect();
-                    // keys.sort_unstable();
+                    let mut keys: Vec<_> = tooling.keys().map(|el| el.as_u64_reduced()).collect();
+                    keys.sort_unstable();
 
                     for el in keys.into_iter() {
                         let as_fe = F::from_u64_unchecked(el);
