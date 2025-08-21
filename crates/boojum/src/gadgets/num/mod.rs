@@ -25,7 +25,7 @@ pub mod prime_field_like;
 #[derive(Derivative)]
 #[derivative(Clone, Copy, Debug, Hash, PartialEq, Eq)]
 pub struct Num<F: SmallField> {
-    pub(crate) variable: Variable,
+    pub variable: Variable,
     pub(crate) _marker: std::marker::PhantomData<F>,
 }
 
