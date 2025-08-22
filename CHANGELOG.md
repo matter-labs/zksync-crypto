@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.32.3](https://github.com/matter-labs/zksync-crypto/compare/v0.32.2...v0.32.3) (2025-08-22)
+
+
+### Bug Fixes
+
+* Sorting finalization hints ([#108](https://github.com/matter-labs/zksync-crypto/issues/108)) ([bef4f12](https://github.com/matter-labs/zksync-crypto/commit/bef4f125f79463223734d9cade494d3b31e97467))
+
 ## [0.32.2](https://github.com/matter-labs/zksync-crypto/compare/v0.32.1...v0.32.2) (2025-05-13)
 
 
