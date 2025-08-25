@@ -527,6 +527,40 @@ pub(crate) fn verify_fri_part<
     Ok(validity_flags)
 }
 
+fn check_if_included_async<E: Engine, CS: ConstraintSystem<E>, H: CircuitGLTreeHasher<E>>(
+    cs: &mut CS,
+    leaf_elements: &Vec<GoldilocksField<E>>,
+    proof: &Vec<H::CircuitOutput>,
+    tree_cap: &Vec<H::CircuitOutput>,
+    path: &[Boolean],
+) -> Boolean {
+    let mut mycs = MyCS::new(cs.get_current_aux_assignment_number());
+    use crate::traits::tree_hasher::ToAllocatedNum;
+    for elem in leaf_elements {
+        let var = elem.into_num().get_variable();
+        mycs.add_allocated_num(&var);
+    }
+    for elem in proof {
+        let var = elem.into_allocated_num();
+        if let Some(var) = var {
+            mycs.add_allocated_num(&var);
+        }
+    }
+    for elem in tree_cap {
+        let var = elem.into_allocated_num();
+        if let Some(var) = var {
+            mycs.add_allocated_num(&var);
+        }
+    }
+
+    let leaf_hash = <H as CircuitGLTreeHasher<E>>::hash_into_leaf(&mut mycs, leaf_elements).unwrap();
+    let result = verify_proof_over_cap::<E, H, _>(&mut mycs, proof, tree_cap, &leaf_hash, path).unwrap();
+
+    mycs.dump_to_existing_cs(cs);
+
+    result
+}
+
 fn verify_inclusion_proofs<E: Engine, CS: ConstraintSystem<E> + 'static, H: CircuitGLTreeHasher<E>>(
     cs: &mut CS,
     queries: &AllocatedSingleRoundQueries<E, H>,
@@ -541,7 +575,7 @@ fn verify_inclusion_proofs<E: Engine, CS: ConstraintSystem<E> + 'static, H: Circ
     assert_eq!(constants.witness_leaf_size, queries.witness_query.leaf_elements.len());
     assert_eq!(base_oracle_depth, queries.witness_query.proof.len());
 
-    let mut mycs = MyCS::new(cs.get_current_aux_assignment_number());
+    /*let mut mycs = MyCS::new(cs.get_current_aux_assignment_number());
     use crate::traits::tree_hasher::ToAllocatedNum;
     for elem in &queries.witness_query.leaf_elements {
         let var = elem.into_num().get_variable();
@@ -559,44 +593,43 @@ fn verify_inclusion_proofs<E: Engine, CS: ConstraintSystem<E> + 'static, H: Circ
     let ww = check_if_included::<E, _, H>(&mut mycs, &queries.witness_query.leaf_elements, &queries.witness_query.proof, &proof.witness_oracle_cap, &base_tree_idx).unwrap();
 
     println!("ww: {:?}", ww);
-    println!("MyCS Stats: num variables: {} num gates: {} ", mycs.num_variables, mycs.num_aux_gates);
+    println!("MyCS Stats: num variables: {} num gates: {} ", mycs.num_variables - mycs.started_variable, mycs.num_aux_gates);
 
     mycs.dump_to_existing_cs(cs);
-    validity_flags.push(ww);
-    /*let qq = check_if_included::<E, CS, H>(cs, &queries.witness_query.leaf_elements, &queries.witness_query.proof, &proof.witness_oracle_cap, &base_tree_idx)?;
-    println!("qq: {:?}", qq);
+    validity_flags.push(ww);*/
+    let qq = check_if_included_async::<E, CS, H>(cs, &queries.witness_query.leaf_elements, &queries.witness_query.proof, &proof.witness_oracle_cap, &base_tree_idx);
 
-    validity_flags.push(qq);*/
+    validity_flags.push(qq);
 
     assert_eq!(constants.stage_2_leaf_size, queries.stage_2_query.leaf_elements.len());
     assert_eq!(base_oracle_depth, queries.stage_2_query.proof.len());
-    validity_flags.push(check_if_included::<E, CS, H>(
+    validity_flags.push(check_if_included_async::<E, CS, H>(
         cs,
         &queries.stage_2_query.leaf_elements,
         &queries.stage_2_query.proof,
         &proof.stage_2_oracle_cap,
         &base_tree_idx,
-    )?);
+    ));
 
     assert_eq!(constants.quotient_leaf_size, queries.quotient_query.leaf_elements.len());
     assert_eq!(base_oracle_depth, queries.quotient_query.proof.len());
-    validity_flags.push(check_if_included::<E, CS, H>(
+    validity_flags.push(check_if_included_async::<E, CS, H>(
         cs,
         &queries.quotient_query.leaf_elements,
         &queries.quotient_query.proof,
         &proof.quotient_oracle_cap,
         &base_tree_idx,
-    )?);
+    ));
 
     assert_eq!(constants.setup_leaf_size, queries.setup_query.leaf_elements.len());
     assert_eq!(base_oracle_depth, queries.setup_query.proof.len());
-    validity_flags.push(check_if_included::<E, CS, H>(
+    validity_flags.push(check_if_included_async::<E, CS, H>(
         cs,
         &queries.setup_query.leaf_elements,
         &queries.setup_query.proof,
         &vk.setup_merkle_tree_cap,
         &base_tree_idx,
-    )?);
+    ));
 
     Ok(validity_flags)
 }

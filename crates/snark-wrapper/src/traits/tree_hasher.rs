@@ -5,12 +5,15 @@ use super::*;
 use crate::boojum::cs::oracle::TreeHasher;
 
 pub trait ToAllocatedNum<E: Engine> {
-    fn into_allocated_num(self) -> AllocatedNum<E>;
+    fn into_allocated_num(self) -> Option<AllocatedNum<E>>;
 }
 
 impl<E: Engine> ToAllocatedNum<E> for Num<E> {
-    fn into_allocated_num(self) -> AllocatedNum<E> {
-        self.get_variable()
+    fn into_allocated_num(self) -> Option<AllocatedNum<E>> {
+        if self.is_constant() {
+            return None;
+        }
+        Some(self.get_variable())
     }
 }
 
