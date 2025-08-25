@@ -6,7 +6,7 @@ use super::*;
 use crate::traits::pow::RecursivePoWRunner;
 use crate::traits::transcript::BoolsBuffer;
 use crate::verifier_structs::allocated_queries::AllocatedSingleRoundQueries;
-use crossbeam::channel::unbounded;
+use crossbeam::channel::{unbounded, Sender};
 use rayon::prelude::*;
 use rayon::{ThreadPool, ThreadPoolBuilder};
 
@@ -85,11 +85,15 @@ impl<E: Engine> MyCS<E> {
             match entry.gate_type {
                 GateType::Selector4 => {
                     let tmp = SelectorOptimizedWidth4MainGateWithDNext;
-                    other_cs.new_single_gate_for_trace_step(&tmp, &entry.coefficient_assignments, &entry.variable_assignments, &entry.witness_assignments);
+                    other_cs
+                        .new_single_gate_for_trace_step(&tmp, &entry.coefficient_assignments, &entry.variable_assignments, &entry.witness_assignments)
+                        .unwrap();
                 }
                 GateType::Rescue5Custom => {
                     let tmp = Rescue5CustomGate;
-                    other_cs.new_single_gate_for_trace_step(&tmp, &entry.coefficient_assignments, &entry.variable_assignments, &entry.witness_assignments);
+                    other_cs
+                        .new_single_gate_for_trace_step(&tmp, &entry.coefficient_assignments, &entry.variable_assignments, &entry.witness_assignments)
+                        .unwrap();
                 }
             }
         }
@@ -341,6 +345,8 @@ pub(crate) fn verify_fri_part<
     println!("  Before queries took {:?}. Queries count: {}", now.elapsed(), proof.queries_per_fri_repetition.len());
     let now = std::time::Instant::now();
 
+    let (tx, rx) = unbounded::<InclusionResponse<E>>();
+
     for (idx, queries) in proof.queries_per_fri_repetition.iter().enumerate() {
         let now = std::time::Instant::now();
         let query_index_lsb_first_bits = bools_buffer.get_bits(cs, transcript, max_needed_bits)?;
@@ -362,7 +368,7 @@ pub(crate) fn verify_fri_part<
         }
         let now = std::time::Instant::now();
         // first verify basic inclusion proofs
-        let tmp = verify_inclusion_proofs(&thread_pool, cs, queries, proof, vk, &base_tree_idx, constants, base_oracle_depth, validity_flags.len())?;
+        let tmp = verify_inclusion_proofs(&thread_pool, cs, queries, proof, vk, &base_tree_idx, constants, base_oracle_depth, validity_flags.len(), tx.clone())?;
 
         validity_flags.extend(tmp);
         if idx < 10 {
@@ -637,6 +643,7 @@ fn verify_inclusion_proofs<E: Engine, CS: ConstraintSystem<E> + 'static, H: Circ
     constants: &ConstantsHolder,
     base_oracle_depth: usize,
     validity_flags_index: usize,
+    txx: Sender<InclusionResponse<E>>,
 ) -> Result<Vec<Boolean>, SynthesisError> {
     let (tx, rx) = unbounded::<InclusionResponse<E>>();
     let start_offset = cs.reserve(TOTAL_VAR_COUNT, TOTAL_GATES_COUNT)?;
@@ -747,18 +754,32 @@ fn verify_inclusion_proofs<E: Engine, CS: ConstraintSystem<E> + 'static, H: Circ
 
     let mut validity_flags = vec![Default::default(); 4];
 
-    for _ in 0..4 {
-        let data = rx.recv().unwrap();
-        let pos = data.request_id - validity_flags_index;
-        responses[pos] = Some(data);
-    }
+    println!("Validity flag index: {}", validity_flags_index);
 
-    for i in 0..4 {
-        let data = responses[i].as_ref().unwrap();
+    if true {
+        //validity_flags_index < 400 {
+        for _ in 0..4 {
+            let data = rx.recv().unwrap();
+            let pos = data.request_id - validity_flags_index;
+            responses[pos] = Some(data);
+        }
 
-        data.mycs.dump_to_existing_cs(cs, data.position);
-        println!("Setting {:?} at {}", data.result, data.request_id - validity_flags_index);
-        validity_flags[data.request_id - validity_flags_index] = data.result;
+        for i in [0, 1, 3, 2] {
+            let data = responses[i].as_ref().unwrap();
+
+            data.mycs.dump_to_existing_cs(cs, data.position);
+            println!("Setting {:?} at {}", data.result, data.request_id - validity_flags_index);
+            validity_flags[data.request_id - validity_flags_index] = data.result;
+        }
+    } else {
+        // random order.
+        for i in 0..4 {
+            let data = rx.recv().unwrap();
+
+            data.mycs.dump_to_existing_cs(cs, data.position);
+            println!("Setting {:?} at {}", data.result, data.request_id - validity_flags_index);
+            validity_flags[data.request_id - validity_flags_index] = data.result;
+        }
     }
 
     /*let validity_flags = validity_flags

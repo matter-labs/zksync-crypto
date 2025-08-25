@@ -1584,7 +1584,13 @@ impl_assembly! {
                     if poly_ref.len() < n {
                         poly_ref.resize(n, E::Fr::zero());
                     }
-                    poly_ref.push(*coeffs_it.next().unwrap_or(&zero));
+                    if poly_ref.len() == n {
+                        poly_ref.push(*coeffs_it.next().unwrap_or(&zero));
+                    } else {
+                        if poly_ref[n] == zero {
+                            poly_ref[n] = *coeffs_it.next().unwrap_or(&zero);
+                        }
+                    }
                 }
 
                 debug_assert!(coeffs_it.next().is_none(), "must consume all the coefficients for gate");
@@ -1602,7 +1608,13 @@ impl_assembly! {
                     // we consume variable only ONCE
                     let var = *variable_it.next().unwrap_or(&dummy);
                     poly_ref.push(var);
+                } else {
+                    if poly_ref[n] == dummy {
+                        poly_ref[n] = *variable_it.next().unwrap_or(&dummy);
+                    }
+
                 }
+
             }
 
             debug_assert!(variable_it.next().is_none(), "must consume all variables for gate");
@@ -1614,7 +1626,15 @@ impl_assembly! {
                 if poly_ref.len() < n {
                     poly_ref.resize(n, E::Fr::zero());
                 }
-                poly_ref.push(*witness_it.next().unwrap_or(&zero));
+                if poly_ref.len() == n {
+                    // we consume witness only ONCE
+                    poly_ref.push(*witness_it.next().unwrap_or(&zero));
+                } else {
+                    if poly_ref[n] == zero {
+                        poly_ref[n] = *witness_it.next().unwrap_or(&zero);
+                    }
+                }
+                //poly_ref.push(*witness_it.next().unwrap_or(&zero));
             }
 
             Ok(())
@@ -1626,6 +1646,7 @@ impl_assembly! {
 
         fn add_gate_into_list<G: Gate<E>>(&mut self, gate: &G) {
             if !self.gates.contains(gate.as_internal() as &dyn GateInternal<E>) {
+                println!("XXXXXX Adding gate to the list.");
                 self.gates.insert(gate.clone().into_internal());
 
                 // self.add_gate_setup_polys_into_list(gate);
