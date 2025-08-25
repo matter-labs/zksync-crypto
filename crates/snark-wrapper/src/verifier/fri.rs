@@ -9,6 +9,8 @@ use crate::verifier_structs::allocated_queries::AllocatedSingleRoundQueries;
 use crossbeam::channel::{unbounded, Sender};
 use rayon::prelude::*;
 use rayon::{ThreadPool, ThreadPoolBuilder};
+use rescue_poseidon::franklin_crypto::bellman::plonk::commitments::transparent::fri::coset_combining_fri::precomputation;
+use rescue_poseidon::franklin_crypto::interpolation;
 
 #[derive(Clone, Debug)]
 pub struct GatesInfo<E: Engine> {
@@ -351,217 +353,26 @@ pub(crate) fn verify_fri_part<
         let now = std::time::Instant::now();
         let query_index_lsb_first_bits = bools_buffer.get_bits(cs, transcript, max_needed_bits)?;
 
-        // we consider it to be some convenient for us encoding of coset + inner index.
-
-        // Small note on indexing: when we commit to elements we use bitreversal enumeration everywhere.
-        // So index `i` in the tree corresponds to the element of `omega^bitreverse(i)`.
-        // This gives us natural separation of LDE cosets, such that subtrees form independent cosets,
-        // and if cosets are in the form of `{1, gamma, ...} x {1, omega, ...} where gamma^lde_factor == omega,
-        // then subtrees are enumerated by bitreverse powers of gamma
-
-        // let inner_idx = &query_index_lsb_first_bits[0..num_bits_for_in_coset_index];
-        // let coset_idx = &query_index_lsb_first_bits[num_bits_for_in_coset_index..];
-        let base_tree_idx = query_index_lsb_first_bits.clone();
-
-        if idx < 10 {
-            println!("    - {} just before proof verification {:?}", idx, now.elapsed());
-        }
-        let now = std::time::Instant::now();
-        // first verify basic inclusion proofs
-        verify_inclusion_proofs(&thread_pool, cs, queries, proof, vk, &base_tree_idx, constants, base_oracle_depth, validity_flags.len(), tx.clone())?;
-
-        let tmp: Vec<Boolean> = vec![Default::default(); 4];
-        validity_flags.extend(tmp);
-
-        if idx < 10 {
-            println!("    - {} inclusion proofs verification {:?}", idx, now.elapsed());
-        }
-        let now = std::time::Instant::now();
-
-        // now perform the quotiening operation
-        let zero_ext = GoldilocksExtAsFieldWrapper::<E, CS>::zero(cs);
-        let mut simulated_ext_element = zero_ext;
-
-        assert_eq!(query_index_lsb_first_bits.len(), precomputed_powers.len() - 1);
-
-        let domain_element = pow_from_precomputations(cs, &precomputed_powers[1..], &query_index_lsb_first_bits);
-
-        if idx < 10 {
-            println!("    - {} pow from precomputation took {:?}", idx, now.elapsed());
-        }
-        let now = std::time::Instant::now();
-
-        // we will find it handy to have power of the generator with some bits masked to be zero
-        let mut power_chunks = vec![];
-        let mut skip_highest_powers = 0;
-        // TODO: we may save here (in circuits case especially) if we compute recursively
-        for interpolation_degree_log2 in constants.fri_folding_schedule.iter() {
-            let domain_element = pow_from_precomputations(
-                cs,
-                &precomputed_powers_inversed[(1 + interpolation_degree_log2)..],
-                &query_index_lsb_first_bits[(skip_highest_powers + interpolation_degree_log2)..],
-            );
-
-            skip_highest_powers += *interpolation_degree_log2;
-            power_chunks.push(domain_element);
-        }
-        if idx < 10 {
-            println!("    - {} interpolation took {:?}", idx, now.elapsed());
-        }
-        let now = std::time::Instant::now();
-
-        // don't forget that we are shifted
-        let mut domain_element_for_quotiening = domain_element;
-        domain_element_for_quotiening.mul_assign(&multiplicative_generator, cs);
-
-        let mut domain_element_for_interpolation = domain_element_for_quotiening;
-
-        if idx < 10 {
-            println!("    - {} before quotening took {:?}", idx, now.elapsed());
-        }
-        let now = std::time::Instant::now();
-
-        verify_quotening_operations(
-            cs,
-            &mut simulated_ext_element,
+        single_fri_query_verify(
+            idx,
             queries,
+            query_index_lsb_first_bits,
+            tx.clone(),
+            &thread_pool,
+            &mut validity_flags,
+            cs,
             proof,
-            &public_input_opening_tuples,
-            domain_element_for_quotiening,
-            challenges,
+            vk,
+            public_input_opening_tuples.clone(),
+            &challenges,
             verifier,
             constants,
+            base_oracle_depth,
+            precomputed_powers.clone(),
+            precomputed_powers_inversed.clone(),
+            interpolation_steps.clone(),
+            multiplicative_generator.clone(),
         )?;
-        if idx < 10 {
-            println!("    - {} verifying quotening took {:?}", idx, now.elapsed());
-        }
-        let now = std::time::Instant::now();
-
-        let base_coset_inverse = BoojumPrimeField::inverse(&GL::multiplicative_generator()).unwrap();
-
-        let mut current_folded_value: GoldilocksExtAsFieldWrapper<E, CS> = simulated_ext_element;
-        let mut subidx = base_tree_idx;
-        let mut coset_inverse = base_coset_inverse;
-
-        let mut expected_fri_query_len = base_oracle_depth;
-
-        if idx < 10 {
-            println!("    - {} before preparing took {:?} for attempts: {}", idx, now.elapsed(), constants.fri_folding_schedule.len());
-        }
-        let now = std::time::Instant::now();
-
-        for (idx, (interpolation_degree_log2, fri_query)) in constants.fri_folding_schedule.iter().zip(queries.fri_queries.iter()).enumerate() {
-            expected_fri_query_len -= *interpolation_degree_log2;
-            let interpolation_degree = 1 << *interpolation_degree_log2;
-            let subidx_in_leaf = &subidx[..*interpolation_degree_log2];
-            let tree_idx = &subidx[*interpolation_degree_log2..];
-
-            assert_eq!(fri_query.leaf_elements.len(), interpolation_degree * 2);
-
-            let [c0, c1] = current_folded_value.into_coeffs_in_base();
-
-            let c0_from_leaf = binary_select(cs, &fri_query.leaf_elements[..interpolation_degree], subidx_in_leaf)?;
-            let c1_from_leaf = binary_select(cs, &fri_query.leaf_elements[interpolation_degree..], subidx_in_leaf)?;
-
-            let c0_is_valid = GoldilocksField::equals(cs, &c0, &c0_from_leaf)?;
-            let c1_is_valid = GoldilocksField::equals(cs, &c1, &c1_from_leaf)?;
-
-            validity_flags.push(c0_is_valid);
-            validity_flags.push(c1_is_valid);
-
-            // verify query itself
-            let cap = if idx == 0 { &proof.fri_base_oracle_cap } else { &proof.fri_intermediate_oracles_caps[idx - 1] };
-            assert_eq!(fri_query.proof.len(), expected_fri_query_len);
-            validity_flags.push(check_if_included::<E, CS, H>(cs, &fri_query.leaf_elements, &fri_query.proof, &cap, tree_idx)?);
-
-            // interpolate
-            let mut elements_to_interpolate = Vec::with_capacity(interpolation_degree);
-            for (c0, c1) in fri_query.leaf_elements[..interpolation_degree].iter().zip(fri_query.leaf_elements[interpolation_degree..].iter()) {
-                let as_ext = GoldilocksExtAsFieldWrapper::<E, CS>::from_coeffs_in_base([*c0, *c1]);
-                elements_to_interpolate.push(as_ext);
-            }
-
-            let mut next = Vec::with_capacity(interpolation_degree / 2);
-            let challenges = &challenges.fri_intermediate_challenges[idx];
-            assert_eq!(challenges.len(), *interpolation_degree_log2);
-
-            let mut base_pow = power_chunks[idx];
-
-            for challenge in challenges.iter() {
-                for (i, [a, b]) in elements_to_interpolate.array_chunks::<2>().enumerate() {
-                    let mut result = *a;
-                    result.add_assign(b, cs);
-
-                    let mut diff = *a;
-                    diff.sub_assign(&b, cs);
-                    diff.mul_assign(&challenge, cs);
-                    // divide by corresponding power
-                    let mut pow = base_pow;
-                    pow.mul_assign(&interpolation_steps[i], cs);
-                    let coset_inverse = GoldilocksAsFieldWrapper::constant(coset_inverse, cs);
-                    pow.mul_assign(&coset_inverse, cs);
-
-                    GoldilocksExtAsFieldWrapper::<E, CS>::mul_by_base_and_accumulate_into(&mut result, &pow, &diff, cs)?;
-
-                    // diff.mul_assign_by_base(&pow, cs);
-                    // result.add_assign(&diff, cs);
-
-                    next.push(result);
-                }
-
-                std::mem::swap(&mut next, &mut elements_to_interpolate);
-                next.clear();
-                base_pow.square(cs);
-                BoojumField::square(&mut coset_inverse);
-            }
-
-            for _ in 0..*interpolation_degree_log2 {
-                domain_element_for_interpolation.square(cs);
-            }
-
-            // recompute the index
-            subidx = tree_idx.to_vec();
-            current_folded_value = elements_to_interpolate[0];
-        }
-        if idx < 10 {
-            println!("    - {} fri folding took {:?}", idx, now.elapsed());
-        }
-        let now = std::time::Instant::now();
-
-        // and we should evaluate monomial form and compare
-
-        let mut result_from_monomial = zero_ext;
-        // horner rule
-        for (c0, c1) in proof.final_fri_monomials[0].iter().zip(proof.final_fri_monomials[1].iter()).rev() {
-            let coeff = GoldilocksExtAsFieldWrapper::<E, CS>::from_coeffs_in_base([*c0, *c1]);
-
-            // result_from_monomial = result_from_monomial * z + coeff
-
-            let mut tmp = coeff;
-            GoldilocksExtAsFieldWrapper::<E, CS>::mul_by_base_and_accumulate_into(&mut tmp, &domain_element_for_interpolation, &result_from_monomial, cs)?;
-
-            result_from_monomial = tmp;
-
-            // result_from_monomial.mul_assign_by_base(&domain_element_for_interpolation, cs);
-            // result_from_monomial.add_assign(&coeff, cs);
-        }
-
-        if idx < 10 {
-            println!("    - {} horner took {:?}", idx, now.elapsed());
-        }
-        let now = std::time::Instant::now();
-
-        let result_from_monomial = result_from_monomial.into_coeffs_in_base();
-        let current_folded_value = current_folded_value.into_coeffs_in_base();
-
-        let c0_is_valid = GoldilocksField::equals(cs, &result_from_monomial[0], &current_folded_value[0])?;
-        let c1_is_valid = GoldilocksField::equals(cs, &result_from_monomial[1], &current_folded_value[1])?;
-
-        validity_flags.push(c0_is_valid);
-        validity_flags.push(c1_is_valid);
-        if idx < 10 {
-            println!("    - {} last part took {:?}", idx, now.elapsed());
-        }
     }
 
     {
@@ -579,6 +390,253 @@ pub(crate) fn verify_fri_part<
     println!("  Queries took {:?}", now.elapsed());
 
     Ok(validity_flags)
+}
+
+pub fn single_fri_query_verify<
+    E: Engine,
+    CS: ConstraintSystem<E> + 'static,
+    H: CircuitGLTreeHasher<E>,
+    //TR: CircuitGLTranscript<E, CircuitCompatibleCap = H::CircuitOutput>,
+    //POW: RecursivePoWRunner<E>,
+>(
+    idx: usize,
+    queries: &AllocatedSingleRoundQueries<E, H>,
+    query_index_lsb_first_bits: Vec<Boolean>,
+    tx: Sender<InclusionResponse<E>>,
+    thread_pool: &ThreadPool,
+    validity_flags: &mut Vec<Boolean>,
+    cs: &mut CS,
+    proof: &AllocatedProof<E, H>,
+    vk: &AllocatedVerificationKey<E, H>,
+    public_input_opening_tuples: Vec<(GL, Vec<(usize, GoldilocksAsFieldWrapper<E, CS>)>)>,
+
+    challenges: &ChallengesHolder<E, CS>,
+    /*transcript: &mut TR,
+    // parameters
+    fixed_parameters: &VerificationKeyCircuitGeometry,*/
+    verifier: &WrapperVerifier<E, CS>,
+
+    constants: &ConstantsHolder,
+    base_oracle_depth: usize,
+    precomputed_powers: Vec<GoldilocksAsFieldWrapper<E, CS>>,
+    precomputed_powers_inversed: Vec<GoldilocksAsFieldWrapper<E, CS>>,
+    interpolation_steps: Vec<GoldilocksAsFieldWrapper<E, CS>>,
+    multiplicative_generator: GoldilocksAsFieldWrapper<E, CS>,
+) -> Result<(), SynthesisError> {
+    let now = std::time::Instant::now();
+
+    // we consider it to be some convenient for us encoding of coset + inner index.
+
+    // Small note on indexing: when we commit to elements we use bitreversal enumeration everywhere.
+    // So index `i` in the tree corresponds to the element of `omega^bitreverse(i)`.
+    // This gives us natural separation of LDE cosets, such that subtrees form independent cosets,
+    // and if cosets are in the form of `{1, gamma, ...} x {1, omega, ...} where gamma^lde_factor == omega,
+    // then subtrees are enumerated by bitreverse powers of gamma
+
+    // let inner_idx = &query_index_lsb_first_bits[0..num_bits_for_in_coset_index];
+    // let coset_idx = &query_index_lsb_first_bits[num_bits_for_in_coset_index..];
+    let base_tree_idx = query_index_lsb_first_bits.clone();
+
+    if idx < 10 {
+        println!("    - {} just before proof verification {:?}", idx, now.elapsed());
+    }
+    let now = std::time::Instant::now();
+    // first verify basic inclusion proofs
+    verify_inclusion_proofs(&thread_pool, cs, queries, proof, vk, &base_tree_idx, constants, base_oracle_depth, validity_flags.len(), tx.clone())?;
+
+    let tmp: Vec<Boolean> = vec![Default::default(); 4];
+    validity_flags.extend(tmp);
+
+    if idx < 10 {
+        println!("    - {} inclusion proofs verification {:?}", idx, now.elapsed());
+    }
+    let now = std::time::Instant::now();
+
+    // now perform the quotiening operation
+    let zero_ext = GoldilocksExtAsFieldWrapper::<E, CS>::zero(cs);
+    let mut simulated_ext_element = zero_ext;
+
+    assert_eq!(query_index_lsb_first_bits.len(), precomputed_powers.len() - 1);
+
+    let domain_element = pow_from_precomputations(cs, &precomputed_powers[1..], &query_index_lsb_first_bits);
+
+    if idx < 10 {
+        println!("    - {} pow from precomputation took {:?}", idx, now.elapsed());
+    }
+    let now = std::time::Instant::now();
+
+    // we will find it handy to have power of the generator with some bits masked to be zero
+    let mut power_chunks = vec![];
+    let mut skip_highest_powers = 0;
+    // TODO: we may save here (in circuits case especially) if we compute recursively
+    for interpolation_degree_log2 in constants.fri_folding_schedule.iter() {
+        let domain_element = pow_from_precomputations(
+            cs,
+            &precomputed_powers_inversed[(1 + interpolation_degree_log2)..],
+            &query_index_lsb_first_bits[(skip_highest_powers + interpolation_degree_log2)..],
+        );
+
+        skip_highest_powers += *interpolation_degree_log2;
+        power_chunks.push(domain_element);
+    }
+    if idx < 10 {
+        println!("    - {} interpolation took {:?}", idx, now.elapsed());
+    }
+    let now = std::time::Instant::now();
+
+    // don't forget that we are shifted
+    let mut domain_element_for_quotiening = domain_element;
+    domain_element_for_quotiening.mul_assign(&multiplicative_generator, cs);
+
+    let mut domain_element_for_interpolation = domain_element_for_quotiening;
+
+    if idx < 10 {
+        println!("    - {} before quotening took {:?}", idx, now.elapsed());
+    }
+    let now = std::time::Instant::now();
+
+    verify_quotening_operations(
+        cs,
+        &mut simulated_ext_element,
+        queries,
+        proof,
+        &public_input_opening_tuples,
+        domain_element_for_quotiening,
+        challenges,
+        verifier,
+        constants,
+    )?;
+    if idx < 10 {
+        println!("    - {} verifying quotening took {:?}", idx, now.elapsed());
+    }
+    let now = std::time::Instant::now();
+
+    let base_coset_inverse = BoojumPrimeField::inverse(&GL::multiplicative_generator()).unwrap();
+
+    let mut current_folded_value: GoldilocksExtAsFieldWrapper<E, CS> = simulated_ext_element;
+    let mut subidx = base_tree_idx;
+    let mut coset_inverse = base_coset_inverse;
+
+    let mut expected_fri_query_len = base_oracle_depth;
+
+    if idx < 10 {
+        println!("    - {} before preparing took {:?} for attempts: {}", idx, now.elapsed(), constants.fri_folding_schedule.len());
+    }
+    let now = std::time::Instant::now();
+
+    for (idx, (interpolation_degree_log2, fri_query)) in constants.fri_folding_schedule.iter().zip(queries.fri_queries.iter()).enumerate() {
+        expected_fri_query_len -= *interpolation_degree_log2;
+        let interpolation_degree = 1 << *interpolation_degree_log2;
+        let subidx_in_leaf = &subidx[..*interpolation_degree_log2];
+        let tree_idx = &subidx[*interpolation_degree_log2..];
+
+        assert_eq!(fri_query.leaf_elements.len(), interpolation_degree * 2);
+
+        let [c0, c1] = current_folded_value.into_coeffs_in_base();
+
+        let c0_from_leaf = binary_select(cs, &fri_query.leaf_elements[..interpolation_degree], subidx_in_leaf)?;
+        let c1_from_leaf = binary_select(cs, &fri_query.leaf_elements[interpolation_degree..], subidx_in_leaf)?;
+
+        let c0_is_valid = GoldilocksField::equals(cs, &c0, &c0_from_leaf)?;
+        let c1_is_valid = GoldilocksField::equals(cs, &c1, &c1_from_leaf)?;
+
+        validity_flags.push(c0_is_valid);
+        validity_flags.push(c1_is_valid);
+
+        // verify query itself
+        let cap = if idx == 0 { &proof.fri_base_oracle_cap } else { &proof.fri_intermediate_oracles_caps[idx - 1] };
+        assert_eq!(fri_query.proof.len(), expected_fri_query_len);
+        validity_flags.push(check_if_included::<E, CS, H>(cs, &fri_query.leaf_elements, &fri_query.proof, &cap, tree_idx)?);
+
+        // interpolate
+        let mut elements_to_interpolate = Vec::with_capacity(interpolation_degree);
+        for (c0, c1) in fri_query.leaf_elements[..interpolation_degree].iter().zip(fri_query.leaf_elements[interpolation_degree..].iter()) {
+            let as_ext = GoldilocksExtAsFieldWrapper::<E, CS>::from_coeffs_in_base([*c0, *c1]);
+            elements_to_interpolate.push(as_ext);
+        }
+
+        let mut next = Vec::with_capacity(interpolation_degree / 2);
+        let challenges = &challenges.fri_intermediate_challenges[idx];
+        assert_eq!(challenges.len(), *interpolation_degree_log2);
+
+        let mut base_pow = power_chunks[idx];
+
+        for challenge in challenges.iter() {
+            for (i, [a, b]) in elements_to_interpolate.array_chunks::<2>().enumerate() {
+                let mut result = *a;
+                result.add_assign(b, cs);
+
+                let mut diff = *a;
+                diff.sub_assign(&b, cs);
+                diff.mul_assign(&challenge, cs);
+                // divide by corresponding power
+                let mut pow = base_pow;
+                pow.mul_assign(&interpolation_steps[i], cs);
+                let coset_inverse = GoldilocksAsFieldWrapper::constant(coset_inverse, cs);
+                pow.mul_assign(&coset_inverse, cs);
+
+                GoldilocksExtAsFieldWrapper::<E, CS>::mul_by_base_and_accumulate_into(&mut result, &pow, &diff, cs)?;
+
+                // diff.mul_assign_by_base(&pow, cs);
+                // result.add_assign(&diff, cs);
+
+                next.push(result);
+            }
+
+            std::mem::swap(&mut next, &mut elements_to_interpolate);
+            next.clear();
+            base_pow.square(cs);
+            BoojumField::square(&mut coset_inverse);
+        }
+
+        for _ in 0..*interpolation_degree_log2 {
+            domain_element_for_interpolation.square(cs);
+        }
+
+        // recompute the index
+        subidx = tree_idx.to_vec();
+        current_folded_value = elements_to_interpolate[0];
+    }
+    if idx < 10 {
+        println!("    - {} fri folding took {:?}", idx, now.elapsed());
+    }
+    let now = std::time::Instant::now();
+
+    // and we should evaluate monomial form and compare
+
+    let mut result_from_monomial = zero_ext;
+    // horner rule
+    for (c0, c1) in proof.final_fri_monomials[0].iter().zip(proof.final_fri_monomials[1].iter()).rev() {
+        let coeff = GoldilocksExtAsFieldWrapper::<E, CS>::from_coeffs_in_base([*c0, *c1]);
+
+        // result_from_monomial = result_from_monomial * z + coeff
+
+        let mut tmp = coeff;
+        GoldilocksExtAsFieldWrapper::<E, CS>::mul_by_base_and_accumulate_into(&mut tmp, &domain_element_for_interpolation, &result_from_monomial, cs)?;
+
+        result_from_monomial = tmp;
+
+        // result_from_monomial.mul_assign_by_base(&domain_element_for_interpolation, cs);
+        // result_from_monomial.add_assign(&coeff, cs);
+    }
+
+    if idx < 10 {
+        println!("    - {} horner took {:?}", idx, now.elapsed());
+    }
+    let now = std::time::Instant::now();
+
+    let result_from_monomial = result_from_monomial.into_coeffs_in_base();
+    let current_folded_value = current_folded_value.into_coeffs_in_base();
+
+    let c0_is_valid = GoldilocksField::equals(cs, &result_from_monomial[0], &current_folded_value[0])?;
+    let c1_is_valid = GoldilocksField::equals(cs, &result_from_monomial[1], &current_folded_value[1])?;
+
+    validity_flags.push(c0_is_valid);
+    validity_flags.push(c1_is_valid);
+    if idx < 10 {
+        println!("    - {} last part took {:?}", idx, now.elapsed());
+    }
+    Ok(())
 }
 
 pub const QUERY_VAR_COUNT: usize = 32003;
