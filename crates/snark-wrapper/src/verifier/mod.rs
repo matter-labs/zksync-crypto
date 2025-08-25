@@ -75,12 +75,17 @@ impl<
     }
 
     fn synthesize<CS: ConstraintSystem<E> + 'static>(&self, cs: &mut CS) -> Result<(), SynthesisError> {
+        let now = std::time::Instant::now();
         // Add table for range check
         let columns3 = vec![PolyIdentifier::VariablesPolynomial(0), PolyIdentifier::VariablesPolynomial(1), PolyIdentifier::VariablesPolynomial(2)];
 
         let name = BITWISE_LOGICAL_OPS_TABLE_NAME;
         let bitwise_logic_table = LookupTableApplication::new(name, TwoKeysOneValueBinopTable::<E, XorBinop>::new(8, name), columns3.clone(), None, true);
+        println!("Table created in {:?}", now.elapsed());
+        let now = std::time::Instant::now();
         cs.add_table(bitwise_logic_table).unwrap();
+        println!("Table added in {:?}", now.elapsed());
+        let now = std::time::Instant::now();
 
         // Prepare for proof verification
         let verifier_builder = self.wrapper_function.builder_for_wrapper();
@@ -90,15 +95,23 @@ impl<
         let fixed_parameters = self.fixed_parameters.clone();
 
         let vk = AllocatedVerificationKey::<E, H>::allocate_constant(&self.vk, &fixed_parameters);
+        println!("Constant allocation took {:?}", now.elapsed());
+        let now = std::time::Instant::now();
 
         let proof: AllocatedProof<E, H> = AllocatedProof::allocate_from_witness(cs, &self.witness, &verifier, &fixed_parameters, &proof_config)?;
+
+        println!("Proof from witness took {:?}", now.elapsed());
+        let now = std::time::Instant::now();
 
         // Verify proof
         let correct = crate::verifier::verify::<E, CS, H, TR, ConcretePoseidon2SpongeGadget<E>>(cs, self.transcript_params.clone(), &proof_config, &proof, &verifier, &fixed_parameters, &vk)?;
         Boolean::enforce_equal(cs, &correct, &Boolean::constant(true))?;
+        println!("proof verify took {:?}", now.elapsed());
+        let now = std::time::Instant::now();
 
         // Aggregate PI
         let _pi = aggregate_public_inputs(cs, &proof.public_inputs)?;
+        println!("PI aggregation took {:?}", now.elapsed());
 
         Ok(())
     }
@@ -163,18 +176,28 @@ pub fn verify<E: Engine, CS: ConstraintSystem<E> + 'static, H: CircuitGLTreeHash
     fixed_parameters: &VerificationKeyCircuitGeometry,
     vk: &AllocatedVerificationKey<E, H>,
 ) -> Result<Boolean, SynthesisError> {
+    let now = std::time::Instant::now();
     let mut validity_flags = Vec::with_capacity(256);
 
     let mut transcript = TR::new(cs, transcript_params)?;
     let mut challenges = ChallengesHolder::new(cs);
 
+    println!("Before constants took {:?}", now.elapsed());
+    let now = std::time::Instant::now();
     // prepare constants
     let constants = ConstantsHolder::generate(proof_config, verifier, fixed_parameters);
     assert_eq!(fixed_parameters.cap_size, vk.setup_merkle_tree_cap.len());
 
+    println!("Constants took {:?}", now.elapsed());
+    let now = std::time::Instant::now();
+
     let public_input_opening_tuples = verify_first_step(cs, proof, vk, &mut challenges, &mut transcript, verifier, fixed_parameters, &constants)?;
+    println!("First step took {:?}", now.elapsed());
+    let now = std::time::Instant::now();
 
     validity_flags.extend(check_quotient_contributions_in_z(cs, proof, &challenges, verifier, fixed_parameters, &constants)?);
+    println!("Quotient contributions took {:?}", now.elapsed());
+    let now = std::time::Instant::now();
     validity_flags.extend(verify_fri_part::<E, CS, H, TR, POW>(
         cs,
         proof,
@@ -186,6 +209,7 @@ pub fn verify<E: Engine, CS: ConstraintSystem<E> + 'static, H: CircuitGLTreeHash
         fixed_parameters,
         &constants,
     )?);
+    println!("Verify fri took {:?}", now.elapsed());
 
     let correct = smart_and(cs, &validity_flags)?;
 

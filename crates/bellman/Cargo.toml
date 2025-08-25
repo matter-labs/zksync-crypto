@@ -23,7 +23,7 @@ smallvec = "1.10"
 arrayvec = "0.7"
 byteorder = "1"
 num_cpus = "1"
-serde = { version = "1", features = ["derive", "rc"] }
+serde = { version = "1", features = ["derive"] }
 futures = { version = "0.3", default-features = false, features = ["executor"] }
 crossbeam = { version = "0.8", optional = true }
 prefetch = { version = "0.2", optional = true }

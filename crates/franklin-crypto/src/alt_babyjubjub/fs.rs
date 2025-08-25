@@ -226,7 +226,7 @@ impl PrimeFieldRepr for FsRepr {
 }
 
 /// This is an element of the scalar field of the Jubjub curve.
-#[derive(Copy, Clone, PartialEq, Eq, Debug, Hash, Default)]
+#[derive(Copy, Clone, PartialEq, Eq, Debug, Hash, Default, Serialize, Deserialize)]
 pub struct Fs(FsRepr);
 
 impl ::std::fmt::Display for Fs {
@@ -255,7 +255,7 @@ impl From<Fs> for FsRepr {
         e.into_repr()
     }
 }
-
+/*
 impl ::serde::Serialize for Fs {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -276,7 +276,7 @@ impl<'de> ::serde::Deserialize<'de> for Fs {
 
         Ok(new)
     }
-}
+}*/
 
 impl PrimeField for Fs {
     type Repr = FsRepr;
@@ -657,6 +657,7 @@ fn test_neg_one() {
 
 #[cfg(test)]
 use rand::{Rand, SeedableRng, XorShiftRng};
+use serde::{Deserialize, Serialize};
 
 #[test]
 fn test_fs_repr_ordering() {

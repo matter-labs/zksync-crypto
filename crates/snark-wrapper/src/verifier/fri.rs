@@ -4,6 +4,126 @@ use crate::traits::pow::RecursivePoWRunner;
 use crate::traits::transcript::BoolsBuffer;
 use crate::verifier_structs::allocated_queries::AllocatedSingleRoundQueries;
 
+pub struct GatesInfo<E: Engine> {
+    pub variable_polynomials: Vec<PolyIdentifier>,
+    pub witness_polynomials: Vec<PolyIdentifier>,
+    pub variable_assignments: Vec<Variable>,
+    pub witness_assignments: Vec<E::Fr>,
+}
+
+pub struct MyCS<E: Engine> {
+    pub num_variables: usize,
+    pub num_aux_gates: usize,
+    pub aux_assingments: Vec<E::Fr>,
+    pub gates: Vec<GatesInfo<E>>,
+}
+
+impl<E: Engine> MyCS<E> {
+    pub fn new(num_variables: usize) -> Self {
+        Self {
+            num_variables,
+            num_aux_gates: 0,
+            aux_assingments: Vec::new(),
+            gates: Vec::new(),
+        }
+    }
+}
+
+impl<E: Engine> ConstraintSystem<E> for MyCS<E> {
+    type Params = PlonkCsWidth4WithNextStepAndCustomGatesParams;
+
+    type MainGate = SelectorOptimizedWidth4MainGateWithDNext;
+
+    fn alloc<F>(&mut self, value: F) -> Result<Variable, SynthesisError>
+    where
+        F: FnOnce() -> Result<E::Fr, SynthesisError>,
+    {
+        self.num_variables += 1;
+        self.aux_assingments.push(value().unwrap());
+        Ok(Variable::new_unchecked(Index::Aux(self.num_variables)))
+    }
+
+    fn alloc_input<F>(&mut self, value: F) -> Result<Variable, SynthesisError>
+    where
+        F: FnOnce() -> Result<E::Fr, SynthesisError>,
+    {
+        todo!()
+    }
+
+    fn get_main_gate(&self) -> &Self::MainGate {
+        todo!()
+    }
+
+    fn begin_gates_batch_for_step(&mut self) -> Result<(), SynthesisError> {
+        self.num_aux_gates += 1;
+        Ok(())
+    }
+
+    fn new_gate_in_batch<G: Gate<E>>(&mut self, equation: &G, coefficients_assignments: &[E::Fr], variables_assignments: &[Variable], witness_assignments: &[E::Fr]) -> Result<(), SynthesisError> {
+        let gate_info = GatesInfo {
+            variable_polynomials: equation.variable_polynomials().to_vec(),
+            witness_polynomials: equation.witness_polynomials().to_vec(),
+            variable_assignments: variables_assignments.to_vec(),
+            witness_assignments: witness_assignments.to_vec(),
+        };
+        self.gates.push(gate_info);
+
+        Ok(())
+    }
+
+    fn end_gates_batch_for_step(&mut self) -> Result<(), SynthesisError> {
+        Ok(())
+    }
+
+    fn allocate_variables_without_gate(&mut self, variables_assignments: &[Variable], witness_assignments: &[E::Fr]) -> Result<(), SynthesisError> {
+        todo!()
+    }
+
+    fn get_dummy_variable() -> Variable {
+        Variable::new_unchecked(Index::Aux(0))
+    }
+
+    fn get_explicit_zero(&mut self) -> Result<Variable, SynthesisError> {
+        todo!()
+    }
+
+    fn get_explicit_one(&mut self) -> Result<Variable, SynthesisError> {
+        todo!()
+    }
+
+    fn add_table(&mut self, table: LookupTableApplication<E>) -> Result<std::sync::Arc<LookupTableApplication<E>>, SynthesisError> {
+        todo!()
+    }
+
+    fn get_table(&self, functional_name: &str) -> Result<std::sync::Arc<LookupTableApplication<E>>, SynthesisError> {
+        todo!()
+    }
+
+    fn add_multitable(&mut self, table: MultiTableApplication<E>) -> Result<(), SynthesisError> {
+        todo!()
+    }
+
+    fn get_multitable(&self, functional_name: &str) -> Result<std::sync::Arc<MultiTableApplication<E>>, SynthesisError> {
+        todo!()
+    }
+
+    fn apply_single_lookup_gate(&mut self, variables: &[Variable], gate: std::sync::Arc<LookupTableApplication<E>>) -> Result<(), SynthesisError> {
+        todo!()
+    }
+
+    fn apply_multi_lookup_gate(&mut self, variables: &[Variable], gate: std::sync::Arc<MultiTableApplication<E>>) -> Result<(), SynthesisError> {
+        todo!()
+    }
+
+    fn get_current_step_number(&self) -> usize {
+        todo!()
+    }
+
+    fn get_current_aux_gate_number(&self) -> usize {
+        todo!()
+    }
+}
+
 pub(crate) fn verify_fri_part<
     E: Engine,
     CS: ConstraintSystem<E> + 'static,
@@ -22,6 +142,7 @@ pub(crate) fn verify_fri_part<
     fixed_parameters: &VerificationKeyCircuitGeometry,
     constants: &ConstantsHolder,
 ) -> Result<Vec<Boolean>, SynthesisError> {
+    let now = std::time::Instant::now();
     let mut validity_flags = vec![];
 
     // get challenges
@@ -35,6 +156,9 @@ pub(crate) fn verify_fri_part<
     // witness monomial coeffs
     transcript.witness_field_elements(cs, &proof.final_fri_monomials[0])?;
     transcript.witness_field_elements(cs, &proof.final_fri_monomials[1])?;
+
+    println!("  Witness field elements took {:?}", now.elapsed());
+    let now = std::time::Instant::now();
 
     if constants.new_pow_bits != 0 {
         const SEED_BITS: usize = 256;
@@ -52,6 +176,8 @@ pub(crate) fn verify_fri_part<
         }
         transcript.witness_field_elements(cs, &pow_challenge_limbs)?;
     }
+    println!("  PoW challenge limbs took {:?}", now.elapsed());
+    let now = std::time::Instant::now();
 
     let max_needed_bits = (fixed_parameters.domain_size * fixed_parameters.fri_lde_factor as u64).trailing_zeros() as usize;
 
@@ -76,6 +202,9 @@ pub(crate) fn verify_fri_part<
         precomputed_powers.push(omega);
         precomputed_powers_inversed.push(BoojumPrimeField::inverse(&omega).unwrap());
     }
+
+    println!("  Precomputation took {:?}", now.elapsed());
+    let now = std::time::Instant::now();
 
     // we also want to precompute "steps" for different interpolation degrees
     // e.g. if we interpolate 8 elements,
@@ -104,7 +233,11 @@ pub(crate) fn verify_fri_part<
 
     let base_oracle_depth = fixed_parameters.base_oracles_depth();
 
-    for queries in proof.queries_per_fri_repetition.iter() {
+    println!("  Before queries took {:?}. Queries count: {}", now.elapsed(), proof.queries_per_fri_repetition.len());
+    let now = std::time::Instant::now();
+
+    for (idx, queries) in proof.queries_per_fri_repetition.iter().enumerate() {
+        let now = std::time::Instant::now();
         let query_index_lsb_first_bits = bools_buffer.get_bits(cs, transcript, max_needed_bits)?;
 
         // we consider it to be some convenient for us encoding of coset + inner index.
@@ -119,8 +252,16 @@ pub(crate) fn verify_fri_part<
         // let coset_idx = &query_index_lsb_first_bits[num_bits_for_in_coset_index..];
         let base_tree_idx = query_index_lsb_first_bits.clone();
 
+        if idx < 10 {
+            println!("    - {} just before proof verification {:?}", idx, now.elapsed());
+        }
+        let now = std::time::Instant::now();
         // first verify basic inclusion proofs
         validity_flags.extend(verify_inclusion_proofs(cs, queries, proof, vk, &base_tree_idx, constants, base_oracle_depth)?);
+        if idx < 10 {
+            println!("    - {} inclusion proofs verification {:?}", idx, now.elapsed());
+        }
+        let now = std::time::Instant::now();
 
         // now perform the quotiening operation
         let zero_ext = GoldilocksExtAsFieldWrapper::<E, CS>::zero(cs);
@@ -129,6 +270,11 @@ pub(crate) fn verify_fri_part<
         assert_eq!(query_index_lsb_first_bits.len(), precomputed_powers.len() - 1);
 
         let domain_element = pow_from_precomputations(cs, &precomputed_powers[1..], &query_index_lsb_first_bits);
+
+        if idx < 10 {
+            println!("    - {} pow from precomputation took {:?}", idx, now.elapsed());
+        }
+        let now = std::time::Instant::now();
 
         // we will find it handy to have power of the generator with some bits masked to be zero
         let mut power_chunks = vec![];
@@ -144,12 +290,21 @@ pub(crate) fn verify_fri_part<
             skip_highest_powers += *interpolation_degree_log2;
             power_chunks.push(domain_element);
         }
+        if idx < 10 {
+            println!("    - {} interpolation took {:?}", idx, now.elapsed());
+        }
+        let now = std::time::Instant::now();
 
         // don't forget that we are shifted
         let mut domain_element_for_quotiening = domain_element;
         domain_element_for_quotiening.mul_assign(&multiplicative_generator, cs);
 
         let mut domain_element_for_interpolation = domain_element_for_quotiening;
+
+        if idx < 10 {
+            println!("    - {} before quotening took {:?}", idx, now.elapsed());
+        }
+        let now = std::time::Instant::now();
 
         verify_quotening_operations(
             cs,
@@ -162,6 +317,10 @@ pub(crate) fn verify_fri_part<
             verifier,
             constants,
         )?;
+        if idx < 10 {
+            println!("    - {} verifying quotening took {:?}", idx, now.elapsed());
+        }
+        let now = std::time::Instant::now();
 
         let base_coset_inverse = BoojumPrimeField::inverse(&GL::multiplicative_generator()).unwrap();
 
@@ -170,6 +329,11 @@ pub(crate) fn verify_fri_part<
         let mut coset_inverse = base_coset_inverse;
 
         let mut expected_fri_query_len = base_oracle_depth;
+
+        if idx < 10 {
+            println!("    - {} before preparing took {:?} for attempts: {}", idx, now.elapsed(), constants.fri_folding_schedule.len());
+        }
+        let now = std::time::Instant::now();
 
         for (idx, (interpolation_degree_log2, fri_query)) in constants.fri_folding_schedule.iter().zip(queries.fri_queries.iter()).enumerate() {
             expected_fri_query_len -= *interpolation_degree_log2;
@@ -244,6 +408,10 @@ pub(crate) fn verify_fri_part<
             subidx = tree_idx.to_vec();
             current_folded_value = elements_to_interpolate[0];
         }
+        if idx < 10 {
+            println!("    - {} fri folding took {:?}", idx, now.elapsed());
+        }
+        let now = std::time::Instant::now();
 
         // and we should evaluate monomial form and compare
 
@@ -263,6 +431,11 @@ pub(crate) fn verify_fri_part<
             // result_from_monomial.add_assign(&coeff, cs);
         }
 
+        if idx < 10 {
+            println!("    - {} horner took {:?}", idx, now.elapsed());
+        }
+        let now = std::time::Instant::now();
+
         let result_from_monomial = result_from_monomial.into_coeffs_in_base();
         let current_folded_value = current_folded_value.into_coeffs_in_base();
 
@@ -271,7 +444,11 @@ pub(crate) fn verify_fri_part<
 
         validity_flags.push(c0_is_valid);
         validity_flags.push(c1_is_valid);
+        if idx < 10 {
+            println!("    - {} last part took {:?}", idx, now.elapsed());
+        }
     }
+    println!("  Queries took {:?}", now.elapsed());
 
     Ok(validity_flags)
 }
@@ -289,6 +466,12 @@ fn verify_inclusion_proofs<E: Engine, CS: ConstraintSystem<E> + 'static, H: Circ
 
     assert_eq!(constants.witness_leaf_size, queries.witness_query.leaf_elements.len());
     assert_eq!(base_oracle_depth, queries.witness_query.proof.len());
+
+    let mut mycs = MyCS::new(0);
+    check_if_included::<E, _, H>(&mut mycs, &queries.witness_query.leaf_elements, &queries.witness_query.proof, &proof.witness_oracle_cap, &base_tree_idx).unwrap();
+
+    println!("MyCS Stats: num variables: {} num gates: {} ", mycs.num_variables, mycs.num_aux_gates);
+
     validity_flags.push(check_if_included::<E, CS, H>(
         cs,
         &queries.witness_query.leaf_elements,
@@ -540,6 +723,7 @@ pub fn verify_proof_over_cap<E: Engine, H: CircuitGLTreeHasher<E>, CS: Constrain
     let selected_cap_el = H::select_cap_node(cs, cap_bits, cap)?;
 
     H::compare_output(cs, &current, &selected_cap_el)
+    //Ok(Boolean::Constant(true))
 }
 
 fn pow_from_precomputations<E: Engine, CS: ConstraintSystem<E> + 'static>(cs: &mut CS, bases: &[GoldilocksAsFieldWrapper<E, CS>], bits: &[Boolean]) -> GoldilocksAsFieldWrapper<E, CS> {
