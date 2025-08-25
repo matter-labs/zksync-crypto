@@ -375,7 +375,7 @@ pub(crate) fn verify_fri_part<
         )?;
     }
 
-    {
+    /*{
         let recv_start = std::time::Instant::now();
         // random order.
         for i in 0..400 {
@@ -386,7 +386,7 @@ pub(crate) fn verify_fri_part<
             validity_flags[data.request_id] = data.result;
         }
         println!("  Receives async took {:?}", recv_start.elapsed());
-    }
+    }*/
     println!("  Queries took {:?}", now.elapsed());
 
     Ok(validity_flags)
@@ -442,10 +442,11 @@ pub fn single_fri_query_verify<
     }
     let now = std::time::Instant::now();
     // first verify basic inclusion proofs
-    verify_inclusion_proofs(&thread_pool, cs, queries, proof, vk, &base_tree_idx, constants, base_oracle_depth, validity_flags.len(), tx.clone())?;
-
+    /*verify_inclusion_proofs(&thread_pool, cs, queries, proof, vk, &base_tree_idx, constants, base_oracle_depth, validity_flags.len(), tx.clone())?;
     let tmp: Vec<Boolean> = vec![Default::default(); 4];
-    validity_flags.extend(tmp);
+    validity_flags.extend(tmp);*/
+
+    validity_flags.extend(verify_inclusion_proofs_original(cs, queries, proof, vk, &base_tree_idx, constants, base_oracle_depth)?);
 
     if idx < 10 {
         println!("    - {} inclusion proofs verification {:?}", idx, now.elapsed());
@@ -704,6 +705,60 @@ fn check_if_included_async<E: Engine, CS: ConstraintSystem<E>, H: CircuitGLTreeH
         position: start_offset,
         request_id,
     }
+}
+
+fn verify_inclusion_proofs_original<E: Engine, CS: ConstraintSystem<E> + 'static, H: CircuitGLTreeHasher<E>>(
+    cs: &mut CS,
+    queries: &AllocatedSingleRoundQueries<E, H>,
+    proof: &AllocatedProof<E, H>,
+    vk: &AllocatedVerificationKey<E, H>,
+    base_tree_idx: &Vec<Boolean>,
+    constants: &ConstantsHolder,
+    base_oracle_depth: usize,
+) -> Result<Vec<Boolean>, SynthesisError> {
+    let mut validity_flags = Vec::new();
+
+    assert_eq!(constants.witness_leaf_size, queries.witness_query.leaf_elements.len());
+    assert_eq!(base_oracle_depth, queries.witness_query.proof.len());
+    validity_flags.push(check_if_included::<E, CS, H>(
+        cs,
+        &queries.witness_query.leaf_elements,
+        &queries.witness_query.proof,
+        &proof.witness_oracle_cap,
+        &base_tree_idx,
+    )?);
+
+    assert_eq!(constants.stage_2_leaf_size, queries.stage_2_query.leaf_elements.len());
+    assert_eq!(base_oracle_depth, queries.stage_2_query.proof.len());
+    validity_flags.push(check_if_included::<E, CS, H>(
+        cs,
+        &queries.stage_2_query.leaf_elements,
+        &queries.stage_2_query.proof,
+        &proof.stage_2_oracle_cap,
+        &base_tree_idx,
+    )?);
+
+    assert_eq!(constants.quotient_leaf_size, queries.quotient_query.leaf_elements.len());
+    assert_eq!(base_oracle_depth, queries.quotient_query.proof.len());
+    validity_flags.push(check_if_included::<E, CS, H>(
+        cs,
+        &queries.quotient_query.leaf_elements,
+        &queries.quotient_query.proof,
+        &proof.quotient_oracle_cap,
+        &base_tree_idx,
+    )?);
+
+    assert_eq!(constants.setup_leaf_size, queries.setup_query.leaf_elements.len());
+    assert_eq!(base_oracle_depth, queries.setup_query.proof.len());
+    validity_flags.push(check_if_included::<E, CS, H>(
+        cs,
+        &queries.setup_query.leaf_elements,
+        &queries.setup_query.proof,
+        &vk.setup_merkle_tree_cap,
+        &base_tree_idx,
+    )?);
+
+    Ok(validity_flags)
 }
 
 fn verify_inclusion_proofs<E: Engine, CS: ConstraintSystem<E> + 'static, H: CircuitGLTreeHasher<E>>(
