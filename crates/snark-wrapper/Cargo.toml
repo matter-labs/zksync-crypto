@@ -16,3 +16,4 @@ serde = { version = "1", features = ["derive"] }
 derivative = "2"
 rand = "0.4"
 rayon = "1"
+crossbeam = "0.8.4"

@@ -605,6 +605,9 @@ pub trait ConstraintSystem<E: Engine> {
     type Params: PlonkConstraintSystemParams<E>;
     type MainGate: MainGate<E>;
 
+    fn reserve(&mut self, aux_variables: usize, aux_gates: usize) -> Result<(usize, usize), SynthesisError>;
+    fn reposition(&mut self, aux_variable_pos: usize, aux_gates_pos: usize) -> Result<(usize, usize), SynthesisError>;
+
     // allocate a variable
     fn alloc<F>(&mut self, value: F) -> Result<Variable, SynthesisError>
     where
@@ -1138,6 +1141,23 @@ impl_assembly! {
         type Params = P;
         type MainGate = MG;
 
+        fn reserve(&mut self, aux_variables: usize, aux_gates: usize) -> Result<(usize, usize), SynthesisError> {
+            let start_aux = self.num_aux;
+            let start_gates = self.num_aux_gates;
+            self.num_aux += aux_variables;
+            self.aux_assingments.resize(self.num_aux, E::Fr::zero());
+            self.num_aux_gates += aux_gates;
+            Ok((start_aux, start_gates))
+        }
+
+        fn reposition(&mut self, aux_variable_pos: usize, aux_gates_pos: usize) -> Result<(usize, usize), SynthesisError> {
+            let prev_aux = self.num_aux;
+            let prev_aux_gates = self.num_aux_gates;
+            self.num_aux = aux_variable_pos;
+            self.num_aux_gates = aux_gates_pos;
+            Ok((prev_aux, prev_aux_gates))
+        }
+
         // allocate a variable
         #[inline]
         fn alloc<F>(&mut self, value: F) -> Result<Variable, SynthesisError>
@@ -1149,7 +1169,11 @@ impl_assembly! {
             let index = self.num_aux;
             if S::PRODUCE_WITNESS {
                 let value = value()?;
+                if self.aux_assingments.len() >= index {
+                    self.aux_assingments[index-1] = value;
+                } else {
                 self.aux_assingments.push(value);
+                }
             }
 
             Ok(Variable(Index::Aux(index)))

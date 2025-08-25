@@ -6,6 +6,7 @@ use super::*;
 use crate::traits::pow::RecursivePoWRunner;
 use crate::traits::transcript::BoolsBuffer;
 use crate::verifier_structs::allocated_queries::AllocatedSingleRoundQueries;
+use crossbeam::channel::unbounded;
 use rayon::prelude::*;
 use rayon::{ThreadPool, ThreadPoolBuilder};
 
@@ -72,7 +73,10 @@ impl<E: Engine> MyCS<E> {
         self.old_nums.insert(allocated_num.get_variable(), allocated_num.get_value().unwrap());
     }
 
-    pub fn dump_to_existing_cs<CS: ConstraintSystem<E>>(&self, other_cs: &mut CS) {
+    pub fn dump_to_existing_cs<CS: ConstraintSystem<E>>(&self, other_cs: &mut CS, start_position: (usize, usize)) {
+        // move pointer to the proper location.
+        let current_pos = other_cs.reposition(start_position.0, start_position.1).unwrap();
+
         for (i, entry) in self.aux_assingments.iter().enumerate() {
             let tmp = other_cs.alloc(|| Ok(*entry)).unwrap();
             assert_eq!(tmp, Variable::new_unchecked(Index::Aux(i + self.started_variable + 1)));
@@ -89,6 +93,8 @@ impl<E: Engine> MyCS<E> {
                 }
             }
         }
+        // move pointers back.
+        other_cs.reposition(current_pos.0, current_pos.1).unwrap();
     }
 }
 
@@ -120,6 +126,13 @@ impl<E: Engine> ConstraintSystem<E> for MyCS<E> {
 
     fn get_current_aux_assignment_number(&self) -> usize {
         todo!();
+    }
+
+    fn reserve(&mut self, aux_variables: usize, aux_gates: usize) -> Result<(usize, usize), SynthesisError> {
+        todo!()
+    }
+    fn reposition(&mut self, aux_variable_pos: usize, aux_gates_pos: usize) -> Result<(usize, usize), SynthesisError> {
+        todo!()
     }
 
     fn alloc<F>(&mut self, value: F) -> Result<Variable, SynthesisError>
@@ -349,7 +362,9 @@ pub(crate) fn verify_fri_part<
         }
         let now = std::time::Instant::now();
         // first verify basic inclusion proofs
-        validity_flags.extend(verify_inclusion_proofs(&thread_pool, cs, queries, proof, vk, &base_tree_idx, constants, base_oracle_depth)?);
+        let tmp = verify_inclusion_proofs(&thread_pool, cs, queries, proof, vk, &base_tree_idx, constants, base_oracle_depth, validity_flags.len())?;
+
+        validity_flags.extend(tmp);
         if idx < 10 {
             println!("    - {} inclusion proofs verification {:?}", idx, now.elapsed());
         }
@@ -550,15 +565,34 @@ pub const STAGE2_VAR_COUNT: usize = 14615;
 pub const QUOTIENT_VAR_COUNT: usize = 14618;
 pub const SETUP_VAR_COUNT: usize = 21935;
 
+pub const TOTAL_VAR_COUNT: usize = QUERY_VAR_COUNT + STAGE2_VAR_COUNT + QUOTIENT_VAR_COUNT + SETUP_VAR_COUNT;
+
+pub const QUERY_GATES_COUNT: usize = 26403;
+pub const STAGE2_GATES_COUNT: usize = 12055;
+pub const QUOTIENT_GATES_COUNT: usize = 12058;
+pub const SETUP_GATES_COUNT: usize = 18095;
+
+pub const TOTAL_GATES_COUNT: usize = QUERY_GATES_COUNT + STAGE2_GATES_COUNT + QUOTIENT_GATES_COUNT + SETUP_GATES_COUNT;
+
+#[derive(Clone)]
+pub struct InclusionResponse<E: Engine> {
+    pub result: Boolean,
+    pub mycs: MyCS<E>,
+    pub position: (usize, usize),
+    pub request_id: usize,
+}
+
 fn check_if_included_async<E: Engine, CS: ConstraintSystem<E>, H: CircuitGLTreeHasher<E>>(
-    start_offset: usize,
+    request_id: usize,
+    start_offset: (usize, usize),
     expected_var_count: usize,
+    expected_gates_count: usize,
     leaf_elements: &Vec<GoldilocksField<E>>,
     proof: &Vec<H::CircuitOutput>,
     tree_cap: &Vec<H::CircuitOutput>,
     path: &[Boolean],
-) -> (Boolean, MyCS<E>) {
-    let mut mycs = MyCS::new(start_offset);
+) -> InclusionResponse<E> {
+    let mut mycs = MyCS::new(start_offset.0);
     use crate::traits::tree_hasher::ToAllocatedNum;
     for elem in leaf_elements {
         let var = elem.into_num().get_variable();
@@ -582,10 +616,15 @@ fn check_if_included_async<E: Engine, CS: ConstraintSystem<E>, H: CircuitGLTreeH
 
     let created_vars = mycs.num_variables - mycs.started_variable;
     assert_eq!(created_vars, expected_var_count);
+    assert_eq!(mycs.gates.len(), expected_gates_count);
 
     //mycs.dump_to_existing_cs(cs);
-
-    (result, mycs)
+    InclusionResponse {
+        result,
+        mycs,
+        position: start_offset,
+        request_id,
+    }
 }
 
 fn verify_inclusion_proofs<E: Engine, CS: ConstraintSystem<E> + 'static, H: CircuitGLTreeHasher<E>>(
@@ -597,90 +636,123 @@ fn verify_inclusion_proofs<E: Engine, CS: ConstraintSystem<E> + 'static, H: Circ
     base_tree_idx: &Vec<Boolean>,
     constants: &ConstantsHolder,
     base_oracle_depth: usize,
+    validity_flags_index: usize,
 ) -> Result<Vec<Boolean>, SynthesisError> {
-    let start_offset = cs.get_current_aux_assignment_number();
+    let (tx, rx) = unbounded::<InclusionResponse<E>>();
+    let start_offset = cs.reserve(TOTAL_VAR_COUNT, TOTAL_GATES_COUNT)?;
 
-    let validity_flags = thread_pool.install(|| {
-        let mut validity_flags = vec![None; 4];
+    thread_pool.install(|| {
         rayon::scope(|s| {
             assert_eq!(constants.witness_leaf_size, queries.witness_query.leaf_elements.len());
             assert_eq!(base_oracle_depth, queries.witness_query.proof.len());
 
             let mut start_offset = start_offset;
-            let (dst, validity_flags) = validity_flags.split_at_mut(1);
+            let tx2 = tx.clone();
 
             s.spawn(move |_| {
-                dst[0] = Some(check_if_included_async::<E, CS, H>(
+                tx2.send(check_if_included_async::<E, CS, H>(
+                    validity_flags_index,
                     start_offset,
                     QUERY_VAR_COUNT,
+                    QUERY_GATES_COUNT,
                     &queries.witness_query.leaf_elements,
                     &queries.witness_query.proof,
                     &proof.witness_oracle_cap,
                     &base_tree_idx,
-                ));
+                ))
+                .unwrap();
             });
-            start_offset += QUERY_VAR_COUNT;
+            start_offset.0 += QUERY_VAR_COUNT;
+            start_offset.1 += QUERY_GATES_COUNT;
 
             assert_eq!(constants.stage_2_leaf_size, queries.stage_2_query.leaf_elements.len());
             assert_eq!(base_oracle_depth, queries.stage_2_query.proof.len());
 
-            let (dst, validity_flags) = validity_flags.split_at_mut(1);
+            let tx2 = tx.clone();
 
             s.spawn(move |_| {
-                dst[0] = Some(check_if_included_async::<E, CS, H>(
+                tx2.send(check_if_included_async::<E, CS, H>(
+                    validity_flags_index + 1,
                     start_offset,
                     STAGE2_VAR_COUNT,
+                    STAGE2_GATES_COUNT,
                     &queries.stage_2_query.leaf_elements,
                     &queries.stage_2_query.proof,
                     &proof.stage_2_oracle_cap,
                     &base_tree_idx,
-                ));
+                ))
+                .unwrap();
             });
-            start_offset += STAGE2_VAR_COUNT;
+            start_offset.0 += STAGE2_VAR_COUNT;
+            start_offset.1 += STAGE2_GATES_COUNT;
 
             assert_eq!(constants.quotient_leaf_size, queries.quotient_query.leaf_elements.len());
             assert_eq!(base_oracle_depth, queries.quotient_query.proof.len());
-            let (dst, validity_flags) = validity_flags.split_at_mut(1);
+            let tx2 = tx.clone();
 
             s.spawn(move |_| {
-                dst[0] = Some(check_if_included_async::<E, CS, H>(
+                tx2.send(check_if_included_async::<E, CS, H>(
+                    validity_flags_index + 2,
                     start_offset,
                     QUOTIENT_VAR_COUNT,
+                    QUOTIENT_GATES_COUNT,
                     &queries.quotient_query.leaf_elements,
                     &queries.quotient_query.proof,
                     &proof.quotient_oracle_cap,
                     &base_tree_idx,
-                ));
+                ))
+                .unwrap();
             });
-            start_offset += QUOTIENT_VAR_COUNT;
+            start_offset.0 += QUOTIENT_VAR_COUNT;
+            start_offset.1 += QUOTIENT_GATES_COUNT;
 
             assert_eq!(constants.setup_leaf_size, queries.setup_query.leaf_elements.len());
             assert_eq!(base_oracle_depth, queries.setup_query.proof.len());
-            let (dst, validity_flags) = validity_flags.split_at_mut(1);
+            let tx2 = tx.clone();
 
             s.spawn(move |_| {
-                dst[0] = Some(check_if_included_async::<E, CS, H>(
+                tx2.send(check_if_included_async::<E, CS, H>(
+                    validity_flags_index + 3,
                     start_offset,
                     SETUP_VAR_COUNT,
+                    SETUP_GATES_COUNT,
                     &queries.setup_query.leaf_elements,
                     &queries.setup_query.proof,
                     &vk.setup_merkle_tree_cap,
                     &base_tree_idx,
-                ));
+                ))
+                .unwrap();
             });
             //start_offset += SETUP_VAR_COUNT;
         });
-        validity_flags
     });
 
-    let validity_flags = validity_flags
-        .into_iter()
-        .map(|x| x.unwrap())
-        .map(|(flag, mycs)| {
-            mycs.dump_to_existing_cs(cs);
-            flag
-        })
-        .collect();
+    let mut responses = vec![None; 4];
+
+    let mut validity_flags = vec![Default::default(); 4];
+
+    for _ in 0..4 {
+        let data = rx.recv().unwrap();
+        let pos = data.request_id - validity_flags_index;
+        responses[pos] = Some(data);
+    }
+
+    for i in 0..4 {
+        let data = responses[i].as_ref().unwrap();
+
+        data.mycs.dump_to_existing_cs(cs, data.position);
+        println!("Setting {:?} at {}", data.result, data.request_id - validity_flags_index);
+        validity_flags[data.request_id - validity_flags_index] = data.result;
+    }
+
+    /*let validity_flags = validity_flags
+    .into_iter()
+    .map(|x| x.unwrap())
+    .map(|x| {
+        x.mycs.dump_to_existing_cs(cs, x.position);
+        x.result
+    })
+    .collect();*/
 
     Ok(validity_flags)
 }
