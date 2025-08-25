@@ -250,7 +250,7 @@ pub(crate) fn verify_fri_part<
     fixed_parameters: &VerificationKeyCircuitGeometry,
     constants: &ConstantsHolder,
 ) -> Result<Vec<Boolean>, SynthesisError> {
-    let thread_pool = ThreadPoolBuilder::new().num_threads(8).build().unwrap();
+    let thread_pool = ThreadPoolBuilder::new().num_threads(32).build().unwrap();
     let now = std::time::Instant::now();
     let mut validity_flags = vec![];
 
@@ -368,9 +368,11 @@ pub(crate) fn verify_fri_part<
         }
         let now = std::time::Instant::now();
         // first verify basic inclusion proofs
-        let tmp = verify_inclusion_proofs(&thread_pool, cs, queries, proof, vk, &base_tree_idx, constants, base_oracle_depth, validity_flags.len(), tx.clone())?;
+        verify_inclusion_proofs(&thread_pool, cs, queries, proof, vk, &base_tree_idx, constants, base_oracle_depth, validity_flags.len(), tx.clone())?;
 
+        let tmp: Vec<Boolean> = vec![Default::default(); 4];
         validity_flags.extend(tmp);
+
         if idx < 10 {
             println!("    - {} inclusion proofs verification {:?}", idx, now.elapsed());
         }
@@ -561,6 +563,19 @@ pub(crate) fn verify_fri_part<
             println!("    - {} last part took {:?}", idx, now.elapsed());
         }
     }
+
+    {
+        let recv_start = std::time::Instant::now();
+        // random order.
+        for i in 0..400 {
+            let data = rx.recv().unwrap();
+
+            data.mycs.dump_to_existing_cs(cs, data.position);
+            //println!("Setting {:?} at {}", data.result, data.request_id);
+            validity_flags[data.request_id] = data.result;
+        }
+        println!("  Receives async took {:?}", recv_start.elapsed());
+    }
     println!("  Queries took {:?}", now.elapsed());
 
     Ok(validity_flags)
@@ -643,9 +658,9 @@ fn verify_inclusion_proofs<E: Engine, CS: ConstraintSystem<E> + 'static, H: Circ
     constants: &ConstantsHolder,
     base_oracle_depth: usize,
     validity_flags_index: usize,
-    txx: Sender<InclusionResponse<E>>,
-) -> Result<Vec<Boolean>, SynthesisError> {
-    let (tx, rx) = unbounded::<InclusionResponse<E>>();
+    tx: Sender<InclusionResponse<E>>,
+) -> Result<(), SynthesisError> {
+    //let (tx, rx) = unbounded::<InclusionResponse<E>>();
     let start_offset = cs.reserve(TOTAL_VAR_COUNT, TOTAL_GATES_COUNT)?;
 
     assert_eq!(constants.witness_leaf_size, queries.witness_query.leaf_elements.len());
@@ -750,6 +765,7 @@ fn verify_inclusion_proofs<E: Engine, CS: ConstraintSystem<E> + 'static, H: Circ
         .unwrap();
     });
 
+    /*
     let mut responses = vec![None; 4];
 
     let mut validity_flags = vec![Default::default(); 4];
@@ -781,6 +797,7 @@ fn verify_inclusion_proofs<E: Engine, CS: ConstraintSystem<E> + 'static, H: Circ
             validity_flags[data.request_id - validity_flags_index] = data.result;
         }
     }
+    */
 
     /*let validity_flags = validity_flags
     .into_iter()
@@ -791,7 +808,7 @@ fn verify_inclusion_proofs<E: Engine, CS: ConstraintSystem<E> + 'static, H: Circ
     })
     .collect();*/
 
-    Ok(validity_flags)
+    Ok(())
 }
 
 fn verify_quotening_operations<E: Engine, CS: ConstraintSystem<E> + 'static, H: CircuitGLTreeHasher<E>>(
