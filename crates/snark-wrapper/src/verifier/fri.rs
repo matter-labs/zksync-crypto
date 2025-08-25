@@ -641,90 +641,106 @@ fn verify_inclusion_proofs<E: Engine, CS: ConstraintSystem<E> + 'static, H: Circ
     let (tx, rx) = unbounded::<InclusionResponse<E>>();
     let start_offset = cs.reserve(TOTAL_VAR_COUNT, TOTAL_GATES_COUNT)?;
 
-    thread_pool.install(|| {
-        rayon::scope(|s| {
-            assert_eq!(constants.witness_leaf_size, queries.witness_query.leaf_elements.len());
-            assert_eq!(base_oracle_depth, queries.witness_query.proof.len());
+    assert_eq!(constants.witness_leaf_size, queries.witness_query.leaf_elements.len());
+    assert_eq!(base_oracle_depth, queries.witness_query.proof.len());
 
-            let mut start_offset = start_offset;
-            let tx2 = tx.clone();
+    let mut start_offset = start_offset;
+    let tx2 = tx.clone();
 
-            s.spawn(move |_| {
-                tx2.send(check_if_included_async::<E, CS, H>(
-                    validity_flags_index,
-                    start_offset,
-                    QUERY_VAR_COUNT,
-                    QUERY_GATES_COUNT,
-                    &queries.witness_query.leaf_elements,
-                    &queries.witness_query.proof,
-                    &proof.witness_oracle_cap,
-                    &base_tree_idx,
-                ))
-                .unwrap();
-            });
-            start_offset.0 += QUERY_VAR_COUNT;
-            start_offset.1 += QUERY_GATES_COUNT;
+    let witness_leaves = queries.witness_query.leaf_elements.clone();
+    let witness_proof = queries.witness_query.proof.clone();
 
-            assert_eq!(constants.stage_2_leaf_size, queries.stage_2_query.leaf_elements.len());
-            assert_eq!(base_oracle_depth, queries.stage_2_query.proof.len());
+    let witness_oracle_cap = proof.witness_oracle_cap.clone();
+    let bb = base_tree_idx.clone();
 
-            let tx2 = tx.clone();
+    thread_pool.spawn(move || {
+        tx2.send(check_if_included_async::<E, CS, H>(
+            validity_flags_index,
+            start_offset,
+            QUERY_VAR_COUNT,
+            QUERY_GATES_COUNT,
+            &witness_leaves,
+            &witness_proof,
+            &witness_oracle_cap,
+            &bb,
+        ))
+        .unwrap();
+    });
+    start_offset.0 += QUERY_VAR_COUNT;
+    start_offset.1 += QUERY_GATES_COUNT;
 
-            s.spawn(move |_| {
-                tx2.send(check_if_included_async::<E, CS, H>(
-                    validity_flags_index + 1,
-                    start_offset,
-                    STAGE2_VAR_COUNT,
-                    STAGE2_GATES_COUNT,
-                    &queries.stage_2_query.leaf_elements,
-                    &queries.stage_2_query.proof,
-                    &proof.stage_2_oracle_cap,
-                    &base_tree_idx,
-                ))
-                .unwrap();
-            });
-            start_offset.0 += STAGE2_VAR_COUNT;
-            start_offset.1 += STAGE2_GATES_COUNT;
+    assert_eq!(constants.stage_2_leaf_size, queries.stage_2_query.leaf_elements.len());
+    assert_eq!(base_oracle_depth, queries.stage_2_query.proof.len());
 
-            assert_eq!(constants.quotient_leaf_size, queries.quotient_query.leaf_elements.len());
-            assert_eq!(base_oracle_depth, queries.quotient_query.proof.len());
-            let tx2 = tx.clone();
+    let tx2 = tx.clone();
 
-            s.spawn(move |_| {
-                tx2.send(check_if_included_async::<E, CS, H>(
-                    validity_flags_index + 2,
-                    start_offset,
-                    QUOTIENT_VAR_COUNT,
-                    QUOTIENT_GATES_COUNT,
-                    &queries.quotient_query.leaf_elements,
-                    &queries.quotient_query.proof,
-                    &proof.quotient_oracle_cap,
-                    &base_tree_idx,
-                ))
-                .unwrap();
-            });
-            start_offset.0 += QUOTIENT_VAR_COUNT;
-            start_offset.1 += QUOTIENT_GATES_COUNT;
+    let stage2_oracle_cap = proof.stage_2_oracle_cap.clone();
+    let bb = base_tree_idx.clone();
+    let stage2_leaves = queries.stage_2_query.leaf_elements.clone();
+    let stage2_query_proof = queries.stage_2_query.proof.clone();
 
-            assert_eq!(constants.setup_leaf_size, queries.setup_query.leaf_elements.len());
-            assert_eq!(base_oracle_depth, queries.setup_query.proof.len());
-            let tx2 = tx.clone();
+    thread_pool.spawn(move || {
+        tx2.send(check_if_included_async::<E, CS, H>(
+            validity_flags_index + 1,
+            start_offset,
+            STAGE2_VAR_COUNT,
+            STAGE2_GATES_COUNT,
+            &stage2_leaves,
+            &stage2_query_proof,
+            &stage2_oracle_cap,
+            &bb,
+        ))
+        .unwrap();
+    });
+    start_offset.0 += STAGE2_VAR_COUNT;
+    start_offset.1 += STAGE2_GATES_COUNT;
 
-            s.spawn(move |_| {
-                tx2.send(check_if_included_async::<E, CS, H>(
-                    validity_flags_index + 3,
-                    start_offset,
-                    SETUP_VAR_COUNT,
-                    SETUP_GATES_COUNT,
-                    &queries.setup_query.leaf_elements,
-                    &queries.setup_query.proof,
-                    &vk.setup_merkle_tree_cap,
-                    &base_tree_idx,
-                ))
-                .unwrap();
-            });
-            //start_offset += SETUP_VAR_COUNT;
-        });
+    assert_eq!(constants.quotient_leaf_size, queries.quotient_query.leaf_elements.len());
+    assert_eq!(base_oracle_depth, queries.quotient_query.proof.len());
+    let tx2 = tx.clone();
+
+    let quotient_oracle_cap = proof.quotient_oracle_cap.clone();
+    let bb = base_tree_idx.clone();
+    let quotient_leaves = queries.quotient_query.leaf_elements.clone();
+    let quotient_query_proof = queries.quotient_query.proof.clone();
+
+    thread_pool.spawn(move || {
+        tx2.send(check_if_included_async::<E, CS, H>(
+            validity_flags_index + 2,
+            start_offset,
+            QUOTIENT_VAR_COUNT,
+            QUOTIENT_GATES_COUNT,
+            &quotient_leaves,
+            &quotient_query_proof,
+            &quotient_oracle_cap,
+            &bb,
+        ))
+        .unwrap();
+    });
+    start_offset.0 += QUOTIENT_VAR_COUNT;
+    start_offset.1 += QUOTIENT_GATES_COUNT;
+
+    assert_eq!(constants.setup_leaf_size, queries.setup_query.leaf_elements.len());
+    assert_eq!(base_oracle_depth, queries.setup_query.proof.len());
+    let tx2 = tx.clone();
+
+    let setup_merkle_tree_cap = vk.setup_merkle_tree_cap.clone();
+    let bb = base_tree_idx.clone();
+    let setup_leaves = queries.setup_query.leaf_elements.clone();
+    let setup_query_proof = queries.setup_query.proof.clone();
+
+    thread_pool.spawn(move || {
+        tx2.send(check_if_included_async::<E, CS, H>(
+            validity_flags_index + 3,
+            start_offset,
+            SETUP_VAR_COUNT,
+            SETUP_GATES_COUNT,
+            &setup_leaves,
+            &setup_query_proof,
+            &setup_merkle_tree_cap,
+            &bb,
+        ))
+        .unwrap();
     });
 
     let mut responses = vec![None; 4];
