@@ -17,7 +17,7 @@ categories = ["cryptography"]
 
 [workspace.dependencies]
 # Local dependencies
-#bellman = { version = "=0.32.2", path = "crates/bellman", package = "zksync_bellman" }
+bellman = { version = "=0.32.2", path = "crates/bellman", package = "zksync_bellman" }
 
 #boojum = { version = "=0.32.2", path = "crates/boojum" }
 #zksync_solidity_vk_codegen = { version = "=0.32.2", path = "crates/codegen" }
@@ -29,6 +29,9 @@ categories = ["cryptography"]
 #pairing = { version = "=0.32.2", path = "crates/pairing", package = "zksync_pairing" }
 #rescue_poseidon = { version = "=0.32.2", path = "crates/rescue-poseidon" }
 
+pairing = { version = "=0.32.2", package = "zksync_pairing" }
+boojum = "=0.32.2"
+#bellman = { version = "=0.32.2", package = "zksync_bellman" }
 rescue_poseidon = "=0.32.2"
 snark_wrapper = { version = "=0.32.2", path = "crates/snark-wrapper" }
 

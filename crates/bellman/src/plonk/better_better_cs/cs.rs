@@ -663,6 +663,8 @@ pub trait ConstraintSystem<E: Engine> {
 
     fn get_current_step_number(&self) -> usize;
     fn get_current_aux_gate_number(&self) -> usize;
+
+    fn get_current_aux_assignment_number(&self) -> usize;
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -1525,6 +1527,10 @@ impl_assembly! {
 
         fn get_current_aux_gate_number(&self) -> usize {
             self.num_aux_gates
+        }
+
+        fn get_current_aux_assignment_number(&self) -> usize {
+            self.aux_assingments.len()
         }
     }
 

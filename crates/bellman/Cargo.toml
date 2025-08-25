@@ -10,8 +10,8 @@ license.workspace = true
 keywords.workspace = true
 categories.workspace = true
 
-[lib]
-crate-type = ["cdylib", "lib", "staticlib"]
+#[lib]
+#crate-type = ["cdylib", "lib", "staticlib"]
 
 [dependencies]
 pairing.workspace = true

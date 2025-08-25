@@ -1,6 +1,18 @@
+use rescue_poseidon::franklin_crypto::plonk::circuit::allocated_num::{AllocatedNum, Num};
+
 use super::*;
 
 use crate::boojum::cs::oracle::TreeHasher;
+
+pub trait ToAllocatedNum<E: Engine> {
+    fn into_allocated_num(self) -> AllocatedNum<E>;
+}
+
+impl<E: Engine> ToAllocatedNum<E> for Num<E> {
+    fn into_allocated_num(self) -> AllocatedNum<E> {
+        self.get_variable()
+    }
+}
 
 pub trait CircuitGLTreeHasher<E: Engine>: 'static + Clone + Send + Sync {
     type NonCircuitSimulator: TreeHasher<GL>;
@@ -11,6 +23,7 @@ pub trait CircuitGLTreeHasher<E: Engine>: 'static + Clone + Send + Sync {
         + Copy
         + Sync
         + Send
+        + ToAllocatedNum<E>
         // + PartialEq
         // + Eq
         + std::fmt::Debug;

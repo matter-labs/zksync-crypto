@@ -1,30 +1,76 @@
+use std::collections::HashMap;
+
 use super::*;
 
 use crate::traits::pow::RecursivePoWRunner;
 use crate::traits::transcript::BoolsBuffer;
 use crate::verifier_structs::allocated_queries::AllocatedSingleRoundQueries;
 
+#[derive(Clone, Debug)]
 pub struct GatesInfo<E: Engine> {
-    pub variable_polynomials: Vec<PolyIdentifier>,
-    pub witness_polynomials: Vec<PolyIdentifier>,
+    pub coefficient_assignments: Vec<E::Fr>,
     pub variable_assignments: Vec<Variable>,
     pub witness_assignments: Vec<E::Fr>,
+    pub gate_type: GateType,
+}
+
+#[derive(Clone, Debug)]
+pub enum GateType {
+    Selector4,
+    Rescue5Custom,
+}
+
+impl GateType {
+    pub fn from_str(s: &str) -> Option<Self> {
+        match s {
+            "main gate of width 4 with D_next and selector optimization" => Some(GateType::Selector4),
+            "Alpha=5 custom gate for Rescue/Poseidon" => Some(GateType::Rescue5Custom),
+            _ => None,
+        }
+    }
 }
 
 pub struct MyCS<E: Engine> {
     pub num_variables: usize,
+    pub started_variable: usize,
     pub num_aux_gates: usize,
     pub aux_assingments: Vec<E::Fr>,
     pub gates: Vec<GatesInfo<E>>,
+    pub old_nums: HashMap<Variable, E::Fr>,
 }
 
 impl<E: Engine> MyCS<E> {
     pub fn new(num_variables: usize) -> Self {
         Self {
             num_variables,
+            started_variable: num_variables,
             num_aux_gates: 0,
             aux_assingments: Vec::new(),
             gates: Vec::new(),
+            old_nums: HashMap::new(),
+        }
+    }
+
+    pub fn add_allocated_num(&mut self, allocated_num: &AllocatedNum<E>) {
+        self.old_nums.insert(allocated_num.get_variable(), allocated_num.get_value().unwrap());
+    }
+
+    pub fn dump_to_existing_cs<CS: ConstraintSystem<E>>(&self, other_cs: &mut CS) {
+        for (i, entry) in self.aux_assingments.iter().enumerate() {
+            let tmp = other_cs.alloc(|| Ok(*entry)).unwrap();
+            assert_eq!(tmp, Variable::new_unchecked(Index::Aux(i + self.started_variable + 1)));
+        }
+        for entry in &self.gates {
+            match entry.gate_type {
+                GateType::Selector4 => {
+                    let tmp = SelectorOptimizedWidth4MainGateWithDNext;
+                    other_cs.new_single_gate_for_trace_step(&tmp, &entry.coefficient_assignments, &entry.variable_assignments, &entry.witness_assignments);
+                }
+                GateType::Rescue5Custom => {
+                    let tmp = Rescue5CustomGate;
+                    other_cs.new_single_gate_for_trace_step(&tmp, &entry.coefficient_assignments, &entry.variable_assignments, &entry.witness_assignments);
+                }
+            }
         }
     }
 }
@@ -34,12 +80,40 @@ impl<E: Engine> ConstraintSystem<E> for MyCS<E> {
 
     type MainGate = SelectorOptimizedWidth4MainGateWithDNext;
 
+    fn get_value(&self, variable: Variable) -> Result<E::Fr, SynthesisError> {
+        let previous = self.old_nums.get(&variable);
+        if let Some(value) = previous {
+            return Ok(*value);
+        }
+        match variable.get_unchecked() {
+            Index::Aux(index) => {
+                if index <= self.started_variable {
+                    panic!("aux variable index {} is less than started_variable {}", index, self.started_variable);
+                }
+
+                return Ok(self.aux_assingments[index - self.started_variable - 1]);
+            }
+            Index::Input(index) => panic!("input not supported"),
+        }
+    }
+
+    /*fn allocate_main_gate(&mut self, term: MainGateTerm<E>) -> Result<(), SynthesisError> {
+        todo!();
+    }*/
+
+    fn get_current_aux_assignment_number(&self) -> usize {
+        todo!();
+    }
+
     fn alloc<F>(&mut self, value: F) -> Result<Variable, SynthesisError>
     where
         F: FnOnce() -> Result<E::Fr, SynthesisError>,
     {
         self.num_variables += 1;
-        self.aux_assingments.push(value().unwrap());
+
+        let value = value().unwrap();
+        self.aux_assingments.push(value);
+
         Ok(Variable::new_unchecked(Index::Aux(self.num_variables)))
     }
 
@@ -61,10 +135,10 @@ impl<E: Engine> ConstraintSystem<E> for MyCS<E> {
 
     fn new_gate_in_batch<G: Gate<E>>(&mut self, equation: &G, coefficients_assignments: &[E::Fr], variables_assignments: &[Variable], witness_assignments: &[E::Fr]) -> Result<(), SynthesisError> {
         let gate_info = GatesInfo {
-            variable_polynomials: equation.variable_polynomials().to_vec(),
-            witness_polynomials: equation.witness_polynomials().to_vec(),
+            coefficient_assignments: coefficients_assignments.to_vec(),
             variable_assignments: variables_assignments.to_vec(),
             witness_assignments: witness_assignments.to_vec(),
+            gate_type: GateType::from_str(equation.name()).expect(&format!("Failed to detect gate {} ", equation.name())),
         };
         self.gates.push(gate_info);
 
@@ -467,18 +541,32 @@ fn verify_inclusion_proofs<E: Engine, CS: ConstraintSystem<E> + 'static, H: Circ
     assert_eq!(constants.witness_leaf_size, queries.witness_query.leaf_elements.len());
     assert_eq!(base_oracle_depth, queries.witness_query.proof.len());
 
-    let mut mycs = MyCS::new(0);
-    check_if_included::<E, _, H>(&mut mycs, &queries.witness_query.leaf_elements, &queries.witness_query.proof, &proof.witness_oracle_cap, &base_tree_idx).unwrap();
+    let mut mycs = MyCS::new(cs.get_current_aux_assignment_number());
+    use crate::traits::tree_hasher::ToAllocatedNum;
+    for elem in &queries.witness_query.leaf_elements {
+        let var = elem.into_num().get_variable();
+        mycs.add_allocated_num(&var);
+    }
+    for elem in &queries.witness_query.proof {
+        let var = elem.into_allocated_num();
+        mycs.add_allocated_num(&var);
+    }
+    for elem in &proof.witness_oracle_cap {
+        let var = elem.into_allocated_num();
+        mycs.add_allocated_num(&var);
+    }
 
+    let ww = check_if_included::<E, _, H>(&mut mycs, &queries.witness_query.leaf_elements, &queries.witness_query.proof, &proof.witness_oracle_cap, &base_tree_idx).unwrap();
+
+    println!("ww: {:?}", ww);
     println!("MyCS Stats: num variables: {} num gates: {} ", mycs.num_variables, mycs.num_aux_gates);
 
-    validity_flags.push(check_if_included::<E, CS, H>(
-        cs,
-        &queries.witness_query.leaf_elements,
-        &queries.witness_query.proof,
-        &proof.witness_oracle_cap,
-        &base_tree_idx,
-    )?);
+    mycs.dump_to_existing_cs(cs);
+    validity_flags.push(ww);
+    /*let qq = check_if_included::<E, CS, H>(cs, &queries.witness_query.leaf_elements, &queries.witness_query.proof, &proof.witness_oracle_cap, &base_tree_idx)?;
+    println!("qq: {:?}", qq);
+
+    validity_flags.push(qq);*/
 
     assert_eq!(constants.stage_2_leaf_size, queries.stage_2_query.leaf_elements.len());
     assert_eq!(base_oracle_depth, queries.stage_2_query.proof.len());
