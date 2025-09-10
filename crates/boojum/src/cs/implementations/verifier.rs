@@ -2223,7 +2223,9 @@ impl<F: SmallField, EXT: FieldExtension<2, BaseField = F>> Verifier<F, EXT> {
                 let cast_from_extension = move |el: &[F]| {
                     assert_eq!(el.len() % 2, 0);
 
-                    el.array_chunks::<2>()
+                    el.as_chunks::<2>()
+                        .0
+                        .iter()
                         .map(|[a, b]| ExtensionField::<F, 2, EXT>::from_coeff_in_base([*a, *b]))
                         .collect::<Vec<_>>()
                 };
@@ -2461,7 +2463,12 @@ impl<F: SmallField, EXT: FieldExtension<2, BaseField = F>> Verifier<F, EXT> {
                         coeffs: [*c0, *c1],
                         _marker: std::marker::PhantomData,
                     };
-                    for (i, [a, b]) in elements_to_interpolate.array_chunks::<2>().enumerate() {
+                    for (i, [a, b]) in elements_to_interpolate
+                        .as_chunks::<2>()
+                        .0
+                        .iter()
+                        .enumerate()
+                    {
                         let mut result = *a;
                         result.add_assign(b);
 

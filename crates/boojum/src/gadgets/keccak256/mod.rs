@@ -80,13 +80,15 @@ pub fn keccak256<F: SmallField, CS: ConstraintSystem<F>>(
 
     use self::round_function::*;
 
-    for block in padded_message.array_chunks::<KECCAK_RATE_BYTES>() {
+    for block in padded_message.as_chunks::<KECCAK_RATE_BYTES>().0.iter() {
         // absorb into state
         for i in 0..LANE_WIDTH {
             for j in 0..LANE_WIDTH {
                 if i + LANE_WIDTH * j < (KECCAK_RATE_BYTES / BYTES_PER_WORD) {
                     let tmp = block
-                        .array_chunks::<BYTES_PER_WORD>()
+                        .as_chunks::<BYTES_PER_WORD>()
+                        .0
+                        .iter()
                         .nth(i + LANE_WIDTH * j)
                         .unwrap();
                     use crate::gadgets::blake2s::mixing_function::xor_many;
@@ -99,7 +101,7 @@ pub fn keccak256<F: SmallField, CS: ConstraintSystem<F>>(
 
     // copy back
     let mut result = [MaybeUninit::<UInt8<F>>::uninit(); KECCAK256_DIGEST_SIZE];
-    for (i, dst) in result.array_chunks_mut::<8>().enumerate() {
+    for (i, dst) in result.as_chunks_mut::<8>().0.iter_mut().enumerate() {
         for (dst, src) in dst.iter_mut().zip(state[i][0].iter()) {
             let tmp = unsafe { UInt8::from_variable_unchecked(*src) };
             dst.write(tmp);
@@ -227,13 +229,14 @@ mod test {
 
         let cs = &mut owned_cs;
 
-        let mut it = input.array_chunks::<2>();
+        let (chunks, remainder) = input.as_chunks::<2>();
+        let mut it = chunks.iter();
         for pair in &mut it {
             let pair = UInt8::allocate_pair(cs, *pair);
             circuit_input.extend(pair);
         }
 
-        for el in it.remainder() {
+        for el in remainder {
             let el = UInt8::allocate_checked(cs, *el);
             circuit_input.push(el);
         }

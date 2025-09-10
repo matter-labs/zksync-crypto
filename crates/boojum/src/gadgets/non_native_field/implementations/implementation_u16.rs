@@ -351,7 +351,7 @@ where
         mut inputs: [&mut Self; M],
     ) -> Self {
         assert!(inputs.len() > 1);
-        let [a, b] = inputs.array_chunks_mut::<2>().next().unwrap();
+        let [a, b] = inputs.as_chunks_mut::<2>().0.iter_mut().next().unwrap();
         let mut result = a.lazy_add(cs, b);
 
         for el in inputs.into_iter().skip(2) {
