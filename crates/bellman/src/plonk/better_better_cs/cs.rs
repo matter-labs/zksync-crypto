@@ -2024,7 +2024,7 @@ assert_eq!(new_size, self.n());
                 for _ in 0..<Self as ConstraintSystem<E>>::Params::STATE_WIDTH {
                     use crate::rand::Rand;
                     let value = E::Fr::rand(rng);
-                    let var = cs.alloc(|| Ok(value))?;
+                    let var = self.alloc(|| Ok(value)).expect("must allocate variable");
                     padding_variables.push(var);
                 }
 
@@ -2038,10 +2038,10 @@ assert_eq!(new_size, self.n());
                 for _ in 0..<Self as ConstraintSystem<E>>::Params::WITNESS_WIDTH {
                     use crate::rand::Rand;
                     internal_counter += 1;
+                    let val = E::Fr::rand(rng);
                     if counter <= 10 {
                         println!("val = {:?}", val);
                     }
-                    let val = E::Fr::rand(rng);
                     padding_witness.push(val);
                 }
                 if counter <= 10 {
