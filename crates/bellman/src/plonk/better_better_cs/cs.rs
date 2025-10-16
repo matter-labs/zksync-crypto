@@ -1998,6 +1998,11 @@ impl_assembly! {
                 }
                 let mut padding_witness = Vec::with_capacity(<Self as ConstraintSystem<E>>::Params::WITNESS_WIDTH);
                 let mut internal_counter = 0;
+                if <Self as ConstraintSystem<E>>::Params::WITNESS_WIDTH != 0 {}
+                    println!("actual size = {}", <Self as ConstraintSystem<E>>::Params::WITNESS_WIDTH);
+                } else if counter <= 10 {
+                    println!("actual size = {}", <Self as ConstraintSystem<E>>::Params::WITNESS_WIDTH);
+                }
                 for _ in 0..<Self as ConstraintSystem<E>>::Params::WITNESS_WIDTH {
                     internal_counter += 1;
                     padding_witness.push(val);
