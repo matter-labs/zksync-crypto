@@ -1983,8 +1983,12 @@ impl_assembly! {
 
             println!("!!! n = {:?}!!!", self.n());
             println!("!!! new_size = {:?}!!!", new_size);
-
+            let mut counter = 0;
             for _ in self.n()..new_size {
+                if counter == 0 {
+                    println!("Yup, running this piece of code");
+                }
+                counter += 1;
                 self.begin_gates_batch_for_step().unwrap();
 
                 let mut padding_witness = Vec::with_capacity(<Self as ConstraintSystem<E>>::Params::WITNESS_WIDTH);
@@ -2000,6 +2004,7 @@ impl_assembly! {
 
                 self.end_gates_batch_for_step().unwrap();
             }
+            println!("counter = {}", counter);
             assert_eq!(new_size, self.n());
 
             let new_size_for_aux = new_size - self.num_input_gates;
