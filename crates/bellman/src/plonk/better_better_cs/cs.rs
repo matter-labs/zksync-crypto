@@ -1991,12 +1991,20 @@ impl_assembly! {
                 counter += 1;
                 self.begin_gates_batch_for_step().unwrap();
 
-                let mut padding_witness = Vec::with_capacity(<Self as ConstraintSystem<E>>::Params::WITNESS_WIDTH);
-                for _ in 0..<Self as ConstraintSystem<E>>::Params::WITNESS_WIDTH {
-                    use crate::rand::Rand;
-                    padding_witness.push(E::Fr::rand(rng));
+                use crate::rand::Rand;
+                let val = E::Fr::rand(rng);
+                if counter <= 10 {
+                    println!("val = {:?}", val);
                 }
-
+                let mut padding_witness = Vec::with_capacity(<Self as ConstraintSystem<E>>::Params::WITNESS_WIDTH);
+                let mut internal_counter = 0;
+                for _ in 0..<Self as ConstraintSystem<E>>::Params::WITNESS_WIDTH {
+                    internal_counter += 1;
+                    padding_witness.push(val);
+                }
+                if counter <= 10 {
+                    println!("internal_counter = {:?}", internal_counter);
+                }
                 self.allocate_variables_without_gate(
                     &empty_vars,
                     &padding_witness
