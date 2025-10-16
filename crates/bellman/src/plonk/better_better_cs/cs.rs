@@ -1981,6 +1981,9 @@ impl_assembly! {
             // NOTE: dummy variables do not participate in permutation
             let empty_vars = vec![dummy; <Self as ConstraintSystem<E>>::Params::STATE_WIDTH];
 
+            println!("!!! n = {:?}!!!", self.n());
+            println!("!!! new_size = {:?}!!!", new_size);
+
             for _ in self.n()..new_size {
                 self.begin_gates_batch_for_step().unwrap();
 
