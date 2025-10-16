@@ -1978,6 +1978,35 @@ impl_assembly! {
                 min_num_zk_terms,
             );
 
+/*
+for _ in self.n()..new_size {
+    self.begin_gates_batch_for_step().unwrap();
+
+    let mut padding_variables = Vec::with_capacity(<Self as ConstraintSystem<E>>::Params::STATE_WIDTH);
+    for _ in 0..<Self as ConstraintSystem<E>>::Params::STATE_WIDTH {
+        use crate::rand::Rand;
+        let value = E::Fr::rand(rng);
+        let var = cs.alloc(|| Ok(value))?;
+        padding_variables.push(var);
+    }
+
+    let mut padding_witness = Vec::with_capacity(<Self as ConstraintSystem<E>>::Params::WITNESS_WIDTH);
+    for _ in 0..<Self as ConstraintSystem<E>>::Params::WITNESS_WIDTH {
+        use crate::rand::Rand;
+        padding_witness.push(E::Fr::rand(rng));
+    }
+
+    self.allocate_variables_without_gate(
+        &padding_variables,
+        &padding_witness
+    ).expect("must add padding gate");
+
+    self.end_gates_batch_for_step().unwrap();
+}
+assert_eq!(new_size, self.n());
+ */
+
+
             // NOTE: dummy variables do not participate in permutation
             let empty_vars = vec![dummy; <Self as ConstraintSystem<E>>::Params::STATE_WIDTH];
 
@@ -1991,11 +2020,14 @@ impl_assembly! {
                 counter += 1;
                 self.begin_gates_batch_for_step().unwrap();
 
-                use crate::rand::Rand;
-                let val = E::Fr::rand(rng);
-                if counter <= 10 {
-                    println!("val = {:?}", val);
+                let mut padding_variables = Vec::with_capacity(<Self as ConstraintSystem<E>>::Params::STATE_WIDTH);
+                for _ in 0..<Self as ConstraintSystem<E>>::Params::STATE_WIDTH {
+                    use crate::rand::Rand;
+                    let value = E::Fr::rand(rng);
+                    let var = cs.alloc(|| Ok(value))?;
+                    padding_variables.push(var);
                 }
+
                 let mut padding_witness = Vec::with_capacity(<Self as ConstraintSystem<E>>::Params::WITNESS_WIDTH);
                 let mut internal_counter = 0;
                 if <Self as ConstraintSystem<E>>::Params::WITNESS_WIDTH != 0 {
@@ -2004,14 +2036,19 @@ impl_assembly! {
                     println!("actual size = {}", <Self as ConstraintSystem<E>>::Params::WITNESS_WIDTH);
                 }
                 for _ in 0..<Self as ConstraintSystem<E>>::Params::WITNESS_WIDTH {
+                    use crate::rand::Rand;
                     internal_counter += 1;
+                    if counter <= 10 {
+                        println!("val = {:?}", val);
+                    }
+                    let val = E::Fr::rand(rng);
                     padding_witness.push(val);
                 }
                 if counter <= 10 {
                     println!("internal_counter = {:?}", internal_counter);
                 }
                 self.allocate_variables_without_gate(
-                    &empty_vars,
+                    &padding_variables,
                     &padding_witness
                 ).expect("must add padding gate");
 
