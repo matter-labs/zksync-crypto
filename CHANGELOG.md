@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.32.4](https://github.com/matter-labs/zksync-crypto/compare/v0.32.3...v0.32.4) (2025-10-15)
+
+
+### Features
+
+* Allow zk in circuit configuration ([#111](https://github.com/matter-labs/zksync-crypto/issues/111)) ([ded46e1](https://github.com/matter-labs/zksync-crypto/commit/ded46e18b251324e671764e5b631c1b65b8ca9b6))
+
 ## [0.32.3](https://github.com/matter-labs/zksync-crypto/compare/v0.32.2...v0.32.3) (2025-08-22)
 
 
