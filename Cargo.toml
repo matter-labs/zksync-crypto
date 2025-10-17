@@ -17,17 +17,17 @@ categories = ["cryptography"]
 
 [workspace.dependencies]
 # Local dependencies
-bellman = { version = "=0.32.4", path = "crates/bellman", package = "zksync_bellman" }
-boojum = { version = "=0.32.4", path = "crates/boojum" }
-zksync_solidity_vk_codegen = { version = "=0.32.4", path = "crates/codegen" }
-codegen-bin = { version = "=0.32.4", path = "crates/codegen-bin" }
-cs_derive = { version = "=0.32.4", path = "crates/cs_derive", package = "zksync_cs_derive" }
-ff = { version = "=0.32.4", path = "crates/ff", package = "zksync_ff" }
-ff_derive = { version = "=0.32.4", path = "crates/ff_derive", package = "zksync_ff_derive" }
-franklin-crypto = { version = "=0.32.4", path = "crates/franklin-crypto" }
-pairing = { version = "=0.32.4", path = "crates/pairing", package = "zksync_pairing" }
-rescue_poseidon = { version = "=0.32.4", path = "crates/rescue-poseidon" }
-snark_wrapper = { version = "=0.32.4", path = "crates/snark-wrapper" }
+bellman = { version = "=0.32.5", path = "crates/bellman", package = "zksync_bellman" }
+boojum = { version = "=0.32.5", path = "crates/boojum" }
+zksync_solidity_vk_codegen = { version = "=0.32.5", path = "crates/codegen" }
+codegen-bin = { version = "=0.32.5", path = "crates/codegen-bin" }
+cs_derive = { version = "=0.32.5", path = "crates/cs_derive", package = "zksync_cs_derive" }
+ff = { version = "=0.32.5", path = "crates/ff", package = "zksync_ff" }
+ff_derive = { version = "=0.32.5", path = "crates/ff_derive", package = "zksync_ff_derive" }
+franklin-crypto = { version = "=0.32.5", path = "crates/franklin-crypto" }
+pairing = { version = "=0.32.5", path = "crates/pairing", package = "zksync_pairing" }
+rescue_poseidon = { version = "=0.32.5", path = "crates/rescue-poseidon" }
+snark_wrapper = { version = "=0.32.5", path = "crates/snark-wrapper" }
 
 [profile.release]
 debug = true

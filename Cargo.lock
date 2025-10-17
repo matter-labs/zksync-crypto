@@ -264,7 +264,7 @@ checksum = "8d696c370c750c948ada61c69a0ee2cbbb9c50b1019ddb86d9317157a99c2cae"
 
 [[package]]
 name = "boojum"
-version = "0.32.4"
+version = "0.32.5"
 dependencies = [
  "arrayvec 0.7.6",
  "bincode",
@@ -402,7 +402,7 @@ dependencies = [
 
 [[package]]
 name = "codegen-bin"
-version = "0.32.4"
+version = "0.32.5"
 dependencies = [
  "dialoguer",
  "structopt",
@@ -800,7 +800,7 @@ dependencies = [
 
 [[package]]
 name = "fflonk"
-version = "0.32.4"
+version = "0.32.5"
 dependencies = [
  "bincode",
  "byteorder",
@@ -833,7 +833,7 @@ dependencies = [
 
 [[package]]
 name = "franklin-crypto"
-version = "0.32.4"
+version = "0.32.5"
 dependencies = [
  "arr_macro",
  "bit-vec",
@@ -1804,7 +1804,7 @@ checksum = "2b15c43186be67a4fd63bee50d0303afffcef381492ebe2c5d87f324e1b8815c"
 
 [[package]]
 name = "rescue_poseidon"
-version = "0.32.4"
+version = "0.32.5"
 dependencies = [
  "addchain",
  "arrayvec 0.7.6",
@@ -2000,7 +2000,7 @@ dependencies = [
 
 [[package]]
 name = "snark_wrapper"
-version = "0.32.4"
+version = "0.32.5"
 dependencies = [
  "derivative",
  "rand 0.4.6",
@@ -2569,7 +2569,7 @@ checksum = "ced3678a2879b30306d323f4542626697a464a97c0a07c9aebf7ebca65cd4dde"
 
 [[package]]
 name = "zksync_bellman"
-version = "0.32.4"
+version = "0.32.5"
 dependencies = [
  "arrayvec 0.7.6",
  "bit-vec",
@@ -2593,7 +2593,7 @@ dependencies = [
 
 [[package]]
 name = "zksync_cs_derive"
-version = "0.32.4"
+version = "0.32.5"
 dependencies = [
  "proc-macro-error",
  "proc-macro2 1.0.95",
@@ -2603,7 +2603,7 @@ dependencies = [
 
 [[package]]
 name = "zksync_ff"
-version = "0.32.4"
+version = "0.32.5"
 dependencies = [
  "byteorder",
  "hex",
@@ -2614,7 +2614,7 @@ dependencies = [
 
 [[package]]
 name = "zksync_ff_derive"
-version = "0.32.4"
+version = "0.32.5"
 dependencies = [
  "num-bigint 0.4.6",
  "num-integer",
@@ -2627,7 +2627,7 @@ dependencies = [
 
 [[package]]
 name = "zksync_pairing"
-version = "0.32.4"
+version = "0.32.5"
 dependencies = [
  "byteorder",
  "cfg-if",
@@ -2638,7 +2638,7 @@ dependencies = [
 
 [[package]]
 name = "zksync_solidity_vk_codegen"
-version = "0.32.4"
+version = "0.32.5"
 dependencies = [
  "ethereum-types",
  "franklin-crypto",
