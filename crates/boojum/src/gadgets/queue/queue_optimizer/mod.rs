@@ -78,10 +78,9 @@ where
     let input_chunks = {
         let mut result = Vec::with_capacity(num_rounds);
 
-        let it = input.array_chunks::<AW>();
-        let remainder = it.remainder();
+        let (it, remainder) = input.as_chunks::<AW>();
 
-        for input_chunk in it {
+        for input_chunk in it.iter() {
             result.push(*input_chunk);
         }
 
@@ -105,8 +104,13 @@ where
         if <CS::Config as CSConfig>::WitnessConfig::EVALUATE_WITNESS {
             let value_fn = move |inputs: [F; AW + SW + 1]| {
                 if inputs[AW + SW] == F::ONE {
-                    let mut state = *inputs[..SW].array_chunks::<SW>().next().unwrap();
-                    let to_absorb = inputs[SW..AW + SW].array_chunks::<AW>().next().unwrap();
+                    let mut state = *inputs[..SW].as_chunks::<SW>().0.iter().next().unwrap();
+                    let to_absorb = inputs[SW..AW + SW]
+                        .as_chunks::<AW>()
+                        .0
+                        .iter()
+                        .next()
+                        .unwrap();
                     R::absorb_into_state::<AbsorptionModeOverwrite>(&mut state, to_absorb);
                     R::round_function(&mut state);
                     state

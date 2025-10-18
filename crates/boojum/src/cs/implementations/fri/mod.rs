@@ -377,24 +377,24 @@ fn fold_multiple<F: SmallField, EXT: FieldExtension<2, BaseField = F>>(
 
     // So in practice we only do single multiplication of Fp2 by Fp2 here
 
-    let mut src_c0_chunks = c0_chunk.array_chunks::<32>();
-    let mut src_c1_chunks = c1_chunk.array_chunks::<32>();
+    let (src_c0_chunks, src_c0_remainder) = c0_chunk.as_chunks::<32>();
+    let (src_c1_chunks, src_c1_remainder) = c1_chunk.as_chunks::<32>();
 
-    let mut dst_c0_chunks = dst_c0.array_chunks_mut::<16>();
-    let mut dst_c1_chunks = dst_c1.array_chunks_mut::<16>();
+    let (dst_c0_chunks, dst_c0_remainder) = dst_c0.as_chunks_mut::<16>();
+    let (dst_c1_chunks, dst_c1_remainder) = dst_c1.as_chunks_mut::<16>();
 
-    let mut roots_chunks = roots.array_chunks::<16>();
+    let (roots_chunks, roots_remainder) = roots.as_chunks::<16>();
 
     let challenge_as_extension = ExtensionField::<F, 2, EXT> {
         coeffs: [c0, c1],
         _marker: std::marker::PhantomData,
     };
 
-    for ((((c0_pairs, c1_pairs), dst_c0), dst_c1), roots) in (&mut src_c0_chunks)
-        .zip(&mut src_c1_chunks)
-        .zip(&mut dst_c0_chunks)
-        .zip(&mut dst_c1_chunks)
-        .zip(&mut roots_chunks)
+    for ((((c0_pairs, c1_pairs), dst_c0), dst_c1), roots) in (src_c0_chunks.iter())
+        .zip(src_c1_chunks.iter())
+        .zip(dst_c0_chunks.iter_mut())
+        .zip(dst_c1_chunks.iter_mut())
+        .zip(roots_chunks.iter())
     {
         for i in 0..16 {
             let f_at_x_c0 = c0_pairs[2 * i];
@@ -430,29 +430,21 @@ fn fold_multiple<F: SmallField, EXT: FieldExtension<2, BaseField = F>>(
     }
 
     // and now over remainders
-    let c0_pairs = src_c0_chunks.remainder();
-    let c1_pairs = src_c1_chunks.remainder();
-
-    let dst_c0 = dst_c0_chunks.into_remainder();
-    let dst_c1 = dst_c1_chunks.into_remainder();
-
-    let roots = roots_chunks.remainder();
-
-    let bound = dst_c0.len();
+    let bound = dst_c0_remainder.len();
 
     for i in 0..bound {
-        let f_at_x_c0 = c0_pairs[2 * i];
-        let f_at_minus_x_c0 = c0_pairs[2 * i + 1];
+        let f_at_x_c0 = src_c0_remainder[2 * i];
+        let f_at_minus_x_c0 = src_c0_remainder[2 * i + 1];
         let mut diff_c0 = f_at_x_c0;
         diff_c0.sub_assign(&f_at_minus_x_c0);
-        diff_c0.mul_assign(&roots[i]);
+        diff_c0.mul_assign(&roots_remainder[i]);
         diff_c0.mul_assign(coset_inverse);
 
-        let f_at_x_c1 = c1_pairs[2 * i];
-        let f_at_minus_x_c1 = c1_pairs[2 * i + 1];
+        let f_at_x_c1 = src_c1_remainder[2 * i];
+        let f_at_minus_x_c1 = src_c1_remainder[2 * i + 1];
         let mut diff_c1 = f_at_x_c1;
         diff_c1.sub_assign(&f_at_minus_x_c1);
-        diff_c1.mul_assign(&roots[i]);
+        diff_c1.mul_assign(&roots_remainder[i]);
         diff_c1.mul_assign(coset_inverse);
 
         // now we multiply
@@ -468,8 +460,8 @@ fn fold_multiple<F: SmallField, EXT: FieldExtension<2, BaseField = F>>(
         other_c0.add_assign(&f_at_x_c0).add_assign(&f_at_minus_x_c0);
         other_c1.add_assign(&f_at_x_c1).add_assign(&f_at_minus_x_c1);
 
-        dst_c0[i].write(other_c0);
-        dst_c1[i].write(other_c1);
+        dst_c0_remainder[i].write(other_c0);
+        dst_c1_remainder[i].write(other_c1);
     }
 }
 
@@ -979,7 +971,7 @@ mod test {
         <F as crate::field::traits::field_like::PrimeFieldLikeVectorized>::fft_natural_to_bitreversed(&mut values_on_coset, coset, &forward_twiddles, &mut ());
 
         let mut folded_monomials = Vec::with_capacity(domain_size / 2);
-        for [even, odd] in monomials.array_chunks::<2>() {
+        for [even, odd] in monomials.as_chunks::<2>().0.iter() {
             let mut tmp = *odd;
             tmp.mul_assign(&alpha);
             tmp.add_assign(even);
@@ -999,7 +991,7 @@ mod test {
         let gen_inverse = coset.inverse().unwrap();
 
         let mut folded_by_values = vec![];
-        for (idx, [even, odd]) in values_on_coset.array_chunks::<2>().enumerate() {
+        for (idx, [even, odd]) in values_on_coset.as_chunks::<2>().0.iter().enumerate() {
             let mut diff = *even;
             diff.sub_assign(odd);
             diff.mul_assign(&alpha);

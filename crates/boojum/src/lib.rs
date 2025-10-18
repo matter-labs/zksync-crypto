@@ -34,7 +34,6 @@
 #![feature(core_intrinsics)]
 #![feature(const_eval_select)]
 #![feature(get_mut_unchecked)]
-#![feature(array_chunks)]
 #![feature(stmt_expr_attributes)]
 #![feature(vec_into_raw_parts)]
 #![feature(iter_collect_into)]

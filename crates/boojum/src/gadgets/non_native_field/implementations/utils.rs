@@ -45,8 +45,8 @@ pub(crate) fn fe_to_u16_words<T: pairing::ff::PrimeField, const N: usize>(src: &
 pub fn u16_words_to_u1024(words: &[u16]) -> U1024 {
     let mut result = U1024::ZERO;
     let mut i = 0;
-    let mut it = words.array_chunks::<4>();
-    for chunk in &mut it {
+    let (it, remainder) = words.as_chunks::<4>();
+    for chunk in it.iter() {
         let mut tmp = chunk[3] as u64;
         tmp <<= 16;
         tmp |= chunk[2] as u64;
@@ -59,7 +59,6 @@ pub fn u16_words_to_u1024(words: &[u16]) -> U1024 {
         i += 1;
     }
 
-    let remainder = it.remainder();
     if remainder.is_empty() == false {
         let mut shift = 0;
         let mut tmp = 0u64;
@@ -89,8 +88,8 @@ pub fn unnormalized_u16_field_words_to_u1024<F: SmallField>(words: &[F]) -> U102
 pub fn u16_field_words_to_u1024<F: SmallField>(words: &[F]) -> U1024 {
     let mut result = U1024::ZERO;
     let mut i = 0;
-    let mut it = words.array_chunks::<4>();
-    for chunk in &mut it {
+    let (it, remainder) = words.as_chunks::<4>();
+    for chunk in it.iter() {
         let mut tmp = chunk[3].as_u64_reduced();
         tmp <<= 16;
         tmp |= chunk[2].as_u64_reduced();
@@ -103,7 +102,6 @@ pub fn u16_field_words_to_u1024<F: SmallField>(words: &[F]) -> U1024 {
         i += 1;
     }
 
-    let remainder = it.remainder();
     if remainder.is_empty() == false {
         let mut shift = 0;
         let mut tmp = 0u64;

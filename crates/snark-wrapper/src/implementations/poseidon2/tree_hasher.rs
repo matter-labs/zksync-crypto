@@ -80,7 +80,7 @@ impl<E: Engine, const RATE: usize, const WIDTH: usize, const CHUNK_BY: usize, co
             debug_assert_eq!(cap.len() % 2, 0);
             dst_space.clear();
 
-            for src in src.array_chunks::<2>() {
+            for src in src.as_chunks::<2>().0.iter() {
                 let [a, b] = src;
                 // NOTE order here
                 let selected = Num::conditionally_select(cs, bit, b, a)?;

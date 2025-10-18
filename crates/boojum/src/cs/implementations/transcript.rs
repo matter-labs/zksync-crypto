@@ -115,7 +115,7 @@ impl<
             multiple += 1;
         }
         to_absorb.resize(multiple * AW, F::ZERO);
-        for chunk in to_absorb.array_chunks::<AW>() {
+        for chunk in to_absorb.as_chunks::<AW>().0.iter() {
             self.sponge.absorb(chunk);
             assert_eq!(self.sponge.filled, 0);
         }

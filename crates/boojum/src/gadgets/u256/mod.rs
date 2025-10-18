@@ -80,10 +80,11 @@ impl<F: SmallField> CSAllocatableExt<F> for UInt256<F> {
     const INTERNAL_STRUCT_LEN: usize = 8;
 
     fn witness_from_set_of_values(values: [F; Self::INTERNAL_STRUCT_LEN]) -> Self::Witness {
-        // value
-        recompose_u256_as_u32x8(
-            values.map(|el| <u32 as WitnessCastable<F, F>>::cast_from_source(el)),
-        )
+        let mut u32_values: [u32; 8] = unsafe { std::mem::MaybeUninit::uninit().assume_init() };
+        for (dst, src) in u32_values.iter_mut().zip(values.iter()) {
+            *dst = <u32 as WitnessCastable<F, F>>::cast_from_source(*src);
+        }
+        recompose_u256_as_u32x8(u32_values)
     }
 
     // we should be able to allocate without knowing values yet
@@ -95,7 +96,12 @@ impl<F: SmallField> CSAllocatableExt<F> for UInt256<F> {
     where
         [(); Self::INTERNAL_STRUCT_LEN]:,
     {
-        self.inner.map(|el| el.get_variable())
+        let mut result: [Variable; Self::INTERNAL_STRUCT_LEN] =
+            unsafe { std::mem::MaybeUninit::uninit().assume_init() };
+        for (dst, src) in result.iter_mut().zip(self.inner.iter()) {
+            *dst = src.get_variable();
+        }
+        result
     }
 
     fn set_internal_variables_values(witness: Self::Witness, dst: &mut DstBuffer<'_, '_, F>) {
@@ -279,7 +285,7 @@ impl<F: SmallField> UInt256<F> {
     #[must_use]
     pub fn from_le_bytes<CS: ConstraintSystem<F>>(cs: &mut CS, bytes: [UInt8<F>; 32]) -> Self {
         let mut inner = [std::mem::MaybeUninit::uninit(); 8];
-        for (dst, src) in inner.iter_mut().zip(bytes.array_chunks::<4>()) {
+        for (dst, src) in inner.iter_mut().zip(bytes.as_chunks::<4>().0.iter()) {
             dst.write(UInt32::from_le_bytes(cs, *src));
         }
 
@@ -291,7 +297,7 @@ impl<F: SmallField> UInt256<F> {
     #[must_use]
     pub fn from_be_bytes<CS: ConstraintSystem<F>>(cs: &mut CS, bytes: [UInt8<F>; 32]) -> Self {
         let mut inner = [std::mem::MaybeUninit::uninit(); 8];
-        for (dst, src) in inner.iter_mut().rev().zip(bytes.array_chunks::<4>()) {
+        for (dst, src) in inner.iter_mut().rev().zip(bytes.as_chunks::<4>().0.iter()) {
             dst.write(UInt32::from_be_bytes(cs, *src));
         }
 

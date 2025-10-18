@@ -176,12 +176,13 @@ fn rotate_word<F: SmallField, CS: ConstraintSystem<F>>(
         F::from_u64_unchecked(1u64 << 24),
     ];
 
-    let mut it = word.array_chunks::<4>();
+    let (chunks, remainder) = word.as_chunks::<4>();
+    let mut it = chunks.iter();
 
     let low = ReductionGate::reduce_terms(cs, to_u32_constant, it.next().copied().unwrap());
     let high = ReductionGate::reduce_terms(cs, to_u32_constant, it.next().copied().unwrap());
     debug_assert!(it.next().is_none());
-    debug_assert!(it.remainder().is_empty());
+    debug_assert!(remainder.is_empty());
 
     // if we rotate by too much we swap words
     let mut rotate_by = rotate_by;

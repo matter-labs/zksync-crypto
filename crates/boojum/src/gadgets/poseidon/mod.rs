@@ -31,8 +31,8 @@ impl CircuitRoundFunction<GoldilocksField, 8, 12, 4> for PoseidonGoldilocks {
         state: [Variable; 12],
     ) -> [Variable; 12] {
         if cs.gate_is_allowed::<PoseidonFlattenedGate<GoldilocksField, 8, 12, 4, PoseidonGoldilocks>>() {
-            let a = state.array_chunks::<8>().next().copied().unwrap();
-            let b = state[8..].array_chunks::<4>().next().copied().unwrap();
+            let a = state.as_chunks::<8>().0.iter().next().copied().unwrap();
+            let b = state[8..].as_chunks::<4>().0.iter().next().copied().unwrap();
             PoseidonFlattenedGate::<GoldilocksField, 8, 12, 4, PoseidonGoldilocks>::compute_round_function(cs, a, b)
         } else {
             poseidon_goldilocks_not_unrolled(cs, state)

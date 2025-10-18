@@ -32,7 +32,7 @@ pub fn round_function_over_uint32<F: SmallField, CS: ConstraintSystem<F>>(
         .expect("digest output");
 
     let mut result = [MaybeUninit::uninit(); SHA256_DIGEST_SIZE];
-    for (dst, src) in result.iter_mut().zip(u4_pieces.array_chunks::<2>()) {
+    for (dst, src) in result.iter_mut().zip(u4_pieces.as_chunks::<2>().0.iter()) {
         let as_u8 = uint8_from_4bit_chunks(cs, src);
         dst.write(as_u8);
     }
@@ -274,7 +274,7 @@ pub fn round_function<F: SmallField, CS: ConstraintSystem<F>>(
         let mut le_4bit_chunks = [Variable::placeholder(); 64];
         for (idx, (el, dst)) in state
             .iter()
-            .zip(le_4bit_chunks.array_chunks_mut::<8>())
+            .zip(le_4bit_chunks.as_chunks_mut::<8>().0.iter_mut())
             .enumerate()
         {
             if idx == 3 {

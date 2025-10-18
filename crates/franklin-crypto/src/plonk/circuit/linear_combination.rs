@@ -608,8 +608,10 @@ pub fn enforce_zero_naive<E: Engine, CS: ConstraintSystem<E>>(cs: &mut CS, terms
     let mut intermediate_sums = vec![];
     let mut constant = Some(constant);
 
+    let (chunks, remainder) = terms.as_chunks::<2>();
+
     // first process terms pairwise
-    for [(c0, a), (c1, b)] in terms.array_chunks::<2>() {
+    for [(c0, a), (c1, b)] in chunks.iter() {
         let sum = LinearCombination::evaluate_term_value(cs, &[(*c0, *a), (*c1, *b)], E::Fr::zero()).map(|mut sum| {
             if let Some(ref constant) = constant {
                 sum.add_assign(constant);
@@ -632,7 +634,6 @@ pub fn enforce_zero_naive<E: Engine, CS: ConstraintSystem<E>>(cs: &mut CS, terms
     }
 
     // pairwise remainder with last
-    let remainder = terms.array_chunks::<2>().remainder();
     if remainder.is_empty() == false {
         let (c0, a) = remainder[0];
         let b = intermediate_sums.pop().unwrap();
