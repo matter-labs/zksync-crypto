@@ -221,7 +221,7 @@ pub fn verify<E: Engine, C: Circuit<E>, T: Transcript<E::Fr>>(
         num_second_round_polys,
         proof.evaluations.to_vec(),
         recomputed_quotients,
-        &proof.lagrange_basis_inverses,
+        proof.montgomery_inverse,
         c1,
         c2,
         w,
@@ -242,7 +242,7 @@ fn aggregate_points_and_check_pairing<E: Engine, C: Circuit<E>>(
     num_second_round_polys: usize,
     all_evaluations: Vec<E::Fr>,
     recomputed_quotient_evaluations: RecomptuedQuotientEvaluations<E::Fr>,
-    lagrange_basis_inverses: &[E::Fr],
+    montgomery_inverse: E::Fr,
     c1: E::G1Affine,
     c2: E::G1Affine,
     w: E::G1Affine,
@@ -335,8 +335,7 @@ fn aggregate_points_and_check_pairing<E: Engine, C: Circuit<E>>(
     // of the system polynomials
     // Since evaluation sets are not constant, rather than lagrange interpolation
     // barycentric interpolation is utilized here.
-    let precomputed_basis_evals = precompute_all_lagrange_basis_evaluations_from_inverses(
-        lagrange_basis_inverses,
+    let (_, precomputed_basis_evals) = precompute_all_lagrange_basis_evaluations(
         interpolation_size_of_setup,
         interpolation_size_of_first_round,
         interpolation_size_of_second_round,
@@ -346,6 +345,7 @@ fn aggregate_points_and_check_pairing<E: Engine, C: Circuit<E>>(
         y,
         setup_requires_opening_at_shifted_point,
         first_round_requires_opening_at_shifted_point,
+        Some(montgomery_inverse),
     );
 
     let [setup_r_at_y, mut first_round_r_at_y, mut second_round_r_at_y] = evaluate_r_polys_at_point_with_flattened_evals_and_precomputed_basis(
