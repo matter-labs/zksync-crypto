@@ -103,14 +103,21 @@ pub fn verify<E: Engine, C: Circuit<E>, T: Transcript<E::Fr>>(
     let mut transcript = if let Some(params) = transcript_params { T::new_from_params(params) } else { T::new() };
 
     let sorted_gates = sorted_gates_from_circuit_definitions::<_, C>();
-    assert!(sorted_gates.len() > 0);
+    if sorted_gates.len() == 0 {
+        return Ok(false);
+    }
 
     let FflonkProof { evaluations, inputs, .. } = proof;
 
     let n = vk.n;
     let domain_size = n + 1;
-    assert!(domain_size.is_power_of_two());
-    assert!(domain_size.trailing_zeros() <= 23);
+
+    if !domain_size.is_power_of_two() {
+        return Ok(false);
+    }
+    if domain_size.trailing_zeros() > 23 {
+        return Ok(false);
+    }
 
     let (num_setup_polys, num_first_round_polys, num_second_round_polys, _) = num_system_polys_from_vk(vk);
     let num_state_polys = vk.num_state_polys;
@@ -129,7 +136,9 @@ pub fn verify<E: Engine, C: Circuit<E>, T: Transcript<E::Fr>>(
     // But luckily prover doesn't need any randomness in the first round
     // so that prover has no control over the values because quotients are
     // seperated(there is no quotient aggregation neither in this round nor all rounds)
-    assert!(proof.inputs.is_empty() == false);
+    if proof.inputs.is_empty() {
+        return Ok(false);
+    }
     for inp in proof.inputs.iter() {
         transcript.commit_field_element(inp);
     }
@@ -173,7 +182,9 @@ pub fn verify<E: Engine, C: Circuit<E>, T: Transcript<E::Fr>>(
     // all system polynomials will be evaluated at z
     // then combined polynomials will be opened at h_i = r^power_i
     // then it becomes e.g C_i(x) = f_0(x^2) + x*f(x^2) in case of two polynomials
-    assert_eq!(num_second_round_polys, 3);
+    if num_second_round_polys != 3 {
+        return Ok(false);
+    }
     let power = lcm(&[num_setup_polys.next_power_of_two(), num_first_round_polys.next_power_of_two(), num_second_round_polys]);
     println!("LCM {power}");
     let z = r.pow(&[power as u64]);
@@ -181,7 +192,9 @@ pub fn verify<E: Engine, C: Circuit<E>, T: Transcript<E::Fr>>(
 
     let mut all_gates_iter = sorted_gates.clone().into_iter();
     let main_gate_internal = all_gates_iter.next().unwrap();
-    assert!(&C::MainGate::default().into_internal() == &main_gate_internal);
+    if &C::MainGate::default().into_internal() != &main_gate_internal {
+        return Ok(false);
+    }
     let main_gate = C::MainGate::default();
 
     let custom_gate_name = if has_custom_gate {
@@ -251,7 +264,9 @@ fn aggregate_points_and_check_pairing<E: Engine, C: Circuit<E>>(
     first_round_requires_opening_at_shifted_point: bool,
 ) -> Result<bool, SynthesisError> {
     let domain_size = vk.n + 1;
-    assert!(domain_size.is_power_of_two());
+    if !domain_size.is_power_of_two() {
+        return Ok(false);
+    }
 
     // Now it is time to combine all rounds in a combined poly
     // C0(x) = f0(X^k0) + X*f1(X^k0) + X*f_{k0-1}(X^k0) where k0 is the total number of
@@ -437,7 +452,6 @@ fn aggregate_points_and_check_pairing<E: Engine, C: Circuit<E>>(
     ]))
     .ok_or(SynthesisError::Unsatisfiable)?
         == E::Fqk::one();
-    assert!(valid, "pairing check failed");
 
     Ok(valid)
 }
