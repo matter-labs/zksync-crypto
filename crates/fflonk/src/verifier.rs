@@ -132,7 +132,6 @@ pub fn verify<E: Engine, C: Circuit<E>, T: Transcript<E::Fr>>(
     if proof.inputs.len() != vk.num_inputs {
         return Ok(false);
     }
-    
 
     for inp in proof.inputs.iter() {
         transcript.commit_field_element(inp);
