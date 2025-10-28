@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.32.6](https://github.com/matter-labs/zksync-crypto/compare/v0.32.5...v0.32.6) (2025-10-28)
+
+
+### Features
+
+* Remove panics from verifier ([#115](https://github.com/matter-labs/zksync-crypto/issues/115)) ([400cf6b](https://github.com/matter-labs/zksync-crypto/commit/400cf6b107d21053ab37ef7c746feeaecc0d7aad))
+
 ## [0.32.5](https://github.com/matter-labs/zksync-crypto/compare/v0.32.4...v0.32.5) (2025-10-17)
 
 
