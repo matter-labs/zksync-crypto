@@ -1914,6 +1914,120 @@ impl_assembly! {
             self.is_finalized = true;
         }
 
+        // Caller can specify how large circuit should be artificially inflated
+        // if possible. Will panic if size is already too large.
+        // Caller is responsible to understand the geometry of the circuit, as values
+        // added into the trace do not obey any arithmetic relation
+        pub fn finalize_to_size_log_2_with_randomization<R: rand::Rng>(
+            &mut self,
+            size_log_2: usize,
+            min_num_zk_terms: usize,
+            rng: &mut R,
+        ) {
+            if self.is_finalized {
+                return;
+            }
+
+            assert!(size_log_2 <= E::Fr::S as usize);
+
+            // the lookup argument (as in the paper) will make two polynomials to fit jointly sorted set
+            // but in practice we fit it into one. For this purpose we only need to add as many empty rows
+            // as there is all the tables (as the worst case)
+
+            // In better case it's enough for us to have num_lookups + total length of tables to be smaller
+            // than problem size, so joinly sorted set fits into 1 polynomial, and we use zeroes as padding values
+
+            let total_number_of_table_entries = self.num_table_lookups + self.total_length_of_all_tables;
+            let new_size_candidates = [(self.n() + 1).next_power_of_two() - 1, (total_number_of_table_entries + 1).next_power_of_two() - 1];
+
+            let new_size = *new_size_candidates.iter().max().unwrap();
+            assert!(
+                new_size <= 1usize << E::Fr::S,
+                "
+                size is {}, that is larget than number of roots of unity 2^{}. Padded from {} gates and {} lookup table accesses",
+                new_size,
+                E::Fr::S,
+                self.n(),
+                total_number_of_table_entries,
+            );
+            assert!(
+                new_size <= (1usize << E::Fr::S) / <Self as ConstraintSystem<E>>::Params::STATE_WIDTH,
+                "Circuit size is {}, that is larget than number of roots of unity 2^{} for copy-permutation over {} polys. Padded from {} gates and {} lookup table accesses",
+                new_size,
+                E::Fr::S,
+                <Self as ConstraintSystem<E>>::Params::STATE_WIDTH,
+                self.n(),
+                total_number_of_table_entries,
+            );
+
+            let pad_to = 1 << size_log_2;
+
+            let new_size = if new_size <= pad_to {
+                pad_to - 1
+            } else {
+                panic!("Requested padding to size 2^{}, but circuit already contains {} gates", size_log_2, new_size)
+            };
+
+            let dummy = Self::get_dummy_variable();
+
+            let num_padded_rows = new_size - self.n();
+            assert!(
+                num_padded_rows >= min_num_zk_terms,
+                "circuit only has {} rows available for padding, but caller requested {} randomized rows",
+                num_padded_rows,
+                min_num_zk_terms,
+            );
+
+            for _ in self.n()..new_size {
+                self.begin_gates_batch_for_step().unwrap();
+
+                let mut padding_variables = Vec::with_capacity(<Self as ConstraintSystem<E>>::Params::STATE_WIDTH);
+                for _ in 0..<Self as ConstraintSystem<E>>::Params::STATE_WIDTH {
+                    use crate::rand::Rand;
+                    let value = E::Fr::rand(rng);
+                    let var = self.alloc(|| Ok(value)).expect("must allocate variable");
+                    padding_variables.push(var);
+                }
+
+                let mut padding_witness = Vec::with_capacity(<Self as ConstraintSystem<E>>::Params::WITNESS_WIDTH);
+
+                for _ in 0..<Self as ConstraintSystem<E>>::Params::WITNESS_WIDTH {
+                    use crate::rand::Rand;
+                    padding_witness.push(E::Fr::rand(rng));
+                }
+                self.allocate_variables_without_gate(
+                    &padding_variables,
+                    &padding_witness
+                ).expect("must add padding gate");
+
+                self.end_gates_batch_for_step().unwrap();
+            }
+            assert_eq!(new_size, self.n());
+
+            let new_size_for_aux = new_size - self.num_input_gates;
+
+            if S::PRODUCE_SETUP {
+                // pad gate selectors
+                for (_, tracker) in self.aux_gate_density.0.iter_mut() {
+                    tracker.grow(new_size_for_aux, false);
+                }
+
+                if self.num_table_lookups > 0{
+                    // pad lookup selectors
+                    for (_, selector) in self.table_selectors.iter_mut() {
+                        selector.grow(new_size_for_aux, false);
+                    }
+
+                    // pad special purpose table selector poly
+                    self.table_ids_poly.resize(new_size_for_aux, E::Fr::zero());
+                }
+            }
+
+            assert!((self.n()+1).is_power_of_two(), "padded circuit size is not power of two. self.n() = {}", self.n());
+
+            self.is_finalized = true;
+        }
+
         #[cfg(feature = "allocator")]
         fn get_storage_for_trace_step(&self, step: usize) -> &PolynomialStorage<E, A> {
             if step < self.num_input_gates {

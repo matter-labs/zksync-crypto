@@ -129,7 +129,10 @@ pub fn verify<E: Engine, C: Circuit<E>, T: Transcript<E::Fr>>(
     // But luckily prover doesn't need any randomness in the first round
     // so that prover has no control over the values because quotients are
     // seperated(there is no quotient aggregation neither in this round nor all rounds)
-    assert!(proof.inputs.is_empty() == false);
+    if proof.inputs.len() != vk.num_inputs {
+        return Ok(false);
+    }
+
     for inp in proof.inputs.iter() {
         transcript.commit_field_element(inp);
     }
@@ -437,7 +440,6 @@ fn aggregate_points_and_check_pairing<E: Engine, C: Circuit<E>>(
     ]))
     .ok_or(SynthesisError::Unsatisfiable)?
         == E::Fqk::one();
-    assert!(valid, "pairing check failed");
 
     Ok(valid)
 }
