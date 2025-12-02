@@ -386,7 +386,7 @@ pub(crate) fn parallel_ct_ntt<F: PrimeField, P: CTPrecomputations<F>>(a: &mut [F
                         // and end on (k+2)*pairs*2 + pairs = k*pairs*2 + pairs*5
                         // so we do not overlap during the full run and do not need to sync
 
-                        let chunk = Worker::chunk_size_for_num_spawned_threads(num_groups, to_spawn);
+                        let chunk = worker.get_chunk_size(num_groups);
                         let start = thread_id * chunk;
                         let end = if start + chunk <= num_groups { start + chunk } else { num_groups };
 
@@ -422,7 +422,7 @@ pub(crate) fn parallel_ct_ntt<F: PrimeField, P: CTPrecomputations<F>>(a: &mut [F
 
                             // we always split thread work in here
 
-                            let chunk = Worker::chunk_size_for_num_spawned_threads(group_size, to_spawn);
+                            let chunk = worker.get_chunk_size(group_size);
 
                             let start = group_start_idx + thread_id * chunk;
                             let end = if start + chunk <= group_end_idx { start + chunk } else { group_end_idx };
