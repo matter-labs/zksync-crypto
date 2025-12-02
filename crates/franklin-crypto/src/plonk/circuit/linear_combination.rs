@@ -793,7 +793,7 @@ mod test {
 
         use crate::bellman::worker::Worker;
 
-        let worker = Worker::new();
+        let worker = Worker::new_with_cpus(4);
 
         let setup = assembly.create_setup::<Tester>(&worker).unwrap();
 
