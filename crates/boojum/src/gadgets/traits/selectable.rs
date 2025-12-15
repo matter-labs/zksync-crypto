@@ -111,42 +111,90 @@ pub fn parallel_select_variables<'a, F: SmallField, CS: ConstraintSystem<F>>(
     it: impl Iterator<Item = ((Variable, Variable), &'a mut Variable)>,
 ) {
     if cs.gate_is_allowed::<ParallelSelectionGate<4>>() {
-        let mut it = it.array_chunks::<4>();
-        for chunk in &mut it {
-            let a = [chunk[0].0 .0, chunk[1].0 .0, chunk[2].0 .0, chunk[3].0 .0];
-            let b = [chunk[0].0 .1, chunk[1].0 .1, chunk[2].0 .1, chunk[3].0 .1];
-            let result = ParallelSelectionGate::select(cs, &a, &b, flag.variable);
-            *chunk[0].1 = result[0];
-            *chunk[1].1 = result[1];
-            *chunk[2].1 = result[2];
-            *chunk[3].1 = result[3];
+        let mut variables: Vec<(Variable, Variable, &'a mut Variable)> = Vec::with_capacity(4);
+
+        for ((a, b), dst) in it {
+            variables.push((a, b, dst));
+
+            if variables.len() == 4 {
+                let a = [
+                    variables[0].0,
+                    variables[1].0,
+                    variables[2].0,
+                    variables[3].0,
+                ];
+                let b = [
+                    variables[0].1,
+                    variables[1].1,
+                    variables[2].1,
+                    variables[3].1,
+                ];
+                let result = ParallelSelectionGate::select(cs, &a, &b, flag.variable);
+                *variables[0].2 = result[0];
+                *variables[1].2 = result[1];
+                *variables[2].2 = result[2];
+                *variables[3].2 = result[3];
+
+                variables.clear();
+            }
         }
 
-        if let Some(rest) = it.into_remainder() {
-            let zero = cs.allocate_constant(F::ZERO);
-            let num_items = rest.len();
+        let pairs_left = variables.len();
+        if pairs_left > 0 {
+            let mut a_buffer = [cs.allocate_constant(F::ZERO); 4];
+            let mut b_buffer = [cs.allocate_constant(F::ZERO); 4];
 
-            let mut a_buffer = [zero; 4];
-            let mut b_buffer = [zero; 4];
-            let mut result_buffer: [MaybeUninit<&'a mut Variable>; 4] =
-                std::array::from_fn(|_| MaybeUninit::uninit());
-
-            for (idx, ((a, b), dst)) in rest.into_iter().enumerate() {
-                a_buffer[idx] = a;
-                b_buffer[idx] = b;
-                result_buffer[idx].write(dst);
+            for (idx, (a, b, dst)) in variables.iter().enumerate() {
+                a_buffer[idx] = *a;
+                b_buffer[idx] = *b;
             }
 
             let result = ParallelSelectionGate::select(cs, &a_buffer, &b_buffer, flag.variable);
-            for (dst, res) in result_buffer
+            for (dst, res) in variables
                 .into_iter()
                 .zip(result.into_iter())
-                .take(num_items)
+                .take(pairs_left)
             {
-                let dst = unsafe { dst.assume_init() };
-                *dst = res;
+                *dst.2 = res;
             }
         }
+
+        // let mut it = it.array_chunks::<4>();
+        // for chunk in &mut it {
+        //     let a = [chunk[0].0 .0, chunk[1].0 .0, chunk[2].0 .0, chunk[3].0 .0];
+        //     let b = [chunk[0].0 .1, chunk[1].0 .1, chunk[2].0 .1, chunk[3].0 .1];
+        //     let result = ParallelSelectionGate::select(cs, &a, &b, flag.variable);
+        //     *chunk[0].1 = result[0];
+        //     *chunk[1].1 = result[1];
+        //     *chunk[2].1 = result[2];
+        //     *chunk[3].1 = result[3];
+        // }
+
+        // if let Some(rest) = it.into_remainder() {
+        //     let zero = cs.allocate_constant(F::ZERO);
+        //     let num_items = rest.len();
+
+        //     let mut a_buffer = [zero; 4];
+        //     let mut b_buffer = [zero; 4];
+        //     let mut result_buffer: [MaybeUninit<&'a mut Variable>; 4] =
+        //         std::array::from_fn(|_| MaybeUninit::uninit());
+
+        //     for (idx, ((a, b), dst)) in rest.into_iter().enumerate() {
+        //         a_buffer[idx] = a;
+        //         b_buffer[idx] = b;
+        //         result_buffer[idx].write(dst);
+        //     }
+
+        //     let result = ParallelSelectionGate::select(cs, &a_buffer, &b_buffer, flag.variable);
+        //     for (dst, res) in result_buffer
+        //         .into_iter()
+        //         .zip(result.into_iter())
+        //         .take(num_items)
+        //     {
+        //         let dst = unsafe { dst.assume_init() };
+        //         *dst = res;
+        //     }
+        // }
     } else {
         unimplemented!()
     }
