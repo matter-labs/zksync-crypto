@@ -419,7 +419,7 @@ impl<F: PrimeField, H: TreeHasher<F>, A: GoodAllocator, B: GoodAllocator>
                     .zip(previous.chunks(chunk_size * 2))
                 {
                     scope.spawn(move |_| {
-                        for (dst, src) in dst.iter_mut().zip(src.array_chunks::<2>()) {
+                        for (dst, src) in dst.iter_mut().zip(src.as_chunks::<2>().0.iter()) {
                             let [left, right] = src;
                             dst.write(H::hash_into_node(left, right, 0));
                         }

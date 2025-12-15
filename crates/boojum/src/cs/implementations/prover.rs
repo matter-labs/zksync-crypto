@@ -1683,7 +1683,9 @@ impl<
         // quotient
         all_polys_at_zs.extend(
             quotient_chunks_ldes
-                .array_chunks::<2>()
+                .as_chunks::<2>()
+                .0
+                .iter()
                 .map(|[a, b]| {
                     [
                         &a.storage[0].as_ref().storage,
@@ -1927,7 +1929,12 @@ impl<
             ));
         }
         // quotient
-        let quotinents: Vec<_> = quotient_chunks_ldes.array_chunks::<2>().cloned().collect();
+        let quotinents: Vec<_> = quotient_chunks_ldes
+            .as_chunks::<2>()
+            .0
+            .iter()
+            .cloned()
+            .collect();
         sources.extend(map_extension_for_quotening(&quotinents));
 
         let num_challenges_required = sources.len();

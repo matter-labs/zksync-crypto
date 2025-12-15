@@ -66,15 +66,16 @@ pub fn blake2s<F: SmallField, CS: ConstraintSystem<F>>(
 
     use self::round_function::*;
 
-    let mut input_chunks = input.array_chunks::<BLAKE2S_BLOCK_SIZE>();
+    let (input_chunks, remainder) = input.as_chunks::<BLAKE2S_BLOCK_SIZE>();
+    let mut it = input_chunks.iter();
     let mut offset = 0;
     if num_rounds > 1 {
         for _round in 0..(num_rounds - 1) {
             offset += BLAKE2S_BLOCK_SIZE as u32;
 
-            let chunk = input_chunks.next().unwrap();
+            let chunk = it.next().unwrap();
             let mut block = [MaybeUninit::<Word<F>>::uninit(); 16];
-            for (dst, src) in block.iter_mut().zip(chunk.array_chunks::<4>()) {
+            for (dst, src) in block.iter_mut().zip(chunk.as_chunks::<4>().0.iter()) {
                 let word = Word { inner: *src };
                 dst.write(word);
             }
@@ -91,14 +92,14 @@ pub fn blake2s<F: SmallField, CS: ConstraintSystem<F>>(
     }
 
     // final block
-    let last_block = if let Some(full_chunk) = input_chunks.next() {
-        assert!(input_chunks.remainder().is_empty());
+    let last_block = if let Some(full_chunk) = it.next() {
+        assert!(remainder.is_empty());
 
         *full_chunk
     } else {
         let zero = UInt8::<F>::allocated_constant(cs, 0u8);
         let mut full_buffer = [zero; BLAKE2S_BLOCK_SIZE];
-        let remainder = input_chunks.remainder();
+        let remainder = remainder;
         let len = remainder.len();
         assert!(len > 0);
         assert!(len < BLAKE2S_BLOCK_SIZE);
@@ -108,7 +109,7 @@ pub fn blake2s<F: SmallField, CS: ConstraintSystem<F>>(
     };
 
     let mut block = [MaybeUninit::<Word<F>>::uninit(); 16];
-    for (dst, src) in block.iter_mut().zip(last_block.array_chunks::<4>()) {
+    for (dst, src) in block.iter_mut().zip(last_block.as_chunks::<4>().0.iter()) {
         let word = Word { inner: *src };
         dst.write(word);
     }
@@ -125,7 +126,12 @@ pub fn blake2s<F: SmallField, CS: ConstraintSystem<F>>(
     // copy back
 
     let mut result = [MaybeUninit::<UInt8<F>>::uninit(); BLAKE2S_DIGEST_SIZE];
-    for (dst, src) in result.array_chunks_mut::<4>().zip(state[..8].iter()) {
+    for (dst, src) in result
+        .as_chunks_mut::<4>()
+        .0
+        .iter_mut()
+        .zip(state[..8].iter())
+    {
         for i in 0..4 {
             dst[i].write(src.inner[i]);
         }
@@ -244,7 +250,7 @@ mod test {
 
         let cs = &mut owned_cs;
 
-        for pair in input.array_chunks::<2>() {
+        for pair in input.as_chunks::<2>().0.iter() {
             let pair = UInt8::allocate_pair(cs, *pair);
             circuit_input.extend(pair);
         }

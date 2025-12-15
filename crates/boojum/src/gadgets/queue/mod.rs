@@ -200,7 +200,9 @@ impl<
                 move |ins: &[F], _outs: &mut DstBuffer<'_, '_, F>| {
                     let offset = N + 1 + T * 2 + 1;
                     let raw_values = ins[offset..]
-                        .array_chunks::<{ <EL as CSAllocatableExt<F>>::INTERNAL_STRUCT_LEN }>()
+                        .as_chunks::<{ <EL as CSAllocatableExt<F>>::INTERNAL_STRUCT_LEN }>()
+                        .0
+                        .iter()
                         .next()
                         .copied()
                         .expect("must exist");
@@ -209,7 +211,9 @@ impl<
                     let should_push: bool = WitnessCastable::cast_from_source([ins[N]]);
 
                     let previous_tail = ins[(N + 1)..]
-                        .array_chunks::<T>()
+                        .as_chunks::<T>()
+                        .0
+                        .iter()
                         .next()
                         .copied()
                         .expect("must exist");

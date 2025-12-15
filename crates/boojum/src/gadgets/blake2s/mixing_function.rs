@@ -70,7 +70,9 @@ pub fn mixing_function_g<F: SmallField, CS: ConstraintSystem<F>>(
 
     let mut not_shifted_b_chunks = [Variable::placeholder(); 8];
     for (dst, src) in not_shifted_b_chunks
-        .array_chunks_mut::<2>()
+        .as_chunks_mut::<2>()
+        .0
+        .iter_mut()
         .zip(not_shifted_b.iter())
     {
         let (low, high) = split_byte_using_table::<_, _, 4>(cs, *src);
@@ -125,7 +127,9 @@ pub fn mixing_function_g<F: SmallField, CS: ConstraintSystem<F>>(
 
     let mut not_shifted_b_chunks = [Variable::placeholder(); 8];
     for (dst, src) in not_shifted_b_chunks
-        .array_chunks_mut::<2>()
+        .as_chunks_mut::<2>()
+        .0
+        .iter_mut()
         .zip(not_shifted_b.iter())
     {
         let (low, high) = split_byte_using_table::<_, _, 7>(cs, *src);

@@ -216,7 +216,7 @@ impl<
             multiple += 1;
         }
         to_absorb.resize(multiple * AW, zero_num);
-        for chunk in to_absorb.array_chunks::<AW>() {
+        for chunk in to_absorb.as_chunks::<AW>().0.iter() {
             let els_to_keep =
                 R::split_capacity_elements(&self.sponge.state.map(|el| el.get_variable()))
                     .map(|el| Num::from_variable(el));

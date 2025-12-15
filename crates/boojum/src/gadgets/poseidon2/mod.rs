@@ -21,8 +21,8 @@ impl CircuitRoundFunction<GoldilocksField, 8, 12, 4> for Poseidon2Goldilocks {
         state: [Variable; 12],
     ) -> [Variable; 12] {
         if cs.gate_is_allowed::<Poseidon2FlattenedGate<GoldilocksField, 8, 12, 4, Poseidon2Goldilocks>>() {
-            let a = state.array_chunks::<8>().next().copied().unwrap();
-            let b = state[8..].array_chunks::<4>().next().copied().unwrap();
+            let a = state.as_chunks::<8>().0.iter().next().copied().unwrap();
+            let b = state[8..].as_chunks::<4>().0.iter().next().copied().unwrap();
             Poseidon2FlattenedGate::<GoldilocksField, 8, 12, 4, Poseidon2Goldilocks>::compute_round_function(cs, a, b)
         } else {
             poseidon2_goldilocks_not_unrolled(cs, state)
@@ -170,7 +170,7 @@ fn mul_by_external_matrix<CS: ConstraintSystem<GoldilocksField>>(
         // compute block circuilant matrix block by block
         let mut tmp = [Variable::placeholder(); 12];
         // multiplication of 4-element words
-        for (dst, src) in tmp.array_chunks_mut::<4>().zip(state.array_chunks::<4>()) {
+        for (dst, src) in tmp.as_chunks_mut::<4>().0.iter_mut().zip(state.as_chunks::<4>().0.iter()) {
             for (dst, coeffs) in dst.iter_mut().zip(EXTERNAL_MDS_MATRIX_BLOCK.iter()) {
                 *dst = ReductionGate::reduce_terms(cs, *coeffs, *src);
             }

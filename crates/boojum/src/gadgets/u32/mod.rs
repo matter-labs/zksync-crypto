@@ -74,7 +74,10 @@ impl<F: SmallField> CSAllocatableExt<F> for UInt32<F> {
     where
         [(); Self::INTERNAL_STRUCT_LEN]:,
     {
-        [self.variable]
+        let mut result: [Variable; Self::INTERNAL_STRUCT_LEN] =
+            unsafe { std::mem::MaybeUninit::uninit().assume_init() };
+        result[0] = self.variable;
+        result
     }
 
     fn set_internal_variables_values(witness: Self::Witness, dst: &mut DstBuffer<'_, '_, F>) {

@@ -170,7 +170,9 @@ impl<
                 move |ins: &[F], _outs: &mut DstBuffer<'_, '_, F>| {
                     let offset = N + 1 + SW * 2 + 1;
                     let raw_values = ins[offset..]
-                        .array_chunks::<{ <EL as CSAllocatableExt<F>>::INTERNAL_STRUCT_LEN }>()
+                        .as_chunks::<{ <EL as CSAllocatableExt<F>>::INTERNAL_STRUCT_LEN }>()
+                        .0
+                        .iter()
                         .next()
                         .copied()
                         .expect("must exist");
@@ -179,7 +181,9 @@ impl<
                     let should_push: bool = WitnessCastable::cast_from_source([ins[N]]);
 
                     let previous_tail = ins[(N + 1)..]
-                        .array_chunks::<SW>()
+                        .as_chunks::<SW>()
+                        .0
+                        .iter()
                         .next()
                         .copied()
                         .expect("must exist");
@@ -215,7 +219,9 @@ impl<
 
         debug_assert!(N % AW == 0);
         let mut capacity_elements = self.tail[AW..]
-            .array_chunks::<CW>()
+            .as_chunks::<CW>()
+            .0
+            .iter()
             .next()
             .copied()
             .unwrap()
@@ -223,11 +229,13 @@ impl<
 
         let mut new_tail = self.tail.map(|el| el.variable);
 
-        for to_absorb in encoding.array_chunks::<AW>() {
+        for to_absorb in encoding.as_chunks::<AW>().0.iter() {
             let result_state = R::absorb_with_replacement(cs, *to_absorb, capacity_elements);
             let result_state = R::compute_round_function(cs, result_state);
             capacity_elements = result_state[AW..]
-                .array_chunks::<CW>()
+                .as_chunks::<CW>()
+                .0
+                .iter()
                 .next()
                 .copied()
                 .unwrap();
@@ -351,7 +359,9 @@ impl<
 
         debug_assert!(N % AW == 0);
         let mut capacity_elements = self.head[AW..]
-            .array_chunks::<CW>()
+            .as_chunks::<CW>()
+            .0
+            .iter()
             .next()
             .copied()
             .unwrap()
@@ -359,11 +369,13 @@ impl<
 
         let mut new_head = self.head.map(|el| el.variable);
 
-        for to_absorb in encoding.array_chunks::<AW>() {
+        for to_absorb in encoding.as_chunks::<AW>().0.iter() {
             let result_state = R::absorb_with_replacement(cs, *to_absorb, capacity_elements);
             let result_state = R::compute_round_function(cs, result_state);
             capacity_elements = result_state[AW..]
-                .array_chunks::<CW>()
+                .as_chunks::<CW>()
+                .0
+                .iter()
                 .next()
                 .copied()
                 .unwrap();
@@ -526,7 +538,8 @@ pub fn simulate_new_tail_for_full_state_queue<
                 }
 
                 let num_rounds = (N + AW - 1) / AW;
-                let mut current_state = ins[1..].array_chunks::<SW>().next().copied().unwrap();
+                let mut current_state =
+                    ins[1..].as_chunks::<SW>().0.iter().next().copied().unwrap();
 
                 let mut elements_source = ins[(1 + SW)..].iter();
                 for _ in 0..num_rounds {
