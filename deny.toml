@@ -18,7 +18,6 @@ ignore = [
 ]
 
 [licenses]
-# unlicensed = "deny"
 allow = [
     #"Apache-2.0 WITH LLVM-exception",
     "MIT",
@@ -33,12 +32,7 @@ allow = [
     "Zlib",
     "Unicode-3.0",
 ]
-# deny = [
-#     #"Nokia",
-# ]
-# copyleft = "warn"
-# allow-osi-fsf-free = "neither"
-# default = "deny"
+
 confidence-threshold = 0.8
 exceptions = [
     # Each entry is the crate and version constraint, and its specific allow
