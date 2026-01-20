@@ -417,7 +417,9 @@ impl<F: SmallField> UInt256<F> {
 
         let rhs = q.widening_mul_with_u256_truncated(cs, &modulo, 16, 8);
         let r_u512 = r.to_u512(cs);
-        let (rhs, _) = rhs.overflowing_add(cs, &r_u512);
+        let (rhs, overflow) = rhs.overflowing_add(cs, &r_u512);
+        let bool_false = Boolean::allocated_constant(cs, false);
+        Boolean::enforce_equal(cs, &overflow, &bool_false);
 
         let are_equal = UInt512::equals(cs, &lhs, &rhs);
         Boolean::enforce_equal(cs, &are_equal, &bool_true);
