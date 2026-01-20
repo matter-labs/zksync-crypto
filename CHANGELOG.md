@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.32.7](https://github.com/matter-labs/zksync-crypto/compare/v0.32.6...v0.32.7) (2026-01-20)
+
+
+### Features
+
+* Force release please to prepare new version ([#118](https://github.com/matter-labs/zksync-crypto/issues/118)) ([3f50e23](https://github.com/matter-labs/zksync-crypto/commit/3f50e2331edc33bf84ede8742e71ead984de3af1))
+
 ## [0.32.6](https://github.com/matter-labs/zksync-crypto/compare/v0.32.5...v0.32.6) (2025-10-28)
 
 
