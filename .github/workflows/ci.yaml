@@ -40,7 +40,7 @@ jobs:
         run: cargo fmt --all -- --check
 
       - name: Install nextest
-        run: cargo install cargo-nextest --locked
+        run: cargo install cargo-nextest --locked --version 0.9.109
 
       - name: Run tests
         run: cargo nextest run --no-fail-fast --jobs=3 --release
@@ -49,7 +49,7 @@ jobs:
     name: Github Status Check
     runs-on: ubuntu-latest
     if: always() && !cancelled()
-    needs: [ build ]
+    needs: [build]
     steps:
       - name: Status
         run: |
