@@ -3,9 +3,6 @@ no-default-features = false
 
 [advisories]
 vulnerability = "deny"
-unmaintained = "warn"
-yanked = "warn"
-notice = "warn"
 ignore = [
     #"RUSTSEC-0000-0000",
 ]
