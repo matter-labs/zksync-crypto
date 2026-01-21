@@ -8,7 +8,7 @@ pub struct FflonkProof<E: Engine, C: Circuit<E>> {
     pub inputs: Vec<E::Fr>,
     pub commitments: Vec<E::G1Affine>,
     pub evaluations: Vec<E::Fr>,
-    pub lagrange_basis_inverses: Vec<E::Fr>,
+    pub montgomery_inverse: E::Fr, 
     _c: std::marker::PhantomData<C>,
 }
 
@@ -31,7 +31,7 @@ impl<E: Engine, C: Circuit<E>> FflonkProof<E, C> {
             inputs: vec![],
             commitments: vec![],
             evaluations: vec![],
-            lagrange_basis_inverses: vec![],
+            montgomery_inverse: E::Fr::zero(),
             _c: std::marker::PhantomData,
         }
     }
@@ -40,7 +40,7 @@ impl<E: Engine, C: Circuit<E>> FflonkProof<E, C> {
             inputs,
             commitments,
             evaluations,
-            lagrange_basis_inverses,
+            montgomery_inverse,
             ..
         } = self;
 
@@ -55,8 +55,7 @@ impl<E: Engine, C: Circuit<E>> FflonkProof<E, C> {
         let mut serialized_proof = fe_slice_into_be_byte_array(&flattened_commitments);
 
         serialized_proof.extend(fe_slice_into_be_byte_array(evaluations));
-        serialized_proof.extend(fe_slice_into_be_byte_array(lagrange_basis_inverses));
-
+        serialized_proof.extend(fe_slice_into_be_byte_array(&[montgomery_inverse.clone()]));
         (serialized_inputs, serialized_proof)
     }
 }
