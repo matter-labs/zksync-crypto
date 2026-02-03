@@ -164,37 +164,45 @@ impl<
 
             let witness_storage = Arc::clone(&self.witness);
 
+            fn value_fn<F, EL, const SW: usize, const N: usize>(
+                ins: &[F],
+                _outs: &mut crate::cs::traits::cs::DstBuffer<'_, '_, F>,
+                witness_storage: &FullStateCircuitQueueWitness<F, EL, SW, N>,
+            ) where
+                F: SmallField,
+                EL: CircuitEncodableExt<F, N>,
+                [(); <EL as CSAllocatableExt<F>>::INTERNAL_STRUCT_LEN]:,
+            {
+                let offset = N + 1 + SW * 2 + 1;
+                let raw_values = ins[offset..]
+                    .as_chunks::<{ <EL as CSAllocatableExt<F>>::INTERNAL_STRUCT_LEN }>()
+                    .0
+                    .iter()
+                    .next()
+                    .copied()
+                    .expect("must exist");
+                let witness = CSAllocatableExt::<F>::witness_from_set_of_values(raw_values);
+
+                let should_push: bool = WitnessCastable::cast_from_source([ins[N]]);
+
+                let previous_tail = ins[(N + 1)..]
+                    .as_chunks::<SW>()
+                    .0
+                    .iter()
+                    .next()
+                    .copied()
+                    .expect("must exist");
+
+                if should_push {
+                    FullStateCircuitQueueWitness::push(witness_storage, witness, previous_tail);
+                }
+            }
+
             cs.set_values_with_dependencies_vararg(
                 &dependencies,
                 &[],
-                move |ins: &[F], _outs: &mut DstBuffer<'_, '_, F>| {
-                    let offset = N + 1 + SW * 2 + 1;
-                    let raw_values = ins[offset..]
-                        .as_chunks::<{ <EL as CSAllocatableExt<F>>::INTERNAL_STRUCT_LEN }>()
-                        .0
-                        .iter()
-                        .next()
-                        .copied()
-                        .expect("must exist");
-                    let witness = CSAllocatableExt::<F>::witness_from_set_of_values(raw_values);
-
-                    let should_push: bool = WitnessCastable::cast_from_source([ins[N]]);
-
-                    let previous_tail = ins[(N + 1)..]
-                        .as_chunks::<SW>()
-                        .0
-                        .iter()
-                        .next()
-                        .copied()
-                        .expect("must exist");
-
-                    if should_push {
-                        FullStateCircuitQueueWitness::push(
-                            &*witness_storage,
-                            witness,
-                            previous_tail,
-                        );
-                    }
+                move |ins: &[F], outs: &mut DstBuffer<'_, '_, F>| {
+                    value_fn::<F, EL, SW, N>(ins, outs, &witness_storage)
                 },
             );
         }

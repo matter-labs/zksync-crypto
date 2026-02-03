@@ -102,7 +102,18 @@ where
         let intermediate = cs.alloc_multiple_variables_without_values::<SW>();
 
         if <CS::Config as CSConfig>::WitnessConfig::EVALUATE_WITNESS {
-            let value_fn = move |inputs: [F; AW + SW + 1]| {
+            fn value_fn<
+                F: SmallField,
+                R: AlgebraicRoundFunction<F, AW, SW, CW>,
+                const AW: usize,
+                const SW: usize,
+                const CW: usize,
+            >(
+                inputs: [F; AW + SW + 1],
+            ) -> [F; SW]
+            where
+                [(); AW + SW + 1]:,
+            {
                 if inputs[AW + SW] == F::ONE {
                     let mut state = *inputs[..SW].as_chunks::<SW>().0.iter().next().unwrap();
                     let to_absorb = inputs[SW..AW + SW]
@@ -117,7 +128,7 @@ where
                 } else {
                     [F::ZERO; SW]
                 }
-            };
+            }
 
             let mut dependencies = [Place::placeholder(); AW + SW + 1];
             dependencies[..SW]
@@ -130,7 +141,7 @@ where
             cs.set_values_with_dependencies(
                 &dependencies,
                 &Place::from_variables(intermediate),
-                value_fn,
+                value_fn::<F, R, AW, SW, CW>,
             );
         }
 

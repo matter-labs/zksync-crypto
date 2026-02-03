@@ -474,10 +474,7 @@ pub(crate) fn invocation_binder<Fn, F: SmallField>(
 
 #[cfg(test)]
 mod test {
-    use std::{
-        intrinsics::size_of,
-        mem::{align_of, size_of_val},
-    };
+    use std::mem::{align_of, size_of, size_of_val};
 
     use rand::random;
 
