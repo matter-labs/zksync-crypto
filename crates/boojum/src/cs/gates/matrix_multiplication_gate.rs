@@ -218,7 +218,9 @@ impl<F: SmallField, const N: usize, PAR: MatrixParameters<F, N>>
         let output_variables = cs.alloc_multiple_variables_without_values::<N>();
 
         if <CS::Config as CSConfig>::WitnessConfig::EVALUATE_WITNESS {
-            let value_fn = move |inputs: [F; N]| {
+            fn value_fn<F: SmallField, const N: usize, PAR: MatrixParameters<F, N>>(
+                inputs: [F; N],
+            ) -> [F; N] {
                 // we follow the same logic as in the constraints below
 
                 let mut output: [F; N] = [F::ZERO; N];
@@ -230,12 +232,12 @@ impl<F: SmallField, const N: usize, PAR: MatrixParameters<F, N>>
                 }
 
                 output
-            };
+            }
 
             let all_dependencies = Place::from_variables(input);
             let all_outputs = Place::from_variables(output_variables);
 
-            cs.set_values_with_dependencies(&all_dependencies, &all_outputs, value_fn);
+            cs.set_values_with_dependencies(&all_dependencies, &all_outputs, value_fn::<F, N, PAR>);
         }
 
         if <CS::Config as CSConfig>::SetupConfig::KEEP_SETUP {

@@ -180,7 +180,7 @@ impl SelectionGate {
         let output_variable = cs.alloc_variable_without_value();
 
         if <CS::Config as CSConfig>::WitnessConfig::EVALUATE_WITNESS {
-            let value_fn = move |inputs: [F; 3]| {
+            fn value_fn<F: SmallField>(inputs: [F; 3]) -> [F; 1] {
                 let [a, b, selector] = inputs;
 
                 use crate::gadgets::traits::castable::WitnessCastable;
@@ -189,14 +189,14 @@ impl SelectionGate {
                 let result = if selector { a } else { b };
 
                 [result]
-            };
+            }
 
             let dependencies = Place::from_variables([a, b, selector]);
 
             cs.set_values_with_dependencies(
                 &dependencies,
                 &Place::from_variables([output_variable]),
-                value_fn,
+                value_fn::<F>,
             );
         }
 

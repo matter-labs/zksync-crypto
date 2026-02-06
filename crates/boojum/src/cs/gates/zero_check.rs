@@ -530,7 +530,7 @@ impl ZeroCheckGate {
         };
 
         if <CS::Config as CSConfig>::WitnessConfig::EVALUATE_WITNESS {
-            let value_fn = move |inputs: [F; 1]| {
+            fn value_fn<F: SmallField>(inputs: [F; 1]) -> [F; 2] {
                 let [a] = inputs;
 
                 if a.is_zero() {
@@ -540,14 +540,14 @@ impl ZeroCheckGate {
 
                     [F::ZERO, inverse]
                 }
-            };
+            }
 
             let dependencies = Place::from_variables([var_to_check]);
 
             cs.set_values_with_dependencies(
                 &dependencies,
                 &[is_zero_result.into(), inversion_witness],
-                value_fn,
+                value_fn::<F>,
             );
         }
 

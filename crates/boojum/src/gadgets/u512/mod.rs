@@ -164,18 +164,24 @@ impl<F: SmallField> UInt512<F> {
         let outputs = cs.alloc_multiple_variables_without_values::<16>();
 
         if <CS::Config as CSConfig>::WitnessConfig::EVALUATE_WITNESS {
-            let value_fn = move |inputs: &[F], output_buffer: &mut DstBuffer<'_, '_, F>| {
+            fn value_fn<F: SmallField, FN: FnOnce(&[F]) -> (U256, U256)>(
+                inputs: &[F],
+                output_buffer: &mut DstBuffer<'_, '_, F>,
+                witness_closure: FN,
+            ) {
                 debug_assert!(F::CAPACITY_BITS >= 32);
                 let witness = (witness_closure)(inputs);
                 let chunks = decompose_u512_as_u32x16(witness);
 
                 output_buffer.extend(chunks.map(|el| F::from_u64_unchecked(el as u64)));
-            };
+            }
 
             cs.set_values_with_dependencies_vararg(
                 dependencies,
                 &Place::from_variables(outputs),
-                value_fn,
+                move |inputs: &[F], output_buffer: &mut DstBuffer<'_, '_, F>| {
+                    value_fn::<F, FN>(inputs, output_buffer, witness_closure)
+                },
             );
         }
 

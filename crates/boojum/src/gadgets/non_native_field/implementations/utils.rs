@@ -245,7 +245,7 @@ pub fn split_out_u32_carry_from_zero_low<F: SmallField, CS: ConstraintSystem<F>>
     assert!(F::CAPACITY_BITS >= 48);
     let outputs = cs.alloc_multiple_variables_without_values::<3>();
     if <CS::Config as CSConfig>::WitnessConfig::EVALUATE_WITNESS == true {
-        let value_fn = move |input: [F; 2]| {
+        fn value_fn<F: SmallField>(input: [F; 2]) -> [F; 3] {
             let mut diff = input[0];
             diff.sub_assign(&input[1]);
 
@@ -273,12 +273,12 @@ pub fn split_out_u32_carry_from_zero_low<F: SmallField, CS: ConstraintSystem<F>>
                 F::from_u64_unchecked(low as u64),
                 F::from_u64_unchecked(high as u64),
             ]
-        };
+        }
 
         cs.set_values_with_dependencies(
             &Place::from_variables([lhs, rhs]),
             &Place::from_variables(outputs),
-            value_fn,
+            value_fn::<F>,
         );
     }
 

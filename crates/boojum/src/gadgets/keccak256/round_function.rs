@@ -315,7 +315,7 @@ fn split_for_unaligned_rotation<F: SmallField, CS: ConstraintSystem<F>>(
     let low_chunk_size = 8 - unalignment;
 
     if <CS::Config as CSConfig>::WitnessConfig::EVALUATE_WITNESS == true {
-        let value_fn = move |input: [F; 1]| {
+        fn value_fn<F: SmallField>(input: [F; 1], low_chunk_size: u32, unalignment: u32) -> [F; 5] {
             let mut input = <u32 as WitnessCastable<F, F>>::cast_from_source(input[0]);
             let lowest_mask = (1u32 << low_chunk_size) - 1;
 
@@ -335,7 +335,7 @@ fn split_for_unaligned_rotation<F: SmallField, CS: ConstraintSystem<F>>(
             result[4] = F::from_u64_unchecked(highest as u64);
 
             result
-        };
+        }
 
         let outputs = Place::from_variables([
             decompose_low,
@@ -344,7 +344,9 @@ fn split_for_unaligned_rotation<F: SmallField, CS: ConstraintSystem<F>>(
             aligned_variables[2],
             decompose_high,
         ]);
-        cs.set_values_with_dependencies(&[input.into()], &outputs, value_fn);
+        cs.set_values_with_dependencies(&[input.into()], &outputs, move |input: [F; 1]| {
+            value_fn::<F>(input, low_chunk_size, unalignment)
+        });
     }
 
     // prove decomposition

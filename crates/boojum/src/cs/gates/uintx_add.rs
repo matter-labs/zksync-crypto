@@ -258,7 +258,7 @@ impl<const WIDTH: usize> UIntXAddGate<WIDTH> {
         let output_variables = cs.alloc_multiple_variables_without_values::<2>();
 
         if <CS::Config as CSConfig>::WitnessConfig::EVALUATE_WITNESS {
-            let value_fn = move |inputs: [F; 3]| {
+            fn value_fn<F: SmallField, const WIDTH: usize>(inputs: [F; 3]) -> [F; 2] {
                 let [a, b, carry_in] = inputs;
                 let a = a.as_u64_reduced();
                 let b = b.as_u64_reduced();
@@ -276,14 +276,14 @@ impl<const WIDTH: usize> UIntXAddGate<WIDTH> {
                 let carry_out = F::from_u64_with_reduction(carry_out as u64);
 
                 [c, carry_out]
-            };
+            }
 
             let dependencies = Place::from_variables([a, b, carry_in]);
 
             cs.set_values_with_dependencies(
                 &dependencies,
                 &Place::from_variables(output_variables),
-                value_fn,
+                value_fn::<F, WIDTH>,
             );
         }
 
@@ -316,7 +316,7 @@ impl<const WIDTH: usize> UIntXAddGate<WIDTH> {
         let output_variable = cs.alloc_variable_without_value();
 
         if <CS::Config as CSConfig>::WitnessConfig::EVALUATE_WITNESS {
-            let value_fn = move |inputs: [F; 3]| {
+            fn value_fn<F: SmallField, const WIDTH: usize>(inputs: [F; 3]) -> [F; 1] {
                 let [a, b, carry_in] = inputs;
                 let a = a.as_u64_reduced();
                 let b = b.as_u64_reduced();
@@ -335,14 +335,14 @@ impl<const WIDTH: usize> UIntXAddGate<WIDTH> {
                 debug_assert_eq!(carry_out, false);
 
                 [c]
-            };
+            }
 
             let dependencies = Place::from_variables([a, b, carry_in]);
 
             cs.set_values_with_dependencies(
                 &dependencies,
                 &Place::from_variables([output_variable]),
-                value_fn,
+                value_fn::<F, WIDTH>,
             );
         }
 
@@ -379,7 +379,7 @@ impl<const WIDTH: usize> UIntXAddGate<WIDTH> {
         let output_variables = cs.alloc_multiple_variables_without_values::<2>();
 
         if <CS::Config as CSConfig>::WitnessConfig::EVALUATE_WITNESS {
-            let value_fn = move |inputs: [F; 3]| {
+            fn value_fn<F: SmallField, const WIDTH: usize>(inputs: [F; 3]) -> [F; 2] {
                 let [a, b, borrow_in] = inputs;
                 let a = a.as_u64_reduced();
                 let b = b.as_u64_reduced();
@@ -400,14 +400,14 @@ impl<const WIDTH: usize> UIntXAddGate<WIDTH> {
                 let borrow_out = F::from_u64_with_reduction(borrow_out as u64);
 
                 [c, borrow_out]
-            };
+            }
 
             let dependencies = Place::from_variables([a, b, borrow_in]);
 
             cs.set_values_with_dependencies(
                 &dependencies,
                 &Place::from_variables(output_variables),
-                value_fn,
+                value_fn::<F, WIDTH>,
             );
         }
 
@@ -440,7 +440,7 @@ impl<const WIDTH: usize> UIntXAddGate<WIDTH> {
         let output_variable = cs.alloc_variable_without_value();
 
         if <CS::Config as CSConfig>::WitnessConfig::EVALUATE_WITNESS {
-            let value_fn = move |inputs: [F; 3]| {
+            fn value_fn<F: SmallField, const WIDTH: usize>(inputs: [F; 3]) -> [F; 1] {
                 let [a, b, borrow_in] = inputs;
                 let a = a.as_u64_reduced();
                 let b = b.as_u64_reduced();
@@ -462,14 +462,14 @@ impl<const WIDTH: usize> UIntXAddGate<WIDTH> {
                 let c = F::from_u64_with_reduction(c);
 
                 [c]
-            };
+            }
 
             let dependencies = Place::from_variables([a, b, borrow_in]);
 
             cs.set_values_with_dependencies(
                 &dependencies,
                 &Place::from_variables([output_variable]),
-                value_fn,
+                value_fn::<F, WIDTH>,
             );
         }
 
@@ -502,7 +502,7 @@ impl<const WIDTH: usize> UIntXAddGate<WIDTH> {
         let output_variable = cs.alloc_variable_without_value();
 
         if <CS::Config as CSConfig>::WitnessConfig::EVALUATE_WITNESS {
-            let value_fn = move |inputs: [F; 4]| {
+            fn value_fn<F: SmallField, const WIDTH: usize>(inputs: [F; 4]) -> [F; 1] {
                 let [a, b, carry_in, c] = inputs;
                 let a = a.as_u64_reduced();
                 let b = b.as_u64_reduced();
@@ -520,14 +520,14 @@ impl<const WIDTH: usize> UIntXAddGate<WIDTH> {
                 let carry_out = F::from_u64_unchecked(carry_out as u64);
 
                 [carry_out]
-            };
+            }
 
             let dependencies = Place::from_variables([a, b, carry_in, c]);
 
             cs.set_values_with_dependencies(
                 &dependencies,
                 &Place::from_variables([output_variable]),
-                value_fn,
+                value_fn::<F, WIDTH>,
             );
         }
 
@@ -561,7 +561,7 @@ impl<const WIDTH: usize> UIntXAddGate<WIDTH> {
         let output_variable = cs.alloc_variable_without_value();
 
         if <CS::Config as CSConfig>::WitnessConfig::EVALUATE_WITNESS {
-            let value_fn = move |inputs: [F; 4]| {
+            fn value_fn<F: SmallField, const WIDTH: usize>(inputs: [F; 4]) -> [F; 1] {
                 let [a, b, borrow_in, expected_borrow_out] = inputs;
                 let a = a.as_u64_reduced();
                 let b = b.as_u64_reduced();
@@ -584,14 +584,14 @@ impl<const WIDTH: usize> UIntXAddGate<WIDTH> {
                 let c = F::from_u64_with_reduction(c);
 
                 [c]
-            };
+            }
 
             let dependencies = Place::from_variables([a, b, borrow_in, borrow_out]);
 
             cs.set_values_with_dependencies(
                 &dependencies,
                 &Place::from_variables([output_variable]),
-                value_fn,
+                value_fn::<F, WIDTH>,
             );
         }
 

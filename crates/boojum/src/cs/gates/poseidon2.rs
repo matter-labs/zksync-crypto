@@ -782,15 +782,17 @@ where
             all_outputs.extend(Place::from_variables(output_variables));
 
             if PAR::SUPPORTS_SPECIALIZED_FLATTENED_EVALUATION {
-                let value_fn = move |inputs: &[F], output_buffer: &mut DstBuffer<'_, '_, F>| {
-                    PAR::specialized_evaluator::<true>(inputs, output_buffer);
-                };
-                cs.set_values_with_dependencies_vararg(&all_dependencies, &all_outputs, value_fn);
+                cs.set_values_with_dependencies_vararg(
+                    &all_dependencies,
+                    &all_outputs,
+                    PAR::specialized_evaluator::<true>,
+                );
             } else {
-                let value_fn = move |inputs: &[F], output_buffer: &mut DstBuffer<'_, '_, F>| {
-                    Self::witness_evaluation_function::<true>(inputs, output_buffer)
-                };
-                cs.set_values_with_dependencies_vararg(&all_dependencies, &all_outputs, value_fn);
+                cs.set_values_with_dependencies_vararg(
+                    &all_dependencies,
+                    &all_outputs,
+                    Self::witness_evaluation_function::<true>,
+                );
             }
         }
 
@@ -848,15 +850,17 @@ where
             all_outputs.extend_from_slice(&new_places);
 
             if PAR::SUPPORTS_SPECIALIZED_FLATTENED_EVALUATION {
-                let value_fn = move |inputs: &[F], output_buffer: &mut DstBuffer<'_, '_, F>| {
-                    PAR::specialized_evaluator::<false>(inputs, output_buffer);
-                };
-                cs.set_values_with_dependencies_vararg(&all_dependencies, &all_outputs, value_fn);
+                cs.set_values_with_dependencies_vararg(
+                    &all_dependencies,
+                    &all_outputs,
+                    PAR::specialized_evaluator::<false>,
+                );
             } else {
-                let value_fn = move |inputs: &[F], output_buffer: &mut DstBuffer<'_, '_, F>| {
-                    Self::witness_evaluation_function::<false>(inputs, output_buffer)
-                };
-                cs.set_values_with_dependencies_vararg(&all_dependencies, &all_outputs, value_fn);
+                cs.set_values_with_dependencies_vararg(
+                    &all_dependencies,
+                    &all_outputs,
+                    Self::witness_evaluation_function::<false>,
+                );
             }
         }
 

@@ -293,25 +293,29 @@ impl<F: SmallField> FmaGateInBaseFieldWithoutConstant<F> {
         };
 
         if <CS::Config as CSConfig>::WitnessConfig::EVALUATE_WITNESS {
-            let value_fn = move |inputs: [F; 3]| {
+            fn value_fn<F: SmallField>(
+                inputs: [F; 3],
+                coeff_for_quadratic_part: F,
+                linear_term_coeff: F,
+            ) -> [F; 1] {
                 let [a, b, c] = inputs;
-                let mut result = params.coeff_for_quadtaric_part;
+                let mut result = coeff_for_quadratic_part;
                 result.mul_assign(&a).mul_assign(&b);
 
                 let mut tmp = c;
-                tmp.mul_assign(&params.linear_term_coeff);
+                tmp.mul_assign(&linear_term_coeff);
 
                 result.add_assign(&tmp);
 
                 [result]
-            };
+            }
 
             let dependencies = Place::from_variables([ab.0, ab.1, c]);
 
             cs.set_values_with_dependencies(
                 &dependencies,
                 &Place::from_variables([output_variable]),
-                value_fn,
+                move |ins| value_fn::<F>(ins, coeff_for_quadtaric_part, linear_term_coeff),
             );
         }
 
@@ -349,18 +353,18 @@ impl<F: SmallField> FmaGateInBaseFieldWithoutConstant<F> {
         let output_variable = cs.alloc_variable_without_value();
 
         if <CS::Config as CSConfig>::WitnessConfig::EVALUATE_WITNESS {
-            let value_fn = move |inputs: [F; 1]| {
+            fn value_fn<F: SmallField>(inputs: [F; 1]) -> [F; 1] {
                 let inverse = inputs[0].inverse().unwrap();
 
                 [inverse]
-            };
+            }
 
             let dependencies = Place::from_variables([variable_to_inverse]);
 
             cs.set_values_with_dependencies(
                 &dependencies,
                 &Place::from_variables([output_variable]),
-                value_fn,
+                value_fn::<F>,
             );
         }
 

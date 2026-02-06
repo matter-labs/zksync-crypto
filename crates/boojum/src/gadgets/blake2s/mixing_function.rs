@@ -257,7 +257,7 @@ fn split_byte_at<F: SmallField, CS: ConstraintSystem<F>>(
 
     let [low, high] = cs.alloc_multiple_variables_without_values::<2>();
     if <CS::Config as CSConfig>::WitnessConfig::EVALUATE_WITNESS == true {
-        let value_fn = move |input: [F; 1]| {
+        fn value_fn<F: SmallField>(input: [F; 1], split_at: usize) -> [F; 2] {
             let input = <u8 as WitnessCastable<F, F>>::cast_from_source(input[0]);
             let mask = (1u8 << split_at) - 1;
             let low = input & mask;
@@ -267,10 +267,14 @@ fn split_byte_at<F: SmallField, CS: ConstraintSystem<F>>(
                 F::from_u64_unchecked(low as u64),
                 F::from_u64_unchecked(high as u64),
             ]
-        };
+        }
 
         let dependencies = [input.into()];
-        cs.set_values_with_dependencies(&dependencies, &[low.into(), high.into()], value_fn);
+        cs.set_values_with_dependencies(
+            &dependencies,
+            &[low.into(), high.into()],
+            move |input: [F; 1]| value_fn::<F>(input, split_at),
+        );
     }
 
     let one = cs.allocate_constant(F::ONE);
@@ -323,7 +327,7 @@ pub fn merge_byte_using_table<F: SmallField, CS: ConstraintSystem<F>, const SPLI
     let result = cs.alloc_variable_without_value();
 
     if <CS::Config as CSConfig>::WitnessConfig::EVALUATE_WITNESS == true {
-        let value_fn = move |input: [F; 2]| {
+        fn value_fn<F: SmallField, const SPLIT_AT: usize>(input: [F; 2]) -> [F; 1] {
             let low = <u8 as WitnessCastable<F, F>>::cast_from_source(input[0]);
             let high = <u8 as WitnessCastable<F, F>>::cast_from_source(input[1]);
             debug_assert!(
@@ -341,9 +345,13 @@ pub fn merge_byte_using_table<F: SmallField, CS: ConstraintSystem<F>, const SPLI
             let result = (high << SPLIT_AT) | low;
 
             [F::from_u64_unchecked(result as u64)]
-        };
+        }
 
-        cs.set_values_with_dependencies(&[low.into(), high.into()], &[result.into()], value_fn);
+        cs.set_values_with_dependencies(
+            &[low.into(), high.into()],
+            &[result.into()],
+            value_fn::<F, SPLIT_AT>,
+        );
     }
 
     use crate::gadgets::tables::byte_split::ByteSplitTable;

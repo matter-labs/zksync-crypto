@@ -84,7 +84,12 @@ where
 
         if <CS::Config as CSConfig>::WitnessConfig::EVALUATE_WITNESS == true {
             let modulus_limbs = params.modulus_limbs;
-            let value_fn = move |_input: &[F], dst: &mut DstBuffer<'_, '_, F>| {
+            fn value_fn<F: SmallField, T: pairing::ff::PrimeField, const N: usize>(
+                _input: &[F],
+                dst: &mut DstBuffer<'_, '_, F>,
+                witness: T,
+                modulus_limbs: usize,
+            ) {
                 let limbs = fe_to_u16_words::<_, N>(&witness);
                 for (idx, el) in limbs.into_iter().enumerate() {
                     if idx < modulus_limbs {
@@ -93,7 +98,7 @@ where
                         assert_eq!(el, 0);
                     }
                 }
-            };
+            }
 
             let mut outputs = Vec::with_capacity(params.modulus_limbs);
             outputs.extend(
@@ -102,7 +107,13 @@ where
                     .take(params.modulus_limbs),
             );
 
-            cs.set_values_with_dependencies_vararg(&[], &outputs, value_fn);
+            cs.set_values_with_dependencies_vararg(
+                &[],
+                &outputs,
+                move |input: &[F], dst: &mut DstBuffer<'_, '_, F>| {
+                    value_fn::<F, T, N>(input, dst, witness, modulus_limbs)
+                },
+            );
         }
 
         new
@@ -476,7 +487,14 @@ where
         if <CS::Config as CSConfig>::WitnessConfig::EVALUATE_WITNESS == true {
             let params = self.params.clone();
 
-            let value_fn = move |inputs: &[F], buffer: &mut DstBuffer<'_, '_, F>| {
+            fn value_fn<F: SmallField, T: pairing::ff::PrimeField, const N: usize>(
+                inputs: &[F],
+                buffer: &mut DstBuffer<'_, '_, F>,
+                params: &NonNativeFieldOverU16Params<T, N>,
+                a_max_words: usize,
+                b_max_words: usize,
+                q_max_words: usize,
+            ) {
                 debug_assert_eq!(inputs.len(), N * 2);
 
                 let a = unnormalized_u16_field_words_to_u1024(&inputs[..N]);
@@ -533,7 +551,7 @@ where
                         j += 1;
                     }
                 }
-            };
+            }
 
             let mut dependencies = Vec::with_capacity(N * 2);
             dependencies.extend(Place::from_variables(self.limbs));
@@ -547,7 +565,9 @@ where
                     .take(self.params.modulus_limbs),
             );
 
-            cs.set_values_with_dependencies_vararg(&dependencies, &outputs, value_fn);
+            cs.set_values_with_dependencies_vararg(&dependencies, &outputs, move |ins, out| {
+                value_fn::<F, T, N>(ins, out, &params, a_max_words, b_max_words, q_max_words)
+            });
         }
 
         // range_check
@@ -904,7 +924,12 @@ where
         if <CS::Config as CSConfig>::WitnessConfig::EVALUATE_WITNESS == true {
             let modulus_u1024 = self.params.modulus_u1024;
             let modulus_limbs = self.params.modulus_limbs;
-            let value_fn = move |input: &[F], dst: &mut DstBuffer<'_, '_, F>| {
+            fn value_fn<F: SmallField, T: pairing::ff::PrimeField, const N: usize>(
+                input: &[F],
+                dst: &mut DstBuffer<'_, '_, F>,
+                modulus_u1024: crypto_bigint::NonZero<crypto_bigint::U1024>,
+                modulus_limbs: usize,
+            ) {
                 let mut value = unnormalized_u16_field_words_to_u1024(input);
                 value = value.checked_rem(&modulus_u1024).unwrap();
 
@@ -927,7 +952,7 @@ where
                         }
                     }
                 }
-            };
+            }
 
             let mut outputs = Vec::with_capacity(modulus_limbs);
             outputs.extend(
@@ -939,7 +964,9 @@ where
             cs.set_values_with_dependencies_vararg(
                 &Place::from_variables(self.limbs),
                 &outputs,
-                value_fn,
+                move |input: &[F], dst: &mut DstBuffer<'_, '_, F>| {
+                    value_fn::<F, T, N>(input, dst, modulus_u1024, modulus_limbs)
+                },
             );
         }
 

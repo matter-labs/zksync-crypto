@@ -192,35 +192,47 @@ impl<
             dependencies.push(self.length.get_variable().into());
             dependencies.extend(Place::from_variables(flattened_vars));
 
+            fn value_fn<F, EL, const T: usize, const N: usize>(
+                ins: &[F],
+                _outs: &mut DstBuffer<'_, '_, F>,
+                witness_storage: &CircuitQueueWitness<F, EL, T, N>,
+            ) where
+                F: SmallField,
+                EL: CircuitEncodableExt<F, N>,
+                [(); <EL as CSAllocatableExt<F>>::INTERNAL_STRUCT_LEN]:,
+            {
+                let offset = N + 1 + T * 2 + 1;
+                let raw_values = ins[offset..]
+                    .as_chunks::<{ <EL as CSAllocatableExt<F>>::INTERNAL_STRUCT_LEN }>()
+                    .0
+                    .iter()
+                    .next()
+                    .copied()
+                    .expect("must exist");
+                let witness = CSAllocatableExt::<F>::witness_from_set_of_values(raw_values);
+
+                let should_push: bool = WitnessCastable::cast_from_source([ins[N]]);
+
+                let previous_tail = ins[(N + 1)..]
+                    .as_chunks::<T>()
+                    .0
+                    .iter()
+                    .next()
+                    .copied()
+                    .expect("must exist");
+
+                if should_push {
+                    CircuitQueueWitness::push(witness_storage, witness, previous_tail);
+                }
+            }
+
             let witness_storage = Arc::clone(&self.witness);
 
             cs.set_values_with_dependencies_vararg(
                 &dependencies,
                 &[],
-                move |ins: &[F], _outs: &mut DstBuffer<'_, '_, F>| {
-                    let offset = N + 1 + T * 2 + 1;
-                    let raw_values = ins[offset..]
-                        .as_chunks::<{ <EL as CSAllocatableExt<F>>::INTERNAL_STRUCT_LEN }>()
-                        .0
-                        .iter()
-                        .next()
-                        .copied()
-                        .expect("must exist");
-                    let witness = CSAllocatableExt::<F>::witness_from_set_of_values(raw_values);
-
-                    let should_push: bool = WitnessCastable::cast_from_source([ins[N]]);
-
-                    let previous_tail = ins[(N + 1)..]
-                        .as_chunks::<T>()
-                        .0
-                        .iter()
-                        .next()
-                        .copied()
-                        .expect("must exist");
-
-                    if should_push {
-                        CircuitQueueWitness::push(&*witness_storage, witness, previous_tail);
-                    }
+                move |ins: &[F], outs: &mut DstBuffer<'_, '_, F>| {
+                    value_fn::<F, EL, T, N>(ins, outs, &witness_storage)
                 },
             );
         }
@@ -345,20 +357,31 @@ impl<
             dependencies.extend(Place::from_variables(self.tail.map(|el| el.variable)));
             dependencies.push(self.length.get_variable().into());
 
+            fn value_fn<F, EL, const T: usize, const N: usize>(
+                ins: &[F],
+                outs: &mut DstBuffer<'_, '_, F>,
+                witness_storage: &CircuitQueueWitness<F, EL, T, N>,
+            ) where
+                F: SmallField,
+                EL: CircuitEncodableExt<F, N>,
+                [(); <EL as CSAllocatableExt<F>>::INTERNAL_STRUCT_LEN]:,
+            {
+                let should_pop: bool = WitnessCastable::cast_from_source([ins[0]]);
+                let witness_element = if should_pop {
+                    CircuitQueueWitness::pop_front(witness_storage).0
+                } else {
+                    EL::placeholder_witness()
+                };
+                EL::set_internal_variables_values(witness_element, outs);
+            }
+
             let witness_storage = Arc::clone(&self.witness);
 
             cs.set_values_with_dependencies_vararg(
                 &dependencies,
                 &Place::from_variables(internal_structure),
                 move |ins: &[F], outs: &mut DstBuffer<'_, '_, F>| {
-                    let should_pop: bool = WitnessCastable::cast_from_source([ins[0]]);
-                    let witness_element = if should_pop {
-                        CircuitQueueWitness::pop_front(&*witness_storage).0
-                    } else {
-                        EL::placeholder_witness()
-                    };
-
-                    EL::set_internal_variables_values(witness_element, outs);
+                    value_fn::<F, EL, T, N>(ins, outs, &witness_storage)
                 },
             );
         }
@@ -547,36 +570,51 @@ pub fn simulate_new_tail<
         dependencies.extend(Place::from_variables(tail));
         dependencies.extend(Place::from_variables(element_encoding));
 
+        fn value_fn<
+            F: SmallField,
+            R: AlgebraicRoundFunction<F, AW, SW, CW>,
+            const AW: usize,
+            const SW: usize,
+            const CW: usize,
+            const T: usize,
+            const N: usize,
+        >(
+            ins: &[F],
+            outs: &mut DstBuffer<'_, '_, F>,
+        ) {
+            let should_push: bool = WitnessCastable::cast_from_source([ins[0]]);
+
+            if should_push == false {
+                outs.extend([F::ZERO; T]);
+                return;
+            }
+
+            let num_rounds = (N + T + AW - 1) / AW;
+            let mut elements_source = ins[1..].iter();
+
+            let mut current_state = [F::ZERO; SW];
+
+            for _ in 0..num_rounds {
+                let mut to_absorb = [F::ZERO; AW];
+                for (dst, src) in to_absorb.iter_mut().zip(&mut elements_source) {
+                    *dst = *src;
+                }
+
+                R::absorb_into_state::<AbsorptionModeOverwrite>(&mut current_state, &to_absorb);
+                R::round_function(&mut current_state);
+            }
+
+            let new_tail = <R as AlgebraicRoundFunction<F, AW, SW, CW>>::state_into_commitment::<T>(
+                &current_state,
+            );
+            // push new tail
+            outs.extend(new_tail);
+        }
+
         cs.set_values_with_dependencies_vararg(
             &dependencies,
             &Place::from_variables(result),
-            move |ins: &[F], outs: &mut DstBuffer<'_, '_, F>| {
-                let should_push: bool = WitnessCastable::cast_from_source([ins[0]]);
-
-                if should_push == false {
-                    outs.extend([F::ZERO; T]);
-                    return;
-                }
-
-                let num_rounds = (N + T + AW - 1) / AW;
-                let mut elements_source = ins[1..].iter();
-
-                let mut current_state = [F::ZERO; SW];
-
-                for _ in 0..num_rounds {
-                    let mut to_absorb = [F::ZERO; AW];
-                    for (dst, src) in to_absorb.iter_mut().zip(&mut elements_source) {
-                        *dst = *src;
-                    }
-
-                    R::absorb_into_state::<AbsorptionModeOverwrite>(&mut current_state, &to_absorb);
-                    R::round_function(&mut current_state);
-                }
-
-                let new_tail = <R as AlgebraicRoundFunction<F, AW, SW, CW>>::state_into_commitment::<T>(&current_state);
-                // push new tail
-                outs.extend(new_tail);
-            },
+            value_fn::<F, R, AW, SW, CW, T, N>,
         );
     }
 

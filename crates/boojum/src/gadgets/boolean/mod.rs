@@ -301,7 +301,7 @@ impl<F: SmallField> Boolean<F> {
             let result = cs.alloc_variable_without_value();
 
             if <CS::Config as CSConfig>::WitnessConfig::EVALUATE_WITNESS {
-                let value_fn = move |inputs: [F; 2]| {
+                fn value_fn<F: SmallField>(inputs: [F; 2]) -> [F; 1] {
                     let [a, b] = inputs;
 
                     let a = <bool as WitnessCastable<F, F>>::cast_from_source(a);
@@ -312,11 +312,11 @@ impl<F: SmallField> Boolean<F> {
                     } else {
                         [F::ZERO]
                     }
-                };
+                }
 
                 let dependencies = Place::from_variables([self.variable, other.variable]);
 
-                cs.set_values_with_dependencies(&dependencies, &[result.into()], value_fn);
+                cs.set_values_with_dependencies(&dependencies, &[result.into()], value_fn::<F>);
             }
 
             if <CS::Config as CSConfig>::SetupConfig::KEEP_SETUP {
@@ -349,7 +349,7 @@ impl<F: SmallField> Boolean<F> {
             let result = cs.alloc_variable_without_value();
 
             if <CS::Config as CSConfig>::WitnessConfig::EVALUATE_WITNESS {
-                let value_fn = move |inputs: [F; 2]| {
+                fn value_fn<F: SmallField>(inputs: [F; 2]) -> [F; 1] {
                     let [a, b] = inputs;
 
                     let a = <bool as WitnessCastable<F, F>>::cast_from_source(a);
@@ -360,11 +360,11 @@ impl<F: SmallField> Boolean<F> {
                     } else {
                         [F::ZERO]
                     }
-                };
+                }
 
                 let dependencies = Place::from_variables([self.variable, other.variable]);
 
-                cs.set_values_with_dependencies(&dependencies, &[result.into()], value_fn);
+                cs.set_values_with_dependencies(&dependencies, &[result.into()], value_fn::<F>);
             }
 
             if <CS::Config as CSConfig>::SetupConfig::KEEP_SETUP {
@@ -388,7 +388,7 @@ impl<F: SmallField> Boolean<F> {
             let result = cs.alloc_variable_without_value();
 
             if <CS::Config as CSConfig>::WitnessConfig::EVALUATE_WITNESS {
-                let value_fn = move |inputs: [F; 2]| {
+                fn value_fn<F: SmallField>(inputs: [F; 2]) -> [F; 1] {
                     let [a, b] = inputs;
 
                     let a = <bool as WitnessCastable<F, F>>::cast_from_source(a);
@@ -399,11 +399,11 @@ impl<F: SmallField> Boolean<F> {
                     } else {
                         [F::ZERO]
                     }
-                };
+                }
 
                 let dependencies = Place::from_variables([self.variable, other.variable]);
 
-                cs.set_values_with_dependencies(&dependencies, &[result.into()], value_fn);
+                cs.set_values_with_dependencies(&dependencies, &[result.into()], value_fn::<F>);
             }
 
             let one_var = cs.allocate_constant(F::ONE);

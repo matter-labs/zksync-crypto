@@ -88,7 +88,7 @@ fn uint8_into_4bit_chunks_unchecked<F: SmallField, CS: ConstraintSystem<F>>(
     use crate::config::*;
 
     if <CS::Config as CSConfig>::WitnessConfig::EVALUATE_WITNESS == true {
-        let value_fn = move |input: [F; 1]| {
+        fn value_fn<F: SmallField>(input: [F; 1]) -> [F; 2] {
             let input = <u8 as WitnessCastable<F, F>>::cast_from_source(input[0]);
             let low = input % (1u8 << 4);
             let high = input >> 4;
@@ -96,10 +96,10 @@ fn uint8_into_4bit_chunks_unchecked<F: SmallField, CS: ConstraintSystem<F>>(
                 F::from_u64_unchecked(low as u64),
                 F::from_u64_unchecked(high as u64),
             ]
-        };
+        }
 
         let outputs = Place::from_variables(chunks);
-        cs.set_values_with_dependencies(&[input.into()], &outputs, value_fn);
+        cs.set_values_with_dependencies(&[input.into()], &outputs, value_fn::<F>);
     }
 
     let one = cs.allocate_constant(F::ONE);

@@ -28,24 +28,35 @@ pub fn simulate_round_function<
         dependencies.push(execute.get_variable().into());
         dependencies.extend(Place::from_variables(state));
 
+        fn value_fn<
+            F: SmallField,
+            R: AlgebraicRoundFunction<F, AW, SW, CW>,
+            const AW: usize,
+            const SW: usize,
+            const CW: usize,
+        >(
+            ins: &[F],
+            outs: &mut DstBuffer<'_, '_, F>,
+        ) {
+            use crate::gadgets::traits::castable::WitnessCastable;
+            let should_run: bool = WitnessCastable::cast_from_source([ins[0]]);
+
+            if should_run == false {
+                outs.extend([F::ZERO; SW]);
+                return;
+            }
+
+            let mut state = [F::ZERO; SW];
+            state.copy_from_slice(&ins[1..]);
+            R::round_function(&mut state);
+
+            outs.extend(state);
+        }
+
         cs.set_values_with_dependencies_vararg(
             &dependencies,
             &Place::from_variables(result),
-            move |ins: &[F], outs: &mut DstBuffer<'_, '_, F>| {
-                use crate::gadgets::traits::castable::WitnessCastable;
-                let should_run: bool = WitnessCastable::cast_from_source([ins[0]]);
-
-                if should_run == false {
-                    outs.extend([F::ZERO; SW]);
-                    return;
-                }
-
-                let mut state = [F::ZERO; SW];
-                state.copy_from_slice(&ins[1..]);
-                R::round_function(&mut state);
-
-                outs.extend(state);
-            },
+            value_fn::<F, R, AW, SW, CW>,
         );
     }
 

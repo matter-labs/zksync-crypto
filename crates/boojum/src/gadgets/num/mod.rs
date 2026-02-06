@@ -316,7 +316,7 @@ impl<F: SmallField> Num<F> {
 
         let vars = cs.alloc_multiple_variables_without_values::<LIMIT>();
         if <CS::Config as CSConfig>::WitnessConfig::EVALUATE_WITNESS {
-            let value_fn = move |inputs: [F; 1]| {
+            fn value_fn<F: SmallField, const LIMIT: usize>(inputs: [F; 1]) -> [F; LIMIT] {
                 let as_u64 = inputs[0].as_u64_reduced();
                 let bits = [as_u64];
                 let mut iterator = LSBIterator::new(&bits);
@@ -328,11 +328,15 @@ impl<F: SmallField> Num<F> {
                 }
 
                 result
-            };
+            }
 
             let dependencies = [self.get_variable().into()];
 
-            cs.set_values_with_dependencies(&dependencies, &Place::from_variables(vars), value_fn);
+            cs.set_values_with_dependencies(
+                &dependencies,
+                &Place::from_variables(vars),
+                value_fn::<F, LIMIT>,
+            );
         }
 
         // prove equality by chunks
@@ -633,7 +637,11 @@ impl<F: SmallField> Num<F> {
             let (all_dependencies, all_coeffs): (Vec<Variable>, Vec<F>) =
                 input.iter().copied().unzip();
 
-            let value_fn = move |inputs: &[F], buffer: &mut DstBuffer<'_, '_, F>| {
+            fn value_fn<F: SmallField>(
+                inputs: &[F],
+                buffer: &mut DstBuffer<'_, '_, F>,
+                all_coeffs: Vec<F>,
+            ) {
                 debug_assert_eq!(all_coeffs.len(), inputs.len());
 
                 let mut result = F::ZERO;
@@ -642,7 +650,7 @@ impl<F: SmallField> Num<F> {
                 }
 
                 buffer.push(result);
-            };
+            }
 
             let all_dependencies: Vec<_> =
                 all_dependencies.into_iter().map(|el| el.into()).collect();
@@ -650,7 +658,9 @@ impl<F: SmallField> Num<F> {
             cs.set_values_with_dependencies_vararg(
                 &all_dependencies,
                 &Place::from_variables([result_var]),
-                value_fn,
+                move |inputs: &[F], buffer: &mut DstBuffer<'_, '_, F>| {
+                    value_fn::<F>(inputs, buffer, all_coeffs)
+                },
             );
         }
 
@@ -831,7 +841,7 @@ impl<F: SmallField> Num<F> {
                         let coeffs = chunk.map(|el| el.1);
                         let inputs = chunk.map(|el| el.0);
 
-                        let value_fn = move |inputs: [F; 4]| {
+                        fn value_fn<F: SmallField>(inputs: [F; 4], coeffs: [F; 4]) -> [F; 1] {
                             let mut result = F::ZERO;
                             for (a, b) in coeffs.into_iter().zip(inputs.into_iter()) {
                                 let mut tmp = a;
@@ -840,12 +850,12 @@ impl<F: SmallField> Num<F> {
                             }
 
                             [result]
-                        };
+                        }
 
                         cs.set_values_with_dependencies(
                             &Place::from_variables(inputs),
                             &[intermediate_var.into()],
-                            value_fn,
+                            move |inputs: [F; 4]| value_fn::<F>(inputs, coeffs),
                         );
                     }
 
@@ -884,7 +894,7 @@ impl<F: SmallField> Num<F> {
                         coeffs[..3].copy_from_slice(&chunk.map(|el| el.1));
                         inputs[..3].copy_from_slice(&chunk.map(|el| el.0));
 
-                        let value_fn = move |inputs: [F; 4]| {
+                        fn value_fn<F: SmallField>(inputs: [F; 4], coeffs: [F; 4]) -> [F; 1] {
                             let mut result = F::ZERO;
                             for (a, b) in coeffs.into_iter().zip(inputs.into_iter()) {
                                 let mut tmp = a;
@@ -893,12 +903,12 @@ impl<F: SmallField> Num<F> {
                             }
 
                             [result]
-                        };
+                        }
 
                         cs.set_values_with_dependencies(
                             &Place::from_variables(inputs),
                             &[intermediate_var.into()],
-                            value_fn,
+                            move |inputs: [F; 4]| value_fn::<F>(inputs, coeffs),
                         );
                     }
 
@@ -953,17 +963,23 @@ impl<F: SmallField> Num<F> {
         let outputs = cs.alloc_multiple_variables_without_values::<N>();
 
         if <CS::Config as CSConfig>::WitnessConfig::EVALUATE_WITNESS {
-            let value_fn = move |inputs: &[F], output_buffer: &mut DstBuffer<'_, '_, F>| {
+            fn value_fn<F: SmallField, const N: usize, FN: FnOnce(&[F]) -> [F; N]>(
+                inputs: &[F],
+                output_buffer: &mut DstBuffer<'_, '_, F>,
+                witness_closure: FN,
+            ) {
                 debug_assert!(F::CAPACITY_BITS >= 32);
                 let witness = (witness_closure)(inputs);
 
                 output_buffer.extend(witness);
-            };
+            }
 
             cs.set_values_with_dependencies_vararg(
                 dependencies,
                 &Place::from_variables(outputs),
-                value_fn,
+                move |inputs: &[F], output_buffer: &mut DstBuffer<'_, '_, F>| {
+                    value_fn::<F, N, FN>(inputs, output_buffer, witness_closure)
+                },
             );
         }
 

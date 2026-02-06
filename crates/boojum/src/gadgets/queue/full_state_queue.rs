@@ -328,20 +328,31 @@ impl<
             dependencies.extend(Place::from_variables(self.tail.map(|el| el.variable)));
             dependencies.push(self.length.get_variable().into());
 
+            fn value_fn<F, EL, const SW: usize, const N: usize>(
+                ins: &[F],
+                outs: &mut DstBuffer<'_, '_, F>,
+                witness_storage: &FullStateCircuitQueueWitness<F, EL, SW, N>,
+            ) where
+                F: SmallField,
+                EL: CircuitEncodableExt<F, N>,
+                [(); <EL as CSAllocatableExt<F>>::INTERNAL_STRUCT_LEN]:,
+            {
+                let should_pop: bool = WitnessCastable::cast_from_source([ins[0]]);
+                let witness_element = if should_pop {
+                    FullStateCircuitQueueWitness::pop_front(witness_storage).0
+                } else {
+                    EL::placeholder_witness()
+                };
+                EL::set_internal_variables_values(witness_element, outs);
+            }
+
             let witness_storage = Arc::clone(&self.witness);
 
             cs.set_values_with_dependencies_vararg(
                 &dependencies,
                 &Place::from_variables(internal_structure),
                 move |ins: &[F], outs: &mut DstBuffer<'_, '_, F>| {
-                    let should_pop: bool = WitnessCastable::cast_from_source([ins[0]]);
-                    let witness_element = if should_pop {
-                        FullStateCircuitQueueWitness::pop_front(&*witness_storage).0
-                    } else {
-                        EL::placeholder_witness()
-                    };
-
-                    EL::set_internal_variables_values(witness_element, outs);
+                    value_fn::<F, EL, SW, N>(ins, outs, &witness_storage)
                 },
             );
         }
@@ -534,35 +545,46 @@ pub fn simulate_new_tail_for_full_state_queue<
         dependencies.extend(Place::from_variables(tail));
         dependencies.extend(Place::from_variables(element_encoding));
 
+        fn value_fn<
+            F: SmallField,
+            R: AlgebraicRoundFunction<F, AW, SW, CW>,
+            const AW: usize,
+            const SW: usize,
+            const CW: usize,
+            const N: usize,
+        >(
+            ins: &[F],
+            outs: &mut DstBuffer<'_, '_, F>,
+        ) {
+            let should_push: bool = WitnessCastable::cast_from_source([ins[0]]);
+
+            if should_push == false {
+                outs.extend([F::ZERO; SW]);
+                return;
+            }
+
+            let num_rounds = (N + AW - 1) / AW;
+            let mut current_state = ins[1..].as_chunks::<SW>().0.iter().next().copied().unwrap();
+
+            let mut elements_source = ins[(1 + SW)..].iter();
+            for _ in 0..num_rounds {
+                let mut to_absorb = [F::ZERO; AW];
+                for (dst, src) in to_absorb.iter_mut().zip(&mut elements_source) {
+                    *dst = *src;
+                }
+
+                R::absorb_into_state::<AbsorptionModeOverwrite>(&mut current_state, &to_absorb);
+                R::round_function(&mut current_state);
+            }
+
+            // push new tail
+            outs.extend(current_state);
+        }
+
         cs.set_values_with_dependencies_vararg(
             &dependencies,
             &Place::from_variables(result),
-            move |ins: &[F], outs: &mut DstBuffer<'_, '_, F>| {
-                let should_push: bool = WitnessCastable::cast_from_source([ins[0]]);
-
-                if should_push == false {
-                    outs.extend([F::ZERO; SW]);
-                    return;
-                }
-
-                let num_rounds = (N + AW - 1) / AW;
-                let mut current_state =
-                    ins[1..].as_chunks::<SW>().0.iter().next().copied().unwrap();
-
-                let mut elements_source = ins[(1 + SW)..].iter();
-                for _ in 0..num_rounds {
-                    let mut to_absorb = [F::ZERO; AW];
-                    for (dst, src) in to_absorb.iter_mut().zip(&mut elements_source) {
-                        *dst = *src;
-                    }
-
-                    R::absorb_into_state::<AbsorptionModeOverwrite>(&mut current_state, &to_absorb);
-                    R::round_function(&mut current_state);
-                }
-
-                // push new tail
-                outs.extend(current_state);
-            },
+            value_fn::<F, R, AW, SW, CW, N>,
         );
     }
 

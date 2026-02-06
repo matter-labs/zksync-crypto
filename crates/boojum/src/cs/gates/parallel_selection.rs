@@ -187,7 +187,10 @@ impl<const N: usize> ParallelSelectionGate<N> {
         let output_variables = cs.alloc_multiple_variables_without_values::<N>();
 
         if <CS::Config as CSConfig>::WitnessConfig::EVALUATE_WITNESS {
-            let value_fn = move |inputs: &[F], outputs: &mut DstBuffer<'_, '_, F>| {
+            fn value_fn<F: SmallField, const N: usize>(
+                inputs: &[F],
+                outputs: &mut DstBuffer<'_, '_, F>,
+            ) {
                 let selector = inputs[0];
                 use crate::gadgets::traits::castable::WitnessCastable;
                 let selector = <bool as WitnessCastable<F, F>>::cast_from_source(selector);
@@ -197,7 +200,7 @@ impl<const N: usize> ParallelSelectionGate<N> {
 
                     outputs.push(result);
                 }
-            };
+            }
 
             let mut dependencies = Vec::with_capacity(2 * N + 1);
             dependencies.push(selector.into());
@@ -207,7 +210,7 @@ impl<const N: usize> ParallelSelectionGate<N> {
             cs.set_values_with_dependencies_vararg(
                 &dependencies,
                 &Place::from_variables(output_variables),
-                value_fn,
+                value_fn::<F, N>,
             );
         }
 

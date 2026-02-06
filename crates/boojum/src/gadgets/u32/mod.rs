@@ -751,17 +751,23 @@ impl<F: SmallField> UInt32<F> {
         let output = cs.alloc_variable_without_value();
 
         if <CS::Config as CSConfig>::WitnessConfig::EVALUATE_WITNESS {
-            let value_fn = move |inputs: &[F], output_buffer: &mut DstBuffer<'_, '_, F>| {
+            fn value_fn<F: SmallField, FN: FnOnce(&[F]) -> u32>(
+                inputs: &[F],
+                output_buffer: &mut DstBuffer<'_, '_, F>,
+                witness_closure: FN,
+            ) {
                 debug_assert!(F::CAPACITY_BITS >= 32);
                 let witness = (witness_closure)(inputs);
 
                 output_buffer.push(F::from_u64_unchecked(witness as u64));
-            };
+            }
 
             cs.set_values_with_dependencies_vararg(
                 dependencies,
                 &Place::from_variables([output]),
-                value_fn,
+                move |inputs: &[F], output_buffer: &mut DstBuffer<'_, '_, F>| {
+                    value_fn::<F, FN>(inputs, output_buffer, witness_closure)
+                },
             );
         }
 
@@ -777,7 +783,7 @@ impl<F: SmallField> UInt32<F> {
         let outputs = cs.alloc_multiple_variables_without_values::<2>();
 
         if <CS::Config as CSConfig>::WitnessConfig::EVALUATE_WITNESS {
-            let value_fn = move |inputs: [F; 1]| {
+            fn value_fn<F: SmallField>(inputs: [F; 1], constant: u32) -> [F; 2] {
                 let input = inputs[0].as_u64() as u32;
                 let (q, r) = (input / constant, input % constant);
 
@@ -785,14 +791,14 @@ impl<F: SmallField> UInt32<F> {
                     F::from_u64_unchecked(q as u64),
                     F::from_u64_unchecked(r as u64),
                 ]
-            };
+            }
 
             let dependencies = [self.variable.into()];
 
             cs.set_values_with_dependencies(
                 &dependencies,
                 &Place::from_variables(outputs),
-                value_fn,
+                move |inputs: [F; 1]| value_fn::<F>(inputs, constant),
             );
         }
 

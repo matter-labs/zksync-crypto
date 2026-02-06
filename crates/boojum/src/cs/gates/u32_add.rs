@@ -222,7 +222,7 @@ impl U32AddGate {
         let output_variables = cs.alloc_multiple_variables_without_values::<2>();
 
         if <CS::Config as CSConfig>::WitnessConfig::EVALUATE_WITNESS {
-            let value_fn = move |inputs: [F; 3]| {
+            fn value_fn<F: SmallField>(inputs: [F; 3]) -> [F; 2] {
                 let [a, b, carry_in] = inputs;
                 let a = a.as_u64_reduced();
                 let b = b.as_u64_reduced();
@@ -241,14 +241,14 @@ impl U32AddGate {
                 let carry_out = F::from_u64_with_reduction((of || of2) as u64);
 
                 [c, carry_out]
-            };
+            }
 
             let dependencies = Place::from_variables([a, b, carry_in]);
 
             cs.set_values_with_dependencies(
                 &dependencies,
                 &Place::from_variables(output_variables),
-                value_fn,
+                value_fn::<F>,
             );
         }
 
@@ -283,7 +283,7 @@ impl U32AddGate {
         let output_variables = cs.alloc_multiple_variables_without_values::<2>();
 
         if <CS::Config as CSConfig>::WitnessConfig::EVALUATE_WITNESS {
-            let value_fn = move |inputs: [F; 3]| {
+            fn value_fn<F: SmallField>(inputs: [F; 3]) -> [F; 2] {
                 let [a, b, borrow_in] = inputs;
                 let a = a.as_u64_reduced();
                 let b = b.as_u64_reduced();
@@ -300,14 +300,14 @@ impl U32AddGate {
                 let borrow_out = F::from_u64_with_reduction((uf || uf2) as u64);
 
                 [c, borrow_out]
-            };
+            }
 
             let dependencies = Place::from_variables([a, b, borrow_in]);
 
             cs.set_values_with_dependencies(
                 &dependencies,
                 &Place::from_variables(output_variables),
-                value_fn,
+                value_fn::<F>,
             );
         }
 

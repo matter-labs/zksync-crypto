@@ -367,7 +367,7 @@ fn uint32_into_4bit_chunks<F: SmallField, CS: ConstraintSystem<F>>(
     let chunks = cs.alloc_multiple_variables_without_values::<8>();
 
     if <CS::Config as CSConfig>::WitnessConfig::EVALUATE_WITNESS == true {
-        let value_fn = move |input: [F; 1]| {
+        fn value_fn<F: SmallField>(input: [F; 1]) -> [F; 8] {
             let mut input = <u32 as WitnessCastable<F, F>>::cast_from_source(input[0]);
 
             let mut result = [F::ZERO; 8];
@@ -378,10 +378,10 @@ fn uint32_into_4bit_chunks<F: SmallField, CS: ConstraintSystem<F>>(
             }
 
             result
-        };
+        }
 
         let outputs = Place::from_variables(chunks);
-        cs.set_values_with_dependencies(&[input.into()], &outputs, value_fn);
+        cs.set_values_with_dependencies(&[input.into()], &outputs, value_fn::<F>);
     }
 
     let to_u16_constants = [
@@ -442,7 +442,7 @@ fn split_and_rotate<F: SmallField, CS: ConstraintSystem<F>>(
     let rotate_mod = rotation % 4;
 
     if <CS::Config as CSConfig>::WitnessConfig::EVALUATE_WITNESS == true {
-        let value_fn = move |input: [F; 1]| {
+        fn value_fn<F: SmallField>(input: [F; 1], rotate_mod: usize) -> [F; 9] {
             let mut input = <u32 as WitnessCastable<F, F>>::cast_from_source(input[0]);
             let lowest_mask = (1u32 << rotate_mod) - 1;
 
@@ -462,7 +462,7 @@ fn split_and_rotate<F: SmallField, CS: ConstraintSystem<F>>(
             result[8] = F::from_u64_unchecked(highest as u64);
 
             result
-        };
+        }
 
         let outputs = Place::from_variables([
             decompose_low,
@@ -475,7 +475,9 @@ fn split_and_rotate<F: SmallField, CS: ConstraintSystem<F>>(
             aligned_variables[6],
             decompose_high,
         ]);
-        cs.set_values_with_dependencies(&[input.into()], &outputs, value_fn);
+        cs.set_values_with_dependencies(&[input.into()], &outputs, move |input: [F; 1]| {
+            value_fn::<F>(input, rotate_mod)
+        });
     }
 
     // prove original recomposition
@@ -582,7 +584,7 @@ fn merge_4bit_chunk<F: SmallField, CS: ConstraintSystem<F>, const SPLIT_AT: usiz
     let merged = cs.alloc_multiple_variables_without_values::<2>();
 
     if <CS::Config as CSConfig>::WitnessConfig::EVALUATE_WITNESS == true {
-        let value_fn = move |input: [F; 2]| {
+        fn value_fn<F: SmallField, const SPLIT_AT: usize>(input: [F; 2]) -> [F; 2] {
             // we already swapped
             let low = <u8 as WitnessCastable<F, F>>::cast_from_source(input[0]);
             let high = <u8 as WitnessCastable<F, F>>::cast_from_source(input[1]);
@@ -607,11 +609,14 @@ fn merge_4bit_chunk<F: SmallField, CS: ConstraintSystem<F>, const SPLIT_AT: usiz
                 F::from_u64_unchecked(reconstructed as u64),
                 F::from_u64_unchecked(swapped as u64),
             ]
-        };
+        }
 
         let outputs = Place::from_variables(merged);
-
-        cs.set_values_with_dependencies(&[low.into(), high.into()], &outputs, value_fn);
+        cs.set_values_with_dependencies(
+            &[low.into(), high.into()],
+            &outputs,
+            value_fn::<F, SPLIT_AT>,
+        );
     }
 
     let table_id = cs
@@ -705,7 +710,7 @@ fn range_check_36_bits_using_sha256_tables<F: SmallField, CS: ConstraintSystem<F
     const MASK_4_U64: u64 = (1u64 << 4) - 1;
 
     if <CS::Config as CSConfig>::WitnessConfig::EVALUATE_WITNESS == true {
-        let value_fn = move |input: [F; 1]| {
+        fn value_fn<F: SmallField>(input: [F; 1]) -> [F; 9] {
             let mut input = input[0].as_u64_reduced();
 
             let mut result = [F::ZERO; 9];
@@ -718,10 +723,10 @@ fn range_check_36_bits_using_sha256_tables<F: SmallField, CS: ConstraintSystem<F
             debug_assert_eq!(input, 0);
 
             result
-        };
+        }
 
         let outputs = Place::from_variables(chunks);
-        cs.set_values_with_dependencies(&[input.into()], &outputs, value_fn);
+        cs.set_values_with_dependencies(&[input.into()], &outputs, value_fn::<F>);
     }
 
     let to_u16_constants = [
@@ -782,7 +787,7 @@ fn split_36_bits_unchecked<F: SmallField, CS: ConstraintSystem<F>>(
     let chunks = cs.alloc_multiple_variables_without_values::<2>();
 
     if <CS::Config as CSConfig>::WitnessConfig::EVALUATE_WITNESS == true {
-        let value_fn = move |input: [F; 1]| {
+        fn value_fn<F: SmallField>(input: [F; 1]) -> [F; 2] {
             let input = input[0].as_u64_reduced();
 
             let low = input as u32;
@@ -794,10 +799,10 @@ fn split_36_bits_unchecked<F: SmallField, CS: ConstraintSystem<F>>(
                 F::from_u64_unchecked(low as u64),
                 F::from_u64_unchecked(high),
             ]
-        };
+        }
 
         let outputs = Place::from_variables(chunks);
-        cs.set_values_with_dependencies(&[input.into()], &outputs, value_fn);
+        cs.set_values_with_dependencies(&[input.into()], &outputs, value_fn::<F>);
     }
 
     let [low, high] = chunks;

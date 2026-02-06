@@ -724,7 +724,20 @@ where
             all_outputs.extend_from_slice(&new_places);
             all_outputs.extend(Place::from_variables(output_variables));
 
-            let value_fn = move |inputs: &[F], output_buffer: &mut DstBuffer<'_, '_, F>| {
+            fn value_fn<
+                F: SmallField,
+                const AW: usize,
+                const SW: usize,
+                const CW: usize,
+                PAR: PoseidonParameters<F, AW, SW, CW>,
+            >(
+                inputs: &[F],
+                output_buffer: &mut DstBuffer<'_, '_, F>,
+            )
+            where
+                [(); PAR::NUM_FULL_ROUNDS]:,
+                [(); PAR::NUM_PARTIAL_ROUNDS]:,
+            {
                 // we follow the same logic as in the constraints below
 
                 let mut state: [F; SW] = std::array::from_fn(|idx| inputs[idx]);
@@ -882,9 +895,13 @@ where
                 }
 
                 output_buffer.extend(state);
-            };
+            }
 
-            cs.set_values_with_dependencies_vararg(&all_dependencies, &all_outputs, value_fn);
+            cs.set_values_with_dependencies_vararg(
+                &all_dependencies,
+                &all_outputs,
+                value_fn::<F, AW, SW, CW, PAR>,
+            );
         }
 
         if <CS::Config as CSConfig>::SetupConfig::KEEP_SETUP {
@@ -940,7 +957,20 @@ where
             let mut all_outputs = Vec::with_capacity(num_new_variables + num_new_witnesses);
             all_outputs.extend_from_slice(&new_places);
 
-            let value_fn = move |inputs: &[F], output_buffer: &mut DstBuffer<'_, '_, F>| {
+            fn value_fn<
+                F: SmallField,
+                const AW: usize,
+                const SW: usize,
+                const CW: usize,
+                PAR: PoseidonParameters<F, AW, SW, CW>,
+            >(
+                inputs: &[F],
+                output_buffer: &mut DstBuffer<'_, '_, F>,
+            )
+            where
+                [(); PAR::NUM_FULL_ROUNDS]:,
+                [(); PAR::NUM_PARTIAL_ROUNDS]:,
+            {
                 // we follow the same logic as in the constraints below
 
                 let mut state: [F; SW] = std::array::from_fn(|idx| inputs[idx]);
@@ -1096,9 +1126,13 @@ where
                         *dst = tmp;
                     }
                 }
-            };
+            }
 
-            cs.set_values_with_dependencies_vararg(&all_dependencies, &all_outputs, value_fn);
+            cs.set_values_with_dependencies_vararg(
+                &all_dependencies,
+                &all_outputs,
+                value_fn::<F, AW, SW, CW, PAR>,
+            );
         }
 
         if <CS::Config as CSConfig>::SetupConfig::KEEP_SETUP {

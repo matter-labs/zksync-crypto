@@ -832,16 +832,19 @@ impl<
                 let table_id = table_id - INITIAL_LOOKUP_TABLE_ID_VALUE;
                 let table = std::sync::Arc::clone(&self.lookup_tables[table_id as usize]);
 
-                let value_fn = move |inputs: [F; KEYS]| {
+                fn value_fn<F: SmallField, const KEYS: usize, const VALUES: usize>(
+                    inputs: [F; KEYS],
+                    table: &LookupTableWrapper<F>,
+                ) -> [F; VALUES] {
                     let (_, values) = table.lookup_value::<VALUES>(&inputs);
 
                     values.into_inner().expect("length must match")
-                };
+                }
 
                 self.set_values_with_dependencies(
                     &Place::from_variables(*keys),
                     &Place::from_variables(output_variables),
-                    value_fn,
+                    move |inputs| value_fn::<F, KEYS, VALUES>(inputs, &table),
                 );
 
                 output_variables

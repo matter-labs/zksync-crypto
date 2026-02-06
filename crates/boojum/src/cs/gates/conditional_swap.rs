@@ -205,7 +205,10 @@ impl<const N: usize> ConditionalSwapGate<N> {
         let output_variables_b = cs.alloc_multiple_variables_without_values::<N>();
 
         if <CS::Config as CSConfig>::WitnessConfig::EVALUATE_WITNESS {
-            let value_fn = move |inputs: &[F], outputs: &mut DstBuffer<'_, '_, F>| {
+            fn value_fn<F: SmallField, const N: usize>(
+                inputs: &[F],
+                outputs: &mut DstBuffer<'_, '_, F>,
+            ) {
                 let should_swap = inputs[0];
                 let should_swap = <bool as WitnessCastable<F, F>>::cast_from_source(should_swap);
 
@@ -221,7 +224,7 @@ impl<const N: usize> ConditionalSwapGate<N> {
 
                     outputs.push(result);
                 }
-            };
+            }
 
             let mut dependencies = Vec::with_capacity(2 * N + 1);
             dependencies.push(should_swap.into());
@@ -232,7 +235,7 @@ impl<const N: usize> ConditionalSwapGate<N> {
             outputs.extend(Place::from_variables(output_variables_a));
             outputs.extend(Place::from_variables(output_variables_b));
 
-            cs.set_values_with_dependencies_vararg(&dependencies, &outputs, value_fn);
+            cs.set_values_with_dependencies_vararg(&dependencies, &outputs, value_fn::<F, N>);
         }
 
         if <CS::Config as CSConfig>::SetupConfig::KEEP_SETUP {

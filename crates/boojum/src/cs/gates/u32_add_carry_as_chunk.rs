@@ -311,7 +311,7 @@ impl U32AddCarryAsChunkGate {
         let output_variables = cs.alloc_multiple_variables_without_values::<5>();
 
         if <CS::Config as CSConfig>::WitnessConfig::EVALUATE_WITNESS {
-            let value_fn = move |inputs: [F; 8]| {
+            fn value_fn<F: SmallField>(inputs: [F; 8]) -> [F; 5] {
                 let inputs = inputs.map(|el| <u8 as WitnessCastable<F, F>>::cast_from_source(el));
                 let [a0, a1, a2, a3, b0, b1, b2, b3] = inputs;
 
@@ -330,7 +330,7 @@ impl U32AddCarryAsChunkGate {
                     F::from_u64_with_reduction(out3 as u64),
                     F::from_u64_with_reduction(carry as u64),
                 ]
-            };
+            }
 
             let mut dependencies = [Place::placeholder(); 8];
             dependencies[0..4].copy_from_slice(&Place::from_variables(a));
@@ -339,7 +339,7 @@ impl U32AddCarryAsChunkGate {
             cs.set_values_with_dependencies(
                 &dependencies,
                 &Place::from_variables(output_variables),
-                value_fn,
+                value_fn::<F>,
             );
         }
 
