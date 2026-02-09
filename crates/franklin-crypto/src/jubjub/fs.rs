@@ -39,9 +39,9 @@ const NEGATIVE_ONE: Fs = Fs(FsRepr([0xaa9f02ab1d6124de, 0xb3524a6466112932, 0x73
 #[derive(Copy, Clone, PartialEq, Eq, Default, Debug, Hash, ::serde::Serialize, ::serde::Deserialize)]
 pub struct FsRepr(pub [u64; 4]);
 
-impl ::rand::Rand for FsRepr {
+impl bellman::pairing::ff::Rand for FsRepr {
     #[inline(always)]
-    fn rand<R: ::rand::Rng>(rng: &mut R) -> Self {
+    fn rand<R: ::rand::Rng + ?Sized>(rng: &mut R) -> Self {
         FsRepr(rng.gen())
     }
 }
@@ -235,10 +235,10 @@ impl ::std::fmt::Display for Fs {
     }
 }
 
-impl ::rand::Rand for Fs {
-    fn rand<R: ::rand::Rng>(rng: &mut R) -> Self {
+impl bellman::pairing::ff::Rand for Fs {
+    fn rand<R: ::rand::Rng + ?Sized>(rng: &mut R) -> Self {
         loop {
-            let mut tmp = Fs(FsRepr::rand(rng));
+            let mut tmp = Fs(<FsRepr as bellman::pairing::ff::Rand>::rand(rng));
 
             // Mask away the unused bits at the beginning.
             tmp.0.as_mut()[3] &= 0xffffffffffffffff >> REPR_SHAVE_BITS;
@@ -648,7 +648,7 @@ fn test_neg_one() {
 }
 
 #[cfg(test)]
-use rand::{Rand, SeedableRng, XorShiftRng};
+use crate::rand::{Rand, SeedableRng, XorShiftRng};
 
 #[test]
 fn test_fs_repr_ordering() {

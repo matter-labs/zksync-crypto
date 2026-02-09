@@ -389,7 +389,7 @@ mod test_with_bls12_381 {
 
     use crate::pairing::bls12_381::{Bls12, Fr};
     use crate::pairing::ff::Field;
-    use rand::{thread_rng, Rand};
+    use crate::rand::{thread_rng, Rand};
 
     #[test]
     #[ignore] // TODO(ignored-test): Failure.

@@ -414,7 +414,7 @@ where
 
 // we are particularly interested in three curves: secp256k1, bn256 and bls12-281
 // unfortunately, only bls12-381 has a cofactor
-impl<'a, E: Engine, G: GenericCurveAffine + rand::Rand> AffinePoint<'a, E, G>
+impl<'a, E: Engine, G: GenericCurveAffine + crate::rand::Rand> AffinePoint<'a, E, G>
 where
     <G as GenericCurveAffine>::Base: PrimeField,
 {
@@ -530,10 +530,10 @@ where
 mod test {
     use super::*;
     use crate::bellman::pairing::bn256::{Bn256, Fq, Fr, G1Affine};
+    use crate::rand::{Rng, SeedableRng, XorShiftRng};
     use bellman::plonk::better_better_cs::cs::*;
     use bellman::plonk::better_better_cs::gates::{self, selector_optimized_with_d_next::SelectorOptimizedWidth4MainGateWithDNext};
     use plonk::circuit::Width4WithCustomGates;
-    use rand::{Rng, SeedableRng, XorShiftRng};
 
     #[test]
     fn test_arithmetic_for_bn256_curve() {
@@ -541,7 +541,7 @@ mod test {
         inscribe_default_bitop_range_table(&mut cs).unwrap();
         let params = RnsParameters::<Bn256, Fq>::new_optimal(&mut cs, 80usize);
         let scalar_params = RnsParameters::<Bn256, Fr>::new_optimal(&mut cs, 80usize);
-        let mut rng = rand::thread_rng();
+        let mut rng = crate::rand::thread_rng();
 
         let a: G1Affine = rng.gen();
         let scalar: Fr = rng.gen();
@@ -576,7 +576,7 @@ mod test {
         inscribe_default_bitop_range_table(&mut cs).unwrap();
         let params = RnsParameters::<Bn256, SecpFq>::new_optimal(&mut cs, 64usize);
         let scalar_params = RnsParameters::<Bn256, SecpFr>::new_optimal(&mut cs, 80usize);
-        let mut rng = rand::thread_rng();
+        let mut rng = crate::rand::thread_rng();
 
         let a: SecpG1 = rng.gen();
         let scalar: SecpFr = rng.gen();

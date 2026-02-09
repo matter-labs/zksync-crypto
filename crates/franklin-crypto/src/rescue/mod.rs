@@ -3,7 +3,7 @@ use bellman::pairing::ff::{Field, PrimeField, PrimeFieldRepr};
 use bellman::pairing::Engine;
 use std::marker::PhantomData;
 
-use rand::{Rand, Rng};
+use crate::rand::{Rand, Rng};
 
 pub mod bn256;
 //pub mod rescue_transcript;
@@ -251,8 +251,8 @@ fn scalar_product<E: Engine>(input: &[E::Fr], by: &[E::Fr]) -> E::Fr {
 // an element with some zero MSBs and instead just sample and retry
 fn generate_mds_matrix<E: RescueEngine, R: Rng>(t: u32, rng: &mut R) -> Vec<E::Fr> {
     loop {
-        let x: Vec<E::Fr> = (0..t).map(|_| rng.gen()).collect();
-        let y: Vec<E::Fr> = (0..t).map(|_| rng.gen()).collect();
+        let x: Vec<E::Fr> = (0..t).map(|_| Rand::rand(rng)).collect();
+        let y: Vec<E::Fr> = (0..t).map(|_| Rand::rand(rng)).collect();
 
         let mut invalid = false;
 

@@ -1,9 +1,9 @@
 use super::edwards::*;
 
+use crate::rand::{Rand, Rng};
 use bellman::pairing::bn256::{Bn256, Fr};
 use bellman::pairing::ff::BitIterator;
 use bellman::{Engine, Field, PrimeField, PrimeFieldRepr, ScalarEngine, SqrtField};
-use rand::{Rand, Rng};
 use std::marker::PhantomData;
 
 #[derive(Clone, Debug, Copy)]
@@ -71,7 +71,7 @@ impl AltBabyJubjubParams {
 mod tests {
     use super::*;
     use crate::alt_babyjubjub::fs::Fs;
-    use rand::{SeedableRng, XorShiftRng};
+    use crate::rand::{SeedableRng, XorShiftRng};
     use std::time::Instant;
 
     #[test]

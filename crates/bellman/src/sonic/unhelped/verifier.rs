@@ -1,6 +1,6 @@
 use crate::pairing::ff::Field;
 use crate::pairing::{CurveProjective, Engine};
-use rand::{Rand, Rng};
+use crate::rand::{Rand, Rng};
 use std::marker::PhantomData;
 
 use crate::sonic::helped::batch::Batch;

@@ -1,11 +1,11 @@
 use std::convert::TryInto;
 
+use crate::rand::{chacha::ChaChaRng, Rng, SeedableRng};
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 use franklin_crypto::bellman::pairing::ff::{Field, PrimeField, PrimeFieldRepr};
 use franklin_crypto::bellman::pairing::Engine;
 use franklin_crypto::constants;
 use franklin_crypto::group_hash::{BlakeHasher, GroupHasher};
-use rand::{chacha::ChaChaRng, Rng, SeedableRng};
 
 use crate::common::utils::construct_mds_matrix;
 
