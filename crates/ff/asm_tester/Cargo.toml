@@ -8,7 +8,8 @@ edition = "2018"
 
 [dependencies]
 ff = {package = "ff_ce", path = "../", features = ["asm_derive"]}
-rand = "0.4"
+rand = "0.8"
+rand_xorshift = "0.3"
 serde = "1"
 
 [dev-dependencies]

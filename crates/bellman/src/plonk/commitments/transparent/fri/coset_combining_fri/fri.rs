@@ -381,7 +381,7 @@ mod test {
         use crate::plonk::transparent_engine::proth_engine::Fr;
         use crate::plonk::transparent_engine::PartialTwoBitReductionField;
         use crate::worker::*;
-        use rand::{Rand, Rng, SeedableRng, XorShiftRng};
+        use crate::rand::{Rand, Rng, SeedableRng, XorShiftRng};
         use std::time::Instant;
 
         const SIZE: usize = 1024;
@@ -424,7 +424,7 @@ mod test {
         use crate::plonk::transparent_engine::proth_engine::Fr;
         use crate::plonk::transparent_engine::PartialTwoBitReductionField;
         use crate::worker::*;
-        use rand::{Rand, Rng, SeedableRng, XorShiftRng};
+        use crate::rand::{Rand, Rng, SeedableRng, XorShiftRng};
         use std::time::Instant;
 
         const SIZE: usize = 1024;

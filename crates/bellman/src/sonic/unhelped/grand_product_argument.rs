@@ -683,7 +683,8 @@ impl<E: Engine> GrandProductArgument<E> {
 fn test_grand_product_argument() {
     use crate::pairing::bls12_381::{Bls12, Fr, G1Affine, G1};
     use crate::sonic::srs::SRS;
-    use rand::{Rand, Rng, SeedableRng, XorShiftRng};
+    use crate::rand::seq::SliceRandom;
+    use crate::rand::{Rand, Rng, SeedableRng, XorShiftRng};
 
     let srs_x = Fr::from_str("23923").unwrap();
     let srs_alpha = Fr::from_str("23728792").unwrap();
@@ -694,7 +695,7 @@ fn test_grand_product_argument() {
     let rng = &mut XorShiftRng::from_seed([0x3dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
     let coeffs = (1..=n).map(|_| Fr::rand(rng)).collect::<Vec<_>>();
     let mut permutation = coeffs.clone();
-    rng.shuffle(&mut permutation);
+    permutation.shuffle(rng);
 
     let coeffs_product = coeffs.iter().fold(Fr::one(), |mut sum, x| {
         sum.mul_assign(&x);

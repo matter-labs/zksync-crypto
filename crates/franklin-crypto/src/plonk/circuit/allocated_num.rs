@@ -2474,7 +2474,7 @@ mod test {
     use bellman::pairing::ff::PrimeField;
     use bellman::plonk::better_better_cs::cs::PlonkCsWidth3Params;
     use bellman::plonk::better_better_cs::gates::naive_main_gate::NaiveMainGate;
-    use rand::{Rng, SeedableRng, XorShiftRng};
+    use crate::rand::{Rng, SeedableRng, XorShiftRng};
 
     #[test]
     fn test_multiplication() {

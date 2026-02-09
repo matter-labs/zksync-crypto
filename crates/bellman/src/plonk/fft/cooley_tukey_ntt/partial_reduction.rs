@@ -450,7 +450,7 @@ mod test {
         use crate::plonk::polynomials::*;
         use crate::plonk::transparent_engine::proth::Fr;
         use crate::worker::*;
-        use rand::{Rand, Rng, SeedableRng, XorShiftRng};
+        use crate::rand::{Rand, Rng, SeedableRng, XorShiftRng};
         use std::time::Instant;
 
         let poly_sizes = if cfg!(debug_assertions) { vec![10_000] } else { vec![1_000_000, 2_000_000, 4_000_000, 8_000_000] };
@@ -588,7 +588,7 @@ mod test {
         use crate::plonk::polynomials::*;
         use crate::plonk::transparent_engine::proth::Fr;
         use crate::worker::*;
-        use rand::{Rand, Rng, SeedableRng, XorShiftRng};
+        use crate::rand::{Rand, Rng, SeedableRng, XorShiftRng};
         use std::time::Instant;
 
         let poly_sizes = if cfg!(debug_assertions) {

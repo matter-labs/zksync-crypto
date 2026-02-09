@@ -524,7 +524,7 @@ mod test {
     use crate::rescue;
     use bellman::pairing::bn256::{Bn256, Fr};
     use bellman::pairing::ff::PrimeField;
-    use rand::{Rng, SeedableRng, XorShiftRng};
+    use crate::rand::{Rng, SeedableRng, XorShiftRng};
 
     use crate::plonk::circuit::Width4WithCustomGates;
 

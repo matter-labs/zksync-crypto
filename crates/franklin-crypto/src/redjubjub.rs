@@ -2,7 +2,7 @@
 //! See section 5.4.6 of the Sapling protocol specification.
 
 use bellman::pairing::ff::{Field, PrimeField, PrimeFieldRepr};
-use rand::{Rand, Rng};
+use crate::rand::{Rand, Rng};
 use std::io::{self, Read, Write};
 
 use jubjub::{edwards::Point, FixedGenerators, JubjubEngine, JubjubParams, Unknown};
@@ -185,7 +185,7 @@ pub fn batch_verify<'a, E: JubjubEngine, R: Rng>(rng: &mut R, batch: &[BatchEntr
 #[cfg(test)]
 mod tests {
     use bellman::pairing::bls12_381::Bls12;
-    use rand::thread_rng;
+    use crate::rand::thread_rng;
 
     use jubjub::{edwards, fs::Fs, JubjubBls12};
 
@@ -322,7 +322,7 @@ mod tests {
 #[cfg(test)]
 mod baby_tests {
     use bellman::pairing::bn256::Bn256;
-    use rand::thread_rng;
+    use crate::rand::thread_rng;
 
     use alt_babyjubjub::{edwards, fs::Fs, AltJubjubBn256, FixedGenerators};
 

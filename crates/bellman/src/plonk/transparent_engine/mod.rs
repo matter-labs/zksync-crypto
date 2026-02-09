@@ -65,7 +65,7 @@ mod test {
         use crate::plonk::commitments::transparent::utils::*;
         use crate::plonk::polynomials::*;
         use crate::worker::*;
-        use rand::{Rand, Rng, SeedableRng, XorShiftRng};
+        use crate::rand::{Rand, Rng, SeedableRng, XorShiftRng};
         use std::time::Instant;
 
         let poly_sizes = vec![1_000_000, 2_000_000, 4_000_000];
@@ -140,7 +140,7 @@ mod test {
         use crate::plonk::fft::with_precomputation::FftPrecomputations;
         use crate::plonk::polynomials::*;
         use crate::worker::*;
-        use rand::{Rand, Rng, SeedableRng, XorShiftRng};
+        use crate::rand::{Rand, Rng, SeedableRng, XorShiftRng};
         use std::time::Instant;
         let poly_sizes = vec![32_000_000, 64_000_000];
 
@@ -188,7 +188,7 @@ mod test {
         use crate::plonk::fft::with_precomputation::FftPrecomputations;
         use crate::plonk::polynomials::*;
         use crate::worker::*;
-        use rand::{Rand, Rng, SeedableRng, XorShiftRng};
+        use crate::rand::{Rand, Rng, SeedableRng, XorShiftRng};
         use std::time::Instant;
 
         let poly_sizes = vec![1_000_000, 2_000_000, 4_000_000];
@@ -233,7 +233,7 @@ mod test {
         use crate::plonk::fft::cooley_tukey_ntt::{BitReversedOmegas, CTPrecomputations};
         use crate::plonk::polynomials::*;
         use crate::worker::*;
-        use rand::{Rand, Rng, SeedableRng, XorShiftRng};
+        use crate::rand::{Rand, Rng, SeedableRng, XorShiftRng};
         use std::time::Instant;
 
         let poly_sizes = vec![1_000_000, 2_000_000, 4_000_000];
@@ -278,7 +278,7 @@ mod test {
 
     // #[test]
     // fn test_bench_noalloc_bit_reversed_ploth_lde() {
-    //     use rand::{XorShiftRng, SeedableRng, Rand, Rng};
+    //     use crate::rand::{XorShiftRng, SeedableRng, Rand, Rng};
     //     use super::proth::Fr as Fr;
     //     use crate::plonk::polynomials::*;
     //     use std::time::Instant;
@@ -364,7 +364,7 @@ mod test {
         use crate::plonk::fft::cooley_tukey_ntt::{BitReversedOmegas, CTPrecomputations};
         use crate::plonk::polynomials::*;
         use crate::worker::*;
-        use rand::{Rand, Rng, SeedableRng, XorShiftRng};
+        use crate::rand::{Rand, Rng, SeedableRng, XorShiftRng};
         use std::time::Instant;
 
         let poly_sizes = vec![32, 64, 1_000_000, 2_000_000, 4_000_000];
@@ -416,7 +416,7 @@ mod test {
         use crate::plonk::fft::fft::best_fft;
         use crate::plonk::polynomials::*;
         use crate::worker::*;
-        use rand::{Rand, Rng, SeedableRng, XorShiftRng};
+        use crate::rand::{Rand, Rng, SeedableRng, XorShiftRng};
         use std::time::Instant;
 
         // let poly_sizes = vec![1_000_000, 2_000_000];

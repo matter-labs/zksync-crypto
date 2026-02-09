@@ -385,7 +385,7 @@ mod test {
     use super::*;
     use franklin_crypto::bellman::bn256::{Bn256, Fr};
     use franklin_crypto::bellman::PrimeField;
-    use rand::Rand;
+    use crate::rand::Rand;
     #[test]
     fn test_matrix_inverese() {
         let one = Fr::one();

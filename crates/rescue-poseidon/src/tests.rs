@@ -11,7 +11,7 @@ use franklin_crypto::{
 };
 use poseidon_hash::StatefulSponge as PoseidonSponge;
 use poseidon_hash::{bn256::Bn256PoseidonParams, PoseidonHashParams};
-use rand::{Rand, SeedableRng, XorShiftRng};
+use crate::rand::{Rand, SeedableRng, XorShiftRng};
 use std::convert::TryInto;
 
 pub(crate) fn init_rng() -> XorShiftRng {

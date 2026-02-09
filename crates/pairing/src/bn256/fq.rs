@@ -200,7 +200,7 @@ pub const FROBENIUS_COEFF_FQ12_C1: [Fq2; 12] = [
 pub const NEGATIVE_ONE: Fq = Fq(FqRepr([0x68c3488912edefaa, 0x8d087f6872aabf4f, 0x51e1a24709081231, 0x2259d6b14729c0fa]));
 
 #[cfg(test)]
-use rand::{Rand, SeedableRng, XorShiftRng};
+use crate::rand::{Rand, SeedableRng, XorShiftRng};
 
 #[test]
 fn test_neg_one() {

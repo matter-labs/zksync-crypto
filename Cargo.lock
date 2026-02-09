@@ -807,7 +807,8 @@ dependencies = [
  "franklin-crypto",
  "num-bigint 0.4.6",
  "num-traits",
- "rand 0.4.6",
+ "rand 0.8.5",
+ "rand_xorshift",
  "serde",
  "serde_derive",
  "serde_json",
@@ -853,7 +854,9 @@ dependencies = [
  "num-derive",
  "num-integer",
  "num-traits",
- "rand 0.4.6",
+ "rand 0.8.5",
+ "rand_chacha 0.3.1",
+ "rand_xorshift",
  "serde",
  "sha2 0.9.9",
  "sha3",
@@ -1745,6 +1748,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "rand_xorshift"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d25bf25ec5ae4a3f1b92f929810509a2f53d7dca2f50b794ff57e3face536c8f"
+dependencies = [
+ "rand_core 0.6.4",
+]
+
+[[package]]
 name = "rayon"
 version = "1.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1822,7 +1834,9 @@ dependencies = [
  "num-iter",
  "num-traits",
  "poseidon_hash",
- "rand 0.4.6",
+ "rand 0.8.5",
+ "rand_chacha 0.3.1",
+ "rand_xorshift",
  "rayon",
  "serde",
  "sha3",
@@ -2003,7 +2017,7 @@ name = "snark_wrapper"
 version = "0.32.7"
 dependencies = [
  "derivative",
- "rand 0.4.6",
+ "rand 0.8.5",
  "rescue_poseidon",
  "serde",
 ]
@@ -2583,7 +2597,9 @@ dependencies = [
  "lazy_static",
  "num_cpus",
  "prefetch",
- "rand 0.4.6",
+ "rand 0.8.5",
+ "rand_chacha 0.3.1",
+ "rand_xorshift",
  "serde",
  "smallvec",
  "tiny-keccak 1.5.0",
@@ -2607,7 +2623,8 @@ version = "0.32.7"
 dependencies = [
  "byteorder",
  "hex",
- "rand 0.4.6",
+ "rand 0.8.5",
+ "rand_xorshift",
  "serde",
  "zksync_ff_derive",
 ]
@@ -2631,7 +2648,8 @@ version = "0.32.7"
 dependencies = [
  "byteorder",
  "cfg-if",
- "rand 0.4.6",
+ "rand 0.8.5",
+ "rand_xorshift",
  "serde",
  "zksync_ff",
 ]

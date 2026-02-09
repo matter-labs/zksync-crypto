@@ -802,13 +802,13 @@ mod test {
     #[ignore] // TODO(ignored-test): Timeout.
     fn test_new_multiexp_with_bls12() {
         use crate::pairing::bls12_381::Bls12;
-        use rand::{self, Rand};
+        use crate::rand::{self, Rand};
 
         use self::futures::executor::block_on;
 
         const SAMPLES: usize = 1 << 14;
 
-        let rng = &mut rand::thread_rng();
+        let rng = &mut crate::rand::thread_rng();
         let v = Arc::new((0..SAMPLES).map(|_| <Bls12 as ScalarEngine>::Fr::rand(rng).into_repr()).collect::<Vec<_>>());
         let g = Arc::new((0..SAMPLES).map(|_| <Bls12 as Engine>::G1::rand(rng).into_affine()).collect::<Vec<_>>());
 
@@ -825,13 +825,13 @@ mod test {
     #[ignore] // TODO(ignored-test): Timeout.
     fn test_valid_bn254_multiexp() {
         use crate::pairing::bn256::Bn256;
-        use rand::{self, Rand};
+        use crate::rand::{self, Rand};
 
         const SAMPLES: usize = 1 << 22;
 
         let pool = Worker::new();
 
-        let rng = &mut rand::thread_rng();
+        let rng = &mut crate::rand::thread_rng();
         let v = (0..SAMPLES).map(|_| <Bn256 as ScalarEngine>::Fr::rand(rng).into_repr()).collect::<Vec<_>>();
         let g = (0..SAMPLES).map(|_| <Bn256 as Engine>::G1::rand(rng).into_affine()).collect::<Vec<_>>();
         let dense = dense_multiexp(&pool, &g, &v).unwrap();
@@ -859,12 +859,12 @@ mod test {
     fn test_new_multexp_speed_with_bn256() {
         use crate::pairing::bn256::Bn256;
         use num_cpus;
-        use rand::{self, Rand};
+        use crate::rand::{self, Rand};
 
         let cpus = num_cpus::get();
         const SAMPLES: usize = 1 << 22;
 
-        let rng = &mut rand::thread_rng();
+        let rng = &mut crate::rand::thread_rng();
         let v = Arc::new((0..SAMPLES).map(|_| <Bn256 as ScalarEngine>::Fr::rand(rng).into_repr()).collect::<Vec<_>>());
         let g = Arc::new((0..SAMPLES).map(|_| <Bn256 as Engine>::G1::rand(rng).into_affine()).collect::<Vec<_>>());
 
@@ -929,10 +929,10 @@ mod test {
     #[ignore] // TODO(ignored-test): Timeout.
     fn bench_bls_addition() {
         use crate::pairing::bls12_381::Bls12;
-        use rand::{self, Rand};
+        use crate::rand::{self, Rand};
 
         let size = 100000u32;
-        let rng = &mut rand::thread_rng();
+        let rng = &mut crate::rand::thread_rng();
 
         let A = (0..size).map(|_| <Bls12 as Engine>::G1::rand(rng)).collect::<Vec<_>>();
         let B = (0..size).map(|_| <Bls12 as Engine>::G1::rand(rng)).collect::<Vec<_>>();
@@ -957,10 +957,10 @@ mod test {
     #[ignore] // TODO(ignored-test): Timeout.
     fn bench_bls_doubling() {
         use crate::pairing::bls12_381::Bls12;
-        use rand::{self, Rand};
+        use crate::rand::{self, Rand};
 
         let size = 100000u32;
-        let rng = &mut rand::thread_rng();
+        let rng = &mut crate::rand::thread_rng();
 
         let A = (0..size).map(|_| <Bls12 as Engine>::G1::rand(rng)).collect::<Vec<_>>();
 
@@ -984,10 +984,10 @@ mod test {
     #[ignore] // TODO(ignored-test): Timeout.
     fn bench_Pippenger_with_small_chunk() {
         use crate::pairing::bls12_381::Bls12;
-        use rand::{self, Rand};
+        use crate::rand::{self, Rand};
 
         let size = 1000000u32;
-        let rng = &mut rand::thread_rng();
+        let rng = &mut crate::rand::thread_rng();
 
         let v = Arc::new((0..size).map(|_| <Bls12 as ScalarEngine>::Fr::rand(rng).into_repr()).collect::<Vec<_>>());
         let g = Arc::new((0..size).map(|_| <Bls12 as Engine>::G1::rand(rng).into_affine()).collect::<Vec<_>>());

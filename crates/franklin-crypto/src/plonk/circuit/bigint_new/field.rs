@@ -1804,7 +1804,7 @@ mod test {
     use bellman::plonk::better_better_cs::cs::*;
     use bellman::plonk::better_better_cs::gates::{self, selector_optimized_with_d_next::SelectorOptimizedWidth4MainGateWithDNext};
     use plonk::circuit::Width4WithCustomGates;
-    use rand::{Rng, SeedableRng, XorShiftRng};
+    use crate::rand::{Rng, SeedableRng, XorShiftRng};
 
     // the reason for this test is twofold:
     // first we would like to measure the efficiency of RNS-approach (in terms of number of resulting constraints),
@@ -1816,7 +1816,7 @@ mod test {
         let mut cs = TrivialAssembly::<Bn256, Width4WithCustomGates, SelectorOptimizedWidth4MainGateWithDNext>::new();
         inscribe_default_bitop_range_table(&mut cs).unwrap();
         let params = RnsParameters::<Bn256, Fq>::new_optimal(&mut cs, 80usize);
-        let mut rng = rand::thread_rng();
+        let mut rng = crate::rand::thread_rng();
 
         let a_f: Fq = rng.gen();
         let b_f: Fq = rng.gen();
@@ -1964,7 +1964,7 @@ mod test {
 
             fn synthesize<CS: ConstraintSystem<E>>(&self, cs: &mut CS) -> Result<(), SynthesisError> {
                 let params = RnsParameters::<E, E::Fq>::new_optimal(cs, 64usize);
-                let mut rng = rand::thread_rng();
+                let mut rng = crate::rand::thread_rng();
 
                 let a: E::Fq = rng.gen();
                 let b: E::Fq = rng.gen();
@@ -2031,7 +2031,7 @@ mod test {
         let mut cs = TrivialAssembly::<Bn256, Width4WithCustomGates, SelectorOptimizedWidth4MainGateWithDNext>::new();
         inscribe_default_bitop_range_table(&mut cs).unwrap();
         let params = RnsParameters::<Bn256, Fq>::new_optimal(&mut cs, 80usize);
-        let mut rng = rand::thread_rng();
+        let mut rng = crate::rand::thread_rng();
 
         let a: Fq = rng.gen();
         let mut a = FieldElement::alloc(&mut cs, Some(a), &params).unwrap();

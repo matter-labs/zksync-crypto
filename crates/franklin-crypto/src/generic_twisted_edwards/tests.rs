@@ -7,7 +7,7 @@ mod test {
     use crate::generic_twisted_edwards::bn256::*;
     use crate::generic_twisted_edwards::edwards::*;
     use bellman::ScalarEngine;
-    use rand::{Rand, Rng, SeedableRng, XorShiftRng};
+    use crate::rand::{Rand, Rng, SeedableRng, XorShiftRng};
 
     #[test]
     fn test_new_edwards_addition() {

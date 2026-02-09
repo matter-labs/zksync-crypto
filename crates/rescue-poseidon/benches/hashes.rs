@@ -10,7 +10,7 @@ use franklin_crypto::{
     plonk::circuit::Width4WithCustomGates,
 };
 
-use rand::{Rand, SeedableRng, XorShiftRng};
+use rescue_poseidon::rand::{Rand, SeedableRng, XorShiftRng};
 use rescue_poseidon::generic_round_function;
 use rescue_poseidon::{PoseidonParams, RescueParams, RescuePrimeParams};
 

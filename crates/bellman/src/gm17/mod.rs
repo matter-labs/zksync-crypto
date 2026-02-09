@@ -438,7 +438,7 @@ impl<E: Engine> PartialEq for Parameters<E> {
 //     use super::*;
 //     use {Circuit, SynthesisError, ConstraintSystem};
 
-//     use rand::{Rand, thread_rng};
+//     use crate::rand::{Rand, thread_rng};
 //     use crate::pairing::ff::{Field};
 //     use crate::pairing::bls12_381::{Bls12, Fr};
 

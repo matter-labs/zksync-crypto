@@ -1,4 +1,5 @@
-use rand::Rng;
+use crate::rand::Rng;
+use crate::rand::seq::SliceRandom;
 
 const EMPTY_STATE: usize = std::usize::MAX;
 
@@ -172,7 +173,7 @@ impl IntegerPermutation {
 
     pub fn make_permutation<R: Rng>(&mut self, rng: &mut R) {
         let mut copy = self.elements.clone();
-        rng.shuffle(&mut copy);
+        copy.shuffle(rng);
         self.elements = copy;
     }
 
@@ -600,7 +601,7 @@ impl AsWaksmanRoute {
 
 #[test]
 fn test_aswaksman() {
-    use rand::{thread_rng, Rand};
+    use crate::rand::{thread_rng, Rand};
     let size = 3;
 
     let mut permutation = IntegerPermutation::new(size);
@@ -619,7 +620,7 @@ fn test_aswaksman() {
 
 #[test]
 fn test_back_and_forward_pass() {
-    use rand::{thread_rng, Rand};
+    use crate::rand::{thread_rng, Rand};
     let rng = &mut thread_rng();
     for size in 3..4 {
         let mut permutation = IntegerPermutation::new(size);
@@ -639,7 +640,7 @@ fn test_back_and_forward_pass() {
 
 #[test]
 fn test_forward_pass() {
-    use rand::{thread_rng, Rand};
+    use crate::rand::{thread_rng, Rand};
     let rng = &mut thread_rng();
     for size in 3..9 {
         let mut permutation = IntegerPermutation::new(size);
@@ -662,7 +663,7 @@ fn test_forward_pass() {
 
 #[test]
 fn test_trivial_permutations() {
-    use rand::{thread_rng, Rand};
+    use crate::rand::{thread_rng, Rand};
     let rng = &mut thread_rng();
     let _topology = AsWaksmanTopology::new(3);
     // println!("Topology = {:?}", topology.topology);
@@ -677,7 +678,7 @@ fn test_trivial_permutations() {
 
 #[test]
 fn test_routing_for_permutation() {
-    use rand::{thread_rng, Rand};
+    use crate::rand::{thread_rng, Rand};
     let rng = &mut thread_rng();
     let _topology = AsWaksmanTopology::new(3);
     // println!("Topology = {:?}", topology.topology);
@@ -701,7 +702,7 @@ fn test_routing_for_permutation() {
 #[test]
 #[ignore] // TODO(ignored-test): Timeout.
 fn test_uniformity() {
-    use rand::{thread_rng, Rand};
+    use crate::rand::{thread_rng, Rand};
     let rng = &mut thread_rng();
     let size = 64;
     let mut hists: Vec<std::collections::HashMap<usize, f64>> = vec![std::collections::HashMap::new(); size];

@@ -129,7 +129,7 @@ impl<E: Engine> WellformednessArgument<E> {
 fn test_argument() {
     use crate::pairing::bls12_381::{Bls12, Fr, G1Affine, G1};
     use crate::sonic::srs::SRS;
-    use rand::{Rand, Rng, SeedableRng, XorShiftRng};
+    use crate::rand::{Rand, Rng, SeedableRng, XorShiftRng};
 
     let srs_x = Fr::from_str("23923").unwrap();
     let srs_alpha = Fr::from_str("23728792").unwrap();
@@ -156,7 +156,7 @@ fn test_argument() {
 fn test_argument_soundness() {
     use crate::pairing::bls12_381::{Bls12, Fr, G1Affine, G1};
     use crate::sonic::srs::SRS;
-    use rand::{Rand, Rng, SeedableRng, XorShiftRng};
+    use crate::rand::{Rand, Rng, SeedableRng, XorShiftRng};
 
     let srs_x = Fr::from_str("23923").unwrap();
     let srs_alpha = Fr::from_str("23728792").unwrap();

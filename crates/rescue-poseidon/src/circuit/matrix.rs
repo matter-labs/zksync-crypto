@@ -45,7 +45,7 @@ mod test {
         bellman::pairing::bn256::{Bn256, Fr},
         plonk::circuit::{allocated_num::AllocatedNum, linear_combination::LinearCombination},
     };
-    use rand::Rand;
+    use crate::rand::Rand;
     use std::convert::TryInto;
 
     #[test]

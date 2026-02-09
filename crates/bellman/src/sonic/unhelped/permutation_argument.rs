@@ -401,7 +401,7 @@ impl<E: Engine> PermutationArgument<E> {
         let proof = grand_product_argument.make_argument(&a_zy, &grand_product_challenges, y, z, &srs);
 
         {
-            use rand::{Rand, Rng, SeedableRng, XorShiftRng};
+            use crate::rand::{Rand, Rng, SeedableRng, XorShiftRng};
             let rng = &mut XorShiftRng::from_seed([0x3dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
             let randomness = (0..j).map(|_| E::Fr::rand(rng)).collect::<Vec<_>>();
 
@@ -692,7 +692,8 @@ impl<E: Engine> PermutationArgument<E> {
 fn test_permutation_argument() {
     use crate::pairing::bls12_381::{Bls12, Fr, G1Affine, G1};
     use crate::sonic::srs::SRS;
-    use rand::{Rand, Rng, SeedableRng, XorShiftRng};
+    use crate::rand::seq::SliceRandom;
+    use crate::rand::{Rand, Rng, SeedableRng, XorShiftRng};
 
     let srs_x = Fr::from_str("23923").unwrap();
     let srs_alpha = Fr::from_str("23728792").unwrap();
@@ -704,7 +705,7 @@ fn test_permutation_argument() {
     let mut coeffs = (0..n).map(|_| Fr::rand(rng)).collect::<Vec<_>>();
     coeffs[2] = Fr::zero(); // edge case
     let mut permutation = (1..=n).collect::<Vec<_>>();
-    rng.shuffle(&mut permutation);
+    permutation.shuffle(rng);
 
     let coeffs = vec![coeffs];
     let permutations = vec![permutation];
