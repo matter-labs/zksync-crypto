@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.32.8](https://github.com/matter-labs/zksync-crypto/compare/v0.32.7...v0.32.8) (2026-02-09)
+
+
+### Features
+
+* Migrate from rand 0.4 to rand 0.8 ([#122](https://github.com/matter-labs/zksync-crypto/issues/122)) ([b773843](https://github.com/matter-labs/zksync-crypto/commit/b773843a757b16973c1e2276cad671297aaa5176))
+
+
+### Performance Improvements
+
+* A code change that improves performance ([#121](https://github.com/matter-labs/zksync-crypto/issues/121)) ([9932026](https://github.com/matter-labs/zksync-crypto/commit/99320260e6cca5e6fe1d0cca2319f34839f701be))
+
 ## [0.32.7](https://github.com/matter-labs/zksync-crypto/compare/v0.32.6...v0.32.7) (2026-01-20)
 
 
