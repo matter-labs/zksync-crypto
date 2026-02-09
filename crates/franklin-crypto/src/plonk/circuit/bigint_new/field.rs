@@ -1801,10 +1801,10 @@ fn construct_skewed_bit_term<E: Engine>(c: &Boolean, two: &E::Fr) -> Term<E> {
 mod test {
     use super::*;
     use crate::bellman::pairing::bn256::{Bn256, Fq, Fr};
+    use crate::rand::{Rng, SeedableRng, XorShiftRng};
     use bellman::plonk::better_better_cs::cs::*;
     use bellman::plonk::better_better_cs::gates::{self, selector_optimized_with_d_next::SelectorOptimizedWidth4MainGateWithDNext};
     use plonk::circuit::Width4WithCustomGates;
-    use crate::rand::{Rng, SeedableRng, XorShiftRng};
 
     // the reason for this test is twofold:
     // first we would like to measure the efficiency of RNS-approach (in terms of number of resulting constraints),

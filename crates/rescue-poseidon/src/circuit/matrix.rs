@@ -39,13 +39,13 @@ pub(crate) fn mul_by_sparse_matrix<E: Engine, const DIM: usize>(matrix: &[[E::Fr
 
 #[cfg(test)]
 mod test {
+    use crate::rand::Rand;
     use crate::tests::{init_cs, init_rng};
     use franklin_crypto::bellman::Field;
     use franklin_crypto::{
         bellman::pairing::bn256::{Bn256, Fr},
         plonk::circuit::{allocated_num::AllocatedNum, linear_combination::LinearCombination},
     };
-    use crate::rand::Rand;
     use std::convert::TryInto;
 
     #[test]

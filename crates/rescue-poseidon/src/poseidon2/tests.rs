@@ -1,3 +1,5 @@
+use crate::rand::Rand;
+use crate::rand::Rng;
 use crate::tests::init_cs;
 use franklin_crypto::bellman::pairing::bn256::{Bn256, Fr};
 use franklin_crypto::boojum::algebraic_props::round_function::AbsorptionModeTrait;
@@ -7,8 +9,6 @@ use franklin_crypto::boojum::field::SmallField;
 use franklin_crypto::boojum::field::U64Representable;
 use franklin_crypto::boojum::worker::Worker;
 use franklin_crypto::plonk::circuit::{allocated_num::Num, linear_combination::LinearCombination};
-use crate::rand::Rand;
-use crate::rand::Rng;
 
 use crate::circuit::poseidon2::{circuit_poseidon2_hash, circuit_poseidon2_round_function};
 use crate::poseidon::{poseidon_hash, poseidon_round_function};

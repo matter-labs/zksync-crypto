@@ -6,8 +6,8 @@ mod test {
     use crate::bellman::pairing::bn256::{Bn256, Fr};
     use crate::generic_twisted_edwards::bn256::*;
     use crate::generic_twisted_edwards::edwards::*;
-    use bellman::ScalarEngine;
     use crate::rand::{Rand, Rng, SeedableRng, XorShiftRng};
+    use bellman::ScalarEngine;
 
     #[test]
     fn test_new_edwards_addition() {

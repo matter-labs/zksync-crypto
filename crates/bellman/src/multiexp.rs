@@ -858,8 +858,8 @@ mod test {
     #[ignore]
     fn test_new_multexp_speed_with_bn256() {
         use crate::pairing::bn256::Bn256;
-        use num_cpus;
         use crate::rand::{self, Rand};
+        use num_cpus;
 
         let cpus = num_cpus::get();
         const SAMPLES: usize = 1 << 22;

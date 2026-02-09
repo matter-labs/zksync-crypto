@@ -27,8 +27,8 @@ pub use traits::{CustomGate, HashFamily, HashParams};
 pub extern crate franklin_crypto;
 
 pub mod rand {
-    pub use crate::franklin_crypto::bellman::pairing::ff::Rand;
     pub use crate::franklin_crypto::bellman::pairing::ff::rand::Rng;
+    pub use crate::franklin_crypto::bellman::pairing::ff::Rand;
     pub use ::rand::{distributions, random, rngs, seq, thread_rng, CryptoRng, RngCore, SeedableRng};
 
     #[derive(Clone, Debug)]

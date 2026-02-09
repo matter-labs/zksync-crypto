@@ -682,9 +682,9 @@ impl<E: Engine> GrandProductArgument<E> {
 #[test]
 fn test_grand_product_argument() {
     use crate::pairing::bls12_381::{Bls12, Fr, G1Affine, G1};
-    use crate::sonic::srs::SRS;
     use crate::rand::seq::SliceRandom;
     use crate::rand::{Rand, Rng, SeedableRng, XorShiftRng};
+    use crate::sonic::srs::SRS;
 
     let srs_x = Fr::from_str("23923").unwrap();
     let srs_alpha = Fr::from_str("23728792").unwrap();

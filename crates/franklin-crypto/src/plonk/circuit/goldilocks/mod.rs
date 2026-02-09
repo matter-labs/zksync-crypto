@@ -678,10 +678,10 @@ mod test {
     extern crate boojum;
 
     use crate::bellman::pairing::bn256::{Bn256, Fr};
+    use crate::rand::Rng;
     use boojum::field::Field;
     use boojum::field::SmallField;
     use boojum::field::U64Representable;
-    use crate::rand::Rng;
 
     #[test]
     fn test_goldilocks_field() {

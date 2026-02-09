@@ -2469,12 +2469,12 @@ mod test {
     use super::*;
     use super::*;
     use crate::bellman::plonk::better_better_cs::cs::{PlonkCsWidth4WithNextStepParams, TrivialAssembly, Width4MainGateWithDNext};
+    use crate::rand::{Rng, SeedableRng, XorShiftRng};
     use crate::rescue;
     use bellman::pairing::bn256::{Bn256, Fr};
     use bellman::pairing::ff::PrimeField;
     use bellman::plonk::better_better_cs::cs::PlonkCsWidth3Params;
     use bellman::plonk::better_better_cs::gates::naive_main_gate::NaiveMainGate;
-    use crate::rand::{Rng, SeedableRng, XorShiftRng};
 
     #[test]
     fn test_multiplication() {

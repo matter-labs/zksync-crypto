@@ -2412,8 +2412,8 @@ mod test {
         use crate::ff::{Field, PrimeField};
         use crate::pairing::bn256::Fr;
 
-        use crate::worker::Worker;
         use crate::rand::{Rand, Rng, SeedableRng, XorShiftRng};
+        use crate::worker::Worker;
 
         let samples: usize = 1 << 20;
         let rng = &mut XorShiftRng::from_seed([0x3dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
@@ -2445,8 +2445,8 @@ mod test {
         use crate::ff::{Field, PrimeField};
         use crate::pairing::bn256::Fr;
 
-        use crate::worker::Worker;
         use crate::rand::{Rand, Rng, SeedableRng, XorShiftRng};
+        use crate::worker::Worker;
 
         let samples: usize = 1 << 20;
         let rng = &mut XorShiftRng::from_seed([0x3dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
@@ -2478,8 +2478,8 @@ mod test {
         use crate::ff::{Field, PrimeField};
         use crate::pairing::bn256::Fr;
 
-        use crate::worker::Worker;
         use crate::rand::{Rand, Rng, SeedableRng, XorShiftRng};
+        use crate::worker::Worker;
 
         let max_size = 1 << 26;
         let worker = Worker::new();
@@ -2518,8 +2518,8 @@ mod test {
         use crate::ff::{Field, PrimeField};
         use crate::pairing::bn256::Fr;
 
-        use crate::worker::Worker;
         use crate::rand::{Rand, Rng, SeedableRng, XorShiftRng};
+        use crate::worker::Worker;
 
         let max_size = 1 << 26;
         let worker = Worker::new();
@@ -2569,8 +2569,8 @@ mod test {
             return;
         }
 
-        use crate::worker::Worker;
         use crate::rand::{Rand, Rng, SeedableRng, XorShiftRng};
+        use crate::worker::Worker;
 
         let size = 1 << 21;
         let worker = Worker::new();

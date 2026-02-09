@@ -1,5 +1,5 @@
-use crate::rand::Rng;
 use crate::rand::seq::SliceRandom;
+use crate::rand::Rng;
 
 const EMPTY_STATE: usize = std::usize::MAX;
 

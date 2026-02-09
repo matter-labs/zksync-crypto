@@ -244,11 +244,11 @@ impl RescueHashParams<bn256::Bn256> for Bn256RescueParams {
 mod test {
     use super::*;
     use crate::group_hash::BlakeHasher;
+    use crate::rand::{thread_rng, Rand, Rng, SeedableRng, XorShiftRng};
     use crate::rescue::*;
     use bellman::pairing::bn256::{Bn256, Fr};
     use bellman::pairing::ff::Field;
     use bellman::pairing::ff::PrimeField;
-    use crate::rand::{thread_rng, Rand, Rng, SeedableRng, XorShiftRng};
 
     #[test]
     fn test_generate_bn256_rescue_params() {

@@ -422,10 +422,10 @@ where
 mod test {
     use super::*;
     use crate::bellman::pairing::bn256::{Bn256, Fq, Fr, G1Affine};
+    use crate::rand::{Rng, SeedableRng, XorShiftRng};
     use bellman::plonk::better_better_cs::cs::*;
     use bellman::plonk::better_better_cs::gates::{self, selector_optimized_with_d_next::SelectorOptimizedWidth4MainGateWithDNext};
     use plonk::circuit::Width4WithCustomGates;
-    use crate::rand::{Rng, SeedableRng, XorShiftRng};
 
     #[test]
     fn test_arithmetic_for_projective_bn256_curve() {

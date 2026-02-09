@@ -247,8 +247,8 @@ mod test {
             return;
         }
 
-        use crate::worker::Worker;
         use crate::rand::{Rand, Rng, SeedableRng, XorShiftRng};
+        use crate::worker::Worker;
 
         let size: usize = 1 << 21;
         let worker = Worker::new();
