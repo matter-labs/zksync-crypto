@@ -16,7 +16,8 @@ mod test {
     use super::super::gadgets::*;
     use super::super::utils::*;
 
-    use rand::{Rng, SeedableRng, StdRng};
+    use crate::rand::rngs::StdRng;
+    use crate::rand::{Rng, SeedableRng};
     use std::convert::TryInto;
 
     struct TestKeccakCircuit<E: Engine> {
@@ -89,7 +90,7 @@ mod test {
 
     fn keccak_gadget_test_template(is_const_test: bool) {
         const NUM_OF_BLOCKS: usize = 4;
-        let mut rng = rand::thread_rng();
+        let mut rng = crate::rand::thread_rng();
 
         let mut input = [0u8; 8 * KECCAK_RATE_WORDS_SIZE * NUM_OF_BLOCKS];
         for i in 0..(input.len() - 1) {
@@ -149,7 +150,7 @@ mod test {
     fn keccak_gadget_bytes_test_impl<const NUM_OF_BYTES: usize>() {
         const IS_CONST_TEST: bool = false;
 
-        let mut rng = rand::thread_rng();
+        let mut rng = crate::rand::thread_rng();
         let mut input = [0u8; NUM_OF_BYTES];
         for i in 0..NUM_OF_BYTES {
             input[i] = rng.gen();
@@ -259,7 +260,7 @@ mod test {
     #[test]
     #[ignore] // TODO(ignored-test): Failure.
     fn keccak_round_function_test() {
-        let mut rng = rand::thread_rng();
+        let mut rng = crate::rand::thread_rng();
 
         // we test the following pattern:
         // 2 blocks || 1 block || 1 block || 3 blocks
@@ -306,7 +307,7 @@ mod test {
     #[ignore] // TODO(ignored-test): Timeout.
     fn test_keccak_on_real_prover() {
         const NUM_OF_BLOCKS: usize = 1;
-        let mut rng = rand::thread_rng();
+        let mut rng = crate::rand::thread_rng();
 
         let mut input = [0u8; 8 * KECCAK_RATE_WORDS_SIZE * NUM_OF_BLOCKS];
         for i in 0..(input.len() - 1) {
@@ -367,7 +368,7 @@ mod test {
     fn test_keccak_state_converter() {
         use itertools::Itertools;
         let mut cs = TrivialAssembly::<Bn256, PlonkCsWidth4WithNextStepAndCustomGatesParams, Width4MainGateWithDNext>::new();
-        let mut rng = rand::thread_rng();
+        let mut rng = crate::rand::thread_rng();
 
         let actual_state = std::iter::repeat(())
             .take(KECCAK_STATE_WIDTH * KECCAK_STATE_WIDTH)

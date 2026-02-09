@@ -1,6 +1,6 @@
 use crate::log::Stopwatch;
 
-use rand::Rng;
+use crate::rand::{Rand, Rng};
 
 use std::sync::Arc;
 
@@ -24,13 +24,13 @@ where
     C: Circuit<E>,
     R: Rng,
 {
-    let g1 = rng.gen();
-    let g2 = rng.gen();
-    let alpha = rng.gen();
-    let beta = rng.gen();
-    let gamma = rng.gen();
-    let delta = rng.gen();
-    let tau = rng.gen();
+    let g1: E::G1 = Rand::rand(rng);
+    let g2: E::G2 = Rand::rand(rng);
+    let alpha: E::Fr = Rand::rand(rng);
+    let beta: E::Fr = Rand::rand(rng);
+    let gamma: E::Fr = Rand::rand(rng);
+    let delta: E::Fr = Rand::rand(rng);
+    let tau: E::Fr = Rand::rand(rng);
 
     generate_parameters::<E, C>(circuit, g1, g2, alpha, beta, gamma, delta, tau)
 }

@@ -115,7 +115,7 @@ mod test {
     // fn test_bn254_params() {
     //     use crate::bellman::pairing::bn256::{Fq, Bn256, Fr};
 
-    //     use rand::{XorShiftRng, SeedableRng, Rng};
+    //     use crate::rand::{XorShiftRng, SeedableRng, Rng};
     //     let rng = &mut XorShiftRng::from_seed([0x3dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
     //     let params = bn254_endomorphism_parameters();

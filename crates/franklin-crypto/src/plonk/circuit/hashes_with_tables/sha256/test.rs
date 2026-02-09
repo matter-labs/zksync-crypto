@@ -13,7 +13,8 @@ mod test {
     use super::super::gadgets::*;
     use super::super::utils::*;
 
-    use rand::{Rng, SeedableRng, StdRng};
+    use crate::rand::rngs::StdRng;
+    use crate::rand::{Rng, SeedableRng};
 
     struct TestSha256Circuit<E: Engine> {
         input: Vec<E::Fr>,
@@ -92,8 +93,7 @@ mod test {
         // append a single '1' bit
         // append K '0' bits, where K is the minimum number >= 0 such that L + 1 + K + 64 is a multiple of 512
         // append L as a 64-bit big-endian integer, making the total post-processed length a multiple of 512 bits
-        let seed: &[_] = &[1, 2, 3, 4, 5];
-        let mut rng: StdRng = SeedableRng::from_seed(seed);
+        let mut rng = StdRng::seed_from_u64(1);
 
         let mut input = [0u8; 64];
         for i in 0..55 {
@@ -141,7 +141,7 @@ mod test {
     #[test]
     fn polished_sha256_gadget_multiple_blocks_test() {
         const NUM_OF_BLOCKS: usize = 2;
-        let mut rng = rand::thread_rng();
+        let mut rng = crate::rand::thread_rng();
 
         let mut input = [0u8; 64 * NUM_OF_BLOCKS];
         for i in 0..(64 * (NUM_OF_BLOCKS - 1) + 55) {
@@ -193,7 +193,7 @@ mod test {
     #[test]
     fn polished_sha256_gadget_const_propagation_test() {
         const NUM_OF_BLOCKS: usize = 3;
-        let mut rng = rand::thread_rng();
+        let mut rng = crate::rand::thread_rng();
 
         let mut input = [0u8; 64 * NUM_OF_BLOCKS];
         for i in 0..(64 * (NUM_OF_BLOCKS - 1) + 55) {
@@ -248,7 +248,7 @@ mod test {
         const NUM_OF_BYTES: usize = 22560;
         const IS_CONST_TEST: bool = false;
 
-        let mut rng = rand::thread_rng();
+        let mut rng = crate::rand::thread_rng();
 
         let mut input = [0u8; NUM_OF_BYTES];
         for i in 0..NUM_OF_BYTES {
@@ -292,7 +292,7 @@ mod test {
     #[ignore] // TODO(ignored-test): Timeout.
     fn test_sha256_on_real_prover() {
         const NUM_OF_BLOCKS: usize = 1;
-        let mut rng = rand::thread_rng();
+        let mut rng = crate::rand::thread_rng();
 
         let mut input = [0u8; 64 * NUM_OF_BLOCKS];
         for i in 0..(64 * (NUM_OF_BLOCKS - 1) + 55) {

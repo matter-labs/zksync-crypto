@@ -701,7 +701,7 @@ mod test {
         use crate::plonk::circuit::bigint::single_table_range_constraint::{print_stats, reset_stats};
         use crate::plonk::circuit::bigint::*;
         use crate::plonk::circuit::tables::inscribe_default_range_table_for_bit_width_over_first_three_columns;
-        use rand::{Rng, SeedableRng, XorShiftRng};
+        use crate::rand::{Rng, SeedableRng, XorShiftRng};
         let rng = &mut XorShiftRng::from_seed([0x3dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
         let info = RangeConstraintInfo {
@@ -761,7 +761,7 @@ mod test {
 
     // #[test]
     // fn test_add_with_constant_on_random_witnesses(){
-    //     use rand::{XorShiftRng, SeedableRng, Rng};
+    //     use crate::rand::{XorShiftRng, SeedableRng, Rng};
     //     let rng = &mut XorShiftRng::from_seed([0x3dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
     //     let params = RnsParameters::<Bn256, Fq>::new_for_field(68, 110, 4);
@@ -812,7 +812,7 @@ mod test {
 
     // #[test]
     // fn test_sub_on_random_witnesses(){
-    //     use rand::{XorShiftRng, SeedableRng, Rng};
+    //     use crate::rand::{XorShiftRng, SeedableRng, Rng};
     //     let rng = &mut XorShiftRng::from_seed([0x3dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
     //     let params = RnsParameters::<Bn256, Fq>::new_for_field(68, 110, 4);
@@ -864,7 +864,7 @@ mod test {
 
     // #[test]
     // fn test_double_on_random_witnesses(){
-    //     use rand::{XorShiftRng, SeedableRng, Rng};
+    //     use crate::rand::{XorShiftRng, SeedableRng, Rng};
     //     let rng = &mut XorShiftRng::from_seed([0x3dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
     //     let params = RnsParameters::<Bn256, Fq>::new_for_field(68, 110, 4);
@@ -910,7 +910,7 @@ mod test {
         use crate::plonk::circuit::bigint::single_table_range_constraint::{print_stats, reset_stats};
         use crate::plonk::circuit::bigint::*;
         use crate::plonk::circuit::tables::inscribe_default_range_table_for_bit_width_over_first_three_columns;
-        use rand::{Rng, SeedableRng, XorShiftRng};
+        use crate::rand::{Rng, SeedableRng, XorShiftRng};
         let rng = &mut XorShiftRng::from_seed([0x3dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
         let info = RangeConstraintInfo {
@@ -974,7 +974,7 @@ mod test {
 
     // #[test]
     // fn test_base_curve_multiexp_1_on_random_witnesses(){
-    //     use rand::{XorShiftRng, SeedableRng, Rng};
+    //     use crate::rand::{XorShiftRng, SeedableRng, Rng};
     //     let rng = &mut XorShiftRng::from_seed([0x3dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
     //     let params = RnsParameters::<Bn256, Fq>::new_for_field(68, 110, 4);
@@ -1035,7 +1035,7 @@ mod test {
 
     // #[test]
     // fn test_base_curve_multiexp_2_on_random_witnesses(){
-    //     use rand::{XorShiftRng, SeedableRng, Rng};
+    //     use crate::rand::{XorShiftRng, SeedableRng, Rng};
     //     let rng = &mut XorShiftRng::from_seed([0x3dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
     //     let params = RnsParameters::<Bn256, Fq>::new_for_field(68, 110, 4);
@@ -1116,7 +1116,7 @@ mod test {
 
     // #[test]
     // fn test_base_curve_multiexp_3_on_random_witnesses(){
-    //     use rand::{XorShiftRng, SeedableRng, Rng};
+    //     use crate::rand::{XorShiftRng, SeedableRng, Rng};
     //     let rng = &mut XorShiftRng::from_seed([0x3dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
     //     let params = RnsParameters::<Bn256, Fq>::new_for_field(68, 110, 4);
@@ -1197,7 +1197,7 @@ mod test {
 
     // #[test]
     // fn test_base_curve_multiexp_4_on_random_witnesses(){
-    //     use rand::{XorShiftRng, SeedableRng, Rng};
+    //     use crate::rand::{XorShiftRng, SeedableRng, Rng};
     //     let rng = &mut XorShiftRng::from_seed([0x3dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
     //     let params = RnsParameters::<Bn256, Fq>::new_for_field(68, 110, 4);
@@ -1278,7 +1278,7 @@ mod test {
 
     // #[test]
     // fn test_base_curve_multiexp_10_on_random_witnesses(){
-    //     use rand::{XorShiftRng, SeedableRng, Rng};
+    //     use crate::rand::{XorShiftRng, SeedableRng, Rng};
     //     let rng = &mut XorShiftRng::from_seed([0x3dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
     //     let params = RnsParameters::<Bn256, Fq>::new_for_field(68, 110, 4);
@@ -1363,7 +1363,7 @@ mod test {
 
     // #[test]
     // fn test_base_curve_multiexp_10_bls_12_on_random_witnesses() {
-    //     use rand::{XorShiftRng, SeedableRng, Rng};
+    //     use crate::rand::{XorShiftRng, SeedableRng, Rng};
     //     let rng = &mut XorShiftRng::from_seed([0x3dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
     //     use crate::bellman::pairing::bls12_381::{Bls12, Fr, Fq, G1Affine, G1};
@@ -1465,7 +1465,7 @@ mod test {
     // fn test_base_curve_multiexp_10_bls_12_using_tables_on_random_witnesses() {
     //     use crate::bellman::plonk::better_better_cs::cs::*;
     //     use super::super::super::bigint::get_range_constraint_info;
-    //     use rand::{XorShiftRng, SeedableRng, Rng};
+    //     use crate::rand::{XorShiftRng, SeedableRng, Rng};
     //     let rng = &mut XorShiftRng::from_seed([0x3dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
     //     use crate::bellman::pairing::bls12_381::{Bls12, Fr, Fq, G1Affine, G1};

@@ -1,6 +1,6 @@
 use crate::log::Stopwatch;
 
-use rand::Rng;
+use crate::rand::{Rand, Rng};
 
 use std::sync::Arc;
 
@@ -144,8 +144,8 @@ impl<E: Engine> PreparedProver<E> {
     where
         R: Rng,
     {
-        let r = rng.gen();
-        let s = rng.gen();
+        let r: E::Fr = Rand::rand(rng);
+        let s: E::Fr = Rand::rand(rng);
 
         self.create_proof(params, r, s)
     }
@@ -387,8 +387,8 @@ where
     C: Circuit<E>,
     R: Rng,
 {
-    let r = rng.gen();
-    let s = rng.gen();
+    let r: E::Fr = Rand::rand(rng);
+    let s: E::Fr = Rand::rand(rng);
 
     create_proof::<E, C, P>(circuit, params, r, s)
 }

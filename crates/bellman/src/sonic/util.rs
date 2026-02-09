@@ -837,11 +837,11 @@ impl<T> OptionExt<T> for Option<T> {
 fn test_mul() {
     use crate::pairing::bls12_381::Bls12;
     use crate::pairing::bls12_381::Fr;
-    use rand::{self, Rand};
+    use crate::rand::{self, Rand};
 
     const SAMPLES: usize = 100;
 
-    let rng = &mut rand::thread_rng();
+    let rng = &mut crate::rand::thread_rng();
     let a = (0..SAMPLES).map(|_| Fr::rand(rng)).collect::<Vec<_>>();
     let b = (0..SAMPLES).map(|_| Fr::rand(rng)).collect::<Vec<_>>();
 
@@ -856,11 +856,11 @@ fn test_mul() {
 fn test_eval_at_powers() {
     use crate::pairing::bls12_381::Bls12;
     use crate::pairing::bls12_381::Fr;
-    use rand::{self, Rand, Rng};
+    use crate::rand::{self, Rand, Rng};
 
     const SAMPLES: usize = 100000;
 
-    let rng = &mut rand::thread_rng();
+    let rng = &mut crate::rand::thread_rng();
     let a = (0..SAMPLES).map(|_| Fr::rand(rng)).collect::<Vec<_>>();
     let x: Fr = rng.gen();
     let n: u32 = rng.gen();
@@ -888,11 +888,11 @@ fn test_eval_at_powers() {
 fn test_mut_eval_at_powers() {
     use crate::pairing::bls12_381::Bls12;
     use crate::pairing::bls12_381::Fr;
-    use rand::{self, Rand, Rng};
+    use crate::rand::{self, Rand, Rng};
 
     const SAMPLES: usize = 100000;
 
-    let rng = &mut rand::thread_rng();
+    let rng = &mut crate::rand::thread_rng();
     let mut a = (0..SAMPLES).map(|_| Fr::rand(rng)).collect::<Vec<_>>();
     let mut b = a.clone();
     let x: Fr = rng.gen();
@@ -921,11 +921,11 @@ fn test_mut_eval_at_powers() {
 fn test_mut_distribute_powers() {
     use crate::pairing::bls12_381::Bls12;
     use crate::pairing::bls12_381::Fr;
-    use rand::{self, Rand, Rng};
+    use crate::rand::{self, Rand, Rng};
 
     const SAMPLES: usize = 100000;
 
-    let rng = &mut rand::thread_rng();
+    let rng = &mut crate::rand::thread_rng();
     let mut a = (0..SAMPLES).map(|_| Fr::rand(rng)).collect::<Vec<_>>();
     let mut b = a.clone();
     let x: Fr = rng.gen();

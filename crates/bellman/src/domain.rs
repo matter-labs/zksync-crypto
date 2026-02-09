@@ -376,7 +376,7 @@ pub(crate) fn parallel_fft<E: Engine, T: Group<E>>(a: &mut [T], worker: &Worker,
 #[ignore] // TODO(ignored-test): Timeout.
 fn polynomial_arith() {
     use crate::pairing::bls12_381::Bls12;
-    use rand::{self, Rand};
+    use crate::rand::{self, Rand};
 
     fn test_mul<E: Engine, R: rand::Rng>(rng: &mut R) {
         let worker = Worker::new();
@@ -414,7 +414,7 @@ fn polynomial_arith() {
         }
     }
 
-    let rng = &mut rand::thread_rng();
+    let rng = &mut crate::rand::thread_rng();
 
     test_mul::<Bls12, _>(rng);
 }
@@ -432,7 +432,7 @@ fn fft_composition() {
 
             let mut v = vec![];
             for _ in 0..coeffs {
-                v.push(Scalar::<E>(rng.gen()));
+                v.push(Scalar::<E>(<E::Fr as crate::rand::Rand>::rand(rng)));
             }
 
             let mut domain = EvaluationDomain::from_coeffs(v.clone()).unwrap();
@@ -451,7 +451,7 @@ fn fft_composition() {
         }
     }
 
-    let rng = &mut rand::thread_rng();
+    let rng = &mut crate::rand::thread_rng();
 
     test_comp::<Bls12, _>(rng);
 }
@@ -459,7 +459,7 @@ fn fft_composition() {
 #[test]
 fn parallel_fft_consistency() {
     use crate::pairing::bls12_381::Bls12;
-    use rand::{self, Rand};
+    use crate::rand::{self, Rand};
     use std::cmp::min;
 
     fn test_consistency<E: Engine, R: rand::Rng>(rng: &mut R) {
@@ -483,7 +483,7 @@ fn parallel_fft_consistency() {
         }
     }
 
-    let rng = &mut rand::thread_rng();
+    let rng = &mut crate::rand::thread_rng();
 
     test_consistency::<Bls12, _>(rng);
 }
@@ -492,13 +492,13 @@ fn parallel_fft_consistency() {
 fn test_field_element_multiplication_bn256() {
     use crate::pairing::bn256::Bn256;
     use crate::pairing::bn256::Fr;
+    use crate::rand::{self, Rand};
     use num_cpus;
-    use rand::{self, Rand};
 
     let cpus = num_cpus::get();
     const SAMPLES: usize = 1 << 22;
 
-    let rng = &mut rand::thread_rng();
+    let rng = &mut crate::rand::thread_rng();
     let v1 = (0..SAMPLES).map(|_| Scalar::<Bn256>(Fr::rand(rng))).collect::<Vec<_>>();
     let v2 = (0..SAMPLES).map(|_| Scalar::<Bn256>(Fr::rand(rng))).collect::<Vec<_>>();
 
@@ -522,13 +522,13 @@ fn test_field_element_multiplication_bn256() {
 fn test_fft_bn256() {
     use crate::pairing::bn256::Bn256;
     use crate::pairing::bn256::Fr;
+    use crate::rand::{self, Rand};
     use num_cpus;
-    use rand::{self, Rand};
 
     let cpus = num_cpus::get();
     const SAMPLES: usize = 1 << 27;
 
-    let rng = &mut rand::thread_rng();
+    let rng = &mut crate::rand::thread_rng();
     let v1 = (0..SAMPLES).map(|_| Scalar::<Bn256>(Fr::rand(rng))).collect::<Vec<_>>();
 
     let mut v1 = EvaluationDomain::from_coeffs(v1).unwrap();
