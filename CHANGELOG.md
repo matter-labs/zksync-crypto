@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.32.9](https://github.com/matter-labs/zksync-crypto/compare/v0.32.8...v0.32.9) (2026-02-11)
+
+
+### Features
+
+* Revert Migrate from rand 0.4 to rand 0.8 ([#124](https://github.com/matter-labs/zksync-crypto/issues/124)) ([3d5f50e](https://github.com/matter-labs/zksync-crypto/commit/3d5f50e0eca1ad55570ec2c6d0cd06ae4bdce4a1))
+
 ## [0.32.8](https://github.com/matter-labs/zksync-crypto/compare/v0.32.7...v0.32.8) (2026-02-09)
 
 
