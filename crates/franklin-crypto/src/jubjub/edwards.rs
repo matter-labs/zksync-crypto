@@ -2,7 +2,7 @@ use bellman::pairing::ff::{BitIterator, Field, PrimeField, PrimeFieldRepr, SqrtF
 
 use super::{montgomery, JubjubEngine, JubjubParams, PrimeOrder, Unknown};
 
-use crate::rand::{Rand, Rng};
+use rand::Rng;
 
 use std::marker::PhantomData;
 
@@ -225,7 +225,7 @@ impl<E: JubjubEngine> Point<E, Unknown> {
 
     pub fn rand<R: Rng>(rng: &mut R, params: &E::Params) -> Self {
         loop {
-            let y: E::Fr = Rand::rand(rng);
+            let y: E::Fr = rng.gen();
 
             if let Some(p) = Self::get_for_y(y, rng.gen(), params) {
                 return p;

@@ -294,7 +294,7 @@ pub fn blake2s<E: Engine, CS: ConstraintSystem<E>>(cs: &mut CS, input: &[Boolean
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::rand::{Rng, SeedableRng, XorShiftRng};
+    use rand::{Rng, SeedableRng, XorShiftRng};
 
     use bellman::pairing::bn256::{Bn256, Fr};
     use bellman::pairing::ff::{Field, PrimeField};

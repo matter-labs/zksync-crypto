@@ -1067,11 +1067,11 @@ mod test {
         use crate::pairing::bn256::Bn256;
         use crate::pairing::ff::ScalarEngine;
         use crate::pairing::CurveProjective;
-        use crate::rand::{Rand, Rng, SeedableRng, XorShiftRng};
         use crate::source::*;
         use crate::worker::*;
         use futures::Future;
         use num_cpus;
+        use rand::{Rand, Rng, SeedableRng, XorShiftRng};
         use std::sync::Arc;
 
         const SAMPLES: usize = 1 << 20;
@@ -1326,18 +1326,18 @@ mod test {
         use crate::pairing::bn256::Fr;
         use crate::pairing::ff::ScalarEngine;
         use crate::pairing::CurveProjective;
-        use crate::rand::{Rand, Rng, SeedableRng, XorShiftRng};
         use crate::source::*;
         use crate::worker::*;
         use futures::Future;
         use num_cpus;
+        use rand::{Rand, Rng, SeedableRng, XorShiftRng};
         use std::sync::Arc;
 
         let rng = &mut XorShiftRng::from_seed([0x3dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
         let poly_sizes = vec![1, 10, 100, 1000, 10_000, 1_000_000];
 
-        let x: Fr = Fr::rand(rng);
+        let x: Fr = rng.gen();
 
         let worker = Worker::new();
 
@@ -1365,11 +1365,11 @@ mod test {
         use crate::pairing::bn256::Fr;
         use crate::pairing::ff::ScalarEngine;
         use crate::pairing::CurveProjective;
-        use crate::rand::{Rand, Rng, SeedableRng, XorShiftRng};
         use crate::source::*;
         use crate::worker::*;
         use futures::Future;
         use num_cpus;
+        use rand::{Rand, Rng, SeedableRng, XorShiftRng};
         use std::sync::Arc;
 
         let rng = &mut XorShiftRng::from_seed([0x3dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
@@ -1399,8 +1399,8 @@ mod test {
         use crate::pairing::ff::ScalarEngine;
         use crate::pairing::CurveProjective;
         use crate::plonk::commitments::transparent::utils::*;
-        use crate::rand::{Rand, Rng, SeedableRng, XorShiftRng};
         use crate::worker::*;
+        use rand::{Rand, Rng, SeedableRng, XorShiftRng};
         use std::time::Instant;
 
         let rng = &mut XorShiftRng::from_seed([0x3dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);

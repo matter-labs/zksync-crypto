@@ -1918,7 +1918,7 @@ impl_assembly! {
         // if possible. Will panic if size is already too large.
         // Caller is responsible to understand the geometry of the circuit, as values
         // added into the trace do not obey any arithmetic relation
-        pub fn finalize_to_size_log_2_with_randomization<R: rand::Rng + ?Sized>(
+        pub fn finalize_to_size_log_2_with_randomization<R: rand::Rng>(
             &mut self,
             size_log_2: usize,
             min_num_zk_terms: usize,

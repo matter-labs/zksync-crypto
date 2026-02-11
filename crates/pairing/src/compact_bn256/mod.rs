@@ -443,7 +443,7 @@ impl G2Prepared {
 }
 
 #[cfg(test)]
-use crate::rand::{Rand, SeedableRng, XorShiftRng};
+use rand::{Rand, SeedableRng, XorShiftRng};
 
 #[test]
 fn test_pairing() {

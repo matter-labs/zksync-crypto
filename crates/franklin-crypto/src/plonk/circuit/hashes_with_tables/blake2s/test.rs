@@ -11,8 +11,7 @@ mod test {
 
     use super::super::super::utils::*;
     use super::super::gadgets::*;
-    use crate::rand::rngs::StdRng;
-    use crate::rand::{Rng, SeedableRng};
+    use rand::{Rng, SeedableRng, StdRng};
 
     struct TestBlake2sCircuit<E: Engine> {
         input: Vec<E::Fr>,
@@ -85,7 +84,8 @@ mod test {
     }
 
     fn blake2s_gadget_test_impl(num_of_blocks: usize, use_additional_tables: bool, is_const_test: bool, is_byte_test: bool) {
-        let mut rng = StdRng::seed_from_u64(1);
+        let seed: &[_] = &[1, 2, 3, 4, 5];
+        let mut rng: StdRng = SeedableRng::from_seed(seed);
 
         let mut input = vec![0u8; 64 * num_of_blocks];
         for i in 0..(64 * num_of_blocks) {
@@ -153,7 +153,8 @@ mod test {
     #[ignore] // TODO(ignored-test): Timeout.
     fn test_blake2s_on_real_prover() {
         let num_of_blocks: usize = 1;
-        let mut rng = StdRng::seed_from_u64(1);
+        let seed: &[_] = &[1, 2, 3, 4, 5];
+        let mut rng: StdRng = SeedableRng::from_seed(seed);
 
         let mut input = vec![0u8; 64 * num_of_blocks];
         for i in 0..(64 * num_of_blocks) {

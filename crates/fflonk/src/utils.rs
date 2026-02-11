@@ -1896,7 +1896,7 @@ impl Circuit<Bn256> for FflonkTestCircuit {
 
 #[test]
 fn test_divide_by_higher_degree() {
-    use crate::rand::{Rng, SeedableRng, XorShiftRng};
+    use rand::{Rng, SeedableRng, XorShiftRng};
     fn init_rng() -> XorShiftRng {
         XorShiftRng::from_seed([0x3dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654])
     }
@@ -1942,7 +1942,7 @@ fn test_alternative_monomial_multiplication() -> Result<(), SynthesisError> {
         Polynomial::from_coeffs_unpadded(coeffs)
     }
 
-    use crate::rand::{Rng, SeedableRng, XorShiftRng};
+    use rand::{Rng, SeedableRng, XorShiftRng};
     fn init_rng() -> XorShiftRng {
         XorShiftRng::from_seed([0x3dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654])
     }

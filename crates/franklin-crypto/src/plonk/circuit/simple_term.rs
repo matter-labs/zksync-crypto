@@ -733,7 +733,7 @@ mod test {
 
     #[test]
     fn test_add_on_random_witness() {
-        use crate::rand::{Rng, SeedableRng, XorShiftRng};
+        use rand::{Rng, SeedableRng, XorShiftRng};
         let rng = &mut XorShiftRng::from_seed([0x3dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
         for _ in 0..100 {
@@ -780,7 +780,7 @@ mod test {
 
     #[test]
     fn test_square_on_random_witness() {
-        use crate::rand::{Rng, SeedableRng, XorShiftRng};
+        use rand::{Rng, SeedableRng, XorShiftRng};
         let rng = &mut XorShiftRng::from_seed([0x3dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
         for _ in 0..100 {
@@ -831,7 +831,7 @@ mod test {
 
     #[test]
     fn test_fma_on_random_witness() {
-        use crate::rand::{Rng, SeedableRng, XorShiftRng};
+        use rand::{Rng, SeedableRng, XorShiftRng};
         let rng = &mut XorShiftRng::from_seed([0x3dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
         for _ in 0..100 {

@@ -388,7 +388,7 @@ impl<E: PoseidonEngine> StatefulPoseidonGadget<E>
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::rand::{SeedableRng, Rng, XorShiftRng};
+    use rand::{SeedableRng, Rng, XorShiftRng};
     use super::*;
     use bellman::pairing::bn256::{Bn256, Fr};
     use bellman::pairing::ff::PrimeField;

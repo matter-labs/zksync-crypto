@@ -44,11 +44,11 @@ use bellman::CurveAffine;
 use crate::bellman::pairing::{Engine, GenericCurveAffine, GenericCurveProjective};
 use crate::byteorder::{BigEndian, ReadBytesExt};
 
-pub fn make_random_points_with_unknown_discrete_log_from_seed<G: GenericCurveAffine + crate::rand::Rand>(dst: &[u8], seed: &[u8], num_points: usize) -> Vec<G> {
+pub fn make_random_points_with_unknown_discrete_log_from_seed<G: GenericCurveAffine + rand::Rand>(dst: &[u8], seed: &[u8], num_points: usize) -> Vec<G> {
     let mut result = vec![];
 
-    use crate::rand::chacha::ChaChaRng;
-    use crate::rand::Rand;
+    use rand::chacha::ChaChaRng;
+    use rand::{Rng, SeedableRng};
     // Create an RNG based on the outcome of the random beacon
     let mut rng = {
         // if we use Blake hasher
@@ -64,26 +64,26 @@ pub fn make_random_points_with_unknown_discrete_log_from_seed<G: GenericCurveAff
     };
 
     for _ in 0..num_points {
-        let point: G = Rand::rand(&mut rng);
+        let point: G = rng.gen();
         result.push(point);
     }
 
     result
 }
 
-pub fn make_random_points_with_unknown_discrete_log<G: GenericCurveAffine + crate::rand::Rand>(dst: &[u8], num_points: usize) -> Vec<G> {
+pub fn make_random_points_with_unknown_discrete_log<G: GenericCurveAffine + rand::Rand>(dst: &[u8], num_points: usize) -> Vec<G> {
     make_random_points_with_unknown_discrete_log_from_seed::<G>(dst, &hex::decode(crate::constants::ETH_BLOCK_10_000_000_HASH).unwrap(), num_points)
 }
 
-pub fn make_random_points_with_unknown_discrete_log_generic<G: GenericCurveAffine + crate::rand::Rand>(dst: &[u8], num_points: usize) -> Vec<G> {
+pub fn make_random_points_with_unknown_discrete_log_generic<G: GenericCurveAffine + rand::Rand>(dst: &[u8], num_points: usize) -> Vec<G> {
     make_random_points_with_unknown_discrete_log_from_seed::<G>(dst, &hex::decode(crate::constants::ETH_BLOCK_10_000_000_HASH).unwrap(), num_points)
 }
 
-pub fn make_random_points_with_unknown_discrete_log_from_seed_proj<G: GenericCurveProjective + crate::rand::Rand>(dst: &[u8], seed: &[u8], num_points: usize) -> Vec<G::Affine> {
+pub fn make_random_points_with_unknown_discrete_log_from_seed_proj<G: GenericCurveProjective + rand::Rand>(dst: &[u8], seed: &[u8], num_points: usize) -> Vec<G::Affine> {
     let mut result = vec![];
 
-    use crate::rand::chacha::ChaChaRng;
-    use crate::rand::Rand;
+    use rand::chacha::ChaChaRng;
+    use rand::{Rng, SeedableRng};
     // Create an RNG based on the outcome of the random beacon
     let mut rng = {
         // if we use Blake hasher
@@ -99,7 +99,7 @@ pub fn make_random_points_with_unknown_discrete_log_from_seed_proj<G: GenericCur
     };
 
     for _ in 0..num_points {
-        let point: G = Rand::rand(&mut rng);
+        let point: G = rng.gen();
 
         result.push(point.into_affine());
     }
@@ -111,6 +111,6 @@ pub fn make_random_points_with_unknown_discrete_log_proj<E: Engine>(dst: &[u8], 
     make_random_points_with_unknown_discrete_log_from_seed_proj::<E::G1>(dst, &hex::decode(crate::constants::ETH_BLOCK_10_000_000_HASH).unwrap(), num_points)
 }
 
-pub fn make_random_points_with_unknown_discrete_log_generic_proj<G: GenericCurveProjective + crate::rand::Rand>(dst: &[u8], num_points: usize) -> Vec<G::Affine> {
+pub fn make_random_points_with_unknown_discrete_log_generic_proj<G: GenericCurveProjective + rand::Rand>(dst: &[u8], num_points: usize) -> Vec<G::Affine> {
     make_random_points_with_unknown_discrete_log_from_seed_proj::<G>(dst, &hex::decode(crate::constants::ETH_BLOCK_10_000_000_HASH).unwrap(), num_points)
 }

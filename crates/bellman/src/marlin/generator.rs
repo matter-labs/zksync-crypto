@@ -1,6 +1,6 @@
 use crate::log::Stopwatch;
 
-use crate::rand::Rng;
+use rand::Rng;
 
 use std::collections::HashMap;
 use std::sync::Arc;

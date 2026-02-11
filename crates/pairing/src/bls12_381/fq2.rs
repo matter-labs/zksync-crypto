@@ -1,6 +1,6 @@
 use super::fq::{Fq, FROBENIUS_COEFF_FQ2_C1, NEGATIVE_ONE};
-use crate::rand::{Rand, Rng};
 use ff::{Field, SqrtField};
+use rand::{Rand, Rng};
 
 use std::cmp::Ordering;
 
@@ -57,11 +57,8 @@ impl Fq2 {
 }
 
 impl Rand for Fq2 {
-    fn rand<R: Rng + ?Sized>(rng: &mut R) -> Self {
-        Fq2 {
-            c0: Rand::rand(rng),
-            c1: Rand::rand(rng),
-        }
+    fn rand<R: Rng>(rng: &mut R) -> Self {
+        Fq2 { c0: rng.gen(), c1: rng.gen() }
     }
 }
 
@@ -873,7 +870,7 @@ fn test_fq2_legendre() {
 }
 
 #[cfg(test)]
-use crate::rand::{SeedableRng, XorShiftRng};
+use rand::{SeedableRng, XorShiftRng};
 
 #[test]
 fn test_fq2_mul_nonresidue() {

@@ -4,7 +4,7 @@ mod fq12;
 mod fq2;
 mod fr;
 
-use zksync_pairing::rand::{Rand, SeedableRng, XorShiftRng};
+use rand::{Rand, SeedableRng, XorShiftRng};
 
 use zksync_pairing::bn256::*;
 use zksync_pairing::{CurveAffine, Engine};

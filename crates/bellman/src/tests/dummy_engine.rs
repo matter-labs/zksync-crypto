@@ -2,7 +2,7 @@ use crate::pairing::{CurveAffine, CurveProjective, EncodedPoint, Engine, GroupDe
 
 use crate::pairing::ff::{Field, LegendreSymbol, PrimeField, PrimeFieldDecodingError, PrimeFieldRepr, ScalarEngine, SqrtField};
 
-use crate::rand::{Rand, Rng};
+use rand::{Rand, Rng};
 use std::cmp::Ordering;
 use std::fmt;
 use std::num::Wrapping;
@@ -19,7 +19,7 @@ impl fmt::Display for Fr {
 }
 
 impl Rand for Fr {
-    fn rand<R: Rng + ?Sized>(rng: &mut R) -> Self {
+    fn rand<R: Rng>(rng: &mut R) -> Self {
         Fr(Wrapping(rng.gen()) % MODULUS_R)
     }
 }
@@ -162,7 +162,7 @@ impl PartialOrd for FrRepr {
 }
 
 impl Rand for FrRepr {
-    fn rand<R: Rng + ?Sized>(rng: &mut R) -> Self {
+    fn rand<R: Rng>(rng: &mut R) -> Self {
         FrRepr([rng.gen()])
     }
 }

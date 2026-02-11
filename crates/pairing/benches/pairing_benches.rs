@@ -1,6 +1,7 @@
 #![feature(test)]
 
 extern crate ff;
+extern crate rand;
 extern crate test;
 extern crate zksync_pairing;
 

@@ -447,9 +447,9 @@ where
 mod test {
     use super::*;
     use crate::bellman::plonk::better_better_cs::cs::*;
-    use crate::rand::{Rand, Rng, SeedableRng, XorShiftRng};
     use bellman::pairing::bn256::{Bn256, Fr};
     use bellman::pairing::ff::{BitIterator, Field, PrimeField};
+    use rand::{Rand, Rng, SeedableRng, XorShiftRng};
 
     use super::{prove_shuffle, AsWaksmanRoute, AsWaksmanTopology, IntegerPermutation};
 

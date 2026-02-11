@@ -56,7 +56,7 @@ pub fn create_permutation_structure<E: Engine, C: Circuit<E>>(circuit: &C) -> Pe
     PermutationStructure::<E> { n: n, q: q, a: a, b: b, c: c }
 }
 
-use crate::rand::{Rand, Rng};
+use rand::{Rand, Rng};
 
 impl<E: Engine> PermutationStructure<E> {
     pub fn calculate_s2_commitment_value(&self, srs: &SRS<E>) -> E::G1Affine {
@@ -586,7 +586,7 @@ fn test_simple_succinct_sonic() {
     println!("done in {:?}", start.elapsed());
 
     {
-        use crate::rand::{Rand, Rng, SeedableRng, XorShiftRng};
+        use rand::{Rand, Rng, SeedableRng, XorShiftRng};
         let _rng = &mut XorShiftRng::from_seed([0x3dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
         use crate::sonic::helped::helper::create_aggregate_on_srs;

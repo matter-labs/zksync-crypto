@@ -643,9 +643,9 @@ macro_rules! curve_impl {
 pub mod g1 {
     use super::super::{Bn256, Fq, Fq12, FqRepr, Fr, FrRepr};
     use super::g2::G2Affine;
-    use crate::rand::{Rand, Rng};
     use crate::{CurveAffine, CurveProjective, EncodedPoint, Engine, GroupDecodingError, RawEncodable};
     use ff::{BitIterator, Field, PrimeField, PrimeFieldRepr, SqrtField};
+    use rand::{Rand, Rng};
     use std::fmt;
 
     curve_impl!("G1", G1, G1Affine, G1Prepared, Fq, Fr, G1Uncompressed, G1Compressed, G2Affine);
@@ -702,9 +702,9 @@ pub mod g1 {
     pub struct G1Uncompressed([u8; 64]);
 
     impl Rand for G1 {
-        fn rand<R: Rng + ?Sized>(rng: &mut R) -> Self {
+        fn rand<R: Rng>(rng: &mut R) -> Self {
             loop {
-                let x = Rand::rand(rng);
+                let x = rng.gen();
                 let greatest = rng.gen();
 
                 if let Some(p) = G1Affine::get_point_from_x(x, greatest) {
@@ -719,9 +719,9 @@ pub mod g1 {
     }
 
     impl Rand for G1Affine {
-        fn rand<R: Rng + ?Sized>(rng: &mut R) -> Self {
+        fn rand<R: Rng>(rng: &mut R) -> Self {
             loop {
-                let x = Rand::rand(rng);
+                let x = rng.gen();
                 let greatest = rng.gen();
 
                 if let Some(p) = G1Affine::get_point_from_x(x, greatest) {
@@ -1070,17 +1070,17 @@ pub mod g1 {
 pub mod g2 {
     use super::super::{Bn256, Fq, Fq12, Fq2, FqRepr, Fr, FrRepr};
     use super::g1::G1Affine;
-    use crate::rand::{Rand, Rng};
     use crate::{CurveAffine, CurveProjective, EncodedPoint, Engine, GroupDecodingError};
     use ff::{BitIterator, Field, PrimeField, PrimeFieldRepr, SqrtField};
+    use rand::{Rand, Rng};
     use std::fmt;
 
     curve_impl!("G2", G2, G2Affine, G2Prepared, Fq2, Fr, G2Uncompressed, G2Compressed, G1Affine);
 
     impl Rand for G2 {
-        fn rand<R: Rng + ?Sized>(rng: &mut R) -> Self {
+        fn rand<R: Rng>(rng: &mut R) -> Self {
             loop {
-                let x = Rand::rand(rng);
+                let x = rng.gen();
                 let greatest = rng.gen();
 
                 if let Some(p) = G2Affine::get_point_from_x(x, greatest) {
@@ -1095,7 +1095,7 @@ pub mod g2 {
     }
 
     impl Rand for G2Affine {
-        fn rand<R: Rng + ?Sized>(rng: &mut R) -> Self {
+        fn rand<R: Rng>(rng: &mut R) -> Self {
             let r = G2::rand(rng);
             return r.into_affine();
         }
@@ -1521,7 +1521,7 @@ pub mod g2 {
     }
 
     #[cfg(test)]
-    use crate::rand::{SeedableRng, XorShiftRng};
+    use rand::{SeedableRng, XorShiftRng};
 
     #[test]
     fn g2_generator_on_curve() {

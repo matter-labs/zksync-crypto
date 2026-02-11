@@ -152,7 +152,7 @@ pub(crate) fn parallel_lde<F: PrimeField>(
 
 #[test]
 fn test_small_recursive_lde() {
-    use crate::rand::{XorShiftRng, SeedableRng, Rand, Rng};
+    use rand::{XorShiftRng, SeedableRng, Rand, Rng};
     const LOG_N: usize = 4;
     const BASE: usize = 1 << LOG_N;
     const LOG_LDE: usize = 6;
@@ -188,7 +188,7 @@ fn test_small_recursive_lde() {
 
 #[test]
 fn test_large_recursive_lde() {
-    use crate::rand::{XorShiftRng, SeedableRng, Rand, Rng};
+    use rand::{XorShiftRng, SeedableRng, Rand, Rng};
     const LOG_N: usize = 20;
     const BASE: usize = 1 << LOG_N;
     const LOG_LDE: usize = 6;

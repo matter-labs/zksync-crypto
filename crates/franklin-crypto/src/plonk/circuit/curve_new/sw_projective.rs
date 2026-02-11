@@ -422,10 +422,10 @@ where
 mod test {
     use super::*;
     use crate::bellman::pairing::bn256::{Bn256, Fq, Fr, G1Affine};
-    use crate::rand::{Rng, SeedableRng, XorShiftRng};
     use bellman::plonk::better_better_cs::cs::*;
     use bellman::plonk::better_better_cs::gates::{self, selector_optimized_with_d_next::SelectorOptimizedWidth4MainGateWithDNext};
     use plonk::circuit::Width4WithCustomGates;
+    use rand::{Rng, SeedableRng, XorShiftRng};
 
     #[test]
     fn test_arithmetic_for_projective_bn256_curve() {
@@ -433,7 +433,7 @@ mod test {
         inscribe_default_bitop_range_table(&mut cs).unwrap();
         let params = RnsParameters::<Bn256, Fq>::new_optimal(&mut cs, 80usize);
         let scalar_params = RnsParameters::<Bn256, Fr>::new_optimal(&mut cs, 80usize);
-        let mut rng = crate::rand::thread_rng();
+        let mut rng = rand::thread_rng();
 
         let a: G1Affine = rng.gen();
         let b: G1Affine = rng.gen();

@@ -14,4 +14,4 @@ description = "ZKsync snark wrapper"
 rescue_poseidon.workspace = true
 serde = { version = "1", features = ["derive"] }
 derivative = "2"
-rand = "0.8"
+rand = "0.4"

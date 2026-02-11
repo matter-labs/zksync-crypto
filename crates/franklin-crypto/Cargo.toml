@@ -24,9 +24,7 @@ boojum.workspace = true
 bellman.workspace = true
 
 derivative = "2"
-rand = "0.8"
-rand_chacha = "0.3"
-rand_xorshift = "0.3"
+rand = "0.4"
 digest = "0.9"
 byteorder = "1"
 tiny-keccak = "1.4.2"

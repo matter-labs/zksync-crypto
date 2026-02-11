@@ -351,7 +351,7 @@ fn parameters_generation() {
 
     use super::adapted_prover::create_proof;
     use super::{generate_parameters, generate_parameters_on_srs_and_information, generate_srs, get_circuit_parameters};
-    use crate::rand::{thread_rng, Rand, Rng};
+    use rand::{thread_rng, Rand, Rng};
 
     let info = get_circuit_parameters::<Bls12, _>(MySillyCircuit { a: None, b: None }).expect("Must get circuit info");
     println!("{:?}", info);
