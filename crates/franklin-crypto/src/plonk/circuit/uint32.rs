@@ -340,7 +340,7 @@ impl UInt32 {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::rand::{Rng, SeedableRng, XorShiftRng};
+    use rand::{Rng, SeedableRng, XorShiftRng};
 
     use bellman::pairing::bn256::{Bn256, Fr};
     use bellman::pairing::ff::{Field, PrimeField};

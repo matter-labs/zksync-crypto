@@ -1,4 +1,5 @@
 extern crate ff;
+extern crate rand;
 extern crate ff_ce_tester;
 
 use self::ff::*;
@@ -37,7 +38,7 @@ use criterion::{black_box, criterion_group, criterion_main, Criterion};
 // }
 
 // fn multiplication_benchmark(c: &mut Criterion) {
-//     use ff_ce_tester::rand::{Rng, XorShiftRng, SeedableRng};
+//     use rand::{Rng, XorShiftRng, SeedableRng};
 
 //     let rng = &mut XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 //     let a: Fr = rng.gen();
@@ -47,7 +48,7 @@ use criterion::{black_box, criterion_group, criterion_main, Criterion};
 // }
 
 fn mul_assing_benchmark(c: &mut Criterion) {
-    use ff_ce_tester::rand::{Rng, XorShiftRng, SeedableRng};
+    use rand::{Rng, XorShiftRng, SeedableRng};
 
     let rng = &mut XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
     let a: Fr = rng.gen();
@@ -57,7 +58,7 @@ fn mul_assing_benchmark(c: &mut Criterion) {
 }
 
 fn mul_assing_cios_benchmark(c: &mut Criterion) {
-    use ff_ce_tester::rand::{Rng, XorShiftRng, SeedableRng};
+    use rand::{Rng, XorShiftRng, SeedableRng};
 
     let rng = &mut XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
     let a: FrCios = rng.gen();
@@ -67,7 +68,7 @@ fn mul_assing_cios_benchmark(c: &mut Criterion) {
 }
 
 fn square_benchmark(c: &mut Criterion) {
-    use ff_ce_tester::rand::{Rng, XorShiftRng, SeedableRng};
+    use rand::{Rng, XorShiftRng, SeedableRng};
 
     let rng = &mut XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
     let a: Fr = rng.gen();
@@ -76,7 +77,7 @@ fn square_benchmark(c: &mut Criterion) {
 }
 
 fn square_cios_benchmark(c: &mut Criterion) {
-    use ff_ce_tester::rand::{Rng, XorShiftRng, SeedableRng};
+    use rand::{Rng, XorShiftRng, SeedableRng};
 
     let rng = &mut XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
     let a: FrCios = rng.gen();
@@ -84,7 +85,7 @@ fn square_cios_benchmark(c: &mut Criterion) {
     c.bench_function("Mont square assign 256 CIOS derive", |bencher| bencher.iter(|| black_box(a).square()));
 }
 // fn mul_assing_custom_benchmark(c: &mut Criterion) {
-//     use ff_ce_tester::rand::{Rng, XorShiftRng, SeedableRng};
+//     use rand::{Rng, XorShiftRng, SeedableRng};
 
 //     use self::ff_ce_tester::mul_variant0::Fs;
 //     // use self::mul_variant0::Fs;
@@ -97,7 +98,7 @@ fn square_cios_benchmark(c: &mut Criterion) {
 // }
 
 fn mul_assing_rps_benchmark(c: &mut Criterion) {
-    use ff_ce_tester::rand::{Rng, XorShiftRng, SeedableRng};
+    use rand::{Rng, XorShiftRng, SeedableRng};
 
     use ff_ce_tester::mul_variant0::Fs;
     // use self::mul_variant0::Fs;
@@ -110,7 +111,7 @@ fn mul_assing_rps_benchmark(c: &mut Criterion) {
 }
 
 // fn mul_assing_optimistic_cios_benchmark(c: &mut Criterion) {
-//     use ff_ce_tester::rand::{Rng, XorShiftRng, SeedableRng};
+//     use rand::{Rng, XorShiftRng, SeedableRng};
 
 //     use self::ff_ce_tester::mul_variant0::Fs;
 //     // use self::mul_variant0::Fs;
@@ -123,7 +124,7 @@ fn mul_assing_rps_benchmark(c: &mut Criterion) {
 // }
 
 fn mul_assing_optimistic_cios_by_value_benchmark(c: &mut Criterion) {
-    use ff_ce_tester::rand::{Rng, XorShiftRng, SeedableRng};
+    use rand::{Rng, XorShiftRng, SeedableRng};
 
     use self::ff_ce_tester::mul_variant0::Fs;
     // use self::mul_variant0::Fs;
@@ -136,7 +137,7 @@ fn mul_assing_optimistic_cios_by_value_benchmark(c: &mut Criterion) {
 }
 
 // fn mul_assing_optimistic_cios_by_value_with_partial_red_benchmark(c: &mut Criterion) {
-//     use ff_ce_tester::rand::{Rng, XorShiftRng, SeedableRng};
+//     use rand::{Rng, XorShiftRng, SeedableRng};
 
 //     use self::ff_ce_tester::mul_variant0::Fs;
 //     // use self::mul_variant0::Fs;
@@ -149,7 +150,7 @@ fn mul_assing_optimistic_cios_by_value_benchmark(c: &mut Criterion) {
 // }
 
 // fn mulx_mul_assing_benchmark(c: &mut Criterion) {
-//     use ff_ce_tester::rand::{Rng, XorShiftRng, SeedableRng};
+//     use rand::{Rng, XorShiftRng, SeedableRng};
 
 //     use self::ff_ce_tester::mul_variant0::Fs;
 //     // use self::mul_variant0::Fs;
@@ -162,7 +163,7 @@ fn mul_assing_optimistic_cios_by_value_benchmark(c: &mut Criterion) {
 // }
 
 fn llvm_asm_mul_assing_benchmark(c: &mut Criterion) {
-    use ff_ce_tester::rand::{Rng, XorShiftRng, SeedableRng};
+    use rand::{Rng, XorShiftRng, SeedableRng};
 
     use self::ff_ce_tester::mul_variant0::{Fs, mont_mul_asm};
     // use self::mul_variant0::Fs;
@@ -182,7 +183,7 @@ fn llvm_asm_mul_assing_benchmark(c: &mut Criterion) {
 }
 
 fn new_asm_mul_assing_benchmark(c: &mut Criterion) {
-    use ff_ce_tester::rand::{Rng, XorShiftRng, SeedableRng};
+    use rand::{Rng, XorShiftRng, SeedableRng};
 
     use self::ff_ce_tester::assembly_4::*;
     use ff_ce_tester::mul_variant0::Fs;
@@ -202,7 +203,7 @@ fn new_asm_mul_assing_benchmark(c: &mut Criterion) {
 }
 
 fn adx_asm_mul_assing_benchmark(c: &mut Criterion) {
-    use ff_ce_tester::rand::{Rng, XorShiftRng, SeedableRng};
+    use rand::{Rng, XorShiftRng, SeedableRng};
 
     use self::ff_ce_tester::assembly_4::*;
     use ff_ce_tester::mul_variant0::Fs;
@@ -222,7 +223,7 @@ fn adx_asm_mul_assing_benchmark(c: &mut Criterion) {
 }
 
 fn asm_mul_assing_with_register_abi_benchmark(c: &mut Criterion) {
-    use ff_ce_tester::rand::{Rng, XorShiftRng, SeedableRng};
+    use rand::{Rng, XorShiftRng, SeedableRng};
 
     use self::ff_ce_tester::assembly_4::*;
     use ff_ce_tester::mul_variant0::Fs;
@@ -245,7 +246,7 @@ fn asm_mul_assing_with_register_abi_benchmark(c: &mut Criterion) {
 }
 
 fn proth_adx_asm_mul_assing_benchmark(c: &mut Criterion) {
-    use ff_ce_tester::rand::{Rng, XorShiftRng, SeedableRng};
+    use rand::{Rng, XorShiftRng, SeedableRng};
 
     use self::ff_ce_tester::assembly_4::*;
     use ff_ce_tester::mul_variant0::Fs;
@@ -265,7 +266,7 @@ fn proth_adx_asm_mul_assing_benchmark(c: &mut Criterion) {
 }
 
 // fn mul_assing_optimistic_cios_with_different_semantics_benchmark(c: &mut Criterion) {
-//     use ff_ce_tester::rand::{Rng, XorShiftRng, SeedableRng};
+//     use rand::{Rng, XorShiftRng, SeedableRng};
 
 //     use self::ff_ce_tester::mul_variant0::Fs;
 //     // use self::mul_variant0::Fs;
@@ -278,7 +279,7 @@ fn proth_adx_asm_mul_assing_benchmark(c: &mut Criterion) {
 // }
 
 // fn mul_assing_vector_benchmark(c: &mut Criterion) {
-//     use ff_ce_tester::rand::{Rng, XorShiftRng, SeedableRng};
+//     use rand::{Rng, XorShiftRng, SeedableRng};
 
 //     let rng = &mut XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 //     let mut a = [Fr::zero(); 1024];
@@ -300,7 +301,7 @@ fn proth_adx_asm_mul_assing_benchmark(c: &mut Criterion) {
 // }
 
 // fn mul_assing_custom_vector_benchmark(c: &mut Criterion) {
-//     use ff_ce_tester::rand::{Rng, XorShiftRng, SeedableRng};
+//     use rand::{Rng, XorShiftRng, SeedableRng};
 
 //     use self::ff_ce_tester::mul_variant0::Fs;
 

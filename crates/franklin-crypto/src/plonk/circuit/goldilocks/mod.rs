@@ -678,18 +678,18 @@ mod test {
     extern crate boojum;
 
     use crate::bellman::pairing::bn256::{Bn256, Fr};
-    use crate::rand::Rng;
     use boojum::field::Field;
     use boojum::field::SmallField;
     use boojum::field::U64Representable;
+    use rand::Rng;
 
     #[test]
     fn test_goldilocks_field() {
         let mut assembly = TrivialAssembly::<Bn256, PlonkCsWidth4WithNextStepParams, Width4MainGateWithDNext>::new();
         let _before = assembly.n();
 
-        let mut rng = crate::rand::thread_rng();
-        let buffer_u64 = [0; 10].map(|_| rng.gen_range(0..GL::CHAR));
+        let mut rng = rand::thread_rng();
+        let buffer_u64 = [0; 10].map(|_| rng.gen_range(0, GL::CHAR));
         let buffer_gl = buffer_u64.map(|x| GL::from_u64_unchecked(x));
 
         let buffer_circuit = buffer_u64.map(|x| GoldilocksField::alloc_from_u64(&mut assembly, Some(x)).unwrap());
@@ -736,8 +736,8 @@ mod test {
         let mut assembly = TrivialAssembly::<Bn256, PlonkCsWidth4WithNextStepParams, Width4MainGateWithDNext>::new();
         let _before = assembly.n();
 
-        let mut rng = crate::rand::thread_rng();
-        let buffer_u64 = [0; 10].map(|_| rng.gen_range(0..GL::CHAR));
+        let mut rng = rand::thread_rng();
+        let buffer_u64 = [0; 10].map(|_| rng.gen_range(0, GL::CHAR));
 
         let buffer_circuit = buffer_u64.map(|x| GoldilocksField::alloc_from_u64(&mut assembly, Some(x)).unwrap());
         // let buffer_circuit = buffer_u64.map(|x|

@@ -1,4 +1,4 @@
-use crate::rand;
+extern crate rand;
 
 extern crate test as rust_test;
 extern crate num_bigint;
@@ -10,7 +10,7 @@ mod benches {
     use crate::Field;
     use crate::*;
     use super::rust_test::Bencher;
-    use crate::rand::{Rng, XorShiftRng, SeedableRng};
+    use rand::{Rng, XorShiftRng, SeedableRng};
     use super::num_bigint::BigUint;
     use super::num_traits::identities::{Zero, One};
     use super::num_traits::{ToPrimitive, Num};
@@ -146,6 +146,7 @@ mod benches {
 
     }
 }
+
 
 
 

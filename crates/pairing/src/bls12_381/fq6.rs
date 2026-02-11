@@ -1,7 +1,7 @@
 use super::fq::{FROBENIUS_COEFF_FQ6_C1, FROBENIUS_COEFF_FQ6_C2};
 use super::fq2::Fq2;
-use crate::rand::{Rand, Rng};
 use ff::Field;
+use rand::{Rand, Rng};
 
 /// An element of Fq6, represented by c0 + c1 * v + c2 * v^(2).
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Default, ::serde::Serialize, ::serde::Deserialize)]
@@ -18,11 +18,11 @@ impl ::std::fmt::Display for Fq6 {
 }
 
 impl Rand for Fq6 {
-    fn rand<R: Rng + ?Sized>(rng: &mut R) -> Self {
+    fn rand<R: Rng>(rng: &mut R) -> Self {
         Fq6 {
-            c0: Rand::rand(rng),
-            c1: Rand::rand(rng),
-            c2: Rand::rand(rng),
+            c0: rng.gen(),
+            c1: rng.gen(),
+            c2: rng.gen(),
         }
     }
 }
@@ -298,7 +298,7 @@ impl Field for Fq6 {
 }
 
 #[cfg(test)]
-use crate::rand::{SeedableRng, XorShiftRng};
+use rand::{SeedableRng, XorShiftRng};
 
 #[test]
 fn test_fq6_mul_nonresidue() {

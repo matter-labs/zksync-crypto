@@ -1,5 +1,4 @@
 use crate::poseidon::params::PoseidonParams;
-use crate::rand::Rand;
 use crate::rescue::params::RescueParams;
 use crate::rescue_prime::params::RescuePrimeParams;
 use crate::sponge::GenericSponge;
@@ -12,6 +11,7 @@ use franklin_crypto::bellman::Field;
 use franklin_crypto::plonk::circuit::allocated_num::AllocatedNum;
 use franklin_crypto::plonk::circuit::allocated_num::Num;
 use franklin_crypto::{bellman::plonk::better_better_cs::cs::ConstraintSystem, bellman::Engine};
+use rand::Rand;
 
 pub(crate) fn test_inputs<E: Engine, CS: ConstraintSystem<E>, const N: usize>(cs: &mut CS, use_allocated: bool) -> ([E::Fr; N], [Num<E>; N]) {
     let rng = &mut init_rng();

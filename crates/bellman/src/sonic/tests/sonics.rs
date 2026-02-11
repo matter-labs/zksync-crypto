@@ -1,7 +1,7 @@
-use crate::rand;
+extern crate rand;
 
 // For randomness (during paramgen and proof generation)
-use crate::rand::{thread_rng, Rng};
+use rand::{thread_rng, Rng};
 
 // For benchmarking
 use std::time::{Duration, Instant};
@@ -420,7 +420,7 @@ fn test_succinct_sonic_mimc() {
     println!("done in {:?}", start.elapsed());
 
     {
-        use crate::rand::{Rand, Rng, SeedableRng, XorShiftRng};
+        use rand::{Rand, Rng, SeedableRng, XorShiftRng};
         let rng = &mut XorShiftRng::from_seed([0x3dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
         // Generate the MiMC round constants
@@ -504,7 +504,7 @@ fn test_succinct_sonic_mimc() {
         // }
 
         {
-            use crate::rand::{Rand, Rng, SeedableRng, XorShiftRng};
+            use rand::{Rand, Rng, SeedableRng, XorShiftRng};
             let rng = &mut XorShiftRng::from_seed([0x3dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
             let mut verifier = SuccinctMultiVerifier::<Bls12, _, Permutation3, _>::new(AdaptorCircuit(circuit.clone()), &srs, rng).unwrap();

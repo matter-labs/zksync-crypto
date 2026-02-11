@@ -181,12 +181,12 @@ mod tests {
     use num_bigint::{BigInt, Sign};
     #[test]
     fn test_addition_chains() {
-        let mut rng = crate::rand::thread_rng();
+        let mut rng = rand::thread_rng();
 
         let alpha = 5;
         let alpha_inv_as_biguint = crate::common::utils::compute_gcd_biguint::<Bn256>(alpha).expect("inverse of alpha");
         let addition_chain: Vec<_> = addchain::build_addition_chain(alpha_inv_as_biguint).into_iter().map(|el| crate::traits::Step::from(el)).collect();
-        use crate::rand::Rand;
+        use rand::Rand;
 
         dbg!(addition_chain.len());
         assert!(addition_chain.len() <= 512);

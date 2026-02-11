@@ -3142,14 +3142,14 @@ mod test {
 
     #[test]
     fn test_new_multiexp_with_bls12() {
-        use crate::rand::{self, Rand};
+        use rand::{self, Rand};
         use crate::pairing::bls12_381::Bls12;
 
         use self::futures::executor::block_on;
 
         const SAMPLES: usize = 1 << 14;
 
-        let rng = &mut crate::rand::thread_rng();
+        let rng = &mut rand::thread_rng();
         let v = Arc::new((0..SAMPLES).map(|_| <Bls12 as ScalarEngine>::Fr::rand(rng).into_repr()).collect::<Vec<_>>());
         let g = Arc::new((0..SAMPLES).map(|_| <Bls12 as Engine>::G1::rand(rng).into_affine()).collect::<Vec<_>>());
 
@@ -3172,14 +3172,14 @@ mod test {
 
     #[test]
     fn test_valid_bn254_multiexp() {
-        use crate::rand::{self, Rand};
+        use rand::{self, Rand};
         use crate::pairing::bn256::Bn256;
 
         const SAMPLES: usize = 1 << 14;
 
         let pool = Worker::new();
 
-        let rng = &mut crate::rand::thread_rng();
+        let rng = &mut rand::thread_rng();
         let v = (0..SAMPLES).map(|_| <Bn256 as ScalarEngine>::Fr::rand(rng).into_repr()).collect::<Vec<_>>();
         let g = (0..SAMPLES).map(|_| <Bn256 as Engine>::G1::rand(rng).into_affine()).collect::<Vec<_>>();
         let dense = dense_multiexp(
@@ -3221,14 +3221,14 @@ mod test {
     #[ignore]
     fn test_new_multexp_speed_with_bn256() {
         
-        use crate::rand::{self, Rand};
+        use rand::{self, Rand};
         use crate::pairing::bn256::Bn256;
         use num_cpus;
 
         let cpus = num_cpus::get();
         const SAMPLES: usize = 1 << 22;
 
-        let rng = &mut crate::rand::thread_rng();
+        let rng = &mut rand::thread_rng();
         let v = Arc::new((0..SAMPLES).map(|_| <Bn256 as ScalarEngine>::Fr::rand(rng).into_repr()).collect::<Vec<_>>());
         let g = Arc::new((0..SAMPLES).map(|_| <Bn256 as Engine>::G1::rand(rng).into_affine()).collect::<Vec<_>>());
 
@@ -3255,7 +3255,7 @@ mod test {
 
     #[test]
     fn test_dense_multiexp_vs_new_multiexp() {
-        use crate::rand::{XorShiftRng, SeedableRng, Rand, Rng};
+        use rand::{XorShiftRng, SeedableRng, Rand, Rng};
         use crate::pairing::bn256::Bn256;
         use num_cpus;
 
@@ -3329,7 +3329,7 @@ mod test {
 
     #[test]
     fn test_bench_sparse_multiexp() {
-        use crate::rand::{XorShiftRng, SeedableRng, Rand, Rng};
+        use rand::{XorShiftRng, SeedableRng, Rand, Rng};
         use num_cpus;
 
         type Eng = crate::pairing::bls12_381::Bls12;
@@ -3358,7 +3358,7 @@ mod test {
 
     #[test]
     fn test_bench_dense_consuming_multiexp() {
-        use crate::rand::{XorShiftRng, SeedableRng, Rand, Rng};
+        use rand::{XorShiftRng, SeedableRng, Rand, Rng};
 
         // type Eng = crate::pairing::bn256::Bn256;
         type Eng = crate::pairing::bls12_381::Bls12;

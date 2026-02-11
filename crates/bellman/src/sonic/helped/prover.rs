@@ -109,8 +109,8 @@ pub fn create_proof<E: Engine, C: Circuit<E>, S: SynthesisDriver>(circuit: &C, p
     create_proof_on_srs::<E, C, S>(circuit, &parameters.srs)
 }
 
+extern crate rand;
 use self::rand::{thread_rng, Rand, Rng};
-use crate::rand;
 use crate::sonic::sonic::Wires;
 
 pub fn create_proof_on_srs<E: Engine, C: Circuit<E>, S: SynthesisDriver>(circuit: &C, srs: &SRS<E>) -> Result<Proof<E>, SynthesisError> {
@@ -285,9 +285,9 @@ fn my_fun_circuit_test() {
     use super::*;
     use crate::pairing::bls12_381::{Bls12, Fr};
     use crate::pairing::ff::PrimeField;
-    use crate::rand::thread_rng;
     use crate::sonic::cs::{ConstraintSystem, LinearCombination};
     use crate::sonic::sonic::Basic;
+    use rand::thread_rng;
 
     struct MyCircuit;
 
@@ -330,9 +330,9 @@ fn polynomial_commitment_test() {
     use crate::pairing::ff::PrimeField;
     use crate::pairing::ff::PrimeFieldRepr;
     use crate::pairing::CurveAffine;
-    use crate::rand::thread_rng;
     use crate::sonic::cs::{ConstraintSystem, LinearCombination};
     use crate::sonic::sonic::Basic;
+    use rand::thread_rng;
 
     let srs = SRS::<Bls12>::new(20, Fr::from_str("22222").unwrap(), Fr::from_str("33333333").unwrap());
 

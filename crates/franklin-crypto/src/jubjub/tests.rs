@@ -2,7 +2,7 @@ use super::{edwards, montgomery, JubjubEngine, JubjubParams, PrimeOrder};
 
 use bellman::pairing::ff::{Field, LegendreSymbol, PrimeField, PrimeFieldRepr, SqrtField};
 
-use crate::rand::{Rand, SeedableRng, XorShiftRng};
+use rand::{Rand, SeedableRng, XorShiftRng};
 
 pub fn test_suite<E: JubjubEngine>(params: &E::Params) {
     test_back_and_forth::<E>(params);

@@ -1,7 +1,7 @@
-use crate::rand::{Rand, Rng};
 use bellman::pairing::bn256::Bn256;
 use bellman::pairing::ff::BitIterator;
 use bellman::{Engine, Field, PrimeField, PrimeFieldRepr, ScalarEngine, SqrtField};
+use rand::{Rand, Rng};
 use std::marker::PhantomData;
 
 // [P, 2P, 3P .. 8P]
@@ -379,7 +379,7 @@ impl<E: Engine, C: TwistedEdwardsCurveParams<E>> TwistedEdwardsCurveImplementor<
 
     pub fn rand<R: Rng>(&self, rng: &mut R) -> TwistedEdwardsPoint<E> {
         loop {
-            let y = Rand::rand(rng);
+            let y = rng.gen();
 
             if let Some(p) = self.get_for_y(y, rng.gen()) {
                 return p;

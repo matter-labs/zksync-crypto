@@ -118,7 +118,7 @@ pub fn create_proof<E: Engine, C: Circuit<E>, S: SynthesisDriver>(
     create_proof_on_srs::<E, C, S>(circuit, &parameters.srs)
 }
 
-use crate::rand;
+extern crate rand;
 use self::rand::{Rand, Rng, thread_rng};
 use crate::sonic::sonic::Wires;
 

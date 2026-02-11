@@ -120,7 +120,7 @@ mod tests {
     use super::*;
     use crate::boojum::cs::oracle::TreeHasher;
     use crate::boojum::field::{SmallField, U64Representable};
-    use crate::rand::{Rand, Rng};
+    use rand::{Rand, Rng};
 
     use crate::franklin_crypto::bellman::pairing::bn256::{Bn256, Fr};
     use crate::franklin_crypto::bellman::plonk::better_better_cs::cs::*;
@@ -134,8 +134,8 @@ mod tests {
         let mut assembly = TrivialAssembly::<Bn256, PlonkCsWidth4WithNextStepParams, Width4MainGateWithDNext>::new();
         let _before = assembly.n();
 
-        let mut rng = crate::rand::thread_rng();
-        let buffer_u64 = [0; 100].map(|_| rng.gen_range(0..GL::CHAR));
+        let mut rng = rand::thread_rng();
+        let buffer_u64 = [0; 100].map(|_| rng.gen_range(0, GL::CHAR));
 
         let buffer_circuit = buffer_u64.map(|x| GoldilocksField::alloc_from_u64(&mut assembly, Some(x)).unwrap());
 

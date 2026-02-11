@@ -2,7 +2,7 @@
 
 extern crate byteorder;
 extern crate hex as hex_ext;
-extern crate rand as rand_crate;
+extern crate rand;
 extern crate serde;
 pub mod hex {
     pub use hex_ext::*;
@@ -20,102 +20,8 @@ use std::fmt;
 use std::hash;
 use std::io::{self, Read, Write};
 
-pub mod rand {
-    pub use crate::rand_crate::{distributions, random, rngs, seq, thread_rng, RngCore, SeedableRng};
-    pub use crate::Rand;
-
-    // `rand 0.8` changed `Rng::gen` to rely on `Distribution<T>`, while this
-    // codebase historically relies on `ff::Rand`. Keep the old behavior in our
-    // local rand facade so existing generic code continues to compile.
-    pub trait Rng: RngCore {
-        fn gen<T>(&mut self) -> T
-        where
-            T: Rand,
-        {
-            T::rand(self)
-        }
-
-        fn gen_range<T, R>(&mut self, range: R) -> T
-        where
-            T: crate::rand_crate::distributions::uniform::SampleUniform,
-            R: crate::rand_crate::distributions::uniform::SampleRange<T>,
-        {
-            crate::rand_crate::Rng::gen_range(self, range)
-        }
-    }
-
-    impl<T: RngCore + ?Sized> Rng for T {}
-
-    #[derive(Clone, Debug)]
-    pub struct XorShiftRng(pub rand_xorshift::XorShiftRng);
-
-    impl XorShiftRng {
-        pub fn from_seed(seed: [u32; 4]) -> Self {
-            let mut seed_bytes = [0u8; 16];
-            for (chunk, word) in seed_bytes.chunks_exact_mut(4).zip(seed.iter()) {
-                chunk.copy_from_slice(&word.to_le_bytes());
-            }
-
-            <Self as SeedableRng>::from_seed(seed_bytes)
-        }
-    }
-
-    impl RngCore for XorShiftRng {
-        fn next_u32(&mut self) -> u32 {
-            self.0.next_u32()
-        }
-
-        fn next_u64(&mut self) -> u64 {
-            self.0.next_u64()
-        }
-
-        fn fill_bytes(&mut self, dest: &mut [u8]) {
-            self.0.fill_bytes(dest)
-        }
-
-        fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), crate::rand_crate::Error> {
-            self.0.try_fill_bytes(dest)
-        }
-    }
-
-    impl SeedableRng for XorShiftRng {
-        type Seed = <rand_xorshift::XorShiftRng as SeedableRng>::Seed;
-
-        fn from_seed(seed: Self::Seed) -> Self {
-            Self(rand_xorshift::XorShiftRng::from_seed(seed))
-        }
-    }
-}
-
-/// This trait provides deterministic random generation over a user-provided RNG.
-pub trait Rand: Sized {
-    fn rand<R: rand::Rng + ?Sized>(rng: &mut R) -> Self;
-}
-
-macro_rules! impl_rand_via_standard_distribution {
-    ($($ty:ty),* $(,)?) => {
-        $(
-            impl Rand for $ty {
-                fn rand<R: rand::Rng + ?Sized>(rng: &mut R) -> Self {
-                    use crate::rand_crate::distributions::{Distribution, Standard};
-
-                    Standard.sample(rng)
-                }
-            }
-        )*
-    };
-}
-
-impl_rand_via_standard_distribution!(bool, char, u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, isize, f32, f64,);
-
-impl<T: Rand, const N: usize> Rand for [T; N] {
-    fn rand<R: rand::Rng + ?Sized>(rng: &mut R) -> Self {
-        std::array::from_fn(|_| T::rand(rng))
-    }
-}
-
 /// This trait represents an element of a field.
-pub trait Field: Sized + Eq + Copy + Clone + Send + Sync + fmt::Debug + fmt::Display + 'static + Rand + hash::Hash + Default + serde::Serialize + serde::de::DeserializeOwned {
+pub trait Field: Sized + Eq + Copy + Clone + Send + Sync + fmt::Debug + fmt::Display + 'static + rand::Rand + hash::Hash + Default + serde::Serialize + serde::de::DeserializeOwned {
     /// Returns the zero element of the field, the additive identity.
     fn zero() -> Self;
 
@@ -198,7 +104,7 @@ pub trait PrimeFieldRepr:
     + fmt::Debug
     + fmt::Display
     + 'static
-    + Rand
+    + rand::Rand
     + AsRef<[u64]>
     + AsMut<[u64]>
     + From<u64>

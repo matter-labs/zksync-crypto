@@ -149,7 +149,7 @@ fn test_s2_proof() {
     println!("done in {:?}", start.elapsed());
 
     {
-        use crate::rand::{Rand, Rng, SeedableRng, XorShiftRng};
+        use rand::{Rand, Rng, SeedableRng, XorShiftRng};
         let rng = &mut XorShiftRng::from_seed([0x3dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
         let x: Fr = rng.gen();

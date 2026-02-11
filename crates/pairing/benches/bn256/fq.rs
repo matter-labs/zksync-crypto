@@ -1,4 +1,4 @@
-use zksync_pairing::rand::{Rand, SeedableRng, XorShiftRng};
+use rand::{Rand, SeedableRng, XorShiftRng};
 
 use ff::{Field, PrimeField, PrimeFieldRepr, SqrtField};
 use zksync_pairing::bn256::*;

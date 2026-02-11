@@ -1,9 +1,9 @@
 #[cfg(test)]
 mod test {
+    use super::super::test_large_field::Fr as Fr;
     use super::super::test_large_cios_field::Fr as FrCios;
-    use super::super::test_large_field::Fr;
 
-    use crate::rand::*;
+    use rand::*;
     use ff::*;
 
     #[test]
@@ -11,7 +11,7 @@ mod test {
         let rng = &mut XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
         for _ in 0..10000 {
-            let a: Fr = rng.gen();
+            let a: Fr = rng.gen(); 
             let b: Fr = rng.gen();
 
             let a_cios = unsafe { std::mem::transmute::<_, FrCios>(a) };
@@ -34,7 +34,7 @@ mod test {
         let rng = &mut XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
         for _ in 0..10000 {
-            let a: Fr = rng.gen();
+            let a: Fr = rng.gen(); 
 
             let a_cios = unsafe { std::mem::transmute::<_, FrCios>(a) };
 

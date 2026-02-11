@@ -1,4 +1,5 @@
 extern crate ff;
+extern crate rand;
 extern crate asm_tester;
 
 use self::ff::*;
@@ -7,7 +8,7 @@ use asm_tester::test_large_field::{Fr, FrAsm};
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
 fn mul_assing_benchmark(c: &mut Criterion) {
-    use asm_tester::rand::{Rng, XorShiftRng, SeedableRng};
+    use rand::{Rng, XorShiftRng, SeedableRng};
 
     let rng = &mut XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
     let a: Fr = rng.gen();
@@ -17,7 +18,7 @@ fn mul_assing_benchmark(c: &mut Criterion) {
 }
 
 fn mul_assing_asm_benchmark(c: &mut Criterion) {
-    use asm_tester::rand::{Rng, XorShiftRng, SeedableRng};
+    use rand::{Rng, XorShiftRng, SeedableRng};
 
     let rng = &mut XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
     let a: FrAsm = rng.gen();
@@ -27,7 +28,7 @@ fn mul_assing_asm_benchmark(c: &mut Criterion) {
 }
 
 fn add_assing_benchmark(c: &mut Criterion) {
-    use asm_tester::rand::{Rng, XorShiftRng, SeedableRng};
+    use rand::{Rng, XorShiftRng, SeedableRng};
 
     let rng = &mut XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
     let a: Fr = rng.gen();
@@ -37,7 +38,7 @@ fn add_assing_benchmark(c: &mut Criterion) {
 }
 
 fn add_assing_asm_benchmark(c: &mut Criterion) {
-    use asm_tester::rand::{Rng, XorShiftRng, SeedableRng};
+    use rand::{Rng, XorShiftRng, SeedableRng};
 
     let rng = &mut XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
     let a: FrAsm = rng.gen();
@@ -47,7 +48,7 @@ fn add_assing_asm_benchmark(c: &mut Criterion) {
 }
 
 fn sub_assing_benchmark(c: &mut Criterion) {
-    use asm_tester::rand::{Rng, XorShiftRng, SeedableRng};
+    use rand::{Rng, XorShiftRng, SeedableRng};
 
     let rng = &mut XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
     let a: Fr = rng.gen();
@@ -57,7 +58,7 @@ fn sub_assing_benchmark(c: &mut Criterion) {
 }
 
 fn sub_assing_asm_benchmark(c: &mut Criterion) {
-    use asm_tester::rand::{Rng, XorShiftRng, SeedableRng};
+    use rand::{Rng, XorShiftRng, SeedableRng};
 
     let rng = &mut XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
     let a: FrAsm = rng.gen();
@@ -67,7 +68,7 @@ fn sub_assing_asm_benchmark(c: &mut Criterion) {
 }
 
 fn double_benchmark(c: &mut Criterion) {
-    use asm_tester::rand::{Rng, XorShiftRng, SeedableRng};
+    use rand::{Rng, XorShiftRng, SeedableRng};
 
     let rng = &mut XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
     let a: Fr = rng.gen();
@@ -76,7 +77,7 @@ fn double_benchmark(c: &mut Criterion) {
 }
 
 fn double_asm_benchmark(c: &mut Criterion) {
-    use asm_tester::rand::{Rng, XorShiftRng, SeedableRng};
+    use rand::{Rng, XorShiftRng, SeedableRng};
 
     let rng = &mut XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
     let a: FrAsm = rng.gen();
@@ -85,7 +86,7 @@ fn double_asm_benchmark(c: &mut Criterion) {
 }
 
 fn square_benchmark(c: &mut Criterion) {
-    use asm_tester::rand::{Rng, XorShiftRng, SeedableRng};
+    use rand::{Rng, XorShiftRng, SeedableRng};
 
     let rng = &mut XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
     let a: Fr = rng.gen();
@@ -94,7 +95,7 @@ fn square_benchmark(c: &mut Criterion) {
 }
 
 fn square_asm_benchmark(c: &mut Criterion) {
-    use asm_tester::rand::{Rng, XorShiftRng, SeedableRng};
+    use rand::{Rng, XorShiftRng, SeedableRng};
 
     let rng = &mut XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
     let a: FrAsm = rng.gen();
@@ -103,7 +104,7 @@ fn square_asm_benchmark(c: &mut Criterion) {
 }
 
 fn mul_assing_vector_benchmark(c: &mut Criterion) {
-    use asm_tester::rand::{Rng, XorShiftRng, SeedableRng};
+    use rand::{Rng, XorShiftRng, SeedableRng};
 
     let rng = &mut XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
     let mut a = [Fr::zero(); 1024];
@@ -125,7 +126,7 @@ fn mul_assing_vector_benchmark(c: &mut Criterion) {
 }
 
 fn mul_assing_asm_vector_benchmark(c: &mut Criterion) {
-    use asm_tester::rand::{Rng, XorShiftRng, SeedableRng};
+    use rand::{Rng, XorShiftRng, SeedableRng};
 
     let rng = &mut XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
     let mut a = [FrAsm::zero(); 1024];
@@ -147,7 +148,7 @@ fn mul_assing_asm_vector_benchmark(c: &mut Criterion) {
 }
 
 fn square_vector_benchmark(c: &mut Criterion) {
-    use asm_tester::rand::{Rng, XorShiftRng, SeedableRng};
+    use rand::{Rng, XorShiftRng, SeedableRng};
 
     let rng = &mut XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
     let mut a = [Fr::zero(); 1024];
@@ -166,7 +167,7 @@ fn square_vector_benchmark(c: &mut Criterion) {
 }
 
 fn square_asm_vector_benchmark(c: &mut Criterion) {
-    use asm_tester::rand::{Rng, XorShiftRng, SeedableRng};
+    use rand::{Rng, XorShiftRng, SeedableRng};
 
     let rng = &mut XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
     let mut a = [FrAsm::zero(); 1024];

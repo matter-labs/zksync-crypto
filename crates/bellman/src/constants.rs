@@ -6,8 +6,8 @@ use crate::pairing::{CurveProjective, Engine};
 pub fn make_random_points_with_unknown_discrete_log_from_seed<E: Engine>(dst: &[u8], seed: &[u8], num_points: usize) -> Vec<E::G1Affine> {
     let mut result = vec![];
 
-    use crate::rand::chacha::ChaChaRng;
-    use crate::rand::{Rand, Rng, SeedableRng};
+    use rand::chacha::ChaChaRng;
+    use rand::{Rng, SeedableRng};
     // Create an RNG based on the outcome of the random beacon
     let mut rng = {
         // if we use Blake hasher
@@ -23,7 +23,7 @@ pub fn make_random_points_with_unknown_discrete_log_from_seed<E: Engine>(dst: &[
     };
 
     for _ in 0..num_points {
-        let point: E::G1 = Rand::rand(&mut rng);
+        let point: E::G1 = rng.gen();
 
         result.push(point.into_affine());
     }

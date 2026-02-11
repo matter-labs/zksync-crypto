@@ -138,9 +138,9 @@ mod test_large_cios_field {
             Ok(())
         }
     }
-    impl Rand for FrRepr {
+    impl ::rand::Rand for FrRepr {
         #[inline(always)]
-        fn rand<R: ::rand::Rng + ?Sized>(rng: &mut R) -> Self {
+        fn rand<R: ::rand::Rng>(rng: &mut R) -> Self {
             FrRepr(rng.gen())
         }
     }
@@ -380,11 +380,11 @@ mod test_large_cios_field {
             ))
         }
     }
-    impl Rand for Fr {
+    impl ::rand::Rand for Fr {
         /// Computes a uniformly random element using rejection sampling.
-        fn rand<R: ::rand::Rng + ?Sized>(rng: &mut R) -> Self {
+        fn rand<R: ::rand::Rng>(rng: &mut R) -> Self {
             loop {
-                let mut tmp = Fr(<FrRepr as Rand>::rand(rng));
+                let mut tmp = Fr(FrRepr::rand(rng));
                 tmp.0.as_mut()[3usize] &= 0xffffffffffffffff >> REPR_SHAVE_BITS;
                 if tmp.is_valid() {
                     return tmp;

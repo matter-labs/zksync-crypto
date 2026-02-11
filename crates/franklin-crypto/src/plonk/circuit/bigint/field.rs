@@ -3088,7 +3088,7 @@ mod test {
     fn test_bn_254_with_multitable() {
         use crate::bellman::pairing::bn256::{Bn256, Fq, Fr};
 
-        use crate::rand::{Rng, SeedableRng, XorShiftRng};
+        use rand::{Rng, SeedableRng, XorShiftRng};
         let _rng = &mut XorShiftRng::from_seed([0x3dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
         use crate::bellman::plonk::better_better_cs::cs::*;
@@ -3173,7 +3173,7 @@ mod test {
     }
 
     fn test_mul_on_random_witnesses<E: Engine, F: PrimeField, P: PlonkConstraintSystemParams<E>, I: Fn() -> TrivialAssembly<E, P, Width4MainGateWithDNext>>(params: &RnsParameters<E, F>, init: &I) {
-        use crate::rand::{Rng, SeedableRng, XorShiftRng};
+        use rand::{Rng, SeedableRng, XorShiftRng};
         let rng = &mut XorShiftRng::from_seed([0x3dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
         for i in 0..100 {
@@ -3220,7 +3220,7 @@ mod test {
         params: &RnsParameters<E, F>,
         init: &I,
     ) {
-        use crate::rand::{Rng, SeedableRng, XorShiftRng};
+        use rand::{Rng, SeedableRng, XorShiftRng};
         let rng = &mut XorShiftRng::from_seed([0x3dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
         for _i in 0..100 {
@@ -3246,7 +3246,7 @@ mod test {
         params: &RnsParameters<E, F>,
         init: &I,
     ) {
-        use crate::rand::{Rng, SeedableRng, XorShiftRng};
+        use rand::{Rng, SeedableRng, XorShiftRng};
         let rng = &mut XorShiftRng::from_seed([0x3dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
         for _i in 0..100 {
@@ -3270,7 +3270,7 @@ mod test {
         params: &RnsParameters<E, F>,
         init: &I,
     ) {
-        use crate::rand::{Rng, SeedableRng, XorShiftRng};
+        use rand::{Rng, SeedableRng, XorShiftRng};
         let rng = &mut XorShiftRng::from_seed([0x3dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
         for _i in 0..100 {
@@ -3301,7 +3301,7 @@ mod test {
         params: &RnsParameters<E, F>,
         init: &I,
     ) {
-        use crate::rand::{Rng, SeedableRng, XorShiftRng};
+        use rand::{Rng, SeedableRng, XorShiftRng};
         let rng = &mut XorShiftRng::from_seed([0x3dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
         for _i in 0..100 {
@@ -3331,7 +3331,7 @@ mod test {
     }
 
     fn test_square_on_random_witnesses<E: Engine, F: PrimeField, P: PlonkConstraintSystemParams<E>, I: Fn() -> TrivialAssembly<E, P, Width4MainGateWithDNext>>(params: &RnsParameters<E, F>, init: &I) {
-        use crate::rand::{Rng, SeedableRng, XorShiftRng};
+        use rand::{Rng, SeedableRng, XorShiftRng};
         let rng = &mut XorShiftRng::from_seed([0x3dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
         for i in 0..100 {
@@ -3376,7 +3376,7 @@ mod test {
     }
 
     fn test_add_on_random_witnesses<E: Engine, F: PrimeField, P: PlonkConstraintSystemParams<E>, I: Fn() -> TrivialAssembly<E, P, Width4MainGateWithDNext>>(params: &RnsParameters<E, F>, init: &I) {
-        use crate::rand::{Rng, SeedableRng, XorShiftRng};
+        use rand::{Rng, SeedableRng, XorShiftRng};
         let rng = &mut XorShiftRng::from_seed([0x3dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
         for i in 0..100 {
@@ -3427,7 +3427,7 @@ mod test {
         params: &RnsParameters<E, F>,
         init: &I,
     ) {
-        use crate::rand::{Rng, SeedableRng, XorShiftRng};
+        use rand::{Rng, SeedableRng, XorShiftRng};
         let rng = &mut XorShiftRng::from_seed([0x3dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
         for _i in 0..10 {
@@ -3456,7 +3456,7 @@ mod test {
         params: &RnsParameters<E, F>,
         init: &I,
     ) {
-        use crate::rand::{Rng, SeedableRng, XorShiftRng};
+        use rand::{Rng, SeedableRng, XorShiftRng};
         let rng = &mut XorShiftRng::from_seed([0x3dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
         for _i in 0..10 {
@@ -3485,7 +3485,7 @@ mod test {
         params: &RnsParameters<E, F>,
         init: &I,
     ) {
-        use crate::rand::{Rng, SeedableRng, XorShiftRng};
+        use rand::{Rng, SeedableRng, XorShiftRng};
         let rng = &mut XorShiftRng::from_seed([0x3dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
         for _i in 0..10 {
@@ -3511,7 +3511,7 @@ mod test {
     }
 
     fn test_sub_on_random_witnesses<E: Engine, F: PrimeField, P: PlonkConstraintSystemParams<E>, I: Fn() -> TrivialAssembly<E, P, Width4MainGateWithDNext>>(params: &RnsParameters<E, F>, init: &I) {
-        use crate::rand::{Rng, SeedableRng, XorShiftRng};
+        use rand::{Rng, SeedableRng, XorShiftRng};
         let rng = &mut XorShiftRng::from_seed([0x3dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
         for i in 0..100 {
@@ -3562,7 +3562,7 @@ mod test {
     }
 
     fn test_select_on_random_witnesses<E: Engine, F: PrimeField, P: PlonkConstraintSystemParams<E>, I: Fn() -> TrivialAssembly<E, P, Width4MainGateWithDNext>>(params: &RnsParameters<E, F>, init: &I) {
-        use crate::rand::{Rng, SeedableRng, XorShiftRng};
+        use rand::{Rng, SeedableRng, XorShiftRng};
         let rng = &mut XorShiftRng::from_seed([0x3dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
         for i in 0..100 {
@@ -3614,7 +3614,7 @@ mod test {
         params: &RnsParameters<E, F>,
         init: &I,
     ) {
-        use crate::rand::{Rng, SeedableRng, XorShiftRng};
+        use rand::{Rng, SeedableRng, XorShiftRng};
         let rng = &mut XorShiftRng::from_seed([0x3dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
         for i in 0..100 {
@@ -3669,7 +3669,7 @@ mod test {
         params: &RnsParameters<E, F>,
         init: &I,
     ) {
-        use crate::rand::{Rng, SeedableRng, XorShiftRng};
+        use rand::{Rng, SeedableRng, XorShiftRng};
         let rng = &mut XorShiftRng::from_seed([0x3dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
         for _i in 0..100 {
