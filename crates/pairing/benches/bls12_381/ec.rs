@@ -1,5 +1,5 @@
 mod g1 {
-    use rand::{Rand, SeedableRng, XorShiftRng};
+    use zksync_pairing::rand::{Rand, SeedableRng, XorShiftRng};
 
     use zksync_pairing::bls12_381::*;
     use zksync_pairing::CurveProjective;
@@ -57,7 +57,7 @@ mod g1 {
 }
 
 mod g2 {
-    use rand::{Rand, SeedableRng, XorShiftRng};
+    use zksync_pairing::rand::{Rand, SeedableRng, XorShiftRng};
 
     use zksync_pairing::bls12_381::*;
     use zksync_pairing::CurveProjective;

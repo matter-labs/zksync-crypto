@@ -98,8 +98,8 @@ impl Bn256RescueParams {
         };
 
         let mds_matrix = {
-            use rand::chacha::ChaChaRng;
-            use rand::SeedableRng;
+            use crate::rand::chacha::ChaChaRng;
+            use crate::rand::SeedableRng;
             // Create an RNG based on the outcome of the random beacon
             let mut rng = {
                 // This tag is a first one in a sequence of b"ResMxxxx"
@@ -244,11 +244,11 @@ impl RescueHashParams<bn256::Bn256> for Bn256RescueParams {
 mod test {
     use super::*;
     use crate::group_hash::BlakeHasher;
+    use crate::rand::{thread_rng, Rand, Rng, SeedableRng, XorShiftRng};
     use crate::rescue::*;
     use bellman::pairing::bn256::{Bn256, Fr};
     use bellman::pairing::ff::Field;
     use bellman::pairing::ff::PrimeField;
-    use rand::{thread_rng, Rand, Rng, SeedableRng, XorShiftRng};
 
     #[test]
     fn test_generate_bn256_rescue_params() {

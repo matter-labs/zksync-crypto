@@ -1013,10 +1013,10 @@ pub(crate) mod test {
         assert!(new == crs);
     }
 
-    use rand::Rng;
+    use crate::rand::Rng;
 
     pub(crate) fn make_random_field_elements<F: PrimeField>(worker: &Worker, num_elements: usize) -> Vec<F> {
-        use rand::{ChaChaRng, Rand, Rng, SeedableRng, XorShiftRng};
+        use crate::rand::{ChaChaRng, Rand, Rng, SeedableRng, XorShiftRng};
 
         let rng = &mut XorShiftRng::from_seed([0x3dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
@@ -1026,7 +1026,7 @@ pub(crate) mod test {
     pub(crate) fn make_random_field_elements_for_rng<F: PrimeField, R: Rng>(worker: &Worker, num_elements: usize, mut rng: R) -> Vec<F> {
         let mut result = vec![F::zero(); num_elements];
 
-        use rand::{ChaChaRng, Rand, Rng, SeedableRng, XorShiftRng};
+        use crate::rand::{ChaChaRng, Rand, Rng, SeedableRng, XorShiftRng};
 
         worker.scope(result.len(), |scope, chunk| {
             for r in result.chunks_mut(chunk) {
@@ -1035,7 +1035,7 @@ pub(crate) mod test {
                 scope.spawn(move |_| {
                     let mut subrng = subrng;
                     for r in r.iter_mut() {
-                        *r = subrng.gen();
+                        *r = Rand::rand(&mut subrng);
                     }
                 });
             }
@@ -1045,7 +1045,7 @@ pub(crate) mod test {
     }
 
     fn make_random_g1_points<G: CurveAffine>(worker: &Worker, num_elements: usize) -> Vec<G> {
-        use rand::{ChaChaRng, Rand, Rng, SeedableRng, XorShiftRng};
+        use crate::rand::{ChaChaRng, Rand, Rng, SeedableRng, XorShiftRng};
 
         let rng = &mut XorShiftRng::from_seed([0x3dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
@@ -1055,7 +1055,7 @@ pub(crate) mod test {
     fn make_random_g1_points_for_rng<G: CurveAffine, R: Rng>(worker: &Worker, num_elements: usize, mut rng: R) -> Vec<G> {
         let mut result = vec![G::zero(); num_elements];
 
-        use rand::{ChaChaRng, Rand, Rng, SeedableRng, XorShiftRng};
+        use crate::rand::{ChaChaRng, Rand, Rng, SeedableRng, XorShiftRng};
 
         worker.scope(result.len(), |scope, chunk| {
             for r in result.chunks_mut(chunk) {
@@ -1064,7 +1064,7 @@ pub(crate) mod test {
                 scope.spawn(move |_| {
                     let mut subrng = subrng;
                     for r in r.iter_mut() {
-                        let p: G::Projective = subrng.gen();
+                        let p: G::Projective = Rand::rand(&mut subrng);
                         *r = p.into_affine();
                     }
                 });
@@ -1547,7 +1547,7 @@ pub(crate) mod test {
 
     //     assert!(max_parallel_jobs >= 1);
 
-    //     use rand::{XorShiftRng, SeedableRng, Rand, Rng, ChaChaRng};
+    //     use crate::rand::{XorShiftRng, SeedableRng, Rand, Rng, ChaChaRng};
 
     //     let rng = &mut XorShiftRng::from_seed([0x3dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
@@ -1639,7 +1639,7 @@ pub(crate) mod test {
     //     let mut scalars = vec![];
     //     let worker = Worker::new();
 
-    //     use rand::{XorShiftRng, SeedableRng, Rand, Rng, ChaChaRng};
+    //     use crate::rand::{XorShiftRng, SeedableRng, Rand, Rng, ChaChaRng};
 
     //     let rng = &mut XorShiftRng::from_seed([0x3dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
@@ -1822,8 +1822,8 @@ pub(crate) mod test {
     fn make_random_points_with_unknown_discrete_log<E: Engine>(dst: &[u8], seed: &[u8], num_points: usize) -> Vec<E::G1Affine> {
         let mut result = vec![];
 
-        use rand::chacha::ChaChaRng;
-        use rand::{Rng, SeedableRng};
+        use crate::rand::chacha::ChaChaRng;
+        use crate::rand::{Rand, Rng, SeedableRng};
         // Create an RNG based on the outcome of the random beacon
         let mut rng = {
             // if we use Blake hasher
@@ -1839,7 +1839,7 @@ pub(crate) mod test {
         };
 
         for _ in 0..num_points {
-            let point: E::G1 = rng.gen();
+            let point: E::G1 = Rand::rand(&mut rng);
 
             result.push(point.into_affine());
         }

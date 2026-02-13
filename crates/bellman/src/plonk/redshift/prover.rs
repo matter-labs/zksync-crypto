@@ -1745,7 +1745,7 @@ mod test {
         use crate::plonk::fft::cooley_tukey_ntt::*;
         use crate::plonk::transparent_engine::proth_engine::Transparent252;
         use crate::plonk::transparent_engine::{PartialTwoBitReductionField, TransparentEngine};
-        use rand::{Rand, Rng, SeedableRng, XorShiftRng};
+        use crate::rand::{Rand, Rng, SeedableRng, XorShiftRng};
 
         use crate::source::*;
         use crate::worker::*;
@@ -1786,7 +1786,7 @@ mod test {
         use crate::plonk::fft::*;
         use crate::plonk::transparent_engine::proth_engine::Transparent252;
         use crate::plonk::transparent_engine::TransparentEngine;
-        use rand::{Rand, Rng, SeedableRng, XorShiftRng};
+        use crate::rand::{Rand, Rng, SeedableRng, XorShiftRng};
 
         use crate::source::*;
         use crate::worker::*;

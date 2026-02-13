@@ -1,6 +1,6 @@
 // extern crate test as self_test;
 // use self::self_test::Bencher;
-// use rand::{thread_rng, Rand};
+// use crate::rand::{thread_rng, Rand};
 // use super::alt_babyjubjub::AltJubjub;
 // use super::{edwards::TwistedEdwardsCurve, super::fs::Fs};
 
