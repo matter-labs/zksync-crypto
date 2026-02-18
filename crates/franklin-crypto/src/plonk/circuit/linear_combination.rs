@@ -590,16 +590,10 @@ pub fn enforce_zero_naive<E: Engine, CS: ConstraintSystem<E>>(cs: &mut CS, terms
 
     if terms.len() < 2 {
         let (c0, a) = terms[0];
-        let sum = LinearCombination::evaluate_term_value(cs, &[(c0, a)], constant);
-        let sum = AllocatedNum::alloc(cs, || sum)?;
-        if let Some(sum) = sum.get_value() {
-            assert!(sum.is_zero());
-        }
 
         let mut gate_term = MainGateTerm::new();
         gate_term.add_assign(ArithmeticTerm::from_variable_and_coeff(a, c0));
         gate_term.add_assign(ArithmeticTerm::Constant(constant));
-        gate_term.sub_assign(ArithmeticTerm::from_variable(sum.get_variable()));
         cs.allocate_main_gate(gate_term)?;
 
         return Ok(());

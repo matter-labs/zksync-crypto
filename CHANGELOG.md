@@ -1,5 +1,31 @@
 # Changelog
 
+## [0.32.9](https://github.com/matter-labs/zksync-crypto/compare/v0.32.8...v0.32.9) (2026-02-11)
+
+
+### Features
+
+* Revert Migrate from rand 0.4 to rand 0.8 ([#124](https://github.com/matter-labs/zksync-crypto/issues/124)) ([3d5f50e](https://github.com/matter-labs/zksync-crypto/commit/3d5f50e0eca1ad55570ec2c6d0cd06ae4bdce4a1))
+
+## [0.32.8](https://github.com/matter-labs/zksync-crypto/compare/v0.32.7...v0.32.8) (2026-02-09)
+
+
+### Features
+
+* Migrate from rand 0.4 to rand 0.8 ([#122](https://github.com/matter-labs/zksync-crypto/issues/122)) ([b773843](https://github.com/matter-labs/zksync-crypto/commit/b773843a757b16973c1e2276cad671297aaa5176))
+
+
+### Performance Improvements
+
+* A code change that improves performance ([#121](https://github.com/matter-labs/zksync-crypto/issues/121)) ([9932026](https://github.com/matter-labs/zksync-crypto/commit/99320260e6cca5e6fe1d0cca2319f34839f701be))
+
+## [0.32.7](https://github.com/matter-labs/zksync-crypto/compare/v0.32.6...v0.32.7) (2026-01-20)
+
+
+### Features
+
+* Force release please to prepare new version ([#118](https://github.com/matter-labs/zksync-crypto/issues/118)) ([3f50e23](https://github.com/matter-labs/zksync-crypto/commit/3f50e2331edc33bf84ede8742e71ead984de3af1))
+
 ## [0.32.6](https://github.com/matter-labs/zksync-crypto/compare/v0.32.5...v0.32.6) (2025-10-28)
 
 

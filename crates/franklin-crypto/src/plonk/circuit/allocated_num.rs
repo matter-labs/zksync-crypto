@@ -1030,7 +1030,7 @@ impl<E: Engine> Num<E> {
                         term.add_assign(ArithmeticTerm::from_variable_and_coeff(cond.get_variable(), a_minus_b.clone()));
                         term.add_assign(ArithmeticTerm::constant(*b_const));
                         term.sub_assign(ArithmeticTerm::from_variable(c.get_variable()));
-
+                        cs.allocate_main_gate(term)?;
                         return Ok(Num::Variable(c));
                     }
                     Boolean::Not(cond) => {
@@ -1041,7 +1041,7 @@ impl<E: Engine> Num<E> {
                         term.sub_assign(ArithmeticTerm::from_variable_and_coeff(cond.get_variable(), a_minus_b.clone()));
                         term.add_assign(ArithmeticTerm::constant(*a_const));
                         term.sub_assign(ArithmeticTerm::from_variable(c.get_variable()));
-
+                        cs.allocate_main_gate(term)?;
                         return Ok(Num::Variable(c));
                     }
                     Boolean::Constant(cond_const) => {
