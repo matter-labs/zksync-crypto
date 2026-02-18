@@ -29,8 +29,9 @@ use bellman::pairing::ff;
 
 pub mod rand {
     pub use crate::bellman::pairing::ff::rand::Rng;
+    pub use crate::bellman::pairing::ff::rand::{distributions, random, rngs, seq, thread_rng, RngCore, SeedableRng};
     pub use crate::bellman::pairing::ff::Rand;
-    pub use crate::rand_crate::{distributions, random, rngs, seq, thread_rng, CryptoRng, RngCore, SeedableRng};
+    pub use crate::bellman::rand_crate::CryptoRng;
 
     #[derive(Clone, Debug)]
     pub struct XorShiftRng(pub rand_xorshift::XorShiftRng);
@@ -59,7 +60,7 @@ pub mod rand {
             self.0.fill_bytes(dest)
         }
 
-        fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), crate::rand_crate::Error> {
+        fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), crate::bellman::rand_crate::Error> {
             self.0.try_fill_bytes(dest)
         }
     }
@@ -99,7 +100,7 @@ pub mod rand {
             self.0.fill_bytes(dest)
         }
 
-        fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), crate::rand_crate::Error> {
+        fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), crate::bellman::rand_crate::Error> {
             self.0.try_fill_bytes(dest)
         }
     }

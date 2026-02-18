@@ -179,7 +179,7 @@ fn prime_field_repr_impl(repr: &syn::Ident, limbs: usize) -> proc_macro2::TokenS
 
         impl crate::ff::Rand for #repr {
             #[inline(always)]
-            fn rand<R: ::rand::Rng + ?Sized>(rng: &mut R) -> Self {
+            fn rand<R: crate::ff::rand::Rng + ?Sized>(rng: &mut R) -> Self {
                 #repr(rng.gen())
             }
         }
@@ -1055,7 +1055,7 @@ fn prime_field_impl(name: &syn::Ident, repr: &syn::Ident, can_use_cios_mul: bool
 
         impl crate::ff::Rand for #name {
             /// Computes a uniformly random element using rejection sampling.
-            fn rand<R: ::rand::Rng + ?Sized>(rng: &mut R) -> Self {
+            fn rand<R: crate::ff::rand::Rng + ?Sized>(rng: &mut R) -> Self {
                 loop {
                     let mut tmp = #name(<#repr as crate::ff::Rand>::rand(rng));
 
