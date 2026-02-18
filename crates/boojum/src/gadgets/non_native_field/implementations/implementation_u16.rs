@@ -17,8 +17,6 @@ use serde::{de, Deserialize, Deserializer, Serialize};
 use std::fmt;
 
 impl<F: SmallField, T: pairing::ff::PrimeField, const N: usize> NonNativeFieldOverU16<F, T, N>
-where
-    [(); N + 1]:,
 {
     #[must_use]
     pub fn allocated_constant<CS: ConstraintSystem<F>>(
@@ -79,7 +77,7 @@ where
         cs: &mut CS,
         witness: T,
         params: &Arc<NonNativeFieldOverU16Params<T, N>>,
-    ) -> Self {
+    ) -> Self where [(); N + 1]: {
         let new = Self::allocate_checked_without_value(cs, params);
 
         if <CS::Config as CSConfig>::WitnessConfig::EVALUATE_WITNESS == true {
@@ -139,7 +137,7 @@ where
         self.tracker.max_moduluses = 1;
     }
 
-    pub fn enforce_equal<CS: ConstraintSystem<F>>(cs: &mut CS, a: &Self, b: &Self) {
+    pub fn enforce_equal<CS: ConstraintSystem<F>>(cs: &mut CS, a: &Self, b: &Self) where [(); N + 1]: {
         let mut a = a.clone();
         let mut b = b.clone();
 
@@ -896,7 +894,7 @@ where
     }
 
     #[must_use]
-    pub fn sub<CS: ConstraintSystem<F>>(&mut self, cs: &mut CS, other: &mut Self) -> Self {
+    pub fn sub<CS: ConstraintSystem<F>>(&mut self, cs: &mut CS, other: &mut Self) -> Self where [(); N + 1]: {
         // sub is only lazy for now
         let mut other_negated = other.negated(cs);
         let new = self.add(cs, &mut other_negated);
@@ -1041,7 +1039,7 @@ where
     }
 
     #[must_use]
-    pub fn equals<CS: ConstraintSystem<F>>(cs: &mut CS, a: &mut Self, b: &mut Self) -> Boolean<F> {
+    pub fn equals<CS: ConstraintSystem<F>>(cs: &mut CS, a: &mut Self, b: &mut Self) -> Boolean<F> where [(); N + 1]: {
         a.normalize(cs);
         b.normalize(cs);
 
@@ -1067,15 +1065,15 @@ where
     fn placeholder_witness() -> Self::Witness {
         FFProxyValue { value: T::zero() }
     }
-    fn allocate_without_value<CS: ConstraintSystem<F>>(cs: &mut CS) -> Self {
+    fn allocate_without_value<CS: ConstraintSystem<F>>(cs: &mut CS) -> Self where [(); N + 1]: {
         let params = Arc::new(NonNativeFieldOverU16Params::<T, N>::create());
         Self::allocate_checked_without_value(cs, &params)
     }
-    fn allocate<CS: ConstraintSystem<F>>(cs: &mut CS, witness: Self::Witness) -> Self {
+    fn allocate<CS: ConstraintSystem<F>>(cs: &mut CS, witness: Self::Witness) -> Self where [(); N + 1]: {
         let params = Arc::new(NonNativeFieldOverU16Params::<T, N>::create());
         Self::allocate_checked(cs, witness.get(), &params)
     }
-    fn allocate_constant<CS: ConstraintSystem<F>>(cs: &mut CS, witness: Self::Witness) -> Self {
+    fn allocate_constant<CS: ConstraintSystem<F>>(cs: &mut CS, witness: Self::Witness) -> Self where [(); N + 1]: {
         let params = Arc::new(NonNativeFieldOverU16Params::<T, N>::create());
         Self::allocated_constant(cs, witness.get(), &params)
     }
