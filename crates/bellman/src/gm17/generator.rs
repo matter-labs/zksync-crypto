@@ -1,6 +1,6 @@
 use super::super::verbose_flag;
 
-use rand::Rng;
+use crate::rand::Rng;
 
 use std::sync::Arc;
 

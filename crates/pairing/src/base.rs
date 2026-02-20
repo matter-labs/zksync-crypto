@@ -4,7 +4,7 @@ use std::fmt;
 
 /// Projective representation of an elliptic curve point guaranteed to be
 /// in the correct prime order subgroup.
-pub trait GenericCurveProjective: PartialEq + Eq + Sized + Copy + Clone + Send + Sync + fmt::Debug + fmt::Display + rand::Rand + 'static {
+pub trait GenericCurveProjective: PartialEq + Eq + Sized + Copy + Clone + Send + Sync + fmt::Debug + fmt::Display + Rand + 'static {
     type Scalar: PrimeField;
     type Base: SqrtField;
     type Affine: GenericCurveAffine<Projective = Self, Scalar = Self::Scalar, Base = Self::Base>;

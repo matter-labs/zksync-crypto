@@ -521,10 +521,10 @@ mod test {
     use super::*;
     use super::*;
     use crate::bellman::plonk::better_better_cs::cs::{PlonkCsWidth4WithNextStepParams, TrivialAssembly, Width4MainGateWithDNext};
+    use crate::rand::{Rng, SeedableRng, XorShiftRng};
     use crate::rescue;
     use bellman::pairing::bn256::{Bn256, Fr};
     use bellman::pairing::ff::PrimeField;
-    use rand::{Rng, SeedableRng, XorShiftRng};
 
     use crate::plonk::circuit::Width4WithCustomGates;
 

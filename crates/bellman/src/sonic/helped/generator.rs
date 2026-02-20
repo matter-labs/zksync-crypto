@@ -1,4 +1,4 @@
-use rand::Rng;
+use crate::rand::Rng;
 
 use std::sync::Arc;
 

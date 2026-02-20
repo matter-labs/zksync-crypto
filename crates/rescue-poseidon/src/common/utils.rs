@@ -1,6 +1,6 @@
+use crate::rand::{Rand, Rng};
 use franklin_crypto::bellman::pairing::ff::{Field, PrimeField};
 use franklin_crypto::bellman::Engine;
-use rand::Rng;
 extern crate num_bigint;
 extern crate num_integer;
 extern crate num_traits;
@@ -66,8 +66,8 @@ pub(crate) fn construct_mds_matrix<E: Engine, R: Rng, const S: usize>(rng: &mut 
     let width = S;
 
     loop {
-        let x: Vec<E::Fr> = (0..width).map(|_| rng.gen()).collect();
-        let y: Vec<E::Fr> = (0..width).map(|_| rng.gen()).collect();
+        let x: Vec<E::Fr> = (0..width).map(|_| Rand::rand(rng)).collect();
+        let y: Vec<E::Fr> = (0..width).map(|_| Rand::rand(rng)).collect();
 
         let mut invalid = false;
 

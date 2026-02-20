@@ -174,7 +174,7 @@ fn test_best_vs_inplace_fft() {
 
 #[test]
 fn test_large_fft_speed() {
-    use rand::{XorShiftRng, SeedableRng, Rand, Rng};
+    use crate::rand::{XorShiftRng, SeedableRng, Rand, Rng};
     const LOG_N: usize = 24;
     const BASE: usize = 1 << LOG_N;
     let rng = &mut XorShiftRng::from_seed([0x3dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
