@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.32.10](https://github.com/matter-labs/zksync-crypto/compare/v0.32.9...v0.32.10) (2026-02-20)
+
+
+### Features
+
+* Update rand to 0.8 ([#126](https://github.com/matter-labs/zksync-crypto/issues/126)) ([5ec5916](https://github.com/matter-labs/zksync-crypto/commit/5ec5916557e907563565e596c509bb4d55d04e82))
+
 ## [0.32.9](https://github.com/matter-labs/zksync-crypto/compare/v0.32.8...v0.32.9) (2026-02-11)
 
 
