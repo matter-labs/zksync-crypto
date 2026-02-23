@@ -90,9 +90,9 @@ impl ::std::fmt::Debug for FrRepr {
         Ok(())
     }
 }
-impl ::rand::Rand for FrRepr {
+impl crate::ff::Rand for FrRepr {
     #[inline(always)]
-    fn rand<R: ::rand::Rng>(rng: &mut R) -> Self {
+    fn rand<R: ::rand::Rng + ?Sized>(rng: &mut R) -> Self {
         FrRepr(rng.gen())
     }
 }
@@ -340,10 +340,10 @@ impl ::std::fmt::Display for Fr {
     }
 }
 
-impl ::rand::Rand for Fr {
-    fn rand<R: ::rand::Rng>(rng: &mut R) -> Self {
+impl crate::ff::Rand for Fr {
+    fn rand<R: ::rand::Rng + ?Sized>(rng: &mut R) -> Self {
         loop {
-            let mut tmp = Fr(FrRepr::rand(rng));
+            let mut tmp = Fr(<FrRepr as crate::ff::Rand>::rand(rng));
             tmp.0.as_mut()[3usize] &= 0xffffffffffffffff >> REPR_SHAVE_BITS;
             if tmp.is_valid() {
                 return tmp;

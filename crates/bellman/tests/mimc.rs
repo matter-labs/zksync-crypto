@@ -1,5 +1,5 @@
 // For randomness (during paramgen and proof generation)
-use rand::{thread_rng, Rng};
+use zksync_bellman::rand::{thread_rng, Rng};
 
 // For benchmarking
 use std::time::{Duration, Instant};

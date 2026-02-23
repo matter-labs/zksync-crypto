@@ -1,6 +1,6 @@
-use ff::{adc, sbb, mac_with_carry};
-use ff::{Field, PrimeField, SqrtField, PrimeFieldRepr, PrimeFieldDecodingError, LegendreSymbol};
 use ff::LegendreSymbol::*;
+use ff::{adc, mac_with_carry, sbb};
+use ff::{Field, LegendreSymbol, PrimeField, PrimeFieldDecodingError, PrimeFieldRepr, SqrtField};
 
 // s = 6554484396890773809930967563523245729705921265872317281365359162392183254199
 const MODULUS: FsRepr = FsRepr([0xd0970e5ed6f72cb7, 0xa6682093ccc81082, 0x6673b0101343b00, 0xe7db4ea6533afa9]);
@@ -37,15 +37,14 @@ const NEGATIVE_ONE: Fs = Fs(FsRepr([0xaa9f02ab1d6124de, 0xb3524a6466112932, 0x73
 #[derive(Copy, Clone, PartialEq, Eq, Default, Debug, Hash)]
 pub struct FsRepr(pub [u64; 4]);
 
-impl ::rand::Rand for FsRepr {
+impl ff::Rand for FsRepr {
     #[inline(always)]
-    fn rand<R: ::rand::Rng>(rng: &mut R) -> Self {
+    fn rand<R: ::rand::Rng + ?Sized>(rng: &mut R) -> Self {
         FsRepr(rng.gen())
     }
 }
 
-impl ::std::fmt::Display for FsRepr
-{
+impl ::std::fmt::Display for FsRepr {
     fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
         write!(f, "0x")?;
         for i in self.0.iter().rev() {
@@ -84,9 +83,9 @@ impl Ord for FsRepr {
     fn cmp(&self, other: &FsRepr) -> ::std::cmp::Ordering {
         for (a, b) in self.0.iter().rev().zip(other.0.iter().rev()) {
             if a < b {
-                return ::std::cmp::Ordering::Less
+                return ::std::cmp::Ordering::Less;
             } else if a > b {
-                return ::std::cmp::Ordering::Greater
+                return ::std::cmp::Ordering::Greater;
             }
         }
 
@@ -228,23 +227,22 @@ impl PrimeFieldRepr for FsRepr {
 #[derive(Copy, Clone, PartialEq, Eq, Debug, Hash, Default)]
 pub struct Fs(FsRepr);
 
-impl ::std::fmt::Display for Fs
-{
+impl ::std::fmt::Display for Fs {
     fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
         write!(f, "Fs({})", self.into_repr())
     }
 }
 
-impl ::rand::Rand for Fs {
-    fn rand<R: ::rand::Rng>(rng: &mut R) -> Self {
+impl ff::Rand for Fs {
+    fn rand<R: ::rand::Rng + ?Sized>(rng: &mut R) -> Self {
         loop {
-            let mut tmp = Fs(FsRepr::rand(rng));
+            let mut tmp = Fs(<FsRepr as ff::Rand>::rand(rng));
 
             // Mask away the unused bits at the beginning.
             tmp.0.as_mut()[3] &= 0xffffffffffffffff >> REPR_SHAVE_BITS;
 
             if tmp.is_valid() {
-                return tmp
+                return tmp;
             }
         }
     }
@@ -281,9 +279,7 @@ impl PrimeField for Fs {
 
     fn into_repr(&self) -> FsRepr {
         let mut r = *self;
-        r.mont_reduce((self.0).0[0], (self.0).0[1],
-                      (self.0).0[2], (self.0).0[3],
-                      0, 0, 0, 0);
+        r.mont_reduce((self.0).0[0], (self.0).0[1], (self.0).0[2], (self.0).0[3], 0, 0, 0, 0);
         r.0
     }
 
@@ -425,8 +421,7 @@ impl Field for Fs {
     }
 
     #[inline]
-    fn mul_assign(&mut self, other: &Fs)
-    {
+    fn mul_assign(&mut self, other: &Fs) {
         let mut carry = 0;
         let r0 = mac_with_carry(0, (self.0).0[0], (other.0).0[0], &mut carry);
         let r1 = mac_with_carry(0, (self.0).0[0], (other.0).0[1], &mut carry);
@@ -455,8 +450,7 @@ impl Field for Fs {
     }
 
     #[inline]
-    fn square(&mut self)
-    {
+    fn square(&mut self) {
         let mut carry = 0;
         let r1 = mac_with_carry(0, (self.0).0[0], (self.0).0[1], &mut carry);
         let r2 = mac_with_carry(0, (self.0).0[0], (self.0).0[2], &mut carry);
@@ -509,18 +503,7 @@ impl Fs {
     }
 
     #[inline(always)]
-    fn mont_reduce(
-        &mut self,
-        r0: u64,
-        mut r1: u64,
-        mut r2: u64,
-        mut r3: u64,
-        mut r4: u64,
-        mut r5: u64,
-        mut r6: u64,
-        mut r7: u64
-    )
-    {
+    fn mont_reduce(&mut self, r0: u64, mut r1: u64, mut r2: u64, mut r3: u64, mut r4: u64, mut r5: u64, mut r6: u64, mut r7: u64) {
         // The Montgomery reduction here is based on Algorithm 14.32 in
         // Handbook of Applied Cryptography
         // <http://cacr.uwaterloo.ca/hac/about/chap14.pdf>.
@@ -572,10 +555,10 @@ impl Fs {
         }
 
         for (target, reduced) in (self.0).0.iter_mut().zip((tmp.0).0.iter()) {
-            // if there was a borrow then 
+            // if there was a borrow then
             // - it's equal to 2^64 - 1
             // - we take original value
-            // otherwise 
+            // otherwise
             // - bitflip borrow
             // take reduced value
 
@@ -649,7 +632,7 @@ impl Fs {
         let [q0, q1, q2, q3] = MODULUS.0;
         let [a0, a1, a2, a3] = (self.0).0;
 
-        // round 0 
+        // round 0
         let b0 = (other.0).0[0];
         let (r0, carry) = full_width_mul(a0, b0);
         m = r0.wrapping_mul(INV);
@@ -740,7 +723,7 @@ impl Fs {
     pub fn optimistic_cios_mul_assign_with_different_semantics(&mut self, other: &Fs) {
         let mut m;
 
-        // round 0 
+        // round 0
         let b0 = (other.0).0[0];
         let (r0, carry) = full_width_mul((self.0).0[0], (other.0).0[0]);
         m = r0.wrapping_mul(INV);
@@ -832,7 +815,7 @@ impl Fs {
         let [q0, q1, q2, q3] = MODULUS.0;
         let [b0, b1, b2, b3] = (other.0).0;
 
-        // round 0 
+        // round 0
         let a0 = (self.0).0[0];
         let (r0, carry) = full_width_mul(a0, b0);
         let m = r0.wrapping_mul(INV);
@@ -932,7 +915,7 @@ impl Fs {
         let [q0, q1, q2, q3] = MODULUS.0;
         let [a0, a1, a2, a3] = (self.0).0;
 
-        // round 0 
+        // round 0
         let b0 = (other.0).0[0];
         let (r0, carry) = full_width_mul(a0, b0);
         m = r0.wrapping_mul(INV);
@@ -1023,7 +1006,7 @@ impl Fs {
         let [b0, b1, b2, b3] = (other.0).0;
         let [a0, a1, a2, a3] = (self.0).0;
 
-        // round 0 
+        // round 0
         let (r1, r0) = full_width_mul(a0, b0);
         let (r2_0, r1_0) = full_width_mul(a1, b0);
         let (r2_1, r1_1) = full_width_mul(a0, b1);
@@ -1033,11 +1016,11 @@ impl Fs {
         let (r1, carry) = add(r1, r1_0);
         // hope for carry chains with add and addx
         let (r1, carry2) = add(r1, r1_1);
-        // 
+        //
         let (r2, carry) = add_three(r2_0, r2, carry);
         let (r2_1, carry2) = add(r2_1, carry2);
-        // 
-        let (r2, carry2) = add(r2, r2_1); 
+        //
+        let (r2, carry2) = add(r2, r2_1);
         let r3 = r3 + carry + carry2;
 
         // round 1
@@ -1052,11 +1035,11 @@ impl Fs {
         let (r3, carry) = add_three(r3, r3_0, carry);
         // hope for carry chains with add and addx
         let (r3, carry2) = add(r3, r3_1);
-        // 
+        //
         let (r4, carry) = add_three(r4_0, r4, carry);
         let (r4_1, carry2) = add(r4_1, carry2);
-        // 
-        let (r4, carry2) = add(r4, r4_1); 
+        //
+        let (r4, carry2) = add(r4, r4_1);
         let (r5, r6) = add_three(r5, carry, carry2);
 
         // round 3
@@ -1071,11 +1054,11 @@ impl Fs {
         let (r3, carry) = add_three(r3, r3_0, carry);
         // hope for carry chains with add and addx
         let (r3, carry2) = add(r3, r3_1);
-        // 
+        //
         let (r4, carry) = add_three(r4_0, r4, carry);
         let (r4_1, carry2) = add(r4_1, carry2);
-        // 
-        let (r4, carry2) = add(r4, r4_1); 
+        //
+        let (r4, carry2) = add(r4, r4_1);
         let (r5, carry) = add_four(r5, r5_0, carry, carry2);
 
         let r6 = r6 + carry;
@@ -1092,11 +1075,11 @@ impl Fs {
         let (r5, carry) = add_three(r5, r5_0, carry);
         // hope for carry chains with add and addx
         let (r5, carry2) = add(r5, r5_1);
-        // 
+        //
         let (r6, carry) = add_three(r6_0, r6, carry);
         let (r6_1, carry2) = add(r6_1, carry2);
-        // 
-        let (r6, carry2) = add(r6, r6_1); 
+        //
+        let (r6, carry2) = add(r6, r6_1);
         let r7 = r7 + carry + carry2;
 
         self.mont_reduce(r0, r1, r2, r3, r4, r5, r6, r7);
@@ -1108,12 +1091,14 @@ impl Fs {
 }
 
 impl SqrtField for Fs {
-
     fn legendre(&self) -> LegendreSymbol {
         // s = self^((s - 1) // 2)
         let s = self.pow([0x684b872f6b7b965b, 0x53341049e6640841, 0x83339d80809a1d80, 0x73eda753299d7d4]);
-        if s == Self::zero() { Zero }
-        else { QuadraticNonResidue }
+        if s == Self::zero() {
+            Zero
+        } else {
+            QuadraticNonResidue
+        }
     }
 
     fn sqrt(&self) -> Option<Self> {
@@ -1126,12 +1111,9 @@ impl SqrtField for Fs {
         a0.square();
         a0.mul_assign(self);
 
-        if a0 == NEGATIVE_ONE
-        {
+        if a0 == NEGATIVE_ONE {
             None
-        }
-        else
-        {
+        } else {
             a1.mul_assign(self);
             Some(a1)
         }
@@ -1162,14 +1144,14 @@ pub fn add(a: u64, b: u64) -> (u64, u64) {
 #[inline(always)]
 pub fn add_three(a: u64, b: u64, c: u64) -> (u64, u64) {
     let tmp = (a as u128) + (b as u128) + (c as u128);
-    
+
     (tmp as u64, (tmp >> 64) as u64)
 }
 
 #[inline(always)]
 pub fn add_four(a: u64, b: u64, c: u64, d: u64) -> (u64, u64) {
     let tmp = (a as u128) + (b as u128) + (c as u128) + (d as u128);
-    
+
     (tmp as u64, (tmp >> 64) as u64)
 }
 
@@ -1209,10 +1191,10 @@ pub fn mul_and_add_existing_high(a: u64, b: u64, existing_hi: u64, carry: u64) -
 
     let hi = tmp >> 64;
     let lo = tmp as u64;
-    
+
     let tmp = hi + (existing_hi as u128) + ((carry as u128) << 64);
 
-    let carry = (tmp >> 64) as u64; 
+    let carry = (tmp >> 64) as u64;
     let hi = tmp as u64;
 
     (lo, hi, carry)
@@ -1224,10 +1206,10 @@ pub fn mul_and_add_existing(a: u64, b: u64, existing_lo: u64, existing_hi: u64, 
 
     let hi = tmp >> 64;
     let lo = tmp as u64;
-    
+
     let tmp = hi + (existing_hi as u128) + ((carry as u128) << 64);
 
-    let carry = (tmp >> 64) as u64; 
+    let carry = (tmp >> 64) as u64;
     let hi = tmp as u64;
 
     (lo, hi, carry)
@@ -1239,22 +1221,22 @@ pub fn mul_and_full_block_propagate(a: u64, b: u64, z0: u64, z1: u64, z2: u64, z
 
     let hi = tmp >> 64;
     let z0 = tmp as u64;
-    
+
     // let tmp = hi + (z1 as u128);
 
     let tmp = hi + (z1 as u128) + ((t0 as u128) << 64);
 
-    let hi = tmp >> 64; 
+    let hi = tmp >> 64;
     let z1 = tmp as u64;
 
     let tmp = hi + (z2 as u128) + ((t1 as u128) << 64);
 
-    let hi = tmp >> 64; 
+    let hi = tmp >> 64;
     let z2 = tmp as u64;
 
     let tmp = hi + (z3 as u128);
 
-    let c0 = (tmp >> 64) as u64; 
+    let c0 = (tmp >> 64) as u64;
     let z3 = tmp as u64;
 
     (z0, z1, z2, z3, c0)
@@ -1266,22 +1248,22 @@ pub fn mul_and_full_block_propagate_into_existing_carry_catcher(a: u64, b: u64, 
 
     let hi = tmp >> 64;
     let z0 = tmp as u64;
-    
+
     // let tmp = hi + (z1 as u128);
 
     let tmp = hi + (z1 as u128) + ((t0 as u128) << 64);
 
-    let hi = tmp >> 64; 
+    let hi = tmp >> 64;
     let z1 = tmp as u64;
 
     let tmp = hi + (z2 as u128) + ((t1 as u128) << 64);
 
-    let hi = tmp >> 64; 
+    let hi = tmp >> 64;
     let z2 = tmp as u64;
 
     let tmp = hi + (z3 as u128) + ((c as u128) << 64);
 
-    let c0 = (tmp >> 64) as u64; 
+    let c0 = (tmp >> 64) as u64;
     let z3 = tmp as u64;
 
     (z0, z1, z2, z3, c0)
@@ -1293,24 +1275,23 @@ pub fn mul_and_full_block_propagate_without_carry_catch(a: u64, b: u64, z0: u64,
 
     let hi = tmp >> 64;
     let z0 = tmp as u64;
-    
+
     // let tmp = hi + (z1 as u128);
 
     let tmp = hi + (z1 as u128) + ((t0 as u128) << 64);
 
-    let hi = tmp >> 64; 
+    let hi = tmp >> 64;
     let z1 = tmp as u64;
 
     let tmp = hi + (z2 as u128) + ((t1 as u128) << 64);
 
-    let hi = (tmp >> 64) as u64; 
+    let hi = (tmp >> 64) as u64;
     let z2 = tmp as u64;
 
     let z3 = hi + z3;
 
     (z0, z1, z2, z3)
 }
-
 
 // // Computes one "row" of multiplication: [a0, a1, a2, a3] * b0
 // // Uses MULX
@@ -1576,14 +1557,14 @@ mod test {
     use super::Fs;
     use ff::{Field, PrimeField};
 
-    use rand::{*};
+    use crate::rand::*;
 
     #[test]
     fn test_optimistic_cios() {
         let rng = &mut XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
         for _ in 0..10000 {
-            let a: Fs = rng.gen(); 
+            let a: Fs = rng.gen();
             let b: Fs = rng.gen();
 
             let mut c = a;

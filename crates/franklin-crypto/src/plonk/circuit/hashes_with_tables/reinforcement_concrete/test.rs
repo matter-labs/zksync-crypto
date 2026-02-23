@@ -14,7 +14,8 @@ mod test {
     use super::super::hasher::*;
     use super::super::utils::*;
     use crate::plonk::circuit::custom_rescue_gate::Rescue5CustomGate;
-    use rand::{Rng, SeedableRng, StdRng};
+    use crate::rand::rngs::StdRng;
+    use crate::rand::{Rng, SeedableRng};
     use std::convert::TryInto;
     use std::time::SystemTime;
 
@@ -89,8 +90,8 @@ mod test {
     fn rc_gadget_test_template<E: DefaultRcParams>(is_const_test: bool) {
         // let seed: &[_] = &[1, 2, 3, 4, 5];
         // let mut rng: StdRng = SeedableRng::from_seed(seed);
-        let seed = [SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs() as usize];
-        let mut rng: StdRng = SeedableRng::from_seed(&seed[..]);
+        let seed = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs();
+        let mut rng = StdRng::seed_from_u64(seed);
 
         let mut input = [E::Fr::zero(); RC_STATE_WIDTH];
         input.iter_mut().for_each(|x| *x = rng.gen());

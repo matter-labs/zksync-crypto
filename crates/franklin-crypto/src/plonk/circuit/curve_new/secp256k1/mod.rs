@@ -1,7 +1,7 @@
 use crate::bellman::pairing::ff::BitIterator;
 use crate::bellman::pairing::ff::*;
 use crate::bellman::pairing::{EncodingBytes, GenericCompressedEncodable, GenericCurveAffine, GenericCurveProjective, GenericUncompressedEncodable, GroupDecodingError};
-use rand::*;
+use crate::rand::*;
 
 pub mod fq;
 pub mod fr;
@@ -621,9 +621,9 @@ impl From<PointProjective> for PointAffine {
 }
 
 impl Rand for PointProjective {
-    fn rand<R: Rng>(rng: &mut R) -> Self {
+    fn rand<R: Rng + ?Sized>(rng: &mut R) -> Self {
         loop {
-            let x = rng.gen();
+            let x = Rand::rand(rng);
             let greatest = rng.gen();
 
             if let Some(p) = PointAffine::get_point_from_x(x, greatest) {
@@ -638,9 +638,9 @@ impl Rand for PointProjective {
 }
 
 impl Rand for PointAffine {
-    fn rand<R: Rng>(rng: &mut R) -> Self {
+    fn rand<R: Rng + ?Sized>(rng: &mut R) -> Self {
         loop {
-            let x = rng.gen();
+            let x = Rand::rand(rng);
             let greatest = rng.gen();
 
             if let Some(p) = PointAffine::get_point_from_x(x, greatest) {

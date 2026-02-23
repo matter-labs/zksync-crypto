@@ -2,7 +2,7 @@ use crate::pairing::ff::Field;
 use crate::pairing::{CurveProjective, Engine};
 use std::marker::PhantomData;
 
-use rand::{Rand, Rng};
+use crate::rand::{Rand, Rng};
 
 use super::batch::Batch;
 use super::helper::Aggregate;

@@ -1,3 +1,5 @@
+use crate::rand::Rand;
+use crate::rand::Rng;
 use crate::tests::init_cs;
 use franklin_crypto::bellman::pairing::bn256::{Bn256, Fr};
 use franklin_crypto::boojum::algebraic_props::round_function::AbsorptionModeTrait;
@@ -7,8 +9,6 @@ use franklin_crypto::boojum::field::SmallField;
 use franklin_crypto::boojum::field::U64Representable;
 use franklin_crypto::boojum::worker::Worker;
 use franklin_crypto::plonk::circuit::{allocated_num::Num, linear_combination::LinearCombination};
-use rand::Rand;
-use rand::Rng;
 
 use crate::circuit::poseidon2::{circuit_poseidon2_hash, circuit_poseidon2_round_function};
 use crate::poseidon::{poseidon_hash, poseidon_round_function};
@@ -31,7 +31,7 @@ impl AbsorptionModeTrait<Fr> for TestingAbsorption {
 #[test]
 fn test_different_absorbtions() {
     let num_elements = 1000;
-    let mut rng = rand::thread_rng();
+    let mut rng = crate::rand::thread_rng();
     let buffer: Vec<_> = (0..num_elements).map(|_| Fr::rand(&mut rng)).collect();
 
     // absorb by 1
@@ -54,7 +54,7 @@ fn test_different_absorbtions() {
 #[test]
 fn test_vs_poseidon() {
     const NUM_ELEMENTS: usize = 10000;
-    let mut rng = rand::thread_rng();
+    let mut rng = crate::rand::thread_rng();
     let buffer = [0; NUM_ELEMENTS].map(|_| Fr::rand(&mut rng));
 
     // hash by poseidon
@@ -91,11 +91,11 @@ fn test_vs_poseidon() {
 #[test]
 fn test_of_sponge_state() {
     let num_elements = 5;
-    let mut rng = rand::thread_rng();
+    let mut rng = crate::rand::thread_rng();
     let buffer1: Vec<_> = (0..num_elements).map(|_| Fr::rand(&mut rng)).collect();
 
-    let mut rng = rand::thread_rng();
-    let buffer2: Vec<_> = (0..num_elements).map(|_| GoldilocksField::from_u64_unchecked(rng.gen_range(0, GoldilocksField::CHAR))).collect();
+    let mut rng = crate::rand::thread_rng();
+    let buffer2: Vec<_> = (0..num_elements).map(|_| GoldilocksField::from_u64_unchecked(rng.gen_range(0..GoldilocksField::CHAR))).collect();
 
     dbg!(&buffer1, &buffer2);
 
@@ -131,7 +131,7 @@ fn test_circuit_round_function() {
 
     let cs = &mut init_cs::<Bn256>();
 
-    let mut rng = rand::thread_rng();
+    let mut rng = crate::rand::thread_rng();
     let mut state = [0; 3].map(|_| Fr::rand(&mut rng));
     let mut circuit_state = state.map(|x| Num::alloc(cs, Some(x)).unwrap().into());
 
@@ -149,7 +149,7 @@ fn test_circuit_hash() {
     let cs = &mut init_cs::<Bn256>();
 
     const NUM_ELEMENTS: usize = 10;
-    let mut rng = rand::thread_rng();
+    let mut rng = crate::rand::thread_rng();
     let buffer = [0; NUM_ELEMENTS].map(|_| Fr::rand(&mut rng));
     let num_buffer = buffer.map(|x| Num::alloc(cs, Some(x)).unwrap());
 
@@ -165,8 +165,8 @@ fn test_circuit_hash() {
 #[test]
 fn test_pow_runner() {
     let worker = Worker::new();
-    let mut rng = rand::thread_rng();
-    let buffer: Vec<_> = (0..4).map(|_| GoldilocksField::from_u64_unchecked(rng.gen_range(0, GoldilocksField::CHAR))).collect();
+    let mut rng = crate::rand::thread_rng();
+    let buffer: Vec<_> = (0..4).map(|_| GoldilocksField::from_u64_unchecked(rng.gen_range(0..GoldilocksField::CHAR))).collect();
 
     let challenge = Poseidon2Sponge::<Bn256, GoldilocksField, TestingAbsorption, 2, 3>::run_from_field_elements(buffer, 10, &worker);
 

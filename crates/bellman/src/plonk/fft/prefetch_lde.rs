@@ -271,7 +271,7 @@ pub(crate) fn parallel_lde<F: PrimeField>(a: &mut [F], worker: &Worker, omega: &
 
 // #[test]
 // fn test_small_lde() {
-//     use rand::{XorShiftRng, SeedableRng, Rand};
+//     use crate::rand::{XorShiftRng, SeedableRng, Rand};
 //     const LOG_N: usize = 2;
 //     const BASE: usize = 1 << LOG_N;
 //     const LOG_LDE: usize = 6;
@@ -319,7 +319,7 @@ pub(crate) fn parallel_lde<F: PrimeField>(a: &mut [F], worker: &Worker, omega: &
 
 // #[test]
 // fn test_small_prefetch_serial_lde() {
-//     use rand::{XorShiftRng, SeedableRng, Rand};
+//     use crate::rand::{XorShiftRng, SeedableRng, Rand};
 //     const LOG_N: usize = 2;
 //     const BASE: usize = 1 << LOG_N;
 //     const LOG_LDE: usize = 6;
@@ -356,7 +356,7 @@ pub(crate) fn parallel_lde<F: PrimeField>(a: &mut [F], worker: &Worker, omega: &
 
 // #[test]
 // fn test_large_prefetch_serial_lde() {
-//     use rand::{XorShiftRng, SeedableRng, Rand};
+//     use crate::rand::{XorShiftRng, SeedableRng, Rand};
 //     const LOG_N: usize = 20;
 //     const BASE: usize = 1 << LOG_N;
 //     const LOG_LDE: usize = 7;
@@ -393,7 +393,7 @@ pub(crate) fn parallel_lde<F: PrimeField>(a: &mut [F], worker: &Worker, omega: &
 
 // #[test]
 // fn test_large_prefetch_lde() {
-//     use rand::{XorShiftRng, SeedableRng, Rand};
+//     use crate::rand::{XorShiftRng, SeedableRng, Rand};
 //     const LOG_N: usize = 22;
 //     const BASE: usize = 1 << LOG_N;
 //     const LOG_LDE: usize = 7;
