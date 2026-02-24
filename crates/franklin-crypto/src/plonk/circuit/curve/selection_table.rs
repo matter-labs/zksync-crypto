@@ -315,7 +315,7 @@ mod test {
 
     #[test]
     fn test_one_bit_table() {
-        use rand::{Rng, SeedableRng, XorShiftRng};
+        use crate::rand::{Rng, SeedableRng, XorShiftRng};
         let rng = &mut XorShiftRng::from_seed([0x3dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
         for _i in 0..10 {
@@ -345,7 +345,7 @@ mod test {
 
     #[test]
     fn test_two_bit_table() {
-        use rand::{Rng, SeedableRng, XorShiftRng};
+        use crate::rand::{Rng, SeedableRng, XorShiftRng};
         let rng = &mut XorShiftRng::from_seed([0x3dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
         for _i in 0..10 {
@@ -397,7 +397,7 @@ mod test {
 
     #[test]
     fn test_three_bit_table() {
-        use rand::{Rng, SeedableRng, XorShiftRng};
+        use crate::rand::{Rng, SeedableRng, XorShiftRng};
         let rng = &mut XorShiftRng::from_seed([0x3dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
         for _i in 0..10 {

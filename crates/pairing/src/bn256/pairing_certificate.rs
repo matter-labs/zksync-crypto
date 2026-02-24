@@ -186,7 +186,7 @@ pub fn miller_loop_with_prepared_lines(eval_points: &[G1Affine], lines: &[Vec<(F
 
 #[cfg(test)]
 mod tests {
-    use rand::Rand;
+    use crate::rand::Rand;
 
     use crate::{
         bn256::{miller_loop_with_prepared_lines, prepare_all_line_functions, prepare_g1_point, Bn256, G1Affine, G2Affine},
@@ -195,7 +195,7 @@ mod tests {
 
     #[test]
     fn test_bn_equivalence() {
-        let mut rng = rand::thread_rng();
+        let mut rng = crate::rand::thread_rng();
         let g1 = G1Affine::rand(&mut rng);
         let g2 = G2Affine::rand(&mut rng);
         let miller_loop_result = Bn256::miller_loop(&[(&g1.prepare(), &g2.prepare())]);
@@ -211,7 +211,7 @@ mod tests {
 
     #[test]
     fn test_precomputed_lines() {
-        let thread_rng = rand::thread_rng();
+        let thread_rng = crate::rand::thread_rng();
         let mut rng = thread_rng;
         let p = G1Affine::rand(&mut rng);
         let q = G2Affine::rand(&mut rng);

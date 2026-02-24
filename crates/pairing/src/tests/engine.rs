@@ -1,4 +1,4 @@
-use rand::{Rand, SeedableRng, XorShiftRng};
+use crate::rand::{Rand, SeedableRng, XorShiftRng};
 
 use crate::{CurveAffine, CurveProjective, Engine, Field, PrimeField};
 

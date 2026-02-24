@@ -10,7 +10,7 @@ mod tests {
     use crate::jubjub::edwards::Point;
     use crate::plonk::circuit::allocated_num::{AllocatedNum, Num};
     use crate::plonk::circuit::boolean::{AllocatedBit, Boolean};
-    use rand::{Rand, SeedableRng, XorShiftRng};
+    use crate::rand::{Rand, SeedableRng, XorShiftRng};
 
     #[test]
     fn test_new_altjubjub_addition() {

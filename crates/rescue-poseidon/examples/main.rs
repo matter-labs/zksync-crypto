@@ -9,7 +9,7 @@ use franklin_crypto::{
     bellman::plonk::better_better_cs::cs::{TrivialAssembly, Width4MainGateWithDNext},
     plonk::circuit::Width4WithCustomGates,
 };
-use rand::{Rand, SeedableRng, XorShiftRng};
+use rescue_poseidon::rand::{Rand, SeedableRng, XorShiftRng};
 use rescue_poseidon::PoseidonParams;
 use rescue_poseidon::RescueParams;
 use rescue_poseidon::RescuePrimeParams;

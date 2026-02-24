@@ -22,7 +22,7 @@ pub fn mont_mul_asm_adx(a: &[u64; 4], b: &[u64; 4]) -> [u64; 4] {
     let mut r2: u64;
     let mut r3: u64;
 
-    // mulx    dest_hi, dest_lo, src1  
+    // mulx    dest_hi, dest_lo, src1
     // use notation of order (hi, lo)
 
     // |     | b3  | b2  | b1  | b0  |
@@ -35,7 +35,7 @@ pub fn mont_mul_asm_adx(a: &[u64; 4], b: &[u64; 4]) -> [u64; 4] {
     // |---- |---- |---- |---- |---- |
     // |     |     |     |     |     | // rdx = m, r11 = garbage
     // |     |     |  CF | r14 |     |
-    // |  OF | r10 |     |     |     | 
+    // |  OF | r10 |     |     |     |
     // |---- |---- |---- |---- |---- |
     // |     | CF  | r15 |     |     |
     // | r12 |     |     |     |     |
@@ -58,7 +58,7 @@ pub fn mont_mul_asm_adx(a: &[u64; 4], b: &[u64; 4]) -> [u64; 4] {
             "mulx r11, rdx, r11", // (r11, rdx) = (a[0] * b[0]).lo * k, so rdx = m (we overwrite rdx cause (a[0] * b[0]).lo is not needed for anything else)
             // "mulx r11, rdx, qword ptr [rip + {inv_ptr}]", // (r11, rdx) = (a[0] * b[0]).lo * k, so rdx = m (we overwrite rdx cause (a[0] * b[0]).lo is not needed for anything else)
             "adcx r14, r8", // r14 = r14 + r8 = (a[0] * b[0]).hi + (a[0] * b[1]).lo, carry flag is set in CF register (CF = carry into 2nd word), 1st word calculation
-            "adox r10, rdi", // r10 = r10 + rdi = (a[0] * b[2]).hi + (a[0] * b[3]).lo, carry flag is set in OF register (OF = carry into 4th word), 3rd word calculation 
+            "adox r10, rdi", // r10 = r10 + rdi = (a[0] * b[2]).hi + (a[0] * b[3]).lo, carry flag is set in OF register (OF = carry into 4th word), 3rd word calculation
             "adcx r15, r9", // r15 = r15 + r9 + CF = (a[0] * b[1]).hi + (a[0] * b[2]).lo + CF, 2nd word continuation
             "mov r11, 0",
             "adox r12, r11", // r12 = r12 + OF = 4th word
@@ -213,15 +213,15 @@ pub fn mont_mul_asm_adx(a: &[u64; 4], b: &[u64; 4]) -> [u64; 4] {
             // out_ptr = in(reg) result.as_mut_ptr(),
             a_ptr = in(reg) a.as_ptr(),
             b_ptr = in(reg) b.as_ptr(),
-            out("rdx") _, 
-            out("rdi") _, 
-            out("r8") _, 
-            out("r9") _, 
-            out("r10") _, 
-            out("r11") _, 
-            out("r12") r0, 
-            out("r13") r1, 
-            out("r14") r2, 
+            out("rdx") _,
+            out("rdi") _,
+            out("r8") _,
+            out("r9") _,
+            out("r10") _,
+            out("r11") _,
+            out("r12") r0,
+            out("r13") r1,
+            out("r14") r2,
             out("r15") r3,
             options(pure, readonly, nostack)
         );
@@ -229,7 +229,6 @@ pub fn mont_mul_asm_adx(a: &[u64; 4], b: &[u64; 4]) -> [u64; 4] {
 
     [r0, r1, r2, r3]
 }
-
 
 #[allow(dead_code)]
 #[allow(clippy::too_many_lines)]
@@ -243,7 +242,7 @@ pub fn mont_mul_asm_adx_with_reduction(a: &[u64; 4], b: &[u64; 4]) -> [u64; 4] {
     let mut r2: u64;
     let mut r3: u64;
 
-    // mulx    dest_hi, dest_lo, src1  
+    // mulx    dest_hi, dest_lo, src1
     // use notation of order (hi, lo)
 
     // |     | b3  | b2  | b1  | b0  |
@@ -256,7 +255,7 @@ pub fn mont_mul_asm_adx_with_reduction(a: &[u64; 4], b: &[u64; 4]) -> [u64; 4] {
     // |---- |---- |---- |---- |---- |
     // |     |     |     |     |     | // rdx = m, r11 = garbage
     // |     |     |  CF | r14 |     |
-    // |  OF | r10 |     |     |     | 
+    // |  OF | r10 |     |     |     |
     // |---- |---- |---- |---- |---- |
     // |     | CF  | r15 |     |     |
     // | r12 |     |     |     |     |
@@ -278,7 +277,7 @@ pub fn mont_mul_asm_adx_with_reduction(a: &[u64; 4], b: &[u64; 4]) -> [u64; 4] {
             "mov r11, {inv}",
             "mulx r11, rdx, r11", // (r11, rdx) = (a[0] * b[0]).lo * k, so rdx = m (we overwrite rdx cause (a[0] * b[0]).lo is not needed for anything else)
             "adcx r14, r8", // r14 = r14 + r8 = (a[0] * b[0]).hi + (a[0] * b[1]).lo, carry flag is set in CF register (CF = carry into 2nd word), 1st word calculation
-            "adox r10, rdi", // r10 = r10 + rdi = (a[0] * b[2]).hi + (a[0] * b[3]).lo, carry flag is set in OF register (OF = carry into 4th word), 3rd word calculation 
+            "adox r10, rdi", // r10 = r10 + rdi = (a[0] * b[2]).hi + (a[0] * b[3]).lo, carry flag is set in OF register (OF = carry into 4th word), 3rd word calculation
             "adcx r15, r9", // r15 = r15 + r9 + CF = (a[0] * b[1]).hi + (a[0] * b[2]).lo + CF, 2nd word continuation
             "mov r11, 0",
             "adox r12, r11", // r12 = r12 + OF = 4th word
@@ -421,7 +420,7 @@ pub fn mont_mul_asm_adx_with_reduction(a: &[u64; 4], b: &[u64; 4]) -> [u64; 4] {
             "cmovnc r12, r9",
             "cmovnc r13, r10",
             "cmovnc r14, r11",
-            "cmovnc r15, r12",  
+            "cmovnc r15, r12",
             q0_neg = const 1991615062597996281u64,
             q1_neg = const 0x1ba3a358ef788ef9u64,
             q2_neg = const 0x1ba3a358ef788ef9u64,
@@ -434,15 +433,15 @@ pub fn mont_mul_asm_adx_with_reduction(a: &[u64; 4], b: &[u64; 4]) -> [u64; 4] {
             inv = const 0x1ba3a358ef788ef9u64,
             a_ptr = in(reg) a.as_ptr(),
             b_ptr = in(reg) b.as_ptr(),
-            out("rdx") _, 
-            out("rdi") _, 
-            out("r8") _, 
-            out("r9") _, 
-            out("r10") _, 
-            out("r11") _, 
-            out("r12") r0, 
-            out("r13") r1, 
-            out("r14") r2, 
+            out("rdx") _,
+            out("rdi") _,
+            out("r8") _,
+            out("r9") _,
+            out("r10") _,
+            out("r11") _,
+            out("r12") r0,
+            out("r13") r1,
+            out("r14") r2,
             out("r15") r3,
             options(pure, readonly, nostack)
         );
@@ -496,7 +495,7 @@ pub fn add_asm_adx(a: &[u64; 4], b: &[u64; 4]) -> [u64; 4] {
             "cmovnc r12, r9",
             "cmovnc r13, r10",
             "cmovnc r14, r11",
-            "cmovnc r15, r12",  
+            "cmovnc r15, r12",
             q0_neg = const 1991615062597996281u64,
             q1_neg = const 0x1ba3a358ef788ef9u64,
             q2_neg = const 0x1ba3a358ef788ef9u64,
@@ -504,13 +503,13 @@ pub fn add_asm_adx(a: &[u64; 4], b: &[u64; 4]) -> [u64; 4] {
             // end of reduction
             a_ptr = in(reg) a.as_ptr(),
             b_ptr = in(reg) b.as_ptr(),
-            out("r8") _, 
-            out("r9") _, 
-            out("r10") _, 
-            out("r11") _, 
-            out("r12") r0, 
-            out("r13") r1, 
-            out("r14") r2, 
+            out("r8") _,
+            out("r9") _,
+            out("r10") _,
+            out("r11") _,
+            out("r12") r0,
+            out("r13") r1,
+            out("r14") r2,
             out("r15") r3,
             options(pure, readonly, nostack)
         );
@@ -531,7 +530,7 @@ pub fn mont_mul_asm_adx_for_proth_prime(a: &[u64; 4], b: &[u64; 4]) -> [u64; 4] 
 
     // this is CIOS multiplication when top bit for top work of modulus is not set
 
-    // mulx    dest_hi, dest_lo, src1  
+    // mulx    dest_hi, dest_lo, src1
     // use notation of order (hi, lo)
 
     // |     | b3  | b2  | b1  | b0  |
@@ -544,7 +543,7 @@ pub fn mont_mul_asm_adx_for_proth_prime(a: &[u64; 4], b: &[u64; 4]) -> [u64; 4] 
     // |---- |---- |---- |---- |---- |
     // |     |     |     |     |     | // rdx = m, r11 = garbage
     // |     |     |  CF | r14 |     |
-    // |  OF | r10 |     |     |     | 
+    // |  OF | r10 |     |     |     |
     // |---- |---- |---- |---- |---- |
     // |     | CF  | r15 |     |     |
     // | r12 |     |     |     |     |
@@ -566,7 +565,7 @@ pub fn mont_mul_asm_adx_for_proth_prime(a: &[u64; 4], b: &[u64; 4]) -> [u64; 4] 
             "mov r11, {inv}",
             "mulx r11, rdx, r11", // (r11, rdx) = (a[0] * b[0]).lo * k, so rdx = m (we overwrite rdx cause (a[0] * b[0]).lo is not needed for anything else)
             "adcx r14, r8", // r14 = r14 + r8 = (a[0] * b[0]).hi + (a[0] * b[1]).lo, carry flag is set in CF register (CF = carry into 2nd word), 1st word calculation
-            "adox r10, rdi", // r10 = r10 + rdi = (a[0] * b[2]).hi + (a[0] * b[3]).lo, carry flag is set in OF register (OF = carry into 4th word), 3rd word calculation 
+            "adox r10, rdi", // r10 = r10 + rdi = (a[0] * b[2]).hi + (a[0] * b[3]).lo, carry flag is set in OF register (OF = carry into 4th word), 3rd word calculation
             "adcx r15, r9", // r15 = r15 + r9 + CF = (a[0] * b[1]).hi + (a[0] * b[2]).lo + CF, 2nd word continuation
             "mov r11, 0",
             "adox r12, r11", // r12 = r12 + OF = 4th word
@@ -682,15 +681,15 @@ pub fn mont_mul_asm_adx_for_proth_prime(a: &[u64; 4], b: &[u64; 4]) -> [u64; 4] 
             inv = const 0xffffffffffffffffu64,
             a_ptr = in(reg) a.as_ptr(),
             b_ptr = in(reg) b.as_ptr(),
-            out("rdx") _, 
-            out("rdi") _, 
-            out("r8") _, 
-            out("r9") _, 
-            out("r10") _, 
-            out("r11") _, 
-            out("r12") r0, 
-            out("r13") r1, 
-            out("r14") r2, 
+            out("rdx") _,
+            out("rdi") _,
+            out("r8") _,
+            out("r9") _,
+            out("r10") _,
+            out("r11") _,
+            out("r12") r0,
+            out("r13") r1,
+            out("r14") r2,
             out("r15") r3,
             options(pure, nomem, nostack)
         );

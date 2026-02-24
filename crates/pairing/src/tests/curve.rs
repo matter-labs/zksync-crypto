@@ -1,5 +1,5 @@
+use crate::rand::{Rand, Rng, SeedableRng, XorShiftRng};
 use ff::Field;
-use rand::{Rand, Rng, SeedableRng, XorShiftRng};
 
 use crate::{CurveAffine, CurveProjective, EncodedPoint};
 
@@ -125,7 +125,7 @@ fn random_wnaf_tests<G: CurveProjective>() {
                 let mut wnaf = Wnaf::new();
                 {
                     // Populate the vectors.
-                    wnaf.base(rng.gen(), 1).scalar(rng.gen());
+                    wnaf.base(G::rand(&mut rng), 1).scalar(G::Scalar::rand(&mut rng).into_repr());
                 }
                 wnaf.base(g, 1).scalar(s)
             };
@@ -133,7 +133,7 @@ fn random_wnaf_tests<G: CurveProjective>() {
                 let mut wnaf = Wnaf::new();
                 {
                     // Populate the vectors.
-                    wnaf.base(rng.gen(), 1).scalar(rng.gen());
+                    wnaf.base(G::rand(&mut rng), 1).scalar(G::Scalar::rand(&mut rng).into_repr());
                 }
                 wnaf.scalar(s).base(g)
             };
@@ -141,7 +141,7 @@ fn random_wnaf_tests<G: CurveProjective>() {
                 let mut wnaf = Wnaf::new();
                 {
                     // Populate the vectors.
-                    wnaf.base(rng.gen(), 1).scalar(rng.gen());
+                    wnaf.base(G::rand(&mut rng), 1).scalar(G::Scalar::rand(&mut rng).into_repr());
                 }
                 let mut shared = wnaf.base(g, 1).shared();
 
@@ -153,7 +153,7 @@ fn random_wnaf_tests<G: CurveProjective>() {
                 let mut wnaf = Wnaf::new();
                 {
                     // Populate the vectors.
-                    wnaf.base(rng.gen(), 1).scalar(rng.gen());
+                    wnaf.base(G::rand(&mut rng), 1).scalar(G::Scalar::rand(&mut rng).into_repr());
                 }
                 let mut shared = wnaf.scalar(s).shared();
 
@@ -354,14 +354,12 @@ pub fn random_transformation_tests<G: CurveProjective>() {
     for _ in 0..10 {
         let mut v = (0..1000).map(|_| G::rand(&mut rng)).collect::<Vec<_>>();
 
-        use rand::distributions::{IndependentSample, Range};
-        let between = Range::new(0, 1000);
         // Sprinkle in some normalized points
         for _ in 0..5 {
-            v[between.ind_sample(&mut rng)] = G::zero();
+            v[rng.gen_range(0..1000)] = G::zero();
         }
         for _ in 0..5 {
-            let s = between.ind_sample(&mut rng);
+            let s = rng.gen_range(0..1000);
             v[s] = v[s].into_affine().into_projective();
         }
 
@@ -394,14 +392,12 @@ pub fn random_transformation_tests_with_cofactor<G: CurveProjective>() {
             assert!(!i.is_normalized());
         }
 
-        use rand::distributions::{IndependentSample, Range};
-        let between = Range::new(0, 1000);
         // Sprinkle in some normalized points
         for _ in 0..5 {
-            v[between.ind_sample(&mut rng)] = G::zero();
+            v[rng.gen_range(0..1000)] = G::zero();
         }
         for _ in 0..5 {
-            let s = between.ind_sample(&mut rng);
+            let s = rng.gen_range(0..1000);
             v[s] = v[s].into_affine().into_projective();
         }
 
