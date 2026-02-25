@@ -43,7 +43,7 @@ jobs:
         run: cargo install cargo-nextest --locked --version 0.9.109
 
       - name: Run tests
-        run: cargo +nightly-2025-10-20 nextest run --no-fail-fast --jobs=3 --release
+        run: RUSTFLAGS="-Awarnings" cargo nextest run --no-fail-fast --jobs=3 --release
 
   ci-success:
     name: Github Status Check
