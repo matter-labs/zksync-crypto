@@ -190,6 +190,7 @@ mod test {
         use rand::{Rng, SeedableRng};
         let mut rng = rand::rngs::StdRng::seed_from_u64(42);
 
+        assert!(len % 2 == 0, "input length must be even for this test");
         let mut input = vec![];
         for _ in 0..len {
             let byte: u8 = rng.gen();
