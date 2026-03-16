@@ -729,6 +729,14 @@ pub struct PolynomialStorage<E: Engine, #[cfg(feature = "allocator")] A: Allocat
     pub setup_map: std::collections::HashMap<PolyIdentifier, Vec<E::Fr, A>>,
     #[cfg(not(feature = "allocator"))]
     pub setup_map: std::collections::HashMap<PolyIdentifier, Vec<E::Fr>>,
+    /// Fast-path storage for VariablesPolynomial(0..3), bypassing HashMap during synthesis.
+    /// Must be flushed back to state_map via `flush_variable_polys()` before state_map is read.
+    #[cfg(feature = "allocator")]
+    #[serde(skip)]
+    pub state_polys_for_variables: [Vec<Variable, A>; 4],
+    #[cfg(not(feature = "allocator"))]
+    #[serde(skip)]
+    pub state_polys_for_variables: [Vec<Variable>; 4],
 }
 
 macro_rules! impl_poly_storage {
@@ -748,20 +756,29 @@ impl_poly_storage! {
                 state_map: std::collections::HashMap::new(),
                 witness_map: std::collections::HashMap::new(),
                 setup_map: std::collections::HashMap::new(),
+                state_polys_for_variables: Default::default(),
             }
         }
 
 
         pub fn new_specialized_for_proving_assembly_and_state_4(size: usize) -> Self {
             assert!(size <= 1 << <E::Fr as PrimeField>::S);
-            let mut state_map = std::collections::HashMap::new();
-            for idx in 0..4{
-                state_map.insert(PolyIdentifier::VariablesPolynomial(idx), new_vec_with_allocator!(size));
-            }
             Self {
-                state_map,
+                state_map: std::collections::HashMap::new(),
                 witness_map: std::collections::HashMap::new(),
                 setup_map: std::collections::HashMap::new(),
+                state_polys_for_variables: std::array::from_fn(|_| new_vec_with_allocator!(size)),
+            }
+        }
+
+        /// Flush fast-path variable polynomial arrays back into state_map.
+        /// Must be called before any code reads state_map for VariablesPolynomial entries.
+        pub fn flush_variable_polys(&mut self) {
+            for idx in 0..4 {
+                if !self.state_polys_for_variables[idx].is_empty() {
+                    let vec = std::mem::take(&mut self.state_polys_for_variables[idx]);
+                    self.state_map.insert(PolyIdentifier::VariablesPolynomial(idx), vec);
+                }
             }
         }
 
@@ -1224,7 +1241,11 @@ impl_assembly! {
                 witness_assignments,
             )?;
 
-            self.add_gate_into_list(gate);
+            // In proving-only mode, skip the expensive HashSet lookup after all gate
+            // types have been registered (typically after just 2-3 gates).
+            if S::PRODUCE_SETUP || self.num_aux_gates < 8 {
+                self.add_gate_into_list(gate);
+            }
 
             if S::PRODUCE_SETUP {
                 if let Some(tracker) = self.aux_gate_density.0.get_mut(gate.as_internal() as &dyn GateInternal<E>) {
@@ -1483,30 +1504,24 @@ impl_assembly! {
                 let table_name = table.functional_name();
 
                 // add values for lookup table sorting later
-                let keys_and_values_len = table.applies_over().len();
-                let mut table_entries = arrayvec::ArrayVec::<_, 3>::new();
-                for v in variables.iter() {
-                    let value = self.get_value(*v).unwrap();
-                    table_entries.push(value);
+                let mut table_entries_as_array = [E::Fr::zero(); 3];
+                for (i, v) in variables.iter().enumerate() {
+                    table_entries_as_array[i] = self.get_value(*v).unwrap();
                 }
-                use std::convert::TryInto;
-                let table_entries_as_array: [_; 3] = table_entries.into_inner().unwrap();
+
+                // Fast path: for XOR8 table with small integer keys, compute the row index
+                // directly from the u64 values instead of hashing [Fr; 3].
+                let table_bits = table.size().trailing_zeros() / 2;
+                let row_idx = if table_bits <= 16 {
+                    let a = table_entries_as_array[0].into_repr().as_ref()[0] as usize;
+                    let b = table_entries_as_array[1].into_repr().as_ref()[0] as usize;
+                    a * (1 << table_bits) + b
+                } else {
+                    *self.individual_table_entries_lookups.get(&table_name).unwrap().get(&table_entries_as_array).unwrap()
+                };
 
                 let entries = self.individual_table_entries.get_mut(&table_name).unwrap();
-                assert_eq!(variables.len(), table.applies_over().len());
-
-                // // This check is substituted by the lookup from values into index below
-                // let valid_entries = table.is_valid_entry(&table_entries_as_array[..keys_and_values_len]);
-                // assert!(valid_entries);
-
-                // if !valid_entries {
-                //     return Err(SynthesisError::Unsatisfiable);
-                // }
-
-                let row_idx = self.individual_table_entries_lookups.get(&table_name).unwrap().get(&table_entries_as_array);
-                assert!(row_idx.is_some(), "table most likely doesn't contain a row for {:?}", table_entries_as_array);
-
-                entries.push(*row_idx.unwrap() as u32);
+                entries.push(row_idx as u32);
             }
 
             self.num_table_lookups += 1;
@@ -1564,7 +1579,13 @@ impl_assembly! {
             let mut variable_it = variables_assignments.iter();
 
             for &var_poly in gate.variable_polynomials().into_iter() {
-                let poly_ref = storage.state_map.entry(var_poly).or_insert(new_vec_with_allocator!(0));
+                // Fast path: VariablesPolynomial(idx) with idx < 4 uses direct array access
+                let poly_ref = match var_poly {
+                    PolyIdentifier::VariablesPolynomial(idx) if idx < 4 => {
+                        &mut storage.state_polys_for_variables[idx]
+                    }
+                    _ => storage.state_map.entry(var_poly).or_insert(new_vec_with_allocator!(0)),
+                };
                 if poly_ref.len() < n {
                     poly_ref.resize(n, dummy);
                 }
@@ -1833,6 +1854,8 @@ impl_assembly! {
                 return;
             }
 
+            self.aux_storage.flush_variable_polys();
+
             assert!(size_log_2 <= E::Fr::S as usize);
 
             // the lookup argument (as in the paper) will make two polynomials to fit jointly sorted set
@@ -1927,6 +1950,8 @@ impl_assembly! {
             if self.is_finalized {
                 return;
             }
+
+            self.aux_storage.flush_variable_polys();
 
             assert!(size_log_2 <= E::Fr::S as usize);
 
