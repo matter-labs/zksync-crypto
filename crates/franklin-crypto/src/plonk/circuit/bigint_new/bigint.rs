@@ -48,19 +48,14 @@ pub fn mod_inverse(el: &BigUint, modulus: &BigUint) -> BigUint {
 }
 
 pub fn biguint_to_fe<F: PrimeField>(value: BigUint) -> F {
-    F::from_str(&value.to_str_radix(10)).unwrap()
+    let repr = biguint_to_repr::<F>(value);
+    F::from_repr(repr).unwrap()
 }
 
-pub fn biguint_to_repr<F: PrimeField>(mut value: BigUint) -> F::Repr {
-    use num_traits::ToPrimitive;
-
+pub fn biguint_to_repr<F: PrimeField>(value: BigUint) -> F::Repr {
     let mut repr = F::Repr::default();
-    let mask = BigUint::from(1u64) << 64;
-    for l in repr.as_mut().iter_mut() {
-        let limb: BigUint = value.clone() % &mask;
-        *l = limb.to_u64().unwrap();
-        value >>= 64;
-    }
+    let digits = value.to_u64_digits();
+    repr.as_mut()[..digits.len()].copy_from_slice(&digits);
 
     repr
 }
@@ -68,9 +63,8 @@ pub fn biguint_to_repr<F: PrimeField>(mut value: BigUint) -> F::Repr {
 pub fn some_biguint_to_fe<F: PrimeField>(value: &Option<BigUint>) -> Option<F> {
     match value {
         Some(value) => {
-            let n = F::from_str(&value.to_str_radix(10)).unwrap();
-
-            Some(n)
+            let repr = biguint_to_repr::<F>(value.clone());
+            Some(F::from_repr(repr).unwrap())
         }
         None => None,
     }

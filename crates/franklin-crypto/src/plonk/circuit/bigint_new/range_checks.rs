@@ -452,6 +452,7 @@ pub fn apply_range_table_gate<E: Engine, CS: ConstraintSystem<E>>(
     shift_b: &E::Fr,
     shift_acc: &E::Fr,
     shift_d_next: &E::Fr,
+    shift_d_next_inv: &E::Fr,
     table: Arc<LookupTableApplication<E>>,
     is_final: bool,
 ) -> Result<AllocatedNum<E>, SynthesisError> {
@@ -464,6 +465,7 @@ pub fn apply_range_table_gate<E: Engine, CS: ConstraintSystem<E>>(
     };
 
     let new_acc = if !is_final {
+        let shift_d_next_inv = *shift_d_next_inv;
         AllocatedNum::alloc(cs, || {
             let mut res = acc.get_value().grab()?;
             let mut tmp = a.get_value().grab()?;
@@ -472,8 +474,7 @@ pub fn apply_range_table_gate<E: Engine, CS: ConstraintSystem<E>>(
             tmp = b.get_value().grab()?;
             tmp.mul_assign(&shift_b);
             res.sub_assign(&tmp);
-            let div_inv = shift_d_next.inverse().unwrap();
-            res.mul_assign(&div_inv);
+            res.mul_assign(&shift_d_next_inv);
             Ok(res)
         })?
     } else {
@@ -530,17 +531,40 @@ pub fn enforce_range_check_using_bitop_table<E: Engine, CS: ConstraintSystem<E>>
     }
     increment_total_gates_count((num_chunks + 1 + should_enforce_for_shifted_chunk as usize) / 2);
 
-    let value = var.get_value().map(|x| fe_to_biguint(&x));
-    let chunks = split_some_into_fixed_number_of_limbs(value, chunk_width, num_chunks)
-        .into_iter()
-        .map(|x| AllocatedNum::alloc(cs, || some_biguint_to_fe::<E::Fr>(&x).grab()))
-        .collect::<Result<Vec<AllocatedNum<E>>, SynthesisError>>()?;
+    let chunks = if let Some(value) = var.get_value() {
+        let repr = value.into_repr();
+        let limbs = repr.as_ref();
+        let chunk_mask = (1u64 << chunk_width) - 1;
+        let mut chunks = Vec::with_capacity(num_chunks);
+        for i in 0..num_chunks {
+            let bit_offset = i * chunk_width;
+            let limb_idx = bit_offset / 64;
+            let bit_idx = bit_offset % 64;
+            let chunk_val = if limb_idx < limbs.len() {
+                if bit_idx + chunk_width <= 64 {
+                    (limbs[limb_idx] >> bit_idx) & chunk_mask
+                } else if limb_idx + 1 < limbs.len() {
+                    ((limbs[limb_idx] >> bit_idx) | (limbs[limb_idx + 1] << (64 - bit_idx))) & chunk_mask
+                } else {
+                    (limbs[limb_idx] >> bit_idx) & chunk_mask
+                }
+            } else {
+                0u64
+            };
+            chunks.push(AllocatedNum::alloc(cs, || Ok(E::Fr::from_repr(chunk_val.into()).unwrap()))?);
+        }
+        chunks
+    } else {
+        (0..num_chunks)
+            .map(|_| AllocatedNum::alloc(cs, || Err(SynthesisError::AssignmentMissing)))
+            .collect::<Result<Vec<_>, _>>()?
+    };
 
     let dummy = AllocatedNum::zero(cs);
-    let shifts = compute_shifts::<E::Fr>();
     let shift_a = E::Fr::one();
-    let shift_b = shifts[chunk_width].clone();
-    let shift_d_next = shifts[chunk_width * 2].clone();
+    let shift_b = if chunk_width < 64 { u64_to_fe::<E::Fr>(1u64 << chunk_width) } else { compute_shifts::<E::Fr>()[chunk_width].clone() };
+    let shift_d_next = if chunk_width * 2 < 64 { u64_to_fe::<E::Fr>(1u64 << (chunk_width * 2)) } else { compute_shifts::<E::Fr>()[chunk_width * 2].clone() };
+    let shift_d_next_inv = shift_d_next.inverse().unwrap();
     let mut minus_one = E::Fr::one();
     minus_one.negate();
     let mut acc = var.clone();
@@ -554,7 +578,7 @@ pub fn enforce_range_check_using_bitop_table<E: Engine, CS: ConstraintSystem<E>>
         // a + b * shift - acc + acc_next * shift^2;
         let (a, b) = (&pair[0], &pair[1]);
         is_final &= is_even_num_of_chunks;
-        acc = apply_range_table_gate(cs, a, b, &acc, &shift_a, &shift_b, &minus_one.clone(), &shift_d_next, table.clone(), is_final)?;
+        acc = apply_range_table_gate(cs, a, b, &acc, &shift_a, &shift_b, &minus_one.clone(), &shift_d_next, &shift_d_next_inv, table.clone(), is_final)?;
     }
 
     if !is_even_num_of_chunks || should_enforce_for_shifted_chunk {
@@ -575,7 +599,7 @@ pub fn enforce_range_check_using_bitop_table<E: Engine, CS: ConstraintSystem<E>>
 
         let shift_a = if should_enforce_for_shifted_chunk { shift } else { E::Fr::zero() };
         let shift_b = if should_enforce_for_shifted_chunk { minus_one.clone() } else { E::Fr::zero() };
-        apply_range_table_gate(cs, &a, &b, &a, &shift_a, &shift_b, &E::Fr::zero(), &E::Fr::zero(), table.clone(), true)?;
+        apply_range_table_gate(cs, &a, &b, &a, &shift_a, &shift_b, &E::Fr::zero(), &E::Fr::zero(), &E::Fr::zero(), table.clone(), true)?;
     }
 
     Ok(RangeCheckDecomposition {
