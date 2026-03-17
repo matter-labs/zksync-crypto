@@ -1293,11 +1293,7 @@ impl_assembly! {
                 witness_assignments,
             )?;
 
-            // In proving-only mode, skip the expensive HashSet lookup after all gate
-            // types have been registered (typically after just 2-3 gates).
-            if S::PRODUCE_SETUP || self.num_aux_gates < 8 {
-                self.add_gate_into_list(gate);
-            }
+            self.add_gate_into_list(gate);
 
             if S::PRODUCE_SETUP {
                 if let Some(tracker) = self.aux_gate_density.0.get_mut(gate.as_internal() as &dyn GateInternal<E>) {
@@ -1949,8 +1945,11 @@ impl_assembly! {
             }
             self.num_table_lookups += tla.num_table_lookups;
 
-            // Merge table selectors
+            // Merge setup data (only populated in PRODUCE_SETUP mode)
             if S::PRODUCE_SETUP {
+                for (k, v) in tla.aux_storage.setup_map.into_iter() {
+                    self.aux_storage.setup_map.entry(k).or_insert_with(Vec::new).extend(v);
+                }
                 for (name, bits) in tla.table_selectors.into_iter() {
                     self.table_selectors.entry(name).or_insert_with(BitVec::new).extend(bits);
                 }
