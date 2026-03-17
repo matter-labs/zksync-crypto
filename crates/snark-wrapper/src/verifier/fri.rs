@@ -104,7 +104,8 @@ pub(crate) fn verify_fri_part<
 
     let base_oracle_depth = fixed_parameters.base_oracles_depth();
 
-    for queries in proof.queries_per_fri_repetition.iter() {
+    for (query_num, queries) in proof.queries_per_fri_repetition.iter().enumerate() {
+        let tq = std::time::Instant::now();
         let query_index_lsb_first_bits = bools_buffer.get_bits(cs, transcript, max_needed_bits)?;
 
         // we consider it to be some convenient for us encoding of coset + inner index.
@@ -271,7 +272,11 @@ pub(crate) fn verify_fri_part<
 
         validity_flags.push(c0_is_valid);
         validity_flags.push(c1_is_valid);
+        if query_num < 3 || query_num == proof.queries_per_fri_repetition.len() - 1 {
+            eprintln!("[snark-wrapper fri] query {}: {:.3}s", query_num, tq.elapsed().as_secs_f64());
+        }
     }
+    eprintln!("[snark-wrapper fri] total queries: {}", proof.queries_per_fri_repetition.len());
 
     Ok(validity_flags)
 }

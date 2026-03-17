@@ -91,7 +91,9 @@ impl<
 
         let vk = AllocatedVerificationKey::<E, H>::allocate_constant(&self.vk, &fixed_parameters);
 
+        let ta = std::time::Instant::now();
         let proof: AllocatedProof<E, H> = AllocatedProof::allocate_from_witness(cs, &self.witness, &verifier, &fixed_parameters, &proof_config)?;
+        eprintln!("[snark-wrapper synthesize] allocate_from_witness: {:.3}s", ta.elapsed().as_secs_f64());
 
         // Verify proof
         let correct = crate::verifier::verify::<E, CS, H, TR, ConcretePoseidon2SpongeGadget<E>>(cs, self.transcript_params.clone(), &proof_config, &proof, &verifier, &fixed_parameters, &vk)?;
@@ -172,9 +174,15 @@ pub fn verify<E: Engine, CS: ConstraintSystem<E> + 'static, H: CircuitGLTreeHash
     let constants = ConstantsHolder::generate(proof_config, verifier, fixed_parameters);
     assert_eq!(fixed_parameters.cap_size, vk.setup_merkle_tree_cap.len());
 
+    let t0 = std::time::Instant::now();
     let public_input_opening_tuples = verify_first_step(cs, proof, vk, &mut challenges, &mut transcript, verifier, fixed_parameters, &constants)?;
+    eprintln!("[snark-wrapper verify] first_step: {:.3}s", t0.elapsed().as_secs_f64());
 
+    let t1 = std::time::Instant::now();
     validity_flags.extend(check_quotient_contributions_in_z(cs, proof, &challenges, verifier, fixed_parameters, &constants)?);
+    eprintln!("[snark-wrapper verify] quotient_check: {:.3}s", t1.elapsed().as_secs_f64());
+
+    let t2 = std::time::Instant::now();
     validity_flags.extend(verify_fri_part::<E, CS, H, TR, POW>(
         cs,
         proof,
@@ -186,6 +194,7 @@ pub fn verify<E: Engine, CS: ConstraintSystem<E> + 'static, H: CircuitGLTreeHash
         fixed_parameters,
         &constants,
     )?);
+    eprintln!("[snark-wrapper verify] fri_part: {:.3}s", t2.elapsed().as_secs_f64());
 
     let correct = smart_and(cs, &validity_flags)?;
 
