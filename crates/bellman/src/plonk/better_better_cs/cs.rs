@@ -23,6 +23,30 @@ use super::utils::*;
 
 pub use super::gates::main_gate_with_d_next::*;
 
+/// A Send+Sync wrapper around a raw slice pointer for sharing parent assembly data
+/// across threads within a scoped thread context.
+#[derive(Clone, Copy)]
+pub struct SharedSliceRef<T> {
+    ptr: *const T,
+    len: usize,
+}
+unsafe impl<T: Sync> Send for SharedSliceRef<T> {}
+unsafe impl<T: Sync> Sync for SharedSliceRef<T> {}
+impl<T> SharedSliceRef<T> {
+    pub fn from_slice(s: &[T]) -> Self {
+        Self { ptr: s.as_ptr(), len: s.len() }
+    }
+    /// Safety: caller must ensure the original slice is still alive.
+    pub unsafe fn as_slice(&self) -> &[T] {
+        std::slice::from_raw_parts(self.ptr, self.len)
+    }
+}
+impl<T> Default for SharedSliceRef<T> {
+    fn default() -> Self {
+        Self { ptr: std::ptr::null(), len: 0 }
+    }
+}
+
 pub trait SynthesisMode: Clone + Send + Sync + std::fmt::Debug {
     const PRODUCE_WITNESS: bool;
     const PRODUCE_SETUP: bool;
@@ -663,6 +687,20 @@ pub trait ConstraintSystem<E: Engine> {
 
     fn get_current_step_number(&self) -> usize;
     fn get_current_aux_gate_number(&self) -> usize;
+
+    /// Run `num_tasks` independent synthesis tasks in parallel.
+    /// Each task receives `&mut Self` (a thread-local CS) and a task index.
+    /// `vars_per_task` is the estimated variable budget per task.
+    /// Returns results in task-index order, or None if parallelism is not supported.
+    fn run_parallel<F, R>(&mut self, num_tasks: usize, vars_per_task: usize, f: F) -> Option<Vec<R>>
+    where
+        F: Fn(&mut Self, usize) -> R + Sync,
+        R: Send,
+        Self: Sized,
+    {
+        let _ = (num_tasks, vars_per_task, &f);
+        None // default: not supported
+    }
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -927,6 +965,18 @@ pub struct Assembly<E: Engine, P: PlonkConstraintSystemParams<E>, MG: MainGate<E
     pub num_table_lookups: usize,
     pub num_multitable_lookups: usize,
 
+    /// Offset added to variable indices for thread-local assemblies.
+    /// Default 0 for normal (non-parallel) usage.
+    #[serde(skip)]
+    pub aux_variable_offset: usize,
+    /// Offset added to gate indices for thread-local assemblies.
+    #[serde(skip)]
+    pub aux_gate_offset: usize,
+    /// Read-only pointer to parent assembly's aux_assingments for thread-local get_value.
+    /// Safety: only set within std::thread::scope where parent outlives threads.
+    #[serde(skip)]
+    pub parent_aux_assingments: Option<SharedSliceRef<E::Fr>>,
+
     _marker_p: std::marker::PhantomData<P>,
     _marker_s: std::marker::PhantomData<S>,
     #[cfg(feature = "allocator")]
@@ -1161,7 +1211,7 @@ impl_assembly! {
         {
 
             self.num_aux += 1;
-            let index = self.num_aux;
+            let index = self.aux_variable_offset + self.num_aux;
             if S::PRODUCE_WITNESS {
                 let value = value()?;
                 self.aux_assingments.push(value);
@@ -1333,7 +1383,18 @@ impl_assembly! {
                     self.input_assingments[input - 1]
                 },
                 Variable(Index::Aux(aux)) => {
-                    self.aux_assingments[aux - 1]
+                    let local_start = self.aux_variable_offset + 1;
+                    let local_end = self.aux_variable_offset + self.num_aux;
+                    if aux >= local_start && aux <= local_end {
+                        // Variable allocated by this (thread-local) assembly
+                        self.aux_assingments[aux - local_start]
+                    } else if let Some(ref parent) = self.parent_aux_assingments {
+                        // Variable allocated in parent assembly
+                        let parent_slice = unsafe { parent.as_slice() };
+                        parent_slice[aux - 1]
+                    } else {
+                        self.aux_assingments[aux - 1]
+                    }
                 }
             };
 
@@ -1541,6 +1602,48 @@ impl_assembly! {
         fn get_current_aux_gate_number(&self) -> usize {
             self.num_aux_gates
         }
+
+        fn run_parallel<F, R>(&mut self, num_tasks: usize, vars_per_task: usize, f: F) -> Option<Vec<R>>
+        where
+            F: Fn(&mut Self, usize) -> R + Sync,
+            R: Send,
+            Self: Sized,
+        {
+            if num_tasks == 0 {
+                return Some(vec![]);
+            }
+
+            // Flush fast-path polys so thread-locals start clean
+            self.aux_storage.flush_variable_polys();
+
+            let parent_aux = SharedSliceRef::from_slice(&self.aux_assingments);
+            let base_num_aux = self.num_aux;
+
+            // Create thread-local assemblies with non-overlapping variable ranges
+            let mut thread_locals: Vec<Self> = (0..num_tasks)
+                .map(|i| self.new_thread_local(base_num_aux + i * vars_per_task, parent_aux))
+                .collect();
+
+            // Run tasks in parallel using scoped threads
+            let results: Vec<R> = std::thread::scope(|scope| {
+                let f_ref = &f;
+                let handles: Vec<_> = thread_locals
+                    .iter_mut()
+                    .enumerate()
+                    .map(|(i, tla)| {
+                        scope.spawn(move || f_ref(tla, i))
+                    })
+                    .collect();
+                handles.into_iter().map(|h| h.join().unwrap()).collect()
+            });
+
+            // Merge all thread-local assemblies back (in order)
+            for tla in thread_locals {
+                self.merge_thread_local(tla);
+            }
+
+            Some(results)
+        }
     }
 
 }
@@ -1685,6 +1788,10 @@ impl_assembly! {
                 num_table_lookups: 0,
                 num_multitable_lookups: 0,
 
+                aux_variable_offset: 0,
+                aux_gate_offset: 0,
+                parent_aux_assingments: None,
+
                 _marker_p: std::marker::PhantomData,
                 _marker_s: std::marker::PhantomData,
                 #[cfg(feature = "allocator")]
@@ -1750,6 +1857,10 @@ impl_assembly! {
                 num_table_lookups: 0,
                 num_multitable_lookups: 0,
 
+                aux_variable_offset: 0,
+                aux_gate_offset: 0,
+                parent_aux_assingments: None,
+
                 _marker_p: std::marker::PhantomData,
                 _marker_s: std::marker::PhantomData,
                 #[cfg(feature = "allocator")]
@@ -1765,6 +1876,84 @@ impl_assembly! {
         // return variable that is not in a constraint formally, but has some value
         const fn dummy_variable() -> Variable {
             Variable(Index::Aux(0))
+        }
+
+        /// Create a thread-local assembly for parallel synthesis.
+        /// `var_offset`: global starting aux variable index for this thread
+        /// `parent_aux`: shared read-only slice of parent's aux_assingments
+        /// The thread-local assembly shares lookup tables and explicit zero/one from parent.
+        pub fn new_thread_local(
+            &self,
+            var_offset: usize,
+            parent_aux: SharedSliceRef<E::Fr>,
+        ) -> Self
+        where
+            S: SynthesisMode,
+        {
+            let mut tla = Self::new();
+            tla.aux_variable_offset = var_offset;
+            tla.parent_aux_assingments = Some(parent_aux);
+            tla.explicit_zero_variable = self.explicit_zero_variable;
+            tla.explicit_one_variable = self.explicit_one_variable;
+            // Share tables (Arc-cloned, no lock)
+            tla.tables = self.tables.clone();
+            // Copy table metadata needed for apply_single_lookup_gate
+            tla.individual_table_entries_lookups = self.individual_table_entries_lookups.clone();
+            for name in self.individual_table_entries.keys() {
+                tla.individual_table_entries.insert(name.clone(), vec![]);
+            }
+            tla.known_table_ids = self.known_table_ids.clone();
+            tla.known_table_names = self.known_table_names.clone();
+            tla.total_length_of_all_tables = self.total_length_of_all_tables;
+            for (name, _) in self.table_selectors.iter() {
+                tla.table_selectors.insert(name.clone(), BitVec::new());
+            }
+            tla
+        }
+
+        /// Merge a thread-local assembly's data into this (parent) assembly.
+        /// Variables in the thread-local assembly have global indices (due to var_offset).
+        /// Gates are appended after the parent's current gates.
+        pub fn merge_thread_local(&mut self, tla: Self) {
+            // Place witness values at the correct offset position
+            let needed_len = tla.aux_variable_offset + tla.num_aux;
+            if self.aux_assingments.len() < needed_len {
+                self.aux_assingments.resize(needed_len, E::Fr::zero());
+            }
+            for (i, val) in tla.aux_assingments.iter().enumerate() {
+                self.aux_assingments[tla.aux_variable_offset + i] = *val;
+            }
+            if self.num_aux < needed_len {
+                self.num_aux = needed_len;
+            }
+
+            // Append gate storage (state_polys_for_variables)
+            for col in 0..4 {
+                self.aux_storage.state_polys_for_variables[col]
+                    .extend_from_slice(&tla.aux_storage.state_polys_for_variables[col]);
+            }
+            // Append any state_map entries beyond the 4 fast-path polys
+            for (k, v) in tla.aux_storage.state_map.into_iter() {
+                self.aux_storage.state_map.entry(k).or_insert_with(Vec::new).extend(v);
+            }
+            for (k, v) in tla.aux_storage.witness_map.into_iter() {
+                self.aux_storage.witness_map.entry(k).or_insert_with(Vec::new).extend(v);
+            }
+            self.num_aux_gates += tla.num_aux_gates;
+
+            // Merge lookup entries
+            for (name, entries) in tla.individual_table_entries.into_iter() {
+                self.individual_table_entries.entry(name).or_insert_with(Vec::new).extend(entries);
+            }
+            self.num_table_lookups += tla.num_table_lookups;
+
+            // Merge table selectors
+            if S::PRODUCE_SETUP {
+                for (name, bits) in tla.table_selectors.into_iter() {
+                    self.table_selectors.entry(name).or_insert_with(BitVec::new).extend(bits);
+                }
+                self.table_ids_poly.extend(tla.table_ids_poly);
+            }
         }
 
         pub fn finalize(&mut self) {
