@@ -883,7 +883,7 @@ impl<F: SmallField> Num<F> {
                         final_var,
                     )
                 } else {
-                    let (chunks, remainder) = input.as_chunks::<4>();
+                    let (chunks, remainder) = input.as_chunks::<3>();
                     let mut it = chunks.iter();
                     let chunk = it.next().expect("is some");
                     let intermediate_var = cs.alloc_variable_without_value();
