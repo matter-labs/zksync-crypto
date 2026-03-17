@@ -179,6 +179,10 @@ impl<E: Engine> LookupTableApplication<E> {
         self.table_to_apply.num_keys() + self.table_to_apply.num_values()
     }
 
+    pub fn num_keys(&self) -> usize {
+        self.table_to_apply.num_keys()
+    }
+
     pub fn get_table_values_for_polys(&self) -> Vec<Vec<E::Fr>> {
         self.table_to_apply.get_table_values_for_polys()
     }

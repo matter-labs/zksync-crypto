@@ -116,7 +116,7 @@ pub(crate) fn verify_fri_part<
     // Phase 2: Run all FRI queries (in parallel if supported, else sequential)
     // Estimate ~250K variables per query (actual ~200K, with margin)
     const VARS_PER_QUERY: usize = 250_000;
-    let parallel_results = cs.run_parallel(num_queries, VARS_PER_QUERY, |cs, query_idx| -> Vec<Boolean> {
+    let parallel_results = cs.run_parallel(num_queries, VARS_PER_QUERY, |cs, query_idx| -> Result<Vec<Boolean>, SynthesisError> {
         process_single_fri_query::<E, CS, H>(
             cs,
             &proof.queries_per_fri_repetition[query_idx],
@@ -137,8 +137,8 @@ pub(crate) fn verify_fri_part<
 
     match parallel_results {
         Some(results) => {
-            for flags in results {
-                validity_flags.extend(flags);
+            for result in results {
+                validity_flags.extend(result?);
             }
         }
         None => {
@@ -159,7 +159,7 @@ pub(crate) fn verify_fri_part<
                     verifier,
                     constants,
                     base_oracle_depth,
-                );
+                )?;
                 validity_flags.extend(flags);
             }
         }
@@ -187,11 +187,11 @@ fn process_single_fri_query<
     verifier: &WrapperVerifier<E, CS>,
     constants: &ConstantsHolder,
     base_oracle_depth: usize,
-) -> Vec<Boolean> {
+) -> Result<Vec<Boolean>, SynthesisError> {
     let mut validity_flags = vec![];
     let base_tree_idx = query_index_lsb_first_bits.clone();
 
-    validity_flags.extend(verify_inclusion_proofs(cs, queries, proof, vk, &base_tree_idx, constants, base_oracle_depth).unwrap());
+    validity_flags.extend(verify_inclusion_proofs(cs, queries, proof, vk, &base_tree_idx, constants, base_oracle_depth)?);
 
     let zero_ext = GoldilocksExtAsFieldWrapper::<E, CS>::zero(cs);
     let mut simulated_ext_element = zero_ext;
@@ -227,7 +227,7 @@ fn process_single_fri_query<
         challenges,
         verifier,
         constants,
-    ).unwrap();
+    )?;
 
     let base_coset_inverse = BoojumPrimeField::inverse(&GL::multiplicative_generator()).unwrap();
 
@@ -246,18 +246,18 @@ fn process_single_fri_query<
 
         let [c0, c1] = current_folded_value.into_coeffs_in_base();
 
-        let c0_from_leaf = binary_select(cs, &fri_query.leaf_elements[..interpolation_degree], subidx_in_leaf).unwrap();
-        let c1_from_leaf = binary_select(cs, &fri_query.leaf_elements[interpolation_degree..], subidx_in_leaf).unwrap();
+        let c0_from_leaf = binary_select(cs, &fri_query.leaf_elements[..interpolation_degree], subidx_in_leaf)?;
+        let c1_from_leaf = binary_select(cs, &fri_query.leaf_elements[interpolation_degree..], subidx_in_leaf)?;
 
-        let c0_is_valid = GoldilocksField::equals(cs, &c0, &c0_from_leaf).unwrap();
-        let c1_is_valid = GoldilocksField::equals(cs, &c1, &c1_from_leaf).unwrap();
+        let c0_is_valid = GoldilocksField::equals(cs, &c0, &c0_from_leaf)?;
+        let c1_is_valid = GoldilocksField::equals(cs, &c1, &c1_from_leaf)?;
 
         validity_flags.push(c0_is_valid);
         validity_flags.push(c1_is_valid);
 
         let cap = if idx == 0 { &proof.fri_base_oracle_cap } else { &proof.fri_intermediate_oracles_caps[idx - 1] };
         assert_eq!(fri_query.proof.len(), expected_fri_query_len);
-        validity_flags.push(check_if_included::<E, CS, H>(cs, &fri_query.leaf_elements, &fri_query.proof, &cap, tree_idx).unwrap());
+        validity_flags.push(check_if_included::<E, CS, H>(cs, &fri_query.leaf_elements, &fri_query.proof, &cap, tree_idx)?);
 
         let mut elements_to_interpolate = Vec::with_capacity(interpolation_degree);
         for (c0, c1) in fri_query.leaf_elements[..interpolation_degree].iter().zip(fri_query.leaf_elements[interpolation_degree..].iter()) {
@@ -284,7 +284,7 @@ fn process_single_fri_query<
                 let coset_inverse = GoldilocksAsFieldWrapper::constant(coset_inverse, cs);
                 pow.mul_assign(&coset_inverse, cs);
 
-                GoldilocksExtAsFieldWrapper::<E, CS>::mul_by_base_and_accumulate_into(&mut result, &pow, &diff, cs).unwrap();
+                GoldilocksExtAsFieldWrapper::<E, CS>::mul_by_base_and_accumulate_into(&mut result, &pow, &diff, cs)?;
 
                 next.push(result);
             }
@@ -307,20 +307,20 @@ fn process_single_fri_query<
     for (c0, c1) in proof.final_fri_monomials[0].iter().zip(proof.final_fri_monomials[1].iter()).rev() {
         let coeff = GoldilocksExtAsFieldWrapper::<E, CS>::from_coeffs_in_base([*c0, *c1]);
         let mut tmp = coeff;
-        GoldilocksExtAsFieldWrapper::<E, CS>::mul_by_base_and_accumulate_into(&mut tmp, &domain_element_for_interpolation, &result_from_monomial, cs).unwrap();
+        GoldilocksExtAsFieldWrapper::<E, CS>::mul_by_base_and_accumulate_into(&mut tmp, &domain_element_for_interpolation, &result_from_monomial, cs)?;
         result_from_monomial = tmp;
     }
 
     let result_from_monomial = result_from_monomial.into_coeffs_in_base();
     let current_folded_value = current_folded_value.into_coeffs_in_base();
 
-    let c0_is_valid = GoldilocksField::equals(cs, &result_from_monomial[0], &current_folded_value[0]).unwrap();
-    let c1_is_valid = GoldilocksField::equals(cs, &result_from_monomial[1], &current_folded_value[1]).unwrap();
+    let c0_is_valid = GoldilocksField::equals(cs, &result_from_monomial[0], &current_folded_value[0])?;
+    let c1_is_valid = GoldilocksField::equals(cs, &result_from_monomial[1], &current_folded_value[1])?;
 
     validity_flags.push(c0_is_valid);
     validity_flags.push(c1_is_valid);
 
-    validity_flags
+    Ok(validity_flags)
 }
 
 fn verify_inclusion_proofs<E: Engine, CS: ConstraintSystem<E> + 'static, H: CircuitGLTreeHasher<E>>(

@@ -815,7 +815,9 @@ impl_poly_storage! {
             for idx in 0..4 {
                 if !self.state_polys_for_variables[idx].is_empty() {
                     let vec = std::mem::take(&mut self.state_polys_for_variables[idx]);
-                    self.state_map.insert(PolyIdentifier::VariablesPolynomial(idx), vec);
+                    self.state_map.entry(PolyIdentifier::VariablesPolynomial(idx))
+                        .or_insert_with(Vec::new)
+                        .extend(vec);
                 }
             }
         }
@@ -1570,10 +1572,10 @@ impl_assembly! {
                     table_entries_as_array[i] = self.get_value(*v).unwrap();
                 }
 
-                // Fast path: for XOR8 table with small integer keys, compute the row index
-                // directly from the u64 values instead of hashing [Fr; 3].
+                // Fast path: for 2-key tables (like XOR8) with small integer keys, compute
+                // the row index directly from the u64 values instead of hashing [Fr; 3].
                 let table_bits = table.size().trailing_zeros() / 2;
-                let row_idx = if table_bits <= 16 {
+                let row_idx = if table.num_keys() == 2 && table_bits <= 16 {
                     let a = table_entries_as_array[0].into_repr().as_ref()[0] as usize;
                     let b = table_entries_as_array[1].into_repr().as_ref()[0] as usize;
                     a * (1 << table_bits) + b
