@@ -458,12 +458,8 @@ pub fn apply_range_table_gate<E: Engine, CS: ConstraintSystem<E>>(
 ) -> Result<AllocatedNum<E>, SynthesisError> {
     let a_xor_b = match (a.get_value(), b.get_value()) {
         (Some(a_val), Some(b_val)) => {
-            // Fast path: compute XOR directly from u64 representations instead of
-            // doing a HashMap lookup + Vec allocation via table.query().
-            let a_raw = a_val.into_repr().as_ref()[0];
-            let b_raw = b_val.into_repr().as_ref()[0];
-            let xor_val = E::Fr::from_repr((a_raw ^ b_raw).into()).unwrap();
-            AllocatedNum::alloc(cs, || Ok(xor_val))?
+            let res = table.query(&[a_val, b_val])?;
+            AllocatedNum::alloc(cs, || Ok(res[0]))?
         }
         (_, _) => AllocatedNum::alloc(cs, || Err(SynthesisError::AssignmentMissing))?,
     };

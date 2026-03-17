@@ -1568,10 +1568,16 @@ impl_assembly! {
                     table_entries_as_array[i] = self.get_value(*v).unwrap();
                 }
 
-                // Fast path: for 2-key tables (like XOR8) with small integer keys, compute
-                // the row index directly from the u64 values instead of hashing [Fr; 3].
-                let table_bits = table.size().trailing_zeros() / 2;
-                let row_idx = if table.num_keys() == 2 && table_bits <= 16 {
+                // Fast path: for dense 2-key Cartesian grid tables (like XOR8), compute
+                // the row index directly instead of hashing [Fr; 3].
+                // Only applies when: 2 keys, size is a perfect square power of two,
+                // confirming a dense k-by-k grid layout.
+                let table_size = table.size();
+                let table_bits = table_size.trailing_zeros() / 2;
+                let is_dense_2key_grid = table.num_keys() == 2
+                    && table_bits <= 16
+                    && table_size == (1usize << (table_bits * 2));
+                let row_idx = if is_dense_2key_grid {
                     let a = table_entries_as_array[0].into_repr().as_ref()[0] as usize;
                     let b = table_entries_as_array[1].into_repr().as_ref()[0] as usize;
                     a * (1 << table_bits) + b
@@ -1961,6 +1967,8 @@ impl_assembly! {
             if self.is_finalized {
                 return;
             }
+
+            self.aux_storage.flush_variable_polys();
 
             // the lookup argument (as in the paper) will make two polynomials to fit jointly sorted set
             // but in practice we fit it into one. For this purpose we only need to add as many empty rows
