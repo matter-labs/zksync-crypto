@@ -48,21 +48,27 @@ pub fn mod_inverse(el: &BigUint, modulus: &BigUint) -> BigUint {
 }
 
 pub fn biguint_to_fe<F: PrimeField>(value: BigUint) -> F {
-    let repr = biguint_to_repr::<F>(value.clone());
-    // from_repr is strict (requires value < modulus). Fall back to
-    // string-based conversion for values >= modulus, which reduces mod p.
-    match F::from_repr(repr) {
-        Ok(v) => v,
-        Err(_) => F::from_str(&value.to_str_radix(10)).unwrap(),
+    let digits = value.to_u64_digits();
+    let repr_limbs = F::Repr::default().as_ref().len();
+    // Fast path: value fits in repr, try direct conversion (no string alloc).
+    // Only attempt when digits fit; otherwise go straight to string fallback
+    // to get correct modular reduction.
+    if digits.len() <= repr_limbs {
+        let mut repr = F::Repr::default();
+        repr.as_mut()[..digits.len()].copy_from_slice(&digits);
+        if let Ok(v) = F::from_repr(repr) {
+            return v;
+        }
     }
+    F::from_str(&value.to_str_radix(10)).unwrap()
 }
 
 pub fn biguint_to_repr<F: PrimeField>(value: BigUint) -> F::Repr {
     let mut repr = F::Repr::default();
     let digits = value.to_u64_digits();
     let limbs = repr.as_mut();
-    let copy_len = digits.len().min(limbs.len());
-    limbs[..copy_len].copy_from_slice(&digits[..copy_len]);
+    assert!(digits.len() <= limbs.len(), "BigUint too large for field repr");
+    limbs[..digits.len()].copy_from_slice(&digits);
 
     repr
 }
