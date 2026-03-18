@@ -23,6 +23,30 @@ use super::utils::*;
 
 pub use super::gates::main_gate_with_d_next::*;
 
+/// A Send+Sync wrapper around a raw slice pointer for sharing parent assembly data
+/// across threads within a scoped thread context.
+#[derive(Clone, Copy)]
+pub struct SharedSliceRef<T> {
+    ptr: *const T,
+    len: usize,
+}
+unsafe impl<T: Sync> Send for SharedSliceRef<T> {}
+unsafe impl<T: Sync> Sync for SharedSliceRef<T> {}
+impl<T> SharedSliceRef<T> {
+    pub fn from_slice(s: &[T]) -> Self {
+        Self { ptr: s.as_ptr(), len: s.len() }
+    }
+    /// Safety: caller must ensure the original slice is still alive.
+    pub unsafe fn as_slice(&self) -> &[T] {
+        std::slice::from_raw_parts(self.ptr, self.len)
+    }
+}
+impl<T> Default for SharedSliceRef<T> {
+    fn default() -> Self {
+        Self { ptr: std::ptr::null(), len: 0 }
+    }
+}
+
 pub trait SynthesisMode: Clone + Send + Sync + std::fmt::Debug {
     const PRODUCE_WITNESS: bool;
     const PRODUCE_SETUP: bool;
@@ -663,6 +687,20 @@ pub trait ConstraintSystem<E: Engine> {
 
     fn get_current_step_number(&self) -> usize;
     fn get_current_aux_gate_number(&self) -> usize;
+
+    /// Run `num_tasks` independent synthesis tasks in parallel.
+    /// Each task receives `&mut Self` (a thread-local CS) and a task index.
+    /// `vars_per_task` is the estimated variable budget per task.
+    /// Returns results in task-index order, or None if parallelism is not supported.
+    fn run_parallel<F, R>(&mut self, num_tasks: usize, vars_per_task: usize, f: F) -> Option<Vec<R>>
+    where
+        F: Fn(&mut Self, usize) -> R + Sync,
+        R: Send,
+        Self: Sized,
+    {
+        let _ = (num_tasks, vars_per_task, &f);
+        None // default: not supported
+    }
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -729,6 +767,14 @@ pub struct PolynomialStorage<E: Engine, #[cfg(feature = "allocator")] A: Allocat
     pub setup_map: std::collections::HashMap<PolyIdentifier, Vec<E::Fr, A>>,
     #[cfg(not(feature = "allocator"))]
     pub setup_map: std::collections::HashMap<PolyIdentifier, Vec<E::Fr>>,
+    /// Fast-path storage for VariablesPolynomial(0..3), bypassing HashMap during synthesis.
+    /// Must be flushed back to state_map via `flush_variable_polys()` before state_map is read.
+    #[cfg(feature = "allocator")]
+    #[serde(skip)]
+    pub state_polys_for_variables: [Vec<Variable, A>; 4],
+    #[cfg(not(feature = "allocator"))]
+    #[serde(skip)]
+    pub state_polys_for_variables: [Vec<Variable>; 4],
 }
 
 macro_rules! impl_poly_storage {
@@ -748,20 +794,31 @@ impl_poly_storage! {
                 state_map: std::collections::HashMap::new(),
                 witness_map: std::collections::HashMap::new(),
                 setup_map: std::collections::HashMap::new(),
+                state_polys_for_variables: Default::default(),
             }
         }
 
 
         pub fn new_specialized_for_proving_assembly_and_state_4(size: usize) -> Self {
             assert!(size <= 1 << <E::Fr as PrimeField>::S);
-            let mut state_map = std::collections::HashMap::new();
-            for idx in 0..4{
-                state_map.insert(PolyIdentifier::VariablesPolynomial(idx), new_vec_with_allocator!(size));
-            }
             Self {
-                state_map,
+                state_map: std::collections::HashMap::new(),
                 witness_map: std::collections::HashMap::new(),
                 setup_map: std::collections::HashMap::new(),
+                state_polys_for_variables: std::array::from_fn(|_| new_vec_with_allocator!(size)),
+            }
+        }
+
+        /// Flush fast-path variable polynomial arrays back into state_map.
+        /// Must be called before any code reads state_map for VariablesPolynomial entries.
+        pub fn flush_variable_polys(&mut self) {
+            for idx in 0..4 {
+                if !self.state_polys_for_variables[idx].is_empty() {
+                    let vec = std::mem::take(&mut self.state_polys_for_variables[idx]);
+                    self.state_map.entry(PolyIdentifier::VariablesPolynomial(idx))
+                        .or_insert_with(Vec::new)
+                        .extend(vec);
+                }
             }
         }
 
@@ -909,6 +966,18 @@ pub struct Assembly<E: Engine, P: PlonkConstraintSystemParams<E>, MG: MainGate<E
     pub known_table_names: Vec<String>,
     pub num_table_lookups: usize,
     pub num_multitable_lookups: usize,
+
+    /// Offset added to variable indices for thread-local assemblies.
+    /// Default 0 for normal (non-parallel) usage.
+    #[serde(skip)]
+    pub aux_variable_offset: usize,
+    /// Offset added to gate indices for thread-local assemblies.
+    #[serde(skip)]
+    pub aux_gate_offset: usize,
+    /// Read-only pointer to parent assembly's aux_assingments for thread-local get_value.
+    /// Safety: only set within std::thread::scope where parent outlives threads.
+    #[serde(skip)]
+    pub parent_aux_assingments: Option<SharedSliceRef<E::Fr>>,
 
     _marker_p: std::marker::PhantomData<P>,
     _marker_s: std::marker::PhantomData<S>,
@@ -1144,7 +1213,7 @@ impl_assembly! {
         {
 
             self.num_aux += 1;
-            let index = self.num_aux;
+            let index = self.aux_variable_offset + self.num_aux;
             if S::PRODUCE_WITNESS {
                 let value = value()?;
                 self.aux_assingments.push(value);
@@ -1312,7 +1381,18 @@ impl_assembly! {
                     self.input_assingments[input - 1]
                 },
                 Variable(Index::Aux(aux)) => {
-                    self.aux_assingments[aux - 1]
+                    let local_start = self.aux_variable_offset + 1;
+                    let local_end = self.aux_variable_offset + self.num_aux;
+                    if aux >= local_start && aux <= local_end {
+                        // Variable allocated by this (thread-local) assembly
+                        self.aux_assingments[aux - local_start]
+                    } else if let Some(ref parent) = self.parent_aux_assingments {
+                        // Variable allocated in parent assembly
+                        let parent_slice = unsafe { parent.as_slice() };
+                        parent_slice[aux - 1]
+                    } else {
+                        self.aux_assingments[aux - 1]
+                    }
                 }
             };
 
@@ -1483,30 +1563,17 @@ impl_assembly! {
                 let table_name = table.functional_name();
 
                 // add values for lookup table sorting later
-                let keys_and_values_len = table.applies_over().len();
-                let mut table_entries = arrayvec::ArrayVec::<_, 3>::new();
-                for v in variables.iter() {
-                    let value = self.get_value(*v).unwrap();
-                    table_entries.push(value);
+                let mut table_entries_as_array = [E::Fr::zero(); 3];
+                for (i, v) in variables.iter().enumerate() {
+                    table_entries_as_array[i] = self.get_value(*v).unwrap();
                 }
-                use std::convert::TryInto;
-                let table_entries_as_array: [_; 3] = table_entries.into_inner().unwrap();
-
-                let entries = self.individual_table_entries.get_mut(&table_name).unwrap();
-                assert_eq!(variables.len(), table.applies_over().len());
-
-                // // This check is substituted by the lookup from values into index below
-                // let valid_entries = table.is_valid_entry(&table_entries_as_array[..keys_and_values_len]);
-                // assert!(valid_entries);
-
-                // if !valid_entries {
-                //     return Err(SynthesisError::Unsatisfiable);
-                // }
 
                 let row_idx = self.individual_table_entries_lookups.get(&table_name).unwrap().get(&table_entries_as_array);
-                assert!(row_idx.is_some(), "table most likely doesn't contain a row for {:?}", table_entries_as_array);
+                debug_assert!(row_idx.is_some(), "table most likely doesn't contain a row for {:?}", table_entries_as_array);
+                let row_idx = *row_idx.unwrap();
 
-                entries.push(*row_idx.unwrap() as u32);
+                let entries = self.individual_table_entries.get_mut(&table_name).unwrap();
+                entries.push(row_idx as u32);
             }
 
             self.num_table_lookups += 1;
@@ -1525,6 +1592,56 @@ impl_assembly! {
 
         fn get_current_aux_gate_number(&self) -> usize {
             self.num_aux_gates
+        }
+
+        fn run_parallel<F, R>(&mut self, num_tasks: usize, vars_per_task: usize, f: F) -> Option<Vec<R>>
+        where
+            F: Fn(&mut Self, usize) -> R + Sync,
+            R: Send,
+            Self: Sized,
+        {
+            if num_tasks == 0 {
+                return Some(vec![]);
+            }
+
+            // Flush fast-path polys so thread-locals start clean
+            self.aux_storage.flush_variable_polys();
+
+            let parent_aux = SharedSliceRef::from_slice(&self.aux_assingments);
+            let base_num_aux = self.num_aux;
+
+            // Create thread-local assemblies with non-overlapping variable ranges
+            let mut thread_locals: Vec<Self> = (0..num_tasks)
+                .map(|i| self.new_thread_local(base_num_aux + i * vars_per_task, parent_aux))
+                .collect();
+
+            // Run tasks in parallel using scoped threads
+            let results: Vec<R> = std::thread::scope(|scope| {
+                let f_ref = &f;
+                let handles: Vec<_> = thread_locals
+                    .iter_mut()
+                    .enumerate()
+                    .map(|(i, tla)| {
+                        scope.spawn(move || f_ref(tla, i))
+                    })
+                    .collect();
+                handles.into_iter().map(|h| h.join().unwrap()).collect()
+            });
+
+            // Validate no task exceeded its variable budget, then merge
+            for (i, tla) in thread_locals.iter().enumerate() {
+                assert!(
+                    tla.num_aux <= vars_per_task,
+                    "Parallel task {} allocated {} variables, exceeding budget of {}. \
+                     Increase vars_per_task.",
+                    i, tla.num_aux, vars_per_task
+                );
+            }
+            for tla in thread_locals {
+                self.merge_thread_local(tla);
+            }
+
+            Some(results)
         }
     }
 
@@ -1564,7 +1681,15 @@ impl_assembly! {
             let mut variable_it = variables_assignments.iter();
 
             for &var_poly in gate.variable_polynomials().into_iter() {
-                let poly_ref = storage.state_map.entry(var_poly).or_insert(new_vec_with_allocator!(0));
+                // Fast path: VariablesPolynomial(idx) with idx < 4 uses direct array access.
+                // Only used in non-setup mode; in setup/testing mode we write directly to
+                // state_map so is_satisfied() can read it without a flush.
+                let poly_ref = match var_poly {
+                    PolyIdentifier::VariablesPolynomial(idx) if idx < 4 && !S::PRODUCE_SETUP => {
+                        &mut storage.state_polys_for_variables[idx]
+                    }
+                    _ => storage.state_map.entry(var_poly).or_insert(new_vec_with_allocator!(0)),
+                };
                 if poly_ref.len() < n {
                     poly_ref.resize(n, dummy);
                 }
@@ -1664,6 +1789,10 @@ impl_assembly! {
                 num_table_lookups: 0,
                 num_multitable_lookups: 0,
 
+                aux_variable_offset: 0,
+                aux_gate_offset: 0,
+                parent_aux_assingments: None,
+
                 _marker_p: std::marker::PhantomData,
                 _marker_s: std::marker::PhantomData,
                 #[cfg(feature = "allocator")]
@@ -1729,6 +1858,10 @@ impl_assembly! {
                 num_table_lookups: 0,
                 num_multitable_lookups: 0,
 
+                aux_variable_offset: 0,
+                aux_gate_offset: 0,
+                parent_aux_assingments: None,
+
                 _marker_p: std::marker::PhantomData,
                 _marker_s: std::marker::PhantomData,
                 #[cfg(feature = "allocator")]
@@ -1746,10 +1879,106 @@ impl_assembly! {
             Variable(Index::Aux(0))
         }
 
+        /// Create a thread-local assembly for parallel synthesis.
+        /// `var_offset`: global starting aux variable index for this thread
+        /// `parent_aux`: shared read-only slice of parent's aux_assingments
+        /// The thread-local assembly shares lookup tables and explicit zero/one from parent.
+        pub fn new_thread_local(
+            &self,
+            var_offset: usize,
+            parent_aux: SharedSliceRef<E::Fr>,
+        ) -> Self
+        where
+            S: SynthesisMode,
+        {
+            let mut tla = Self::new();
+            tla.aux_variable_offset = var_offset;
+            tla.parent_aux_assingments = Some(parent_aux);
+            tla.explicit_zero_variable = self.explicit_zero_variable;
+            tla.explicit_one_variable = self.explicit_one_variable;
+            // Share tables (Arc-cloned, no lock)
+            tla.tables = self.tables.clone();
+            // Copy table metadata needed for apply_single_lookup_gate
+            tla.individual_table_entries_lookups = self.individual_table_entries_lookups.clone();
+            for name in self.individual_table_entries.keys() {
+                tla.individual_table_entries.insert(name.clone(), vec![]);
+            }
+            tla.known_table_ids = self.known_table_ids.clone();
+            tla.known_table_names = self.known_table_names.clone();
+            tla.total_length_of_all_tables = self.total_length_of_all_tables;
+            for (name, _) in self.table_selectors.iter() {
+                tla.table_selectors.insert(name.clone(), BitVec::new());
+            }
+            tla
+        }
+
+        /// Merge a thread-local assembly's data into this (parent) assembly.
+        /// Variables in the thread-local assembly have global indices (due to var_offset).
+        /// Gates are appended after the parent's current gates.
+        pub fn merge_thread_local(&mut self, tla: Self) {
+            // Place witness values at the correct offset position
+            let needed_len = tla.aux_variable_offset + tla.num_aux;
+            if self.aux_assingments.len() < needed_len {
+                self.aux_assingments.resize(needed_len, E::Fr::zero());
+            }
+            for (i, val) in tla.aux_assingments.iter().enumerate() {
+                self.aux_assingments[tla.aux_variable_offset + i] = *val;
+            }
+            if self.num_aux < needed_len {
+                self.num_aux = needed_len;
+            }
+
+            // Append gate storage (state_polys_for_variables)
+            for col in 0..4 {
+                self.aux_storage.state_polys_for_variables[col]
+                    .extend_from_slice(&tla.aux_storage.state_polys_for_variables[col]);
+            }
+            // Append any state_map entries beyond the 4 fast-path polys
+            for (k, v) in tla.aux_storage.state_map.into_iter() {
+                self.aux_storage.state_map.entry(k).or_insert_with(Vec::new).extend(v);
+            }
+            for (k, v) in tla.aux_storage.witness_map.into_iter() {
+                self.aux_storage.witness_map.entry(k).or_insert_with(Vec::new).extend(v);
+            }
+
+            // Merge lookup entries
+            for (name, entries) in tla.individual_table_entries.into_iter() {
+                self.individual_table_entries.entry(name).or_insert_with(Vec::new).extend(entries);
+            }
+            self.num_table_lookups += tla.num_table_lookups;
+
+            // Merge setup data (only populated in PRODUCE_SETUP mode).
+            // Capture row count BEFORE incrementing num_aux_gates so padding is correct.
+            if S::PRODUCE_SETUP {
+                let row_count = self.num_aux_gates;
+                for (k, v) in tla.aux_storage.setup_map.into_iter() {
+                    let dst = self.aux_storage.setup_map.entry(k).or_insert_with(Vec::new);
+                    dst.resize(row_count, E::Fr::zero());
+                    dst.extend(v);
+                }
+                for (gate, bits) in tla.aux_gate_density.0.into_iter() {
+                    let dst = self.aux_gate_density.0.entry(gate).or_insert_with(BitVec::new);
+                    let pad = row_count.saturating_sub(dst.len());
+                    dst.grow(pad, false);
+                    dst.extend(bits);
+                }
+                for (name, bits) in tla.table_selectors.into_iter() {
+                    let dst = self.table_selectors.entry(name).or_insert_with(BitVec::new);
+                    let pad = row_count.saturating_sub(dst.len());
+                    dst.grow(pad, false);
+                    dst.extend(bits);
+                }
+                self.table_ids_poly.extend(tla.table_ids_poly);
+            }
+            self.num_aux_gates += tla.num_aux_gates;
+        }
+
         pub fn finalize(&mut self) {
             if self.is_finalized {
                 return;
             }
+
+            self.aux_storage.flush_variable_polys();
 
             // the lookup argument (as in the paper) will make two polynomials to fit jointly sorted set
             // but in practice we fit it into one. For this purpose we only need to add as many empty rows
@@ -1832,6 +2061,8 @@ impl_assembly! {
             if self.is_finalized {
                 return;
             }
+
+            self.aux_storage.flush_variable_polys();
 
             assert!(size_log_2 <= E::Fr::S as usize);
 
@@ -1927,6 +2158,8 @@ impl_assembly! {
             if self.is_finalized {
                 return;
             }
+
+            self.aux_storage.flush_variable_polys();
 
             assert!(size_log_2 <= E::Fr::S as usize);
 
