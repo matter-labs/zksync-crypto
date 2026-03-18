@@ -1568,22 +1568,9 @@ impl_assembly! {
                     table_entries_as_array[i] = self.get_value(*v).unwrap();
                 }
 
-                // Fast path: for dense 2-key Cartesian grid tables (like XOR8), compute
-                // the row index directly instead of hashing [Fr; 3].
-                // Only applies when: 2 keys, size is a perfect square power of two,
-                // confirming a dense k-by-k grid layout.
-                let table_size = table.size();
-                let table_bits = table_size.trailing_zeros() / 2;
-                let is_dense_2key_grid = table.num_keys() == 2
-                    && table_bits <= 16
-                    && table_size == (1usize << (table_bits * 2));
-                let row_idx = if is_dense_2key_grid {
-                    let a = table_entries_as_array[0].into_repr().as_ref()[0] as usize;
-                    let b = table_entries_as_array[1].into_repr().as_ref()[0] as usize;
-                    a * (1 << table_bits) + b
-                } else {
-                    *self.individual_table_entries_lookups.get(&table_name).unwrap().get(&table_entries_as_array).unwrap()
-                };
+                let row_idx = self.individual_table_entries_lookups.get(&table_name).unwrap().get(&table_entries_as_array);
+                debug_assert!(row_idx.is_some(), "table most likely doesn't contain a row for {:?}", table_entries_as_array);
+                let row_idx = *row_idx.unwrap();
 
                 let entries = self.individual_table_entries.get_mut(&table_name).unwrap();
                 entries.push(row_idx as u32);
@@ -1641,7 +1628,15 @@ impl_assembly! {
                 handles.into_iter().map(|h| h.join().unwrap()).collect()
             });
 
-            // Merge all thread-local assemblies back (in order)
+            // Validate no task exceeded its variable budget, then merge
+            for (i, tla) in thread_locals.iter().enumerate() {
+                assert!(
+                    tla.num_aux <= vars_per_task,
+                    "Parallel task {} allocated {} variables, exceeding budget of {}. \
+                     Increase vars_per_task.",
+                    i, tla.num_aux, vars_per_task
+                );
+            }
             for tla in thread_locals {
                 self.merge_thread_local(tla);
             }
@@ -1955,6 +1950,9 @@ impl_assembly! {
             if S::PRODUCE_SETUP {
                 for (k, v) in tla.aux_storage.setup_map.into_iter() {
                     self.aux_storage.setup_map.entry(k).or_insert_with(Vec::new).extend(v);
+                }
+                for (gate, bits) in tla.aux_gate_density.0.into_iter() {
+                    self.aux_gate_density.0.entry(gate).or_insert_with(BitVec::new).extend(bits);
                 }
                 for (name, bits) in tla.table_selectors.into_iter() {
                     self.table_selectors.entry(name).or_insert_with(BitVec::new).extend(bits);
