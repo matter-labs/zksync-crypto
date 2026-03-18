@@ -48,24 +48,28 @@ pub fn mod_inverse(el: &BigUint, modulus: &BigUint) -> BigUint {
 }
 
 pub fn biguint_to_fe<F: PrimeField>(value: BigUint) -> F {
-    let repr = biguint_to_repr::<F>(value);
-    F::from_repr(repr).unwrap()
+    let repr = biguint_to_repr::<F>(value.clone());
+    // from_repr is strict (requires value < modulus). Fall back to
+    // string-based conversion for values >= modulus, which reduces mod p.
+    match F::from_repr(repr) {
+        Ok(v) => v,
+        Err(_) => F::from_str(&value.to_str_radix(10)).unwrap(),
+    }
 }
 
 pub fn biguint_to_repr<F: PrimeField>(value: BigUint) -> F::Repr {
     let mut repr = F::Repr::default();
     let digits = value.to_u64_digits();
-    repr.as_mut()[..digits.len()].copy_from_slice(&digits);
+    let limbs = repr.as_mut();
+    let copy_len = digits.len().min(limbs.len());
+    limbs[..copy_len].copy_from_slice(&digits[..copy_len]);
 
     repr
 }
 
 pub fn some_biguint_to_fe<F: PrimeField>(value: &Option<BigUint>) -> Option<F> {
     match value {
-        Some(value) => {
-            let repr = biguint_to_repr::<F>(value.clone());
-            Some(F::from_repr(repr).unwrap())
-        }
+        Some(value) => Some(biguint_to_fe(value.clone())),
         None => None,
     }
 }
