@@ -1940,7 +1940,6 @@ impl_assembly! {
             for (k, v) in tla.aux_storage.witness_map.into_iter() {
                 self.aux_storage.witness_map.entry(k).or_insert_with(Vec::new).extend(v);
             }
-            self.num_aux_gates += tla.num_aux_gates;
 
             // Merge lookup entries
             for (name, entries) in tla.individual_table_entries.into_iter() {
@@ -1948,7 +1947,8 @@ impl_assembly! {
             }
             self.num_table_lookups += tla.num_table_lookups;
 
-            // Merge setup data (only populated in PRODUCE_SETUP mode)
+            // Merge setup data (only populated in PRODUCE_SETUP mode).
+            // Capture row count BEFORE incrementing num_aux_gates so padding is correct.
             if S::PRODUCE_SETUP {
                 let row_count = self.num_aux_gates;
                 for (k, v) in tla.aux_storage.setup_map.into_iter() {
@@ -1970,6 +1970,7 @@ impl_assembly! {
                 }
                 self.table_ids_poly.extend(tla.table_ids_poly);
             }
+            self.num_aux_gates += tla.num_aux_gates;
         }
 
         pub fn finalize(&mut self) {
