@@ -1681,9 +1681,11 @@ impl_assembly! {
             let mut variable_it = variables_assignments.iter();
 
             for &var_poly in gate.variable_polynomials().into_iter() {
-                // Fast path: VariablesPolynomial(idx) with idx < 4 uses direct array access
+                // Fast path: VariablesPolynomial(idx) with idx < 4 uses direct array access.
+                // Only used in non-setup mode; in setup/testing mode we write directly to
+                // state_map so is_satisfied() can read it without a flush.
                 let poly_ref = match var_poly {
-                    PolyIdentifier::VariablesPolynomial(idx) if idx < 4 => {
+                    PolyIdentifier::VariablesPolynomial(idx) if idx < 4 && !S::PRODUCE_SETUP => {
                         &mut storage.state_polys_for_variables[idx]
                     }
                     _ => storage.state_map.entry(var_poly).or_insert(new_vec_with_allocator!(0)),
@@ -1948,14 +1950,23 @@ impl_assembly! {
 
             // Merge setup data (only populated in PRODUCE_SETUP mode)
             if S::PRODUCE_SETUP {
+                let row_count = self.num_aux_gates;
                 for (k, v) in tla.aux_storage.setup_map.into_iter() {
-                    self.aux_storage.setup_map.entry(k).or_insert_with(Vec::new).extend(v);
+                    let dst = self.aux_storage.setup_map.entry(k).or_insert_with(Vec::new);
+                    dst.resize(row_count, E::Fr::zero());
+                    dst.extend(v);
                 }
                 for (gate, bits) in tla.aux_gate_density.0.into_iter() {
-                    self.aux_gate_density.0.entry(gate).or_insert_with(BitVec::new).extend(bits);
+                    let dst = self.aux_gate_density.0.entry(gate).or_insert_with(BitVec::new);
+                    let pad = row_count.saturating_sub(dst.len());
+                    dst.grow(pad, false);
+                    dst.extend(bits);
                 }
                 for (name, bits) in tla.table_selectors.into_iter() {
-                    self.table_selectors.entry(name).or_insert_with(BitVec::new).extend(bits);
+                    let dst = self.table_selectors.entry(name).or_insert_with(BitVec::new);
+                    let pad = row_count.saturating_sub(dst.len());
+                    dst.grow(pad, false);
+                    dst.extend(bits);
                 }
                 self.table_ids_poly.extend(tla.table_ids_poly);
             }
