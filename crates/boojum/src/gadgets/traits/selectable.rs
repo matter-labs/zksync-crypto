@@ -140,9 +140,9 @@ pub fn parallel_select_variables<'a, F: SmallField, CS: ConstraintSystem<F>>(
         }
 
         let rest = variables;
-        {
+        let num_items = rest.len();
+        if num_items > 0 {
             let zero = cs.allocate_constant(F::ZERO);
-            let num_items = rest.len();
 
             let mut a_buffer = [zero; 4];
             let mut b_buffer = [zero; 4];
