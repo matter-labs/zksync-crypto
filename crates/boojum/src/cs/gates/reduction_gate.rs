@@ -194,7 +194,10 @@ impl<F: SmallField, const N: usize> ReductionGate<F, N> {
         let output_variable = cs.alloc_variable_without_value();
 
         if <CS::Config as CSConfig>::WitnessConfig::EVALUATE_WITNESS {
-            let value_fn = move |inputs: [F; N]| {
+            fn value_fn<F: SmallField, const N: usize>(
+                inputs: [F; N],
+                reduction_constants: [F; N],
+            ) -> [F; 1] {
                 let mut result = F::ZERO;
                 for (a, b) in inputs.into_iter().zip(reduction_constants.into_iter()) {
                     let mut tmp = a;
@@ -203,11 +206,13 @@ impl<F: SmallField, const N: usize> ReductionGate<F, N> {
                 }
 
                 [result]
-            };
+            }
 
             let dependencies = Place::from_variables(terms);
 
-            cs.set_values_with_dependencies(&dependencies, &[output_variable.into()], value_fn);
+            cs.set_values_with_dependencies(&dependencies, &[output_variable.into()], move |ins| {
+                value_fn::<F, N>(ins, reduction_constants)
+            });
         }
 
         if <CS::Config as CSConfig>::SetupConfig::KEEP_SETUP {
@@ -234,7 +239,7 @@ impl<F: SmallField, const N: usize> ReductionGate<F, N> {
         let output_variables = cs.alloc_multiple_variables_without_values::<N>();
 
         if <CS::Config as CSConfig>::WitnessConfig::EVALUATE_WITNESS {
-            let value_fn = move |inputs: [F; 1]| {
+            fn value_fn<F: SmallField, const N: usize>(inputs: [F; 1], limb_size: F) -> [F; N] {
                 let mut current = inputs[0].as_u64_reduced();
                 let limb_size = limb_size.as_u64_reduced();
 
@@ -247,12 +252,12 @@ impl<F: SmallField, const N: usize> ReductionGate<F, N> {
                 }
 
                 results
-            };
+            }
 
             cs.set_values_with_dependencies(
                 &[input.into()],
                 &Place::from_variables(output_variables),
-                value_fn,
+                move |ins| value_fn::<F, N>(ins, limb_size),
             );
         }
 
@@ -295,7 +300,12 @@ impl<F: SmallField, const N: usize> ReductionGate<F, N> {
         }
 
         if <CS::Config as CSConfig>::WitnessConfig::EVALUATE_WITNESS {
-            let value_fn = move |inputs: &[F], output: &mut DstBuffer<'_, '_, F>| {
+            fn value_fn<F: SmallField>(
+                inputs: &[F],
+                output: &mut DstBuffer<'_, '_, F>,
+                limb_size: F,
+                limit: usize,
+            ) {
                 let mut current = inputs[0].as_u64_reduced();
                 let limb_size = limb_size.as_u64_reduced();
 
@@ -307,9 +317,13 @@ impl<F: SmallField, const N: usize> ReductionGate<F, N> {
                     current /= limb_size;
                 }
                 debug_assert_eq!(current, 0);
-            };
+            }
 
-            cs.set_values_with_dependencies_vararg(&[input.into()], &places_to_use, value_fn);
+            cs.set_values_with_dependencies_vararg(
+                &[input.into()],
+                &places_to_use,
+                move |ins, out| value_fn::<F>(ins, out, limb_size, limit),
+            );
         }
 
         let mut output_variables = [zero_var; N];

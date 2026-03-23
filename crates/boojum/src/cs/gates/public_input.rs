@@ -57,11 +57,11 @@ impl PublicInputGate {
             return;
         }
 
-        cs.set_values_with_dependencies(
-            &[from_variable.into()],
-            &[to_input.into()],
-            |ins: [F; 1]| ins,
-        )
+        fn value_fn<F: SmallField>(ins: [F; 1]) -> [F; 1] {
+            ins
+        }
+
+        cs.set_values_with_dependencies(&[from_variable.into()], &[to_input.into()], value_fn::<F>)
     }
 
     pub fn reserve_public_input_location<F: SmallField, CS: ConstraintSystem<F>>(cs: &mut CS) {

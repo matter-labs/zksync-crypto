@@ -159,20 +159,23 @@ impl<F: SmallField> Selectable<F> for Num<F> {
         if N >= 4 && cs.gate_is_allowed::<ParallelSelectionGate<4>>() {
             let mut result = [Variable::placeholder(); N];
 
-            let mut a = a.array_chunks::<4>();
-            let mut b = b.array_chunks::<4>();
-            let mut dst = result.array_chunks_mut::<4>();
+            let (a_chunks, a_remainder) = a.as_chunks::<4>();
+            let (b_chunks, b_remainder) = b.as_chunks::<4>();
+            let (dst_chunks, dst_remainder) = result.as_chunks_mut::<4>();
 
-            for ((a, b), dst) in (&mut a).zip(&mut b).zip(&mut dst) {
+            for ((a, b), dst) in (a_chunks.iter())
+                .zip(b_chunks.iter())
+                .zip(dst_chunks.iter_mut())
+            {
                 let a = a.map(|el| el.get_variable());
                 let b = b.map(|el| el.get_variable());
                 *dst = ParallelSelectionGate::<4>::select(cs, &a, &b, flag.get_variable());
             }
 
-            if a.remainder().is_empty() == false {
-                for ((a, b), dst) in (a.remainder().iter())
-                    .zip(b.remainder().iter())
-                    .zip(dst.into_remainder().iter_mut())
+            if a_remainder.is_empty() == false {
+                for ((a, b), dst) in (a_remainder.iter())
+                    .zip(b_remainder.iter())
+                    .zip(dst_remainder.iter_mut())
                 {
                     *dst = Self::conditionally_select(cs, flag, a, b).get_variable();
                 }
@@ -313,7 +316,7 @@ impl<F: SmallField> Num<F> {
 
         let vars = cs.alloc_multiple_variables_without_values::<LIMIT>();
         if <CS::Config as CSConfig>::WitnessConfig::EVALUATE_WITNESS {
-            let value_fn = move |inputs: [F; 1]| {
+            fn value_fn<F: SmallField, const LIMIT: usize>(inputs: [F; 1]) -> [F; LIMIT] {
                 let as_u64 = inputs[0].as_u64_reduced();
                 let bits = [as_u64];
                 let mut iterator = LSBIterator::new(&bits);
@@ -325,11 +328,15 @@ impl<F: SmallField> Num<F> {
                 }
 
                 result
-            };
+            }
 
             let dependencies = [self.get_variable().into()];
 
-            cs.set_values_with_dependencies(&dependencies, &Place::from_variables(vars), value_fn);
+            cs.set_values_with_dependencies(
+                &dependencies,
+                &Place::from_variables(vars),
+                value_fn::<F, LIMIT>,
+            );
         }
 
         // prove equality by chunks
@@ -364,17 +371,17 @@ impl<F: SmallField> Num<F> {
             for _ in 0..num_reduction_steps {
                 let mut tmp = ArrayVec::<Variable, LIMIT>::new_const();
 
-                let mut chunks = vars_array_vec.array_chunks::<4>();
-                for chunk in &mut chunks {
+                let (chunks, remainder) = vars_array_vec.as_chunks::<4>();
+                for chunk in chunks.iter() {
                     let subword =
                         ReductionByPowersGate::<F, 4>::reduce_terms(cs, reduction_constant, *chunk);
                     tmp.push(subword);
                 }
 
-                let remainder_len = chunks.remainder().len();
+                let remainder_len = remainder.len();
                 if remainder_len != 0 {
                     let mut buffer = [zero.get_variable(); 4];
-                    buffer[..remainder_len].copy_from_slice(chunks.remainder());
+                    buffer[..remainder_len].copy_from_slice(remainder);
                     let subword =
                         ReductionByPowersGate::<F, 4>::reduce_terms(cs, reduction_constant, buffer);
                     tmp.push(subword);
@@ -630,7 +637,11 @@ impl<F: SmallField> Num<F> {
             let (all_dependencies, all_coeffs): (Vec<Variable>, Vec<F>) =
                 input.iter().copied().unzip();
 
-            let value_fn = move |inputs: &[F], buffer: &mut DstBuffer<'_, '_, F>| {
+            fn value_fn<F: SmallField>(
+                inputs: &[F],
+                buffer: &mut DstBuffer<'_, '_, F>,
+                all_coeffs: Vec<F>,
+            ) {
                 debug_assert_eq!(all_coeffs.len(), inputs.len());
 
                 let mut result = F::ZERO;
@@ -639,7 +650,7 @@ impl<F: SmallField> Num<F> {
                 }
 
                 buffer.push(result);
-            };
+            }
 
             let all_dependencies: Vec<_> =
                 all_dependencies.into_iter().map(|el| el.into()).collect();
@@ -647,7 +658,9 @@ impl<F: SmallField> Num<F> {
             cs.set_values_with_dependencies_vararg(
                 &all_dependencies,
                 &Place::from_variables([result_var]),
-                value_fn,
+                move |inputs: &[F], buffer: &mut DstBuffer<'_, '_, F>| {
+                    value_fn::<F>(inputs, buffer, all_coeffs)
+                },
             );
         }
 
@@ -808,7 +821,7 @@ impl<F: SmallField> Num<F> {
                     .iter()
                     .copied()
                     .chain(extra)
-                    .zip(gate.terms.array_chunks_mut::<2>())
+                    .zip(gate.terms.as_chunks_mut::<2>().0.iter_mut())
                 {
                     let constant = cs.allocate_constant(coeff);
                     dst[0] = constant;
@@ -819,15 +832,16 @@ impl<F: SmallField> Num<F> {
             } else {
                 // recurse
                 if extra.is_none() {
-                    let mut chunks = input.array_chunks::<4>();
-                    let chunk = chunks.next().expect("is some");
+                    let (chunks, remainder) = input.as_chunks::<4>();
+                    let mut it = chunks.iter();
+                    let chunk = it.next().expect("is some");
                     let intermediate_var = cs.alloc_variable_without_value();
 
                     if <CS::Config as CSConfig>::WitnessConfig::EVALUATE_WITNESS {
                         let coeffs = chunk.map(|el| el.1);
                         let inputs = chunk.map(|el| el.0);
 
-                        let value_fn = move |inputs: [F; 4]| {
+                        fn value_fn<F: SmallField>(inputs: [F; 4], coeffs: [F; 4]) -> [F; 1] {
                             let mut result = F::ZERO;
                             for (a, b) in coeffs.into_iter().zip(inputs.into_iter()) {
                                 let mut tmp = a;
@@ -836,12 +850,12 @@ impl<F: SmallField> Num<F> {
                             }
 
                             [result]
-                        };
+                        }
 
                         cs.set_values_with_dependencies(
                             &Place::from_variables(inputs),
                             &[intermediate_var.into()],
-                            value_fn,
+                            move |inputs: [F; 4]| value_fn::<F>(inputs, coeffs),
                         );
                     }
 
@@ -853,7 +867,7 @@ impl<F: SmallField> Num<F> {
                     for ((var, coeff), dst) in chunk
                         .iter()
                         .copied()
-                        .zip(gate.terms.array_chunks_mut::<2>())
+                        .zip(gate.terms.as_chunks_mut::<2>().0.iter_mut())
                     {
                         let constant = cs.allocate_constant(coeff);
                         dst[0] = constant;
@@ -862,17 +876,16 @@ impl<F: SmallField> Num<F> {
 
                     gate.add_to_cs(cs);
 
-                    let rest = chunks.remainder();
-
                     Self::enforce_linear_combination_converge_into(
                         cs,
-                        rest,
+                        remainder,
                         Some((intermediate_var, F::ONE)),
                         final_var,
                     )
                 } else {
-                    let mut chunks = input.array_chunks::<3>();
-                    let chunk = chunks.next().expect("is some");
+                    let (chunks, remainder) = input.as_chunks::<3>();
+                    let mut it = chunks.iter();
+                    let chunk = it.next().expect("is some");
                     let intermediate_var = cs.alloc_variable_without_value();
 
                     if <CS::Config as CSConfig>::WitnessConfig::EVALUATE_WITNESS {
@@ -881,7 +894,7 @@ impl<F: SmallField> Num<F> {
                         coeffs[..3].copy_from_slice(&chunk.map(|el| el.1));
                         inputs[..3].copy_from_slice(&chunk.map(|el| el.0));
 
-                        let value_fn = move |inputs: [F; 4]| {
+                        fn value_fn<F: SmallField>(inputs: [F; 4], coeffs: [F; 4]) -> [F; 1] {
                             let mut result = F::ZERO;
                             for (a, b) in coeffs.into_iter().zip(inputs.into_iter()) {
                                 let mut tmp = a;
@@ -890,12 +903,12 @@ impl<F: SmallField> Num<F> {
                             }
 
                             [result]
-                        };
+                        }
 
                         cs.set_values_with_dependencies(
                             &Place::from_variables(inputs),
                             &[intermediate_var.into()],
-                            value_fn,
+                            move |inputs: [F; 4]| value_fn::<F>(inputs, coeffs),
                         );
                     }
 
@@ -908,7 +921,7 @@ impl<F: SmallField> Num<F> {
                         .iter()
                         .copied()
                         .chain(extra)
-                        .zip(gate.terms.array_chunks_mut::<2>())
+                        .zip(gate.terms.as_chunks_mut::<2>().0.iter_mut())
                     {
                         let constant = cs.allocate_constant(coeff);
                         dst[0] = constant;
@@ -917,11 +930,9 @@ impl<F: SmallField> Num<F> {
 
                     gate.add_to_cs(cs);
 
-                    let rest = chunks.remainder();
-
                     Self::enforce_linear_combination_converge_into(
                         cs,
-                        rest,
+                        remainder,
                         Some((intermediate_var, F::ONE)),
                         final_var,
                     )
@@ -952,17 +963,23 @@ impl<F: SmallField> Num<F> {
         let outputs = cs.alloc_multiple_variables_without_values::<N>();
 
         if <CS::Config as CSConfig>::WitnessConfig::EVALUATE_WITNESS {
-            let value_fn = move |inputs: &[F], output_buffer: &mut DstBuffer<'_, '_, F>| {
+            fn value_fn<F: SmallField, const N: usize, FN: FnOnce(&[F]) -> [F; N]>(
+                inputs: &[F],
+                output_buffer: &mut DstBuffer<'_, '_, F>,
+                witness_closure: FN,
+            ) {
                 debug_assert!(F::CAPACITY_BITS >= 32);
                 let witness = (witness_closure)(inputs);
 
                 output_buffer.extend(witness);
-            };
+            }
 
             cs.set_values_with_dependencies_vararg(
                 dependencies,
                 &Place::from_variables(outputs),
-                value_fn,
+                move |inputs: &[F], output_buffer: &mut DstBuffer<'_, '_, F>| {
+                    value_fn::<F, N, FN>(inputs, output_buffer, witness_closure)
+                },
             );
         }
 
@@ -1254,7 +1271,10 @@ impl<F: SmallField> CSAllocatableExt<F> for Num<F> {
     where
         [(); Self::INTERNAL_STRUCT_LEN]:,
     {
-        [self.variable]
+        let mut result: [Variable; Self::INTERNAL_STRUCT_LEN] =
+            unsafe { std::mem::MaybeUninit::uninit().assume_init() };
+        result[0] = self.get_variable();
+        result
     }
 
     #[inline]

@@ -382,23 +382,27 @@ impl<F: SmallField, EXT: FieldExtension<2, BaseField = F>>
         };
 
         if <CS::Config as CSConfig>::WitnessConfig::EVALUATE_WITNESS {
-            let value_fn = move |inputs: [F; 6]| {
+            fn value_fn<F: SmallField, EXT: FieldExtension<2, BaseField = F>>(
+                inputs: [F; 6],
+                coeff_for_quadtaric_part: ExtensionField<F, 2, EXT>,
+                linear_term_coeff: ExtensionField<F, 2, EXT>,
+            ) -> [F; 2] {
                 let [a_c0, a_c1, b_c0, b_c1, c_c0, c_c1] = inputs;
                 let a = ExtensionField::<F, 2, EXT>::from_coeff_in_base([a_c0, a_c1]);
                 let b = ExtensionField::<F, 2, EXT>::from_coeff_in_base([b_c0, b_c1]);
                 let c = ExtensionField::<F, 2, EXT>::from_coeff_in_base([c_c0, c_c1]);
 
-                let mut result = params.coeff_for_quadtaric_part;
+                let mut result = coeff_for_quadtaric_part;
                 use crate::field::traits::field::Field;
                 result.mul_assign(&a).mul_assign(&b);
 
                 let mut tmp = c;
-                tmp.mul_assign(&params.linear_term_coeff);
+                tmp.mul_assign(&linear_term_coeff);
 
                 result.add_assign(&tmp);
 
                 result.into_coeffs_in_base()
-            };
+            }
 
             let dependencies =
                 Place::from_variables([ab.0[0], ab.0[1], ab.1[0], ab.1[1], c[0], c[1]]);
@@ -406,7 +410,7 @@ impl<F: SmallField, EXT: FieldExtension<2, BaseField = F>>
             cs.set_values_with_dependencies(
                 &dependencies,
                 &Place::from_variables(output_variables),
-                value_fn,
+                move |ins| value_fn::<F, EXT>(ins, coeff_for_quadtaric_part, linear_term_coeff),
             );
         }
 
@@ -446,19 +450,21 @@ impl<F: SmallField, EXT: FieldExtension<2, BaseField = F>>
         let output_variables = cs.alloc_multiple_variables_without_values::<2>();
 
         if <CS::Config as CSConfig>::WitnessConfig::EVALUATE_WITNESS {
-            let value_fn = move |inputs: [F; 2]| {
+            fn value_fn<F: SmallField, EXT: FieldExtension<2, BaseField = F>>(
+                inputs: [F; 2],
+            ) -> [F; 2] {
                 let value = ExtensionField::<F, 2, EXT>::from_coeff_in_base(inputs);
                 let inverse = value.inverse().unwrap();
 
                 inverse.into_coeffs_in_base()
-            };
+            }
 
             let dependencies = Place::from_variables(variable_to_inverse);
 
             cs.set_values_with_dependencies(
                 &dependencies,
                 &Place::from_variables(output_variables),
-                value_fn,
+                value_fn::<F, EXT>,
             );
         }
 

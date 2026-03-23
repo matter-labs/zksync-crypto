@@ -194,7 +194,7 @@ where
         let mut terms_flattened: [Variable; N * 2] = [Variable::placeholder(); N * 2];
         for ((a, b), dst) in terms
             .into_iter()
-            .zip(terms_flattened.array_chunks_mut::<2>())
+            .zip(terms_flattened.as_chunks_mut::<2>().0.iter_mut())
         {
             dst[0] = a;
             dst[1] = b;
@@ -202,20 +202,26 @@ where
         let output_variable = cs.alloc_variable_without_value();
 
         if <CS::Config as CSConfig>::WitnessConfig::EVALUATE_WITNESS {
-            let value_fn = move |inputs: [F; N * 2]| {
+            fn value_fn<F: SmallField, const N: usize>(inputs: [F; N * 2]) -> [F; 1]
+            where
+                [(); N * 2]:,
+            {
                 let mut result = F::ZERO;
-                for [a, b] in inputs.array_chunks::<2>() {
+                for [a, b] in inputs.as_chunks::<2>().0.iter() {
                     let mut tmp = *a;
                     tmp.mul_assign(b);
                     result.add_assign(&tmp);
                 }
-
                 [result]
-            };
+            }
 
             let dependencies = Place::from_variables(terms_flattened);
 
-            cs.set_values_with_dependencies(&dependencies, &[output_variable.into()], value_fn);
+            cs.set_values_with_dependencies(
+                &dependencies,
+                &[output_variable.into()],
+                value_fn::<F, N>,
+            );
         }
 
         if <CS::Config as CSConfig>::SetupConfig::KEEP_SETUP {

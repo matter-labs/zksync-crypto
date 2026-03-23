@@ -94,10 +94,11 @@ impl<F: SmallField> CSAllocatableExt<F> for UInt512<F> {
     const INTERNAL_STRUCT_LEN: usize = 16;
 
     fn witness_from_set_of_values(values: [F; Self::INTERNAL_STRUCT_LEN]) -> Self::Witness {
-        // value
-        recompose_u512_as_u32x16(
-            values.map(|el| <u32 as WitnessCastable<F, F>>::cast_from_source(el)),
-        )
+        let mut u32_values: [u32; 16] = unsafe { std::mem::MaybeUninit::uninit().assume_init() };
+        for (dst, src) in u32_values.iter_mut().zip(values.iter()) {
+            *dst = <u32 as WitnessCastable<F, F>>::cast_from_source(*src);
+        }
+        recompose_u512_as_u32x16(u32_values)
     }
 
     // we should be able to allocate without knowing values yet
@@ -109,7 +110,12 @@ impl<F: SmallField> CSAllocatableExt<F> for UInt512<F> {
     where
         [(); Self::INTERNAL_STRUCT_LEN]:,
     {
-        self.inner.map(|el| el.get_variable())
+        let mut result: [Variable; Self::INTERNAL_STRUCT_LEN] =
+            unsafe { std::mem::MaybeUninit::uninit().assume_init() };
+        for (dst, src) in result.iter_mut().zip(self.inner.iter()) {
+            *dst = src.get_variable();
+        }
+        result
     }
 
     fn set_internal_variables_values(witness: Self::Witness, dst: &mut DstBuffer<'_, '_, F>) {
@@ -158,18 +164,24 @@ impl<F: SmallField> UInt512<F> {
         let outputs = cs.alloc_multiple_variables_without_values::<16>();
 
         if <CS::Config as CSConfig>::WitnessConfig::EVALUATE_WITNESS {
-            let value_fn = move |inputs: &[F], output_buffer: &mut DstBuffer<'_, '_, F>| {
+            fn value_fn<F: SmallField, FN: FnOnce(&[F]) -> (U256, U256)>(
+                inputs: &[F],
+                output_buffer: &mut DstBuffer<'_, '_, F>,
+                witness_closure: FN,
+            ) {
                 debug_assert!(F::CAPACITY_BITS >= 32);
                 let witness = (witness_closure)(inputs);
                 let chunks = decompose_u512_as_u32x16(witness);
 
                 output_buffer.extend(chunks.map(|el| F::from_u64_unchecked(el as u64)));
-            };
+            }
 
             cs.set_values_with_dependencies_vararg(
                 dependencies,
                 &Place::from_variables(outputs),
-                value_fn,
+                move |inputs: &[F], output_buffer: &mut DstBuffer<'_, '_, F>| {
+                    value_fn::<F, FN>(inputs, output_buffer, witness_closure)
+                },
             );
         }
 
@@ -440,7 +452,7 @@ impl<F: SmallField> UInt512<F> {
     #[must_use]
     pub fn from_le_bytes<CS: ConstraintSystem<F>>(cs: &mut CS, bytes: [UInt8<F>; 64]) -> Self {
         let mut inner = [std::mem::MaybeUninit::uninit(); 16];
-        for (dst, src) in inner.iter_mut().zip(bytes.array_chunks::<4>()) {
+        for (dst, src) in inner.iter_mut().zip(bytes.as_chunks::<4>().0.iter()) {
             dst.write(UInt32::from_le_bytes(cs, *src));
         }
 
@@ -457,7 +469,7 @@ impl<F: SmallField> UInt512<F> {
     #[must_use]
     pub fn from_be_bytes<CS: ConstraintSystem<F>>(cs: &mut CS, bytes: [UInt8<F>; 64]) -> Self {
         let mut inner = [std::mem::MaybeUninit::uninit(); 16];
-        for (dst, src) in inner.iter_mut().rev().zip(bytes.array_chunks::<4>()) {
+        for (dst, src) in inner.iter_mut().rev().zip(bytes.as_chunks::<4>().0.iter()) {
             dst.write(UInt32::from_be_bytes(cs, *src));
         }
 

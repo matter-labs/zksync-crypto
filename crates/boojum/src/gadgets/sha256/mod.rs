@@ -63,13 +63,18 @@ pub fn sha256<F: SmallField, CS: ConstraintSystem<F>>(
 
     let mut state = INITIAL_STATE.map(|el| cs.allocate_constant(F::from_u64_unchecked(el as u64)));
 
-    for (round, input_bytes) in full_message.array_chunks::<SHA256_BLOCK_SIZE>().enumerate() {
+    for (round, input_bytes) in full_message
+        .as_chunks::<SHA256_BLOCK_SIZE>()
+        .0
+        .iter()
+        .enumerate()
+    {
         let last_round = round == num_rounds - 1;
 
         let mut message_block = [Variable::placeholder(); 16];
         for (dst, src) in message_block
             .iter_mut()
-            .zip(input_bytes.array_chunks::<4>())
+            .zip(input_bytes.as_chunks::<4>().0.iter())
         {
             *dst = UInt32::from_be_bytes(cs, *src).variable;
         }
@@ -84,10 +89,12 @@ pub fn sha256<F: SmallField, CS: ConstraintSystem<F>>(
     let shift_4 = F::from_u64_unchecked(1u64 << 4);
     let one = cs.allocate_constant(F::ONE);
     for (le_4bit_chunks, dst) in final_4bit_chunks
-        .array_chunks::<8>()
-        .zip(output.array_chunks_mut::<4>())
+        .as_chunks::<8>()
+        .0
+        .iter()
+        .zip(output.as_chunks_mut::<4>().0.iter_mut())
     {
-        for (dst, [low, high]) in dst.iter_mut().zip(le_4bit_chunks.array_chunks::<2>()) {
+        for (dst, [low, high]) in dst.iter_mut().zip(le_4bit_chunks.as_chunks::<2>().0.iter()) {
             *dst = FmaGateInBaseFieldWithoutConstant::compute_fma(
                 cs,
                 shift_4,

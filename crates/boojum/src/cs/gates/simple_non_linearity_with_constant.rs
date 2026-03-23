@@ -345,21 +345,21 @@ impl<F: SmallField, const N: usize> SimpleNonlinearityGate<F, N> {
         let output_variable = cs.alloc_variable_without_value();
 
         if <CS::Config as CSConfig>::WitnessConfig::EVALUATE_WITNESS {
-            let value_fn = move |inputs: [F; 1]| {
+            fn value_fn<F: SmallField, const N: usize>(inputs: [F; 1], additive_part: F) -> [F; 1] {
                 let [x] = inputs;
                 let mut result = additive_part;
                 result.add_assign(&x);
                 result.small_pow(N);
 
                 [result]
-            };
+            }
 
             let dependencies = Place::from_variables([x]);
 
             cs.set_values_with_dependencies(
                 &dependencies,
                 &Place::from_variables([output_variable]),
-                value_fn,
+                move |ins| value_fn::<F, N>(ins, additive_part),
             );
         }
 

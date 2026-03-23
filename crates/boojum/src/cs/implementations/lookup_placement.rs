@@ -43,18 +43,22 @@ impl<
             let multiplicities_for_table_in_column =
                 std::sync::Arc::clone(&self.lookup_multiplicities[table_id as usize]);
 
-            let value_fn = move |inputs: [F; N]| {
+            fn value_fn<F: SmallField, const N: usize>(
+                inputs: [F; N],
+                table: &LookupTableWrapper<F>,
+                multiplicities_for_table_in_column: &[std::sync::atomic::AtomicU32],
+            ) -> [F; 0] {
                 let row_idx = table.lookup_row(&inputs);
                 let _ = multiplicities_for_table_in_column[row_idx as usize]
                     .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
 
                 []
-            };
+            }
 
             self.set_values_with_dependencies(
                 &Place::from_variables(*keys_and_values),
                 &[],
-                value_fn,
+                move |inputs| value_fn::<F, N>(inputs, &table, &multiplicities_for_table_in_column),
             );
         }
 
@@ -129,18 +133,22 @@ impl<
             let multiplicities_for_table_in_column =
                 std::sync::Arc::clone(&self.lookup_multiplicities[table_id as usize]);
 
-            let value_fn = move |inputs: [F; N]| {
+            fn value_fn<F: SmallField, const N: usize>(
+                inputs: [F; N],
+                table: &LookupTableWrapper<F>,
+                multiplicities_for_table_in_column: &[std::sync::atomic::AtomicU32],
+            ) -> [F; 0] {
                 let row_idx = table.lookup_row(&inputs);
                 let _previous_counter = multiplicities_for_table_in_column[row_idx as usize]
                     .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
 
                 []
-            };
+            }
 
             self.set_values_with_dependencies(
                 &Place::from_variables(*keys_and_values),
                 &[],
-                value_fn,
+                move |inputs| value_fn::<F, N>(inputs, &table, &multiplicities_for_table_in_column),
             );
         }
 

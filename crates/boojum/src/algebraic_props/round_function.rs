@@ -145,7 +145,9 @@ pub fn absorb_multiple_rounds<
     debug_assert!(to_absorb.len() / AW == ROUNDS);
     let mut intermediate_final_states = [[F::ZERO; SW]; ROUNDS];
     for (chunk, dst) in to_absorb
-        .array_chunks::<AW>()
+        .as_chunks::<AW>()
+        .0
+        .iter()
         .zip(intermediate_final_states.iter_mut())
     {
         T::absorb_into_state::<M>(state, chunk);
@@ -168,14 +170,15 @@ pub fn absorb_into_state_vararg<
     state: &mut [F; SW],
     to_absorb: &[F],
 ) {
-    for chunk in to_absorb.array_chunks::<AW>() {
+    let (chunks, remainder) = to_absorb.as_chunks::<AW>();
+
+    for chunk in chunks.iter() {
         T::absorb_into_state::<M>(state, chunk);
         T::round_function(state);
     }
 
-    if to_absorb.array_chunks::<AW>().remainder().is_empty() == false {
+    if remainder.is_empty() == false {
         let mut tmp = [F::ZERO; AW];
-        let remainder = to_absorb.array_chunks::<AW>().remainder();
         tmp[..remainder.len()].copy_from_slice(remainder);
         T::absorb_into_state::<M>(state, &tmp);
         T::round_function(state);

@@ -76,9 +76,11 @@ impl<F: SmallField> CSAllocatableExt<F> for UInt160<F> {
     const INTERNAL_STRUCT_LEN: usize = 5;
 
     fn witness_from_set_of_values(values: [F; Self::INTERNAL_STRUCT_LEN]) -> Self::Witness {
-        recompose_address_from_u32x5(
-            values.map(|el| <u32 as WitnessCastable<F, F>>::cast_from_source(el)),
-        )
+        let mut u32_values: [u32; 5] = unsafe { std::mem::MaybeUninit::uninit().assume_init() };
+        for (dst, src) in u32_values.iter_mut().zip(values.iter()) {
+            *dst = <u32 as WitnessCastable<F, F>>::cast_from_source(*src);
+        }
+        recompose_address_from_u32x5(u32_values)
     }
 
     // we should be able to allocate without knowing values yet
@@ -90,7 +92,12 @@ impl<F: SmallField> CSAllocatableExt<F> for UInt160<F> {
     where
         [(); Self::INTERNAL_STRUCT_LEN]:,
     {
-        self.inner.map(|el| el.get_variable())
+        let mut result: [Variable; Self::INTERNAL_STRUCT_LEN] =
+            unsafe { std::mem::MaybeUninit::uninit().assume_init() };
+        for (dst, src) in result.iter_mut().zip(self.inner.iter()) {
+            *dst = src.get_variable();
+        }
+        result
     }
 
     fn set_internal_variables_values(witness: Self::Witness, dst: &mut DstBuffer<'_, '_, F>) {

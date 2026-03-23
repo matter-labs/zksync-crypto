@@ -60,7 +60,7 @@ pub(crate) fn binary_select<E: Engine, CS: ConstraintSystem<E>>(cs: &mut CS, ele
         debug_assert_eq!(elements.len() % 2, 0);
         dst_space.clear();
 
-        for src in src.array_chunks::<2>() {
+        for src in src.as_chunks::<2>().0.iter() {
             let [a, b] = src;
             // NOTE order here
             let selected = GoldilocksField::conditionally_select(cs, *bit, b, a)?;

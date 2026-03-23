@@ -209,7 +209,7 @@ pub(crate) fn verify_fri_part<
             let mut base_pow = power_chunks[idx];
 
             for challenge in challenges.iter() {
-                for (i, [a, b]) in elements_to_interpolate.array_chunks::<2>().enumerate() {
+                for (i, [a, b]) in elements_to_interpolate.as_chunks::<2>().0.iter().enumerate() {
                     let mut result = *a;
                     result.add_assign(b, cs);
 
@@ -373,7 +373,9 @@ fn verify_quotening_operations<E: Engine, CS: ConstraintSystem<E> + 'static, H: 
         let cast_from_extension = move |el: &[GoldilocksField<E>]| {
             assert_eq!(el.len() % 2, 0);
 
-            el.array_chunks::<2>()
+            el.as_chunks::<2>()
+                .0
+                .iter()
                 .map(|[c0, c1]| GoldilocksExtAsFieldWrapper::<E, CS>::from_coeffs_in_base([*c0, *c1]))
                 .collect::<Vec<_>>()
         };

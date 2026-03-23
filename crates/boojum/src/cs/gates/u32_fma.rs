@@ -459,7 +459,7 @@ impl U8x4FMAGate {
         let output_variables = cs.alloc_multiple_variables_without_values::<10>();
 
         if <CS::Config as CSConfig>::WitnessConfig::EVALUATE_WITNESS {
-            let value_fn = move |inputs: [F; 16]| {
+            fn value_fn<F: SmallField>(inputs: [F; 16]) -> [F; 10] {
                 let [a0, a1, a2, a3, b0, b1, b2, b3, c0, c1, c2, c3, carry_in0, carry_in1, carry_in2, carry_in3] =
                     inputs.map(|el| el.as_u64() as u8);
 
@@ -521,7 +521,7 @@ impl U8x4FMAGate {
                     product_carry1,
                 ]
                 .map(|el| F::from_u64_unchecked(el as u64))
-            };
+            }
 
             let dependencies = Place::from_variables([
                 a_decomposition[0],
@@ -545,7 +545,7 @@ impl U8x4FMAGate {
             cs.set_values_with_dependencies(
                 &dependencies,
                 &Place::from_variables(output_variables),
-                value_fn,
+                value_fn::<F>,
             );
         }
 
