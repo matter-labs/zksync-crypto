@@ -264,7 +264,7 @@ checksum = "8d696c370c750c948ada61c69a0ee2cbbb9c50b1019ddb86d9317157a99c2cae"
 
 [[package]]
 name = "boojum"
-version = "0.32.10"
+version = "0.32.11"
 dependencies = [
  "arrayvec 0.7.6",
  "bincode",
@@ -402,7 +402,7 @@ dependencies = [
 
 [[package]]
 name = "codegen-bin"
-version = "0.32.10"
+version = "0.32.11"
 dependencies = [
  "dialoguer",
  "structopt",
@@ -800,7 +800,7 @@ dependencies = [
 
 [[package]]
 name = "fflonk"
-version = "0.32.10"
+version = "0.32.11"
 dependencies = [
  "bincode",
  "byteorder",
@@ -834,7 +834,7 @@ dependencies = [
 
 [[package]]
 name = "franklin-crypto"
-version = "0.32.10"
+version = "0.32.11"
 dependencies = [
  "arr_macro",
  "bit-vec",
@@ -1815,7 +1815,7 @@ checksum = "7a2d987857b319362043e95f5353c0535c1f58eec5336fdfcf626430af7def58"
 
 [[package]]
 name = "rescue_poseidon"
-version = "0.32.10"
+version = "0.32.11"
 dependencies = [
  "addchain",
  "arrayvec 0.7.6",
@@ -2021,7 +2021,7 @@ dependencies = [
 
 [[package]]
 name = "snark_wrapper"
-version = "0.32.10"
+version = "0.32.11"
 dependencies = [
  "derivative",
  "rand 0.8.5",
@@ -2509,7 +2509,7 @@ checksum = "b97154e67e32c85465826e8bcc1c59429aaaf107c1e4a9e53c8d8ccd5eff88d0"
 
 [[package]]
 name = "zksync_bellman"
-version = "0.32.10"
+version = "0.32.11"
 dependencies = [
  "arrayvec 0.7.6",
  "bit-vec",
@@ -2535,7 +2535,7 @@ dependencies = [
 
 [[package]]
 name = "zksync_cs_derive"
-version = "0.32.10"
+version = "0.32.11"
 dependencies = [
  "proc-macro-error",
  "proc-macro2 1.0.103",
@@ -2545,7 +2545,7 @@ dependencies = [
 
 [[package]]
 name = "zksync_ff"
-version = "0.32.10"
+version = "0.32.11"
 dependencies = [
  "byteorder",
  "hex",
@@ -2557,7 +2557,7 @@ dependencies = [
 
 [[package]]
 name = "zksync_ff_derive"
-version = "0.32.10"
+version = "0.32.11"
 dependencies = [
  "num-bigint 0.4.6",
  "num-integer",
@@ -2570,7 +2570,7 @@ dependencies = [
 
 [[package]]
 name = "zksync_pairing"
-version = "0.32.10"
+version = "0.32.11"
 dependencies = [
  "byteorder",
  "cfg-if",
@@ -2582,7 +2582,7 @@ dependencies = [
 
 [[package]]
 name = "zksync_solidity_vk_codegen"
-version = "0.32.10"
+version = "0.32.11"
 dependencies = [
  "ethereum-types",
  "franklin-crypto",

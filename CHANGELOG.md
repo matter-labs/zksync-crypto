@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.32.11](https://github.com/matter-labs/zksync-crypto/compare/v0.32.10...v0.32.11) (2026-03-23)
+
+
+### Features
+
+* unpdated nightly version ([#110](https://github.com/matter-labs/zksync-crypto/issues/110)) ([cb466ac](https://github.com/matter-labs/zksync-crypto/commit/cb466ac4e480126a63b102b88b9c2755105a91ae))
+
 ## [0.32.10](https://github.com/matter-labs/zksync-crypto/compare/v0.32.9...v0.32.10) (2026-02-20)
 
 
