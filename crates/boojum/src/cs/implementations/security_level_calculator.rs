@@ -10,12 +10,12 @@ use crate::field::goldilocks::{GoldilocksExt2 as GLExt2, GoldilocksField as GL};
 /// Here the query phase is skipped, because number of queries is already calculated to achieve security level.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct SecurityLevels {
-    pub copy_permutation_security_bits: u32,
-    pub lookup_security_bits: u32,
-    pub quotient_alpha_security_bits: u32,
-    pub deep_z_security_bits: u32,
-    pub deep_poly_alpha_security_bits: u32,
-    pub folding_round_security_bits: u32,
+    pub copy_permutation_security_bits: usize,
+    pub lookup_security_bits: usize,
+    pub quotient_alpha_security_bits: usize,
+    pub deep_z_security_bits: usize,
+    pub deep_poly_alpha_security_bits: usize,
+    pub folding_round_security_bits: usize,
 }
 
 // We use Goldilocks field 2nd extension
@@ -40,28 +40,32 @@ impl SecurityLevels {
                 domain_size_log2,
                 columns_under_copy_permutation,
                 field_size_log2,
-            ) as u32,
+            ),
             lookup_security_bits: pow_bits_for_lookup(
                 domain_size_log2,
                 number_of_lookup_constraints,
                 field_size_log2,
-            ) as u32,
+            ),
             quotient_alpha_security_bits: pow_bits_for_quotient(
                 field_size_log2,
                 number_of_quotient_terms,
                 lde_factor_log2,
-            ) as u32,
-            deep_z_security_bits: pow_bits_for_deep_z(field_size_log2, lde_size_log2, max_constraint_degree_log2) as u32,
+            ),
+            deep_z_security_bits: pow_bits_for_deep_z(
+                field_size_log2,
+                lde_size_log2,
+                max_constraint_degree_log2,
+            ),
             deep_poly_alpha_security_bits: pow_bits_for_deep_poly_alpha(
                 field_size_log2,
                 lde_size_log2,
                 number_of_evaluations,
-            ) as u32,
+            ),
             folding_round_security_bits: pow_bits_for_folding_round(
                 field_size_log2,
                 domain_size_log2,
                 folding_factor_log2,
-            ) as u32,
+            ),
         }
     }
 
@@ -233,7 +237,11 @@ pub fn pow_bits_for_quotient(
 
 // https://eprint.iacr.org/2022/1216.pdf
 // We can bound L^+ as 4
-pub fn pow_bits_for_deep_z(challenge_field_size_log2: usize, lde_domain_size_log2: usize, max_constraint_degree_log2: usize) -> usize {
+pub fn pow_bits_for_deep_z(
+    challenge_field_size_log2: usize,
+    lde_domain_size_log2: usize,
+    max_constraint_degree_log2: usize,
+) -> usize {
     challenge_field_size_log2 - lde_domain_size_log2 - max_constraint_degree_log2 - 4
 }
 
