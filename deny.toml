@@ -15,6 +15,7 @@ ignore = [
     "RUSTSEC-2024-0436", # paste (1.0.15) is unmaintained
     "RUSTSEC-2024-0370", # proc-macro-error (1.0.4) is unmaintained
     "RUSTSEC-2021-0127", # serde-cbor (0.11.2) is unmaintained
+    "RUSTSEC-2022-0104", # structopt (0.3.26) is unmaintained
 ]
 
 [licenses]
