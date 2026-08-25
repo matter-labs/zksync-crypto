@@ -19,6 +19,7 @@ pub mod proof;
 pub mod prover;
 pub mod reference_cs;
 pub mod satisfiability_test;
+pub mod security_level_calculator;
 pub mod setup;
 pub mod setup_storage;
 pub mod transcript;

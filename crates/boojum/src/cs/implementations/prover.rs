@@ -2328,6 +2328,9 @@ pub fn compute_fri_schedule(
         num_queries += 1;
     }
 
+    // We should add extra 20% of queries
+    num_queries += num_queries.div_ceil(5);
+
     // we assume that cap size should be such that we win on queries
 
     // let optimal_cap_size = if num_queries.is_power_of_two() {
