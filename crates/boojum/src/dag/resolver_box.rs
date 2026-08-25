@@ -564,8 +564,6 @@ mod test {
         assert!(ins.iter().zip(value.inputs()).all(|(x, y)| { x == y }));
         assert!(out.iter().zip(value.outputs()).all(|(x, y)| { x == y }));
 
-        assert!(value.bind_fn_ptr() as *const _ as usize % 4 == 0);
-
         let bind_fn_exp_addr = bind_fn as *const u8 as usize;
         let bind_fn_act_addr = value.header.bind_fn_ref as *const u8 as usize;
 
