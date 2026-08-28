@@ -952,7 +952,7 @@ pub fn create_proof<E: Engine, C: Circuit<E>, P: PlonkConstraintSystemParams<E>,
     // draw challenge for L(x)
     let y = transcript.get_challenge();
 
-    let (flattened_lagrange_basis_inverses, lagrange_basis_evaluations) = precompute_all_lagrange_basis_evaluations(
+    let (montgomery_inverse, lagrange_basis_evaluations) = precompute_all_lagrange_basis_evaluations(
         interpolation_size_of_setup,
         interpolation_size_of_first_round,
         interpolation_size_of_second_round,
@@ -962,6 +962,7 @@ pub fn create_proof<E: Engine, C: Circuit<E>, P: PlonkConstraintSystemParams<E>,
         y,
         setup_evaluations.requires_opening_at_shifted_point(),
         first_round_evaluations.requires_opening_at_shifted_point(),
+        None,
     );
 
     // L(x) = Z_{T\S0}(y)*(C0(x)- r0(y)) + alpha*Z_{T\S1}(y)*(C1(x)- r1(y)) + alpha^2*Z_{T\S2}(y)*(C2(x)- r2(y)) - Z_T(y)*W(x)
@@ -1038,7 +1039,7 @@ pub fn create_proof<E: Engine, C: Circuit<E>, P: PlonkConstraintSystemParams<E>,
     proof.inputs = input_values.clone();
     proof.evaluations = all_evaluations;
     proof.commitments = vec![c1_commitment, c2_commitment, w_commitment, w_prime_commitment];
-    proof.lagrange_basis_inverses = flattened_lagrange_basis_inverses;
+    proof.montgomery_inverse = montgomery_inverse;
 
     Ok(proof)
 }
